@@ -2338,6 +2338,70 @@ export const AppProvider=({children})=>{
     return getNutritionMacroTargets(plan, profile);
   };
 
+  const getNutritionFeedback = ({ proteinConsumed, caloriesConsumed, trainedToday } = {}) => {
+    const macroTargets = getNutritionMacroTargets(plan, profile);
+    const todayTotals = sumNutritionTotals(getTodayFoodLog());
+    const todayWorkout = getTodayWorkoutSummary();
+
+    const safeProteinConsumed = Number(
+      proteinConsumed != null ? proteinConsumed : Number(todayTotals.protein || 0)
+    );
+    const safeCaloriesConsumed = Number(
+      caloriesConsumed != null ? caloriesConsumed : Number(todayTotals.calories || 0)
+    );
+    const proteinGoal = Number(macroTargets?.protein || 0);
+    const caloriesGoal = Number(macroTargets?.calories || 0);
+    const didTrainToday =
+      trainedToday != null
+        ? Boolean(trainedToday)
+        : Number(todayWorkout?.guidedSets || 0) > 0;
+
+    const missingProtein = Math.max(0, Math.round(proteinGoal - safeProteinConsumed));
+    const proteinRatio = proteinGoal > 0 ? safeProteinConsumed / proteinGoal : 0;
+    const caloriesRatio = caloriesGoal > 0 ? safeCaloriesConsumed / caloriesGoal : 0;
+
+    let suggestion = 'Sugestao: 1 iogurte + 1 ovo';
+    if (missingProtein > 45) {
+      suggestion = 'Sugestao: 150g frango + 1 whey';
+    } else if (missingProtein > 30) {
+      suggestion = 'Sugestao: 150g frango + 1 iogurte';
+    } else if (missingProtein > 20) {
+      suggestion = 'Sugestao: 1 whey + 1 ovo';
+    }
+
+    if (missingProtein <= 0) {
+      return {
+        tone: 'success',
+        title: 'Meta de proteina batida hoje 🔥',
+        message: didTrainToday
+          ? 'Excelente timing para recuperacao muscular apos o treino.'
+          : 'Otimo trabalho de consistencia nutricional no dia.',
+        suggestion: 'Mantenha refeicoes limpas e hidratacao para fechar o dia forte.',
+        missingProtein: 0,
+      };
+    }
+
+    if (caloriesRatio >= 0.9 && proteinRatio < 0.75) {
+      return {
+        tone: 'warning',
+        title: `Faltam ${missingProtein}g de proteina hoje`,
+        message: 'Calorias no teto, mas proteina baixa. Priorize fonte limpa agora para proteger resultado.',
+        suggestion,
+        missingProtein,
+      };
+    }
+
+    return {
+      tone: didTrainToday ? 'priority' : 'default',
+      title: `Faltam ${missingProtein}g de proteina hoje`,
+      message: didTrainToday
+        ? 'Voce treinou hoje. Priorize proteina agora para acelerar recuperacao e performance.'
+        : 'Ainda da para bater a meta com uma refeicao simples e rapida.',
+      suggestion,
+      missingProtein,
+    };
+  };
+
   const getPerformanceScore = () => {
     const last7 = history.slice(0, 7);
     const n = last7.length;
@@ -2560,6 +2624,7 @@ export const AppProvider=({children})=>{
         estimateNutritionFromText,
         estimateNutritionFromPhotoHint,
         getDailyMacroTargets,
+        getNutritionFeedback,
         getWeeklyMacroSummary,
         getPerformanceScore,
         getAutoCoachSuggestions,

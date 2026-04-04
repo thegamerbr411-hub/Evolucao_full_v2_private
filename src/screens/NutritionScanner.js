@@ -19,6 +19,7 @@ export default function NutritionScanner({ navigation }) {
     removeFoodLogEntry,
     getTodayFoodLog,
     getDailyMacroTargets,
+    getNutritionFeedback,
     evaluateMealQuality,
     hasFeatureAccess,
     nutritionLogs,
@@ -66,6 +67,7 @@ export default function NutritionScanner({ navigation }) {
   const foodOptions = useMemo(() => searchFoodCatalog(searchQuery), [searchFoodCatalog, searchQuery]);
   const todayFoodLog = getTodayFoodLog();
   const dailyMacroTargets = useMemo(() => getDailyMacroTargets(), [getDailyMacroTargets]);
+  const nutritionFeedback = getNutritionFeedback();
   const todayProtein = useMemo(
     () => todayFoodLog.reduce((acc, item) => acc + Number(item.protein || 0), 0),
     [todayFoodLog]
@@ -459,7 +461,12 @@ export default function NutritionScanner({ navigation }) {
     const proteinTarget = Number(dailyMacroTargets?.protein || 0);
     const projectedProtein = todayProtein + Number(quickMealTotals.protein || 0);
     const proteinGap = Math.max(0, Math.round(proteinTarget - projectedProtein));
-    setMealFeedback(`🟢 Boa refeicao | +${Math.round(quickMealTotals.protein)}g proteina | faltam ${proteinGap}g hoje`);
+    const projectedCalories = todayFoodLog.reduce((acc, item) => acc + Number(item.calories || 0), 0) + Number(quickMealTotals.calories || 0);
+    const projectedFeedback = getNutritionFeedback({
+      proteinConsumed: projectedProtein,
+      caloriesConsumed: projectedCalories,
+    });
+    setMealFeedback(`🟢 Boa refeicao | +${Math.round(quickMealTotals.protein)}g proteina | faltam ${proteinGap}g hoje. ${projectedFeedback.suggestion}`);
     setQuickMealItems([]);
     setQuickMealText('');
   };
@@ -483,7 +490,8 @@ export default function NutritionScanner({ navigation }) {
     }
 
     if (result.quality) {
-      setMealFeedback(`${result.quality.emoji} ${result.quality.badge} - refeicao composta salva com sucesso.`);
+      const projectedFeedback = getNutritionFeedback();
+      setMealFeedback(`${result.quality.emoji} ${result.quality.badge} - refeicao composta salva com sucesso. ${projectedFeedback.suggestion}`);
     }
 
     trackEvent('food_logged', {
@@ -516,6 +524,15 @@ export default function NutritionScanner({ navigation }) {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <ScreenHeader title="Nutricao" subtitle="Registre refeicoes com horario. Texto e foto ficam como apoio." />
+
+      <AppCard style={styles.card}>
+        <Text style={styles.cardTitle}>Coach nutricional do dia</Text>
+        <Text style={[styles.feedbackTitle, nutritionFeedback?.tone === 'warning' ? styles.feedbackWarning : nutritionFeedback?.tone === 'success' ? styles.feedbackSuccess : null]}>
+          {nutritionFeedback?.title || 'Feedback indisponivel'}
+        </Text>
+        <Text style={styles.feedbackText}>{nutritionFeedback?.message || ''}</Text>
+        <Text style={styles.feedbackSuggestion}>{nutritionFeedback?.suggestion || ''}</Text>
+      </AppCard>
 
       <AppCard style={styles.card}>
         <Text style={styles.cardTitle}>Registro rapido (chat-first)</Text>
@@ -1075,5 +1092,28 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     fontWeight: '700',
+  },
+  feedbackTitle: {
+    color: '#BFDBFE',
+    fontSize: 14,
+    fontWeight: '900',
+    marginBottom: 6,
+  },
+  feedbackWarning: {
+    color: '#FCD34D',
+  },
+  feedbackSuccess: {
+    color: '#86EFAC',
+  },
+  feedbackText: {
+    color: colors.textPrimary,
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  feedbackSuggestion: {
+    color: '#A7F3D0',
+    fontSize: 12,
+    fontWeight: '800',
   },
 });
