@@ -57,6 +57,7 @@ export default function WorkoutScreen({ navigation }) {
     getExerciseProgress,
     getExerciseSetProgress,
     getExerciseProgressionSuggestion,
+    getExerciseHistorySnapshot,
     getTodayWorkoutSummary,
     getWorkoutGamification,
     workoutLogs,
@@ -403,6 +404,37 @@ export default function WorkoutScreen({ navigation }) {
     setXpFeedback('Serie removida');
   };
 
+  const editSavedSet = (exerciseName, setIndex) => {
+    const todaySets = workoutLogs
+      .filter((item) => item.date === todayKey && item.exerciseName === exerciseName && (item.mode || 'guided') !== 'free');
+    const saved = todaySets[setIndex];
+    if (!saved) {
+      return;
+    }
+
+    const removed = removeTodayWorkoutSet({ exerciseName, setIndex, mode: 'guided' });
+    if (!removed.ok) {
+      Alert.alert('Nao foi possivel editar', removed.message);
+      return;
+    }
+
+    setDraftSetsByExercise((prev) => {
+      const rows = [...(prev[exerciseName] || [])];
+      rows[setIndex] = {
+        weight: String(saved.weight || ''),
+        reps: String(saved.reps || ''),
+      };
+      return {
+        ...prev,
+        [exerciseName]: rows,
+      };
+    });
+
+    setTimeout(() => {
+      focusSetField(exerciseName, setIndex, 'weight');
+    }, 60);
+  };
+
   const addSetToExercise = (exerciseName) => {
     setSetCountByExercise((prev) => ({
       ...prev,
@@ -668,6 +700,8 @@ export default function WorkoutScreen({ navigation }) {
             .slice(0, plannedSets);
 
           const draftRows = draftSetsByExercise[exercise.name] || [];
+          const historySnapshot = getExerciseHistorySnapshot(exercise.name, 6);
+          const maxHistoryWeight = Math.max(1, ...historySnapshot.map((item) => Number(item.weight || 0)));
 
           return (
             <TouchableOpacity
@@ -688,6 +722,26 @@ export default function WorkoutScreen({ navigation }) {
               <Text style={styles.progressHint}>
                 Ultimo: {lastSetByExercise[exercise.name]?.weight || 0}kg x {lastSetByExercise[exercise.name]?.reps || 0} · Melhor: {getExerciseProgress(exercise.name).bestWeight || 0}kg
               </Text>
+
+              {historySnapshot.length ? (
+                <View style={styles.historyWrap}>
+                  <Text style={styles.historyTitle}>Historico rapido</Text>
+                  {historySnapshot.map((entry, index) => (
+                    <View key={`${exercise.id}-history-${entry.date}-${index}`} style={styles.historyRow}>
+                      <Text style={styles.historyLabel}>{entry.date.slice(5)} · {entry.weight}kg x {entry.reps}</Text>
+                      <View style={styles.historyBarTrack}>
+                        <View
+                          style={[
+                            styles.historyBarFill,
+                            { width: `${Math.max(8, Math.round((Number(entry.weight || 0) / maxHistoryWeight) * 100))}%` },
+                            entry.failed ? styles.historyBarFail : null,
+                          ]}
+                        />
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
 
               {isActive ? <Text style={styles.controlHint}>Controles: + serie, - serie e 🗑️ por serie.</Text> : null}
 
@@ -713,9 +767,14 @@ export default function WorkoutScreen({ navigation }) {
                           <Text style={styles.savedSetText}>{saved.weight}kg x {saved.reps}</Text>
                           <Text style={styles.savedSetHint}>Serie salva</Text>
                         </View>
-                        <TouchableOpacity style={styles.removeSetBtn} onPress={() => removeSavedSet(exercise.name, setIndex)}>
-                          <Text style={styles.removeSetBtnText}>🗑️</Text>
-                        </TouchableOpacity>
+                        <View style={styles.savedActionsWrap}>
+                          <TouchableOpacity style={styles.editSetBtn} onPress={() => editSavedSet(exercise.name, setIndex)}>
+                            <Text style={styles.removeSetBtnText}>Editar</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity style={styles.removeSetBtn} onPress={() => removeSavedSet(exercise.name, setIndex)}>
+                            <Text style={styles.removeSetBtnText}>🗑️</Text>
+                          </TouchableOpacity>
+                        </View>
                       </View>
                     ) : (
                       <>
@@ -1146,6 +1205,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 11,
   },
+  savedActionsWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  editSetBtn: {
+    borderRadius: 8,
+    backgroundColor: '#1F4D7A',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
   removeSetBtn: {
     borderRadius: 8,
     backgroundColor: '#7F1D1D',
@@ -1166,6 +1236,45 @@ const styles = StyleSheet.create({
     color: '#8FB1DD',
     fontSize: 11,
     fontWeight: '700',
+  },
+  historyWrap: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    padding: 8,
+    backgroundColor: '#141922',
+    marginBottom: 8,
+  },
+  historyTitle: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  historyRow: {
+    marginBottom: 6,
+  },
+  historyLabel: {
+    color: colors.textPrimary,
+    fontSize: 11,
+    fontWeight: '700',
+    marginBottom: 3,
+  },
+  historyBarTrack: {
+    width: '100%',
+    height: 6,
+    borderRadius: 999,
+    backgroundColor: '#223047',
+    overflow: 'hidden',
+  },
+  historyBarFill: {
+    height: '100%',
+    borderRadius: 999,
+    backgroundColor: '#66C7A3',
+  },
+  historyBarFail: {
+    backgroundColor: '#FCA5A5',
   },
   setActionsRow: {
     marginTop: 4,

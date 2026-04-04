@@ -1,11 +1,14 @@
 
 import React, { useMemo, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { trackEvent } from '../utils/analytics';
 import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { colors, spacing } from '../theme';
+
+const FAVORITES_STORAGE_KEY = 'nutrition.favorite.foods.v1';
 
 export default function NutritionScanner({ navigation }) {
   const {
@@ -18,6 +21,7 @@ export default function NutritionScanner({ navigation }) {
     getDailyMacroTargets,
     evaluateMealQuality,
     hasFeatureAccess,
+    nutritionLogs,
   } = useApp();
   const [quickMealText, setQuickMealText] = useState('');
   const [quickMealItems, setQuickMealItems] = useState([]);
@@ -29,7 +33,33 @@ export default function NutritionScanner({ navigation }) {
   const [selectedFood, setSelectedFood] = useState(null);
   const [mealFeedback, setMealFeedback] = useState('');
   const [mealDraftItems, setMealDraftItems] = useState([]);
+  const [favoriteFoodKeys, setFavoriteFoodKeys] = useState([]);
   const proteinTargetPerMeal = 30;
+
+  React.useEffect(() => {
+    const loadFavorites = async () => {
+      try {
+        const raw = await AsyncStorage.getItem(FAVORITES_STORAGE_KEY);
+        if (!raw) {
+          return;
+        }
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          setFavoriteFoodKeys(parsed);
+        }
+      } catch (error) {
+        // Ignora cache local invalido.
+      }
+    };
+
+    loadFavorites();
+  }, []);
+
+  React.useEffect(() => {
+    AsyncStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(favoriteFoodKeys)).catch(() => {
+      // Ignora falha local de persistencia para nao quebrar o fluxo.
+    });
+  }, [favoriteFoodKeys]);
 
   const foodOptions = useMemo(() => searchFoodCatalog(searchQuery), [searchFoodCatalog, searchQuery]);
   const todayFoodLog = getTodayFoodLog();
@@ -178,6 +208,80 @@ export default function NutritionScanner({ navigation }) {
       ),
     [mealDraftItems, searchFoodCatalog]
   );
+
+  const favoriteFoods = useMemo(() => {
+    const baseCatalog = searchFoodCatalog('');
+    return favoriteFoodKeys
+      .map((key) => baseCatalog.find((item) => item.key === key))
+      .filter(Boolean);
+  }, [favoriteFoodKeys, searchFoodCatalog]);
+
+  const latestMealGroup = useMemo(() => {
+    const grouped = new Map();
+    nutritionLogs.forEach((entry) => {
+      const date = String(entry.date || '');
+      const loggedAt = String(entry.loggedAt || '00:00');
+      const groupKey = `${date} ${loggedAt}`;
+      if (!grouped.has(groupKey)) {
+        grouped.set(groupKey, []);
+      }
+      grouped.get(groupKey).push(entry);
+    });
+
+    const sorted = Array.from(grouped.keys()).sort((a, b) => String(b).localeCompare(String(a)));
+    if (!sorted.length) {
+      return null;
+    }
+
+    const latestKey = sorted[0];
+    return {
+      key: latestKey,
+      items: grouped.get(latestKey) || [],
+    };
+  }, [nutritionLogs]);
+
+  const toggleFavoriteFood = (foodKey) => {
+    setFavoriteFoodKeys((prev) =>
+      prev.includes(foodKey) ? prev.filter((key) => key !== foodKey) : [...prev, foodKey]
+    );
+  };
+
+  const repeatLatestMeal = () => {
+    if (!latestMealGroup?.items?.length) {
+      return;
+    }
+
+    const now = new Date();
+    const loggedAt = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const result = addFoodLogEntriesBatch({
+      items: latestMealGroup.items.map((item) => ({
+        foodKey: item.foodKey,
+        label: item.label,
+        quantity: Number(item.quantity || 1),
+      })),
+      loggedAt,
+    });
+
+    if (!result?.ok) {
+      setMealFeedback('Nao foi possivel repetir a ultima refeicao.');
+      return;
+    }
+
+    setMealFeedback(`Refeicao repetida com ${result.entries.length} item(ns).`);
+  };
+
+  const pushResultItemsToDraft = () => {
+    if (!result?.ok || !Array.isArray(result.items) || !result.items.length) {
+      return;
+    }
+
+    result.items.forEach((item) => {
+      const food = getFoodByLabel(item.label);
+      if (food) {
+        addItemToMealDraft(food, Number(item.quantity || 1));
+      }
+    });
+  };
 
   const runPhotoEstimate = async (source) => {
     if (!hasFeatureAccess('photo_scanner')) {
@@ -379,11 +483,26 @@ export default function NutritionScanner({ navigation }) {
               style={[styles.foodOption, selectedFood?.key === food.key ? styles.foodOptionActive : null]}
               onPress={() => setSelectedFood(food)}
             >
-              <Text style={styles.foodLabel}>{food.label}</Text>
+              <View style={styles.foodHeaderRow}>
+                <Text style={styles.foodLabel}>{food.label}</Text>
+                <TouchableOpacity onPress={() => toggleFavoriteFood(food.key)}>
+                  <Text style={styles.favoriteIcon}>{favoriteFoodKeys.includes(food.key) ? '★' : '☆'}</Text>
+                </TouchableOpacity>
+              </View>
               <Text style={styles.foodMeta}>{food.calories} kcal | P {food.protein}g</Text>
             </TouchableOpacity>
           ))}
         </View>
+
+        {favoriteFoods.length ? (
+          <View style={styles.chipsWrap}>
+            {favoriteFoods.map((food) => (
+              <TouchableOpacity key={`favorite-${food.key}`} style={styles.chipAction} onPress={() => setSelectedFood(food)}>
+                <Text style={styles.chipActionText}>★ {food.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : null}
 
         <View style={styles.fractionRow}>
           {[0.5, 1, 1.5, 2].map((value) => (
@@ -400,6 +519,11 @@ export default function NutritionScanner({ navigation }) {
         </View>
 
         <PrimaryButton title="Adicionar alimento +" onPress={useEstimateInDay} style={styles.primaryButton} />
+        <SecondaryButton
+          title={latestMealGroup ? `Repetir ultima refeicao (${latestMealGroup.items.length})` : 'Repetir ultima refeicao'}
+          onPress={repeatLatestMeal}
+          style={styles.secondaryButton}
+        />
       </AppCard>
 
       <AppCard style={styles.card}>
@@ -502,6 +626,9 @@ export default function NutritionScanner({ navigation }) {
           }}
         />
         {result?.ok && Array.isArray(result.items) && result.items.length ? (
+          <SecondaryButton title="Adicionar resultado ao draft" onPress={pushResultItemsToDraft} style={styles.secondaryButton} />
+        ) : null}
+        {result?.ok && Array.isArray(result.items) && result.items.length ? (
           <View style={styles.chipsWrap}>
             {result.items.map((item, index) => (
               <TouchableOpacity
@@ -535,6 +662,9 @@ export default function NutritionScanner({ navigation }) {
           <SecondaryButton title="Tirar foto" style={styles.secondaryButton} onPress={() => runPhotoEstimate('camera')} />
           <SecondaryButton title="Escolher da galeria" style={styles.secondaryButton} onPress={() => runPhotoEstimate('library')} />
         </View>
+        {result?.ok && Array.isArray(result.items) && result.items.length ? (
+          <SecondaryButton title="Adicionar resultado ao draft" onPress={pushResultItemsToDraft} style={styles.secondaryButton} />
+        ) : null}
         {result?.ok && Array.isArray(result.items) && result.items.length ? (
           <View style={styles.chipsWrap}>
             {result.items.map((item, index) => (
@@ -634,6 +764,17 @@ const styles = StyleSheet.create({
   foodLabel: {
     color: colors.textPrimary,
     fontWeight: '700',
+  },
+  foodHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 8,
+  },
+  favoriteIcon: {
+    color: '#FFE28A',
+    fontSize: 18,
+    fontWeight: '900',
   },
   foodMeta: {
     color: colors.textSecondary,

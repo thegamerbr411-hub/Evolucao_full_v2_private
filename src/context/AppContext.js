@@ -1952,6 +1952,46 @@ export const AppProvider=({children})=>{
     });
   };
 
+  const reorderUserRoutineExercises = ({ routineId, fromIndex, toIndex }) => {
+    let updatedRoutine = null;
+
+    setUserRoutines((prev) =>
+      prev.map((item) => {
+        if (item.id !== routineId) {
+          return item;
+        }
+
+        const list = Array.isArray(item.exercises) ? [...item.exercises] : [];
+        if (
+          !list.length ||
+          fromIndex < 0 ||
+          toIndex < 0 ||
+          fromIndex >= list.length ||
+          toIndex >= list.length
+        ) {
+          return item;
+        }
+
+        const [moved] = list.splice(fromIndex, 1);
+        list.splice(toIndex, 0, moved);
+
+        updatedRoutine = {
+          ...item,
+          exercises: list,
+          updatedAt: new Date().toISOString(),
+        };
+
+        return updatedRoutine;
+      })
+    );
+
+    if (!updatedRoutine) {
+      return { ok: false, message: 'Nao foi possivel reordenar essa rotina.' };
+    }
+
+    return { ok: true, routine: updatedRoutine, message: 'Exercicios reordenados.' };
+  };
+
   const deleteUserRoutine = (routineId) => {
     const exists = userRoutines.some((item) => item.id === routineId);
     if (!exists) {
@@ -1960,6 +2000,68 @@ export const AppProvider=({children})=>{
 
     setUserRoutines((prev) => prev.filter((item) => item.id !== routineId));
     return { ok: true, message: 'Rotina removida.' };
+  };
+
+  const getWorkoutTemplates = () => {
+    const titles = {
+      fullBody: 'Full Body',
+      upper: 'Upper',
+      lower: 'Lower',
+      push: 'Push',
+      pull: 'Pull',
+      legs: 'Legs',
+    };
+
+    return Object.entries(WORKOUT_LIBRARY).map(([key, exercises]) => ({
+      key,
+      name: titles[key] || key,
+      exercises: exercises.map((item) => ({
+        name: item.name,
+        sets: Number(item.sets || 3),
+        reps: String(item.reps || '8-12'),
+      })),
+    }));
+  };
+
+  const createRoutineFromTemplate = ({ templateKey, name, frequency }) => {
+    const templates = getWorkoutTemplates();
+    const template = templates.find((item) => item.key === templateKey);
+    if (!template) {
+      return { ok: false, message: 'Template nao encontrado.' };
+    }
+
+    return createUserRoutine({
+      name: name || `Template ${template.name}`,
+      frequency: Number(frequency || profile?.trainingDaysPerWeek || 3),
+      exercises: template.exercises.map((item) => item.name),
+    });
+  };
+
+  const saveTodayWorkoutAsRoutine = ({ name, frequency } = {}) => {
+    const todayWorkout = getTodayWorkout();
+    if (!todayWorkout.length) {
+      return { ok: false, message: 'Nao ha treino definido para hoje.' };
+    }
+
+    return createUserRoutine({
+      name: name || `Treino ${getTodayKey()}`,
+      frequency: Number(frequency || profile?.trainingDaysPerWeek || 3),
+      exercises: todayWorkout.map((item) => item.name),
+    });
+  };
+
+  const getExerciseHistorySnapshot = (exerciseName, limit = 6) => {
+    const safeLimit = Math.max(1, Number(limit || 6));
+    return workoutLogs
+      .filter((item) => item.exerciseName === exerciseName)
+      .slice(0, safeLimit)
+      .reverse()
+      .map((item) => ({
+        date: item.date,
+        weight: Number(item.weight || 0),
+        reps: Number(item.reps || 0),
+        failed: Boolean(item.failed),
+      }));
   };
 
   const getExercisesByMuscleGroup = (groupKey) => {
@@ -2435,10 +2537,15 @@ export const AppProvider=({children})=>{
         createUserRoutine,
         updateUserRoutine,
         duplicateUserRoutine,
+        reorderUserRoutineExercises,
         deleteUserRoutine,
+        getWorkoutTemplates,
+        createRoutineFromTemplate,
+        saveTodayWorkoutAsRoutine,
         getExercisesByMuscleGroup,
         getFreeWorkoutSuggestions,
         getWorkoutGamification,
+        getExerciseHistorySnapshot,
         estimateNutritionFromText,
         estimateNutritionFromPhotoHint,
         getDailyMacroTargets,

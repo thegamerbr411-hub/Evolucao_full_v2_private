@@ -24,7 +24,11 @@ export default function RoutinesScreen() {
     createUserRoutine,
     updateUserRoutine,
     duplicateUserRoutine,
+    reorderUserRoutineExercises,
     deleteUserRoutine,
+    getWorkoutTemplates,
+    createRoutineFromTemplate,
+    saveTodayWorkoutAsRoutine,
   } = useApp();
 
   const [routineName, setRoutineName] = useState('');
@@ -37,6 +41,7 @@ export default function RoutinesScreen() {
   const smart = useMemo(() => getSmartWorkoutRecommendation(), [getSmartWorkoutRecommendation]);
   const userRoutines = useMemo(() => getUserRoutines(), [getUserRoutines]);
   const exerciseCatalog = useMemo(() => getExerciseCatalog(), [getExerciseCatalog]);
+  const routineTemplates = useMemo(() => getWorkoutTemplates(), [getWorkoutTemplates]);
 
   const filteredCatalog = useMemo(() => {
     const query = String(exerciseQuery || '').toLowerCase().trim();
@@ -64,6 +69,20 @@ export default function RoutinesScreen() {
 
   const removeExerciseFromBuilder = (exerciseName) => {
     setBuilderExercises((prev) => prev.filter((item) => item !== exerciseName));
+  };
+
+  const moveBuilderExercise = (index, direction) => {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= builderExercises.length) {
+      return;
+    }
+
+    setBuilderExercises((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(index, 1);
+      next.splice(targetIndex, 0, moved);
+      return next;
+    });
   };
 
   const resetBuilder = () => {
@@ -116,10 +135,9 @@ export default function RoutinesScreen() {
   };
 
   const saveRecommendedAsOwn = () => {
-    const result = createUserRoutine({
+    const result = saveTodayWorkoutAsRoutine({
       name: `Rotina ${smart.title}`,
       frequency: Number(profile?.trainingDaysPerWeek || 3),
-      exercises: todayRoutine.map((item) => item.name),
     });
 
     if (!result.ok) {
@@ -133,6 +151,30 @@ export default function RoutinesScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <ScreenHeader title="Rotinas" subtitle="Controle total: recomendadas e criadas por voce no mesmo padrao." />
+
+      <AppCard>
+        <Text style={styles.cardTitle}>Templates prontos</Text>
+        <Text style={styles.recommendationSub}>Inicie com 1 toque e depois personalize.</Text>
+        <View style={styles.chipsWrap}>
+          {routineTemplates.map((template) => (
+            <TouchableOpacity
+              key={template.key}
+              style={styles.chip}
+              onPress={() => {
+                const result = createRoutineFromTemplate({
+                  templateKey: template.key,
+                  frequency: Number(profile?.trainingDaysPerWeek || 3),
+                });
+                if (!result.ok) {
+                  Alert.alert('Nao foi possivel criar', result.message);
+                }
+              }}
+            >
+              <Text style={styles.chipText}>{template.name}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </AppCard>
 
       <AppCard>
         <Text style={styles.cardTitle}>Recomendada hoje</Text>
@@ -184,12 +226,20 @@ export default function RoutinesScreen() {
 
         <Text style={styles.blockLabel}>Exercicios da rotina</Text>
         {builderExercises.length === 0 ? <Text style={styles.empty}>Adicione exercicios para montar sua rotina.</Text> : null}
-        {builderExercises.map((item) => (
+        {builderExercises.map((item, index) => (
           <View key={item} style={styles.builderRow}>
             <Text style={styles.line}>• {item}</Text>
-            <TouchableOpacity onPress={() => removeExerciseFromBuilder(item)}>
-              <Text style={styles.removeText}>Remover</Text>
-            </TouchableOpacity>
+            <View style={styles.actionsRow}>
+              <TouchableOpacity style={styles.smallButton} onPress={() => moveBuilderExercise(index, -1)}>
+                <Text style={styles.smallButtonText}>↑</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.smallButton} onPress={() => moveBuilderExercise(index, 1)}>
+                <Text style={styles.smallButtonText}>↓</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => removeExerciseFromBuilder(item)}>
+                <Text style={styles.removeText}>Remover</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         ))}
 
@@ -208,8 +258,24 @@ export default function RoutinesScreen() {
           <View key={routine.id} style={styles.savedRoutineCard}>
             <Text style={styles.savedRoutineTitle}>{routine.name}</Text>
             <Text style={styles.recommendationSub}>{routine.frequency}x por semana</Text>
-            {routine.exercises.map((item) => (
-              <Text key={`${routine.id}-${item}`} style={styles.line}>• {item}</Text>
+            {routine.exercises.map((item, index) => (
+              <View key={`${routine.id}-${item}-${index}`} style={styles.builderRow}>
+                <Text style={styles.line}>• {item}</Text>
+                <View style={styles.actionsRow}>
+                  <TouchableOpacity
+                    style={styles.smallButton}
+                    onPress={() => reorderUserRoutineExercises({ routineId: routine.id, fromIndex: index, toIndex: index - 1 })}
+                  >
+                    <Text style={styles.smallButtonText}>↑</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.smallButton}
+                    onPress={() => reorderUserRoutineExercises({ routineId: routine.id, fromIndex: index, toIndex: index + 1 })}
+                  >
+                    <Text style={styles.smallButtonText}>↓</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
             ))}
             <View style={styles.actionsRow}>
               <TouchableOpacity style={styles.smallButton} onPress={() => loadRoutineToEdit(routine)}>
