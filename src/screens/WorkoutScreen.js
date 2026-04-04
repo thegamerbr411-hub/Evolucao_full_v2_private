@@ -13,6 +13,8 @@ import {
 } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { trackEvent } from '../utils/analytics';
+import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
+import { colors, spacing } from '../theme';
 
 function formatTimer(seconds) {
   const safe = Math.max(0, Number(seconds || 0));
@@ -36,7 +38,7 @@ function SetField({ value, onChangeText, placeholder }) {
       value={value}
       onChangeText={onChangeText}
       placeholder={placeholder}
-      placeholderTextColor="#7E91B4"
+      placeholderTextColor={colors.textSecondary}
       style={styles.setField}
     />
   );
@@ -525,7 +527,7 @@ export default function WorkoutScreen({ navigation }) {
   if (!allExercises.length) {
     return (
       <View style={styles.emptyContainer}>
-        <Text style={styles.title}>Treino de hoje</Text>
+        <ScreenHeader title="Treino de hoje" />
         <Text style={styles.emptyText}>Sem treino definido para hoje.</Text>
       </View>
     );
@@ -537,8 +539,7 @@ export default function WorkoutScreen({ navigation }) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView ref={scrollRef} contentContainerStyle={styles.container}>
-        <Text style={styles.title}>Treino de hoje</Text>
-        <Text style={styles.subtitle}>Fluxo rapido: preencher e salvar serie.</Text>
+        <ScreenHeader title="Treino de hoje" subtitle="Fluxo rapido: preencher e salvar serie." />
 
         <View style={styles.topRow}>
           <Text style={styles.metaText}>{summary.guidedSets}/{summary.plannedSets || 0} series</Text>
@@ -622,6 +623,8 @@ export default function WorkoutScreen({ navigation }) {
                 <Text style={styles.smallChip}>Serie {setProgress.nextSet}/{setProgress.totalSets}</Text>
               </View>
 
+              {isActive ? <Text style={styles.controlHint}>Controles: + serie, - serie e 🗑️ por serie.</Text> : null}
+
               {Array.from({ length: plannedSets }).map((_, setIndex) => {
                 const saved = todaySets[setIndex];
                 const draft = draftRows[setIndex] || { weight: exercise.targetWeight ? String(exercise.targetWeight) : '', reps: '' };
@@ -638,7 +641,7 @@ export default function WorkoutScreen({ navigation }) {
                           <Text style={styles.savedSetHint}>Serie salva</Text>
                         </View>
                         <TouchableOpacity style={styles.removeSetBtn} onPress={() => removeSavedSet(exercise.name, setIndex)}>
-                          <Text style={styles.removeSetBtnText}>Excluir</Text>
+                          <Text style={styles.removeSetBtnText}>🗑️</Text>
                         </TouchableOpacity>
                       </View>
                     ) : (
@@ -666,7 +669,7 @@ export default function WorkoutScreen({ navigation }) {
                               style={styles.inlineBtnRemove}
                               onPress={() => removeDraftSet(exercise.name, setIndex)}
                             >
-                              <Text style={styles.inlineBtnText}>Excluir</Text>
+                              <Text style={styles.inlineBtnText}>🗑️</Text>
                             </TouchableOpacity>
                           </View>
                         ) : null}
@@ -692,7 +695,7 @@ export default function WorkoutScreen({ navigation }) {
           );
         })}
 
-        <View style={styles.addExerciseCard}>
+        <AppCard style={styles.addExerciseCard}>
           <Text style={styles.addExerciseTitle}>Selecionar exercicio existente</Text>
           <TextInput
             value={exerciseQuery}
@@ -743,15 +746,11 @@ export default function WorkoutScreen({ navigation }) {
               <Text style={styles.addExerciseButtonText}>Substituir exercicio</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </AppCard>
 
         <View style={styles.finishCard}>
-          <TouchableOpacity style={styles.finishButton} onPress={finishWorkout}>
-            <Text style={styles.finishButtonText}>Finalizar treino</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.partialButton} onPress={savePartialAndExit}>
-            <Text style={styles.partialButtonText}>Salvar parcial e sair</Text>
-          </TouchableOpacity>
+          <PrimaryButton title="Finalizar treino" onPress={finishWorkout} style={styles.finishButton} />
+          <SecondaryButton title="Salvar parcial e sair" onPress={savePartialAndExit} style={styles.partialButton} />
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -761,36 +760,25 @@ export default function WorkoutScreen({ navigation }) {
 const styles = StyleSheet.create({
   keyboardContainer: {
     flex: 1,
-    backgroundColor: '#0D1322',
+    backgroundColor: colors.background,
   },
   container: {
     flexGrow: 1,
-    backgroundColor: '#0D1322',
+    backgroundColor: colors.background,
     paddingTop: 56,
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.lg,
     paddingBottom: 34,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: 20,
-    backgroundColor: '#0D1322',
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.background,
   },
   emptyText: {
-    color: '#A8B7D3',
+    color: colors.textSecondary,
     fontSize: 14,
     marginTop: 8,
-  },
-  title: {
-    fontSize: 30,
-    fontWeight: '800',
-    color: '#F6FBFF',
-  },
-  subtitle: {
-    marginTop: 8,
-    marginBottom: 12,
-    color: '#A8B7D3',
-    fontSize: 14,
   },
   topRow: {
     flexDirection: 'row',
@@ -798,20 +786,20 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   metaText: {
-    color: '#98AED3',
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: '700',
   },
   restBanner: {
-    backgroundColor: '#122845',
+    backgroundColor: '#123429',
     borderWidth: 1,
-    borderColor: '#355B8E',
+    borderColor: '#2F7A5B',
     borderRadius: 12,
     padding: 14,
     marginBottom: 10,
   },
   restBannerLabel: {
-    color: '#B8D5FF',
+    color: '#9DE2C2',
     fontSize: 13,
     fontWeight: '700',
   },
@@ -825,27 +813,27 @@ const styles = StyleSheet.create({
     opacity: 0.82,
   },
   restBannerTimerDanger: {
-    color: '#FFC5C5',
+    color: colors.warning,
   },
   skipButton: {
     marginTop: 8,
-    backgroundColor: '#B63A3A',
+    backgroundColor: colors.danger,
     borderRadius: 10,
     alignItems: 'center',
     paddingVertical: 10,
   },
   skipButtonText: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontWeight: '800',
   },
   xpFeedback: {
-    color: '#9CE5B9',
+    color: colors.success,
     fontSize: 12,
     fontWeight: '800',
     marginBottom: 8,
   },
   restDoneMessage: {
-    color: '#B9FBC0',
+    color: colors.success,
     fontSize: 13,
     fontWeight: '800',
     marginBottom: 8,
@@ -866,8 +854,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#153A2B',
   },
   presetBtnDefault: {
-    borderColor: '#476A9C',
-    backgroundColor: '#203454',
+    borderColor: colors.border,
+    backgroundColor: colors.secondary,
   },
   presetBtnLong: {
     borderColor: '#36506E',
@@ -891,17 +879,17 @@ const styles = StyleSheet.create({
     color: '#9EB4CF',
   },
   presetTextActive: {
-    color: '#0F3B7A',
+    color: colors.textPrimary,
   },
   manualRestBtn: {
     marginLeft: 'auto',
-    backgroundColor: '#254875',
+    backgroundColor: colors.secondary,
     borderRadius: 10,
     paddingHorizontal: 12,
     justifyContent: 'center',
   },
   manualRestText: {
-    color: '#E4F1FF',
+    color: colors.textPrimary,
     fontWeight: '800',
     fontSize: 12,
   },
@@ -912,9 +900,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   exerciseCardActive: {
-    backgroundColor: '#1A3359',
+    backgroundColor: '#1D355F',
     borderColor: '#7CB8FF',
-    transform: [{ scale: 1.01 }],
+    transform: [{ scale: 1.015 }],
     shadowColor: '#5FA9FF',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.24,
@@ -922,14 +910,14 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   exerciseCardMuted: {
-    backgroundColor: '#111D35',
-    borderColor: '#243C65',
-    opacity: 0.65,
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    opacity: 0.74,
   },
   exerciseName: {
     fontSize: 23,
     fontWeight: '800',
-    color: '#F8FAFC',
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   exerciseChipRow: {
@@ -938,8 +926,14 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     marginBottom: 8,
   },
+  controlHint: {
+    marginBottom: 8,
+    color: '#9CC4F7',
+    fontSize: 11,
+    fontWeight: '700',
+  },
   smallChip: {
-    backgroundColor: '#1E3559',
+    backgroundColor: '#1B2840',
     color: '#CFE4FF',
     borderWidth: 1,
     borderColor: '#365A8D',
@@ -964,12 +958,12 @@ const styles = StyleSheet.create({
   setField: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#4B6896',
+    borderColor: colors.border,
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 12,
-    backgroundColor: '#0F1D36',
-    color: '#F2F7FF',
+    backgroundColor: '#141922',
+    color: colors.textPrimary,
     fontSize: 15,
   },
   rowActionsInline: {
@@ -981,7 +975,7 @@ const styles = StyleSheet.create({
     borderColor: '#55A4FF',
     borderRadius: 8,
     padding: 4,
-    backgroundColor: '#183457',
+    backgroundColor: '#1C3E6A',
   },
   inlineBtn: {
     borderRadius: 8,
@@ -1014,9 +1008,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#0F1D36',
+    backgroundColor: '#141922',
     borderWidth: 1,
-    borderColor: '#355B8E',
+    borderColor: colors.border,
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 11,
@@ -1074,11 +1068,6 @@ const styles = StyleSheet.create({
   },
   addExerciseCard: {
     marginTop: 8,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#2B446D',
-    backgroundColor: '#111D35',
-    padding: 12,
   },
   suggestionScroll: {
     marginBottom: 8,
@@ -1089,14 +1078,14 @@ const styles = StyleSheet.create({
   },
   suggestionChip: {
     borderWidth: 1,
-    borderColor: '#4B6896',
+    borderColor: colors.border,
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    backgroundColor: '#0F1D36',
+    backgroundColor: '#141922',
   },
   suggestionChipText: {
-    color: '#D5E6FF',
+    color: colors.textPrimary,
     fontWeight: '700',
     fontSize: 12,
   },
@@ -1105,7 +1094,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   addExerciseTitle: {
-    color: '#EAF2FF',
+    color: colors.textPrimary,
     fontWeight: '800',
     fontSize: 14,
     marginBottom: 8,
@@ -1116,10 +1105,10 @@ const styles = StyleSheet.create({
   },
   addExerciseInput: {
     borderWidth: 1,
-    borderColor: '#4B6896',
+    borderColor: colors.border,
     borderRadius: 10,
-    backgroundColor: '#0F1D36',
-    color: '#F2F7FF',
+    backgroundColor: '#141922',
+    color: colors.textPrimary,
     paddingHorizontal: 10,
     paddingVertical: 10,
     marginBottom: 8,
@@ -1130,19 +1119,19 @@ const styles = StyleSheet.create({
   },
   addExerciseButton: {
     flex: 1,
-    backgroundColor: '#355B8E',
+    backgroundColor: colors.primary,
     borderRadius: 10,
     alignItems: 'center',
     paddingVertical: 11,
   },
   addExerciseButtonText: {
-    color: '#FFFFFF',
+    color: '#000000',
     fontWeight: '800',
     fontSize: 14,
   },
   replaceExerciseButton: {
     flex: 1,
-    backgroundColor: '#425A77',
+    backgroundColor: colors.secondary,
     borderRadius: 10,
     alignItems: 'center',
     paddingVertical: 11,
@@ -1152,30 +1141,10 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   finishButton: {
-    backgroundColor: '#2A9E66',
-    borderRadius: 12,
-    alignItems: 'center',
-    paddingVertical: 14,
-    minHeight: 50,
-  },
-  finishButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '900',
-    fontSize: 15,
+    marginBottom: 8,
   },
   partialButton: {
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: '#476A9C',
-    borderRadius: 12,
-    alignItems: 'center',
-    paddingVertical: 12,
-    minHeight: 50,
-  },
-  partialButtonText: {
-    color: '#CFE4FF',
-    fontWeight: '700',
-    fontSize: 14,
+    marginTop: 0,
   },
   inactiveHint: {
     marginTop: 8,

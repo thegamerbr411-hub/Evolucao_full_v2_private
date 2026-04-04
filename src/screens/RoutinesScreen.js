@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useApp } from '../context/AppContext';
+import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
+import { colors, spacing } from '../theme';
 
 function getConfidenceVisual(confidence) {
   if (confidence === 'alta') {
@@ -130,10 +132,9 @@ export default function RoutinesScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Rotinas</Text>
-      <Text style={styles.subtitle}>Controle total: recomendadas e criadas por voce no mesmo padrao.</Text>
+      <ScreenHeader title="Rotinas" subtitle="Controle total: recomendadas e criadas por voce no mesmo padrao." />
 
-      <View style={styles.card}>
+      <AppCard>
         <Text style={styles.cardTitle}>Recomendada hoje</Text>
         <Text style={styles.recommendationMain}>🔥 Hoje e {smart.title}. Foco nisso.</Text>
         <Text style={styles.recommendationSub}>Confianca: {getConfidenceVisual(smart.confidence)} · Semana: {smart.trainedThisWeek}/{smart.weeklyTarget}</Text>
@@ -141,12 +142,10 @@ export default function RoutinesScreen() {
         {todayRoutine.map((item) => (
           <Text key={item.id} style={styles.line}>• {item.name} ({item.sets}x{item.reps})</Text>
         ))}
-        <TouchableOpacity style={styles.primaryButton} onPress={saveRecommendedAsOwn}>
-          <Text style={styles.primaryButtonText}>Salvar como treino proprio</Text>
-        </TouchableOpacity>
-      </View>
+        <PrimaryButton title="Salvar como treino proprio" onPress={saveRecommendedAsOwn} style={styles.primaryButton} />
+      </AppCard>
 
-      <View style={styles.card}>
+      <AppCard>
         <Text style={styles.cardTitle}>{editingRoutineId ? 'Editar rotina' : 'Criar rotina manual'}</Text>
 
         <TextInput
@@ -195,18 +194,14 @@ export default function RoutinesScreen() {
         ))}
 
         <View style={styles.actionsRow}>
-          <TouchableOpacity style={styles.primaryButton} onPress={saveRoutine}>
-            <Text style={styles.primaryButtonText}>{editingRoutineId ? 'Salvar edicao' : 'Criar rotina'}</Text>
-          </TouchableOpacity>
+          <PrimaryButton title={editingRoutineId ? 'Salvar edicao' : 'Criar rotina'} onPress={saveRoutine} style={styles.primaryButton} />
           {editingRoutineId ? (
-            <TouchableOpacity style={styles.secondaryButton} onPress={resetBuilder}>
-              <Text style={styles.secondaryButtonText}>Cancelar</Text>
-            </TouchableOpacity>
+            <SecondaryButton title="Cancelar" onPress={resetBuilder} style={styles.secondaryButton} />
           ) : null}
         </View>
-      </View>
+      </AppCard>
 
-      <View style={styles.card}>
+      <AppCard>
         <Text style={styles.cardTitle}>Minhas rotinas</Text>
         {userRoutines.length === 0 ? <Text style={styles.empty}>Nenhuma rotina salva ainda.</Text> : null}
         {userRoutines.map((routine) => (
@@ -237,7 +232,7 @@ export default function RoutinesScreen() {
             </View>
           </View>
         ))}
-      </View>
+      </AppCard>
     </ScrollView>
   );
 }
@@ -245,88 +240,47 @@ export default function RoutinesScreen() {
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    backgroundColor: '#0B0F14',
+    backgroundColor: colors.background,
     paddingTop: 56,
-    paddingHorizontal: 16,
-    paddingBottom: 24,
-  },
-  title: {
-    fontSize: 30,
-    fontWeight: '900',
-    color: '#FFFFFF',
-  },
-  subtitle: {
-    marginTop: 8,
-    marginBottom: 12,
-    color: '#B8C4D6',
-    fontSize: 14,
-  },
-  card: {
-    backgroundColor: '#121821',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#263040',
-    padding: 14,
-    marginBottom: 10,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
   },
   cardTitle: {
-    color: '#F8FAFC',
+    color: colors.textPrimary,
     fontSize: 14,
     fontWeight: '800',
     marginBottom: 8,
   },
   recommendationMain: {
-    color: '#9FE3D6',
+    color: colors.success,
     fontSize: 14,
     fontWeight: '900',
     marginBottom: 6,
   },
   recommendationSub: {
-    color: '#C4D1E4',
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: '600',
     marginBottom: 6,
   },
   line: {
-    color: '#D6E4F8',
+    color: colors.textPrimary,
     fontSize: 13,
     marginBottom: 4,
     fontWeight: '600',
   },
   primaryButton: {
     marginTop: 8,
-    minHeight: 44,
-    borderRadius: 10,
-    backgroundColor: '#0F766E',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-  },
-  primaryButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '800',
-    fontSize: 13,
   },
   secondaryButton: {
     marginTop: 8,
-    minHeight: 44,
-    borderRadius: 10,
-    backgroundColor: '#1F2937',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-  },
-  secondaryButtonText: {
-    color: '#DCE8FF',
-    fontWeight: '700',
-    fontSize: 13,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#4B6896',
+    borderColor: colors.border,
     borderRadius: 10,
-    backgroundColor: '#0F1D36',
-    color: '#F2F7FF',
+    backgroundColor: '#141922',
+    color: colors.textPrimary,
     paddingHorizontal: 10,
     paddingVertical: 10,
     marginBottom: 8,
@@ -341,7 +295,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 8,
-    backgroundColor: '#1F3B66',
+    backgroundColor: colors.secondary,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -351,7 +305,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   frequencyText: {
-    color: '#DCE8FF',
+    color: colors.textPrimary,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -363,26 +317,26 @@ const styles = StyleSheet.create({
   },
   chip: {
     borderWidth: 1,
-    borderColor: '#456696',
+    borderColor: colors.border,
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 5,
-    backgroundColor: '#0F1D36',
+    backgroundColor: '#141922',
   },
   chipText: {
-    color: '#CFE4FF',
+    color: colors.textPrimary,
     fontSize: 12,
     fontWeight: '700',
   },
   blockLabel: {
-    color: '#AFC1D9',
+    color: colors.textSecondary,
     textTransform: 'uppercase',
     fontWeight: '800',
     fontSize: 11,
     marginBottom: 6,
   },
   empty: {
-    color: '#8FA5CB',
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -400,13 +354,13 @@ const styles = StyleSheet.create({
   savedRoutineCard: {
     marginTop: 8,
     borderWidth: 1,
-    borderColor: '#2A3D57',
+    borderColor: colors.border,
     borderRadius: 10,
     padding: 10,
-    backgroundColor: '#0E1724',
+    backgroundColor: '#141922',
   },
   savedRoutineTitle: {
-    color: '#F1F7FF',
+    color: colors.textPrimary,
     fontSize: 14,
     fontWeight: '800',
     marginBottom: 4,
@@ -419,7 +373,7 @@ const styles = StyleSheet.create({
   smallButton: {
     marginTop: 8,
     borderRadius: 8,
-    backgroundColor: '#355B8E',
+    backgroundColor: colors.secondary,
     paddingHorizontal: 10,
     paddingVertical: 8,
   },
@@ -427,7 +381,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#7F1D1D',
   },
   smallButtonText: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontWeight: '700',
     fontSize: 12,
   },

@@ -4,6 +4,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { trackEvent } from '../utils/analytics';
+import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
+import { colors, spacing } from '../theme';
 
 export default function NutritionScanner({ navigation }) {
   const {
@@ -65,6 +67,11 @@ export default function NutritionScanner({ navigation }) {
         quantity: safeQuantity,
       },
     ]);
+  };
+
+  const updateMealDraftItemQuantity = (itemId, nextQuantity) => {
+    const safe = Math.max(0.1, Number(nextQuantity || 1));
+    setMealDraftItems((prev) => prev.map((item) => (item.id === itemId ? { ...item, quantity: safe } : item)));
   };
 
   const mealDraftTotals = useMemo(
@@ -199,10 +206,9 @@ export default function NutritionScanner({ navigation }) {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Nutricao</Text>
-      <Text style={styles.subtitle}>Registre refeicoes com horario. Texto e foto ficam como apoio.</Text>
+      <ScreenHeader title="Nutricao" subtitle="Registre refeicoes com horario. Texto e foto ficam como apoio." />
 
-      <View style={styles.card}>
+      <AppCard style={styles.card}>
         <Text style={styles.cardTitle}>Catalogo local</Text>
         <TextInput
           value={searchQuery}
@@ -239,12 +245,10 @@ export default function NutritionScanner({ navigation }) {
           ))}
         </View>
 
-        <TouchableOpacity style={styles.primaryButton} onPress={useEstimateInDay}>
-          <Text style={styles.primaryButtonText}>Adicionar na refeicao</Text>
-        </TouchableOpacity>
-      </View>
+        <PrimaryButton title="Adicionar alimento +" onPress={useEstimateInDay} style={styles.primaryButton} />
+      </AppCard>
 
-      <View style={styles.card}>
+      <AppCard style={styles.card}>
         <Text style={styles.cardTitle}>Composicao da refeicao</Text>
         {mealDraftItems.length === 0 ? <Text style={styles.emptyLine}>Adicione alimentos para montar a refeicao.</Text> : null}
         {mealDraftItems.map((item) => (
@@ -252,6 +256,19 @@ export default function NutritionScanner({ navigation }) {
             <View>
               <Text style={styles.logTitle}>{item.label}</Text>
               <Text style={styles.logMeta}>Quantidade: {item.quantity}x</Text>
+              <View style={styles.qtyRow}>
+                <TouchableOpacity style={styles.qtyBtn} onPress={() => updateMealDraftItemQuantity(item.id, Math.max(0.1, item.quantity - 0.5))}>
+                  <Text style={styles.qtyBtnText}>-</Text>
+                </TouchableOpacity>
+                {[0.5, 1, 2].map((factor) => (
+                  <TouchableOpacity key={`${item.id}-${factor}`} style={styles.qtyChip} onPress={() => updateMealDraftItemQuantity(item.id, factor)}>
+                    <Text style={styles.qtyChipText}>{factor}x</Text>
+                  </TouchableOpacity>
+                ))}
+                <TouchableOpacity style={styles.qtyBtn} onPress={() => updateMealDraftItemQuantity(item.id, item.quantity + 0.5)}>
+                  <Text style={styles.qtyBtnText}>+</Text>
+                </TouchableOpacity>
+              </View>
             </View>
             <TouchableOpacity onPress={() => setMealDraftItems((prev) => prev.filter((entry) => entry.id !== item.id))}>
               <Text style={styles.removeText}>Remover</Text>
@@ -263,12 +280,10 @@ export default function NutritionScanner({ navigation }) {
           Totais: {Math.round(mealDraftTotals.calories)} kcal | P {Math.round(mealDraftTotals.protein)}g | C {Math.round(mealDraftTotals.carbs)}g | G {Math.round(mealDraftTotals.fats)}g
         </Text>
 
-        <TouchableOpacity style={styles.primaryButton} onPress={saveMealDraft}>
-          <Text style={styles.primaryButtonText}>Salvar refeicao completa</Text>
-        </TouchableOpacity>
-      </View>
+        <PrimaryButton title="Salvar refeicao completa" onPress={saveMealDraft} style={styles.primaryButton} />
+      </AppCard>
 
-      <View style={styles.card}>
+      <AppCard style={styles.card}>
         <Text style={styles.cardTitle}>Hoje</Text>
         {mealFeedback ? <Text style={styles.mealFeedback}>{mealFeedback}</Text> : null}
         {todayFoodLog.length === 0 ? <Text style={styles.emptyLine}>Nenhum registro ainda.</Text> : null}
@@ -284,9 +299,9 @@ export default function NutritionScanner({ navigation }) {
             </TouchableOpacity>
           </View>
         ))}
-      </View>
+      </AppCard>
 
-      <View style={styles.card}>
+      <AppCard style={styles.card}>
         <Text style={styles.cardTitle}>Estimativa por texto</Text>
         <TextInput
           value={manualText}
@@ -311,7 +326,8 @@ export default function NutritionScanner({ navigation }) {
           ))}
         </View>
 
-        <TouchableOpacity
+        <PrimaryButton
+          title="Estimar macros por texto"
           style={styles.primaryButton}
           onPress={() => {
             const parsed = estimateNutritionFromText(manualText);
@@ -330,9 +346,7 @@ export default function NutritionScanner({ navigation }) {
               setResult(parsed);
             }
           }}
-        >
-          <Text style={styles.primaryButtonText}>Estimar macros por texto</Text>
-        </TouchableOpacity>
+        />
         {result?.ok && Array.isArray(result.items) && result.items.length ? (
           <View style={styles.chipsWrap}>
             {result.items.map((item, index) => (
@@ -351,9 +365,9 @@ export default function NutritionScanner({ navigation }) {
             ))}
           </View>
         ) : null}
-      </View>
+      </AppCard>
 
-      <View style={styles.card}>
+      <AppCard style={styles.card}>
         <Text style={styles.cardTitle}>Foto do prato (beta)</Text>
         <TextInput
           value={photoHintText}
@@ -364,12 +378,8 @@ export default function NutritionScanner({ navigation }) {
           style={styles.inputArea}
         />
         <View style={styles.photoButtonRow}>
-          <TouchableOpacity style={styles.secondaryButton} onPress={() => runPhotoEstimate('camera')}>
-            <Text style={styles.secondaryButtonText}>Tirar foto</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryButton} onPress={() => runPhotoEstimate('library')}>
-            <Text style={styles.secondaryButtonText}>Escolher da galeria</Text>
-          </TouchableOpacity>
+          <SecondaryButton title="Tirar foto" style={styles.secondaryButton} onPress={() => runPhotoEstimate('camera')} />
+          <SecondaryButton title="Escolher da galeria" style={styles.secondaryButton} onPress={() => runPhotoEstimate('library')} />
         </View>
         {result?.ok && Array.isArray(result.items) && result.items.length ? (
           <View style={styles.chipsWrap}>
@@ -389,10 +399,10 @@ export default function NutritionScanner({ navigation }) {
             ))}
           </View>
         ) : null}
-      </View>
+      </AppCard>
 
       {result ? (
-        <View style={styles.resultCard}>
+        <AppCard style={styles.resultCard}>
           <Text style={styles.resultTitle}>Resultado</Text>
           <Text style={styles.resultMessage}>{result.message}</Text>
           {result.ok ? (
@@ -410,7 +420,7 @@ export default function NutritionScanner({ navigation }) {
               <Text style={styles.coachLine}>Dica: use o catalogo acima para salvar no diario com horario.</Text>
             </>
           ) : null}
-        </View>
+        </AppCard>
       ) : null}
     </ScrollView>
   );
@@ -419,52 +429,36 @@ export default function NutritionScanner({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.background,
     paddingTop: 56,
-    paddingHorizontal: 16,
-    paddingBottom: 30,
-  },
-  title: {
-    fontSize: 30,
-    fontWeight: '800',
-    color: '#F8FAFC',
-  },
-  subtitle: {
-    marginTop: 8,
-    marginBottom: 12,
-    color: '#A8B7D3',
-    fontSize: 14,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
   },
   card: {
-    backgroundColor: '#111D35',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#2B446D',
-    padding: 12,
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   cardTitle: {
-    color: '#DCE8FF',
+    color: colors.textPrimary,
     fontSize: 14,
     fontWeight: '800',
     marginBottom: 8,
   },
   inputArea: {
     borderWidth: 1,
-    borderColor: '#4B6896',
+    borderColor: colors.border,
     borderRadius: 10,
-    backgroundColor: '#0F1D36',
-    color: '#F2F7FF',
+    backgroundColor: '#141922',
+    color: colors.textPrimary,
     padding: 10,
     minHeight: 72,
     textAlignVertical: 'top',
   },
   searchInput: {
     borderWidth: 1,
-    borderColor: '#4B6896',
+    borderColor: colors.border,
     borderRadius: 10,
-    backgroundColor: '#0F1D36',
-    color: '#F2F7FF',
+    backgroundColor: '#141922',
+    color: colors.textPrimary,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
@@ -474,21 +468,21 @@ const styles = StyleSheet.create({
   },
   foodOption: {
     borderWidth: 1,
-    borderColor: '#35507D',
+    borderColor: colors.border,
     borderRadius: 10,
     padding: 10,
-    backgroundColor: '#102140',
+    backgroundColor: '#141922',
   },
   foodOptionActive: {
-    borderColor: '#AECBFF',
-    backgroundColor: '#143057',
+    borderColor: colors.secondary,
+    backgroundColor: '#1B2840',
   },
   foodLabel: {
-    color: '#F1F7FF',
+    color: colors.textPrimary,
     fontWeight: '700',
   },
   foodMeta: {
-    color: '#BDD2F1',
+    color: colors.textSecondary,
     fontSize: 12,
     marginTop: 2,
   },
@@ -500,59 +494,39 @@ const styles = StyleSheet.create({
   },
   fractionButton: {
     borderWidth: 1,
-    borderColor: '#4E6FA4',
+    borderColor: colors.border,
     borderRadius: 999,
     paddingVertical: 6,
     paddingHorizontal: 12,
   },
   fractionButtonActive: {
-    backgroundColor: '#EAF2FF',
-    borderColor: '#EAF2FF',
+    backgroundColor: colors.secondary,
+    borderColor: colors.secondary,
   },
   fractionText: {
-    color: '#AECBFF',
+    color: colors.textPrimary,
     fontWeight: '700',
     fontSize: 12,
   },
   fractionTextActive: {
-    color: '#10386D',
+    color: colors.textPrimary,
   },
   primaryButton: {
     marginTop: 10,
-    backgroundColor: '#2B6CB0',
-    borderRadius: 10,
-    alignItems: 'center',
-    paddingVertical: 11,
-  },
-  primaryButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '800',
   },
   secondaryButton: {
     marginTop: 10,
-    backgroundColor: '#1F8B5B',
-    borderRadius: 10,
-    alignItems: 'center',
-    paddingVertical: 11,
     flex: 1,
   },
-  secondaryButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '800',
-  },
   resultCard: {
-    backgroundColor: '#13294B',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#355B8E',
-    padding: 12,
+    marginBottom: spacing.md,
   },
   emptyLine: {
-    color: '#A8B7D3',
+    color: colors.textSecondary,
     fontSize: 13,
   },
   mealFeedback: {
-    color: '#CFE4FF',
+    color: colors.textPrimary,
     fontSize: 12,
     marginBottom: 6,
     fontWeight: '700',
@@ -561,18 +535,18 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#2A4168',
+    borderBottomColor: colors.border,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: 8,
   },
   logTitle: {
-    color: '#F1F7FF',
+    color: colors.textPrimary,
     fontWeight: '700',
   },
   logMeta: {
-    color: '#BDD2F1',
+    color: colors.textSecondary,
     fontSize: 12,
   },
   removeText: {
@@ -580,9 +554,40 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 12,
   },
+  qtyRow: {
+    marginTop: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  qtyBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+    backgroundColor: colors.secondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  qtyBtnText: {
+    color: colors.textPrimary,
+    fontWeight: '900',
+  },
+  qtyChip: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 999,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+  },
+  qtyChipText: {
+    color: colors.textPrimary,
+    fontSize: 11,
+    fontWeight: '700',
+  },
   mealBadge: {
     marginTop: 3,
-    color: '#E2ECFF',
+    color: colors.textPrimary,
     fontSize: 12,
     fontWeight: '800',
   },
@@ -598,34 +603,34 @@ const styles = StyleSheet.create({
   },
   chipAction: {
     borderWidth: 1,
-    borderColor: '#4B6896',
+    borderColor: colors.border,
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    backgroundColor: '#0F1D36',
+    backgroundColor: '#141922',
   },
   chipActionText: {
-    color: '#D5E6FF',
+    color: colors.textPrimary,
     fontSize: 12,
     fontWeight: '700',
   },
   resultTitle: {
-    color: '#EAF2FF',
+    color: colors.textPrimary,
     fontWeight: '800',
     marginBottom: 6,
   },
   resultMessage: {
-    color: '#C4D7F8',
+    color: colors.textSecondary,
     marginBottom: 8,
   },
   resultLine: {
-    color: '#F1F7FF',
+    color: colors.textPrimary,
     marginBottom: 3,
     fontWeight: '700',
   },
   coachLine: {
     marginTop: 6,
-    color: '#BEE3F8',
+    color: colors.textSecondary,
     fontSize: 12,
     lineHeight: 18,
     fontWeight: '700',

@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useApp } from '../context/AppContext';
+import { AppCard, PrimaryButton, ScreenHeader } from '../components/ui';
+import { colors, spacing } from '../theme';
 
 const GOALS = [
   { key: 'emagrecer', label: 'Perda de gordura' },
@@ -65,10 +67,9 @@ export default function ProfileScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Perfil</Text>
-      <Text style={styles.subtitle}>Centro de controle da sua estrategia e evolucao.</Text>
+      <ScreenHeader title="Perfil" subtitle="Centro de controle da sua estrategia e evolucao." />
 
-      <View style={styles.card}>
+      <AppCard>
         <Text style={styles.cardLabel}>Meta principal</Text>
         <View style={styles.chipsRow}>
           {GOALS.map((item) => (
@@ -77,9 +78,9 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           ))}
         </View>
-      </View>
+      </AppCard>
 
-      <View style={styles.card}>
+      <AppCard>
         <Text style={styles.cardLabel}>Nivel</Text>
         <View style={styles.chipsRow}>
           {LEVELS.map((item) => (
@@ -88,48 +89,46 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           ))}
         </View>
-      </View>
+      </AppCard>
 
-      <View style={styles.card}>
+      <AppCard>
         <Text style={styles.cardLabel}>Frequencia semanal</Text>
         <TextInput value={trainingDays} onChangeText={setTrainingDays} keyboardType="numeric" style={styles.input} />
-      </View>
+      </AppCard>
 
-      <View style={styles.card}>
+      <AppCard>
         <Text style={styles.cardLabel}>Peso atual (kg)</Text>
         <TextInput value={currentWeight} onChangeText={setCurrentWeight} keyboardType="numeric" style={styles.input} />
-      </View>
+      </AppCard>
 
-      <View style={styles.card}>
+      <AppCard>
         <Text style={styles.cardLabel}>Peso alvo (kg)</Text>
         <TextInput value={targetWeight} onChangeText={setTargetWeight} keyboardType="numeric" style={styles.input} />
-      </View>
+      </AppCard>
 
-      <View style={styles.card}>
+      <AppCard>
         <Text style={styles.cardLabel}>Historico recente</Text>
         <Text style={styles.metric}>Dias com registro: {historySummary.days}</Text>
         <Text style={styles.metric}>Dias treinados: {historySummary.trainedDays}</Text>
         <Text style={styles.metric}>Proteina media: {historySummary.avgProtein}g</Text>
-      </View>
+      </AppCard>
 
-      <View style={styles.card}>
+      <AppCard>
         <Text style={styles.cardLabel}>Evolucao e social (base)</Text>
         <Text style={styles.metric}>Nivel {gamification.level} · XP {gamification.xp}</Text>
         <Text style={styles.metric}>Streak: {gamification.streakDays} dias</Text>
         <Text style={styles.metric}>Rotinas salvas: {Array.isArray(userRoutines) ? userRoutines.length : 0}</Text>
         <Text style={styles.metric}>Ranking/Amigos: pronto para acoplar na proxima sprint.</Text>
-      </View>
+      </AppCard>
 
-      <View style={styles.card}>
+      <AppCard>
         <Text style={styles.cardLabel}>Plano atual</Text>
         <Text style={styles.metric}>Calorias alvo: {Number(plan?.caloriesPerDay || 0)} kcal/dia</Text>
         <Text style={styles.metric}>Agua alvo: {Number(plan?.waterLitersPerDay || 0)}L/dia</Text>
         <Text style={styles.metric}>Estrategia: {String(plan?.strategy || 'recomposicao')}</Text>
-      </View>
+      </AppCard>
 
-      <TouchableOpacity style={styles.saveButton} onPress={saveProfile}>
-        <Text style={styles.saveButtonText}>Salvar perfil</Text>
-      </TouchableOpacity>
+      <PrimaryButton title="Salvar perfil" onPress={saveProfile} />
     </ScrollView>
   );
 }
@@ -137,33 +136,13 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    backgroundColor: '#0B0F14',
+    backgroundColor: colors.background,
     paddingTop: 56,
-    paddingHorizontal: 16,
-    paddingBottom: 24,
-  },
-  title: {
-    color: '#FFFFFF',
-    fontSize: 30,
-    fontWeight: '900',
-    marginBottom: 6,
-  },
-  subtitle: {
-    color: '#B8C4D6',
-    fontSize: 13,
-    marginBottom: 12,
-    fontWeight: '600',
-  },
-  card: {
-    backgroundColor: '#121821',
-    borderWidth: 1,
-    borderColor: '#263040',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
   },
   cardLabel: {
-    color: '#AFC1D9',
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: '800',
     textTransform: 'uppercase',
@@ -176,48 +155,36 @@ const styles = StyleSheet.create({
   },
   chip: {
     borderWidth: 1,
-    borderColor: '#476A9C',
+    borderColor: colors.border,
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
   chipActive: {
-    backgroundColor: '#DBEAFE',
-    borderColor: '#DBEAFE',
+    backgroundColor: colors.secondary,
+    borderColor: colors.secondary,
   },
   chipText: {
-    color: '#B9D8FF',
+    color: colors.textPrimary,
     fontSize: 12,
     fontWeight: '700',
   },
   chipTextActive: {
-    color: '#0F3B7A',
+    color: colors.textPrimary,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#4B6896',
+    borderColor: colors.border,
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 10,
-    color: '#F2F7FF',
-    backgroundColor: '#0F1D36',
+    color: colors.textPrimary,
+    backgroundColor: '#141922',
   },
   metric: {
-    color: '#D6E4F8',
+    color: colors.textPrimary,
     fontSize: 13,
     fontWeight: '600',
     marginBottom: 4,
-  },
-  saveButton: {
-    minHeight: 50,
-    borderRadius: 12,
-    backgroundColor: '#0F766E',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  saveButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '800',
-    fontSize: 14,
   },
 });

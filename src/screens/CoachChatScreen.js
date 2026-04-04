@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp } from '../context/AppContext';
+import { ScreenHeader } from '../components/ui';
+import { colors, spacing } from '../theme';
 
 const COACH_MEMORY_KEY = 'coach.memory.v1';
 
@@ -12,27 +14,40 @@ function getMessageVariant(options, seed) {
   return options[Math.abs(seed) % options.length];
 }
 
-function detectIntent(message) {
+function detectIntents(message) {
   const text = String(message || '').toLowerCase();
+  const intents = [];
+
+  const pushIntent = (intent) => {
+    if (!intents.includes(intent)) {
+      intents.push(intent);
+    }
+  };
+
   if (text.includes('madrugada') || text.includes('treinei tarde') || text.includes('treinei de madrugada')) {
-    return 'late_workout';
+    pushIntent('late_workout');
   }
   if (text.includes('nao consegui treinar') || text.includes('não consegui treinar') || text.includes('nao treinei')) {
-    return 'missed_workout';
+    pushIntent('missed_workout');
   }
   if (text.includes('comi ') || text.includes('comi') || text.includes('pao') || text.includes('pão') || text.includes('ovo') || text.includes('proteina') || text.includes('proteína') || text.includes('comida') || text.includes('refeicao') || text.includes('refeição')) {
-    return 'nutrition';
+    pushIntent('nutrition');
   }
   if (text.includes('bebi pouca') || text.includes('bebi pouco') || text.includes('agua') || text.includes('água') || text.includes('hidrat')) {
-    return 'hydration';
+    pushIntent('hydration');
   }
   if (text.includes('me monta uma rotina') || text.includes('monta rotina') || text.includes('rotina') || text.includes('semana') || text.includes('planejar') || text.includes('planejamento')) {
-    return 'routine';
+    pushIntent('routine');
   }
   if (text.includes('treino') || text.includes('carga') || text.includes('exercicio') || text.includes('exercício')) {
-    return 'training';
+    pushIntent('training');
   }
-  return 'general';
+
+  if (!intents.length) {
+    pushIntent('general');
+  }
+
+  return intents;
 }
 
 function getDayPeriod() {
@@ -62,13 +77,61 @@ function getTransitionMessage(lastIntent, currentIntent, context) {
   return '';
 }
 
+function getCoachMultiIntentReply(intents, context) {
+  const done = [];
+  const missing = [];
+  const next = [];
+
+  if (intents.includes('training') || intents.includes('late_workout')) {
+    done.push(context.trainedToday ? 'Voce ja treinou hoje.' : 'Treino de hoje ainda nao foi concluido.');
+    if (!context.trainedToday) {
+      missing.push(`Semana em ${context.smart.trainedThisWeek}/${context.smart.weeklyTarget}.`);
+      next.push('Faca um treino curto agora para nao acumular.');
+    }
+  }
+
+  if (intents.includes('nutrition')) {
+    const proteinGap = Math.max(0, context.proteinTarget - context.proteinToday);
+    done.push(`Proteina atual: ${context.proteinToday}g.`);
+    if (proteinGap > 0) {
+      missing.push(`Faltam ${proteinGap}g de proteina.`);
+      next.push('Coloque uma refeicao proteica ainda hoje.');
+    }
+  }
+
+  if (intents.includes('hydration')) {
+    const waterGap = Math.max(0, context.waterTarget - context.waterToday);
+    done.push(`Agua atual: ${context.waterToday}ml.`);
+    if (waterGap > 0) {
+      missing.push(`Faltam ${waterGap}ml de agua.`);
+      next.push('Beba +300ml agora e repita no proximo bloco do dia.');
+    }
+  }
+
+  if (intents.includes('routine')) {
+    missing.push('Rotina da semana precisa de execucao consistente.');
+    next.push('Defina os proximos 2 treinos e cumpra em dias alternados.');
+  }
+
+  const doneText = done.length ? done.join(' ') : 'Voce ja comecou bem hoje.';
+  const missingText = missing.length ? missing.join(' ') : 'Nada critico pendente no momento.';
+  const nextText = next.length ? next[0] : 'Mantenha o plano atual e execute o proximo bloco.';
+
+  return `Ja foi feito: ${doneText} Falta: ${missingText} Agora: ${nextText}`;
+}
+
 function getCoachReply(message, context, turnIndex, memory) {
-  const intent = detectIntent(message);
+  const intents = detectIntents(message);
+  const intent = intents[0];
   const seed = String(message || '').length + turnIndex;
   const transitionText = getTransitionMessage(memory.lastUserIntent, intent, context);
 
   if (transitionText) {
     return transitionText;
+  }
+
+  if (intents.length > 1) {
+    return getCoachMultiIntentReply(intents, context);
   }
 
   if (intent === 'missed_workout') {
@@ -262,7 +325,8 @@ export default function CoachChatScreen() {
       return;
     }
     const userMessage = { id: `u-${Date.now()}`, role: 'user', text: trimmed };
-    const intent = detectIntent(trimmed);
+    const intents = detectIntents(trimmed);
+    const intent = intents[0] || 'general';
     const liveContext = {
       ...context,
       smart,
@@ -289,8 +353,7 @@ export default function CoachChatScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Conversa com o Personal/Nutri</Text>
-      <Text style={styles.subtitle}>Conversa orientada pelo seu treino, agua e macros do dia.</Text>
+      <ScreenHeader title="Conversa com o Personal/Nutri" subtitle="Conversa orientada pelo seu treino, agua e macros do dia." />
 
       <ScrollView style={styles.chatBox} contentContainerStyle={styles.chatContent}>
         {messages.map((message) => (
@@ -319,45 +382,37 @@ export default function CoachChatScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0B0F14',
+    backgroundColor: colors.background,
     paddingTop: 56,
-    paddingHorizontal: 16,
-  },
-  title: {
-    color: '#FFFFFF',
-    fontSize: 26,
-    fontWeight: '900',
-  },
-  subtitle: {
-    marginTop: 8,
-    marginBottom: 12,
-    color: '#B8C4D6',
-    fontSize: 14,
+    paddingHorizontal: spacing.lg,
   },
   chatBox: {
     flex: 1,
-    backgroundColor: '#121821',
+    backgroundColor: colors.card,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#263040',
+    borderColor: colors.border,
     marginBottom: 10,
   },
   chatContent: {
-    padding: 10,
-    gap: 8,
+    padding: spacing.md,
+    gap: spacing.sm,
   },
   bubble: {
-    borderRadius: 12,
-    padding: 10,
-    maxWidth: '92%',
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    maxWidth: '88%',
   },
   userBubble: {
-    backgroundColor: '#1F3B66',
+    backgroundColor: colors.secondary,
     alignSelf: 'flex-end',
+    borderBottomRightRadius: 4,
   },
   coachBubble: {
-    backgroundColor: '#1A242F',
+    backgroundColor: '#141922',
     alignSelf: 'flex-start',
+    borderBottomLeftRadius: 4,
   },
   bubbleText: {
     fontSize: 13,
@@ -365,10 +420,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   userText: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   coachText: {
-    color: '#D7E2F1',
+    color: colors.textPrimary,
   },
   inputRow: {
     flexDirection: 'row',
@@ -380,22 +435,22 @@ const styles = StyleSheet.create({
     minHeight: 50,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#2C3A4D',
-    backgroundColor: '#111827',
-    color: '#FFFFFF',
+    borderColor: colors.border,
+    backgroundColor: '#141922',
+    color: colors.textPrimary,
     paddingHorizontal: 12,
     fontSize: 14,
   },
   sendButton: {
     minHeight: 50,
     borderRadius: 10,
-    backgroundColor: '#0F766E',
+    backgroundColor: colors.primary,
     paddingHorizontal: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   sendText: {
-    color: '#FFFFFF',
+    color: '#000000',
     fontWeight: '800',
   },
 });
