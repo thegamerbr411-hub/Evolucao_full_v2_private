@@ -34,7 +34,11 @@ export default function HomeScreen({ navigation }) {
   const proteinRemaining = Math.max(0, proteinTarget - proteinToday);
   const waterRemaining = Math.max(0, waterTarget - waterToday);
   const monthPrefix = today.slice(0, 7);
-  const monthlyWorkouts = workoutLogs.filter((item) => String(item.date || '').startsWith(monthPrefix)).length;
+  const monthlyWorkoutDays = new Set(
+    workoutLogs
+      .filter((item) => String(item.date || '').startsWith(monthPrefix))
+      .map((item) => item.date)
+  ).size;
   const streakDays = Number(gamification?.streakDays || 0);
   const trainedToday = workoutLogs.some((item) => item.date === today);
 
@@ -80,7 +84,7 @@ export default function HomeScreen({ navigation }) {
             ? 'Se nao fizer hoje, zera.'
             : 'Continue amanha para nao quebrar.'}
         </Text>
-        <Text style={styles.cardSub}>📈 {monthlyWorkouts} treinos no mes</Text>
+        <Text style={styles.cardSub}>📈 {monthlyWorkoutDays} dias treinados no mes</Text>
       </AppCard>
 
       <SecondaryButton title="Ver detalhes" onPress={() => navigation.navigate('Historico')} />

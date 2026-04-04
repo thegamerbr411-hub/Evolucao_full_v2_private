@@ -69,7 +69,7 @@ export default function PaywallScreen({ navigation, route }) {
         <Text style={styles.bullet}>- Auto Coach completo com ajustes automaticos</Text>
         <Text style={styles.bullet}>- Analise semanal premium de macros e performance</Text>
         <Text style={styles.bullet}>- Scanner por foto real (modo avancado)</Text>
-        <Text style={styles.bullet}>- Recursos sociais e ranking (proximas releases)</Text>
+        <Text style={styles.bullet}>- Recursos de comunidade e ranking para manter consistencia</Text>
         <Text style={styles.bullet}>- 7 dias de garantia</Text>
         <Text style={styles.bullet}>- Cancele quando quiser</Text>
       </View>
@@ -79,14 +79,16 @@ export default function PaywallScreen({ navigation, route }) {
         <Text style={styles.urgencyText}>⚠️ Oferta de preco atual pode sair a qualquer momento.</Text>
       </View>
 
-      <View style={styles.metricsCard}>
-        <Text style={styles.metricsTitle}>Funil (temporario)</Text>
-        <Text style={styles.metricsLine}>paywall_open: {metrics.paywall_open || 0}</Text>
-        <Text style={styles.metricsLine}>trial_start: {metrics.trial_start || 0}</Text>
-        <Text style={styles.metricsLine}>pro_activated: {metrics.pro_activated || 0}</Text>
-        <Text style={styles.metricsRates}>📊 Trial: {rates.trialRate}%</Text>
-        <Text style={styles.metricsRates}>💎 PRO: {rates.proRate}%</Text>
-      </View>
+      {__DEV__ ? (
+        <View style={styles.metricsCard}>
+          <Text style={styles.metricsTitle}>Funil interno</Text>
+          <Text style={styles.metricsLine}>paywall_open: {metrics.paywall_open || 0}</Text>
+          <Text style={styles.metricsLine}>trial_start: {metrics.trial_start || 0}</Text>
+          <Text style={styles.metricsLine}>pro_activated: {metrics.pro_activated || 0}</Text>
+          <Text style={styles.metricsRates}>📊 Trial: {rates.trialRate}%</Text>
+          <Text style={styles.metricsRates}>💎 PRO: {rates.proRate}%</Text>
+        </View>
+      ) : null}
 
       {canStartTrial ? (
         <TouchableOpacity

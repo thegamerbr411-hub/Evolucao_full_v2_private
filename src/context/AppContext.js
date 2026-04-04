@@ -315,6 +315,29 @@ function getDateDiffInDays(fromDateKey, toDateKey) {
   return Math.floor((to - from) / (1000 * 60 * 60 * 24));
 }
 
+function getWeekBounds(dateKey) {
+  const base = new Date(`${dateKey}T12:00:00`);
+  const weekday = (base.getDay() + 6) % 7;
+
+  const start = new Date(base);
+  start.setDate(base.getDate() - weekday);
+
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+
+  const toDateKey = (value) => {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  return {
+    startKey: toDateKey(start),
+    endKey: toDateKey(end),
+  };
+}
+
 function normalizeText(value = '') {
   return String(value)
     .toLowerCase()
@@ -1153,27 +1176,106 @@ export const AppProvider=({children})=>{
       ...totals,
     };
 
-    setNutritionLogs((prev) => [entry, ...prev]);
+    let aggregatedForToday = null;
+    setNutritionLogs((prev) => {
+      const next = [entry, ...prev];
+      const todayEntries = next.filter((item) => item.date === entryDate);
+      aggregatedForToday = todayEntries.reduce(
+        (acc, item) => ({
+          calories: acc.calories + Number(item.calories || 0),
+          protein: acc.protein + Number(item.protein || 0),
+          carbs: acc.carbs + Number(item.carbs || 0),
+          fats: acc.fats + Number(item.fats || 0),
+        }),
+        { calories: 0, protein: 0, carbs: 0, fats: 0 }
+      );
+      return next;
+    });
 
-    const todayEntries = getTodayFoodLog();
-    const nextEntries = [entry, ...todayEntries];
-    const aggregated = nextEntries.reduce(
-      (acc, item) => ({
-        calories: acc.calories + Number(item.calories || 0),
-        protein: acc.protein + Number(item.protein || 0),
-        carbs: acc.carbs + Number(item.carbs || 0),
-        fats: acc.fats + Number(item.fats || 0),
-      }),
-      { calories: 0, protein: 0, carbs: 0, fats: 0 }
-    );
-
-    saveNutritionEntry(aggregated);
+    if (aggregatedForToday) {
+      saveNutritionEntry(aggregatedForToday);
+    }
 
     return {
       ok: true,
       entry,
       quality,
       message: `Alimento registrado. ${quality.emoji} ${quality.badge}.`,
+    };
+  };
+
+  const addFoodLogEntriesBatch = ({ items = [], loggedAt }) => {
+    const entryDate = getTodayKey();
+    const safeLoggedAt = loggedAt || getNowTimeLabel();
+    let createdEntries = [];
+    let aggregatedForToday = null;
+
+    setNutritionLogs((prev) => {
+      const nextEntries = [];
+
+      items.forEach((item) => {
+        const food = FOOD_CATALOG.find((entry) => entry.key === item.foodKey)
+          || FOOD_CATALOG.find((entry) => normalizeText(entry.label) === normalizeText(item.label || ''));
+
+        if (!food) {
+          return;
+        }
+
+        const safeQuantity = Math.max(0.1, Number(item.quantity || 1));
+        const totals = {
+          calories: round(food.calories * safeQuantity),
+          protein: round(food.protein * safeQuantity),
+          carbs: round(food.carbs * safeQuantity),
+          fats: round(food.fats * safeQuantity),
+        };
+
+        const quality = evaluateMealQuality(totals);
+        nextEntries.push({
+          id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          date: entryDate,
+          loggedAt: safeLoggedAt,
+          foodKey: food.key,
+          label: food.label,
+          quantity: safeQuantity,
+          quality,
+          ...totals,
+        });
+      });
+
+      if (!nextEntries.length) {
+        createdEntries = [];
+        return prev;
+      }
+
+      const next = [...nextEntries, ...prev];
+      const todayEntries = next.filter((item) => item.date === entryDate);
+      aggregatedForToday = todayEntries.reduce(
+        (acc, item) => ({
+          calories: acc.calories + Number(item.calories || 0),
+          protein: acc.protein + Number(item.protein || 0),
+          carbs: acc.carbs + Number(item.carbs || 0),
+          fats: acc.fats + Number(item.fats || 0),
+        }),
+        { calories: 0, protein: 0, carbs: 0, fats: 0 }
+      );
+      createdEntries = nextEntries;
+      return next;
+    });
+
+    if (!createdEntries.length) {
+      return { ok: false, message: 'Nenhum alimento valido para salvar.' };
+    }
+
+    if (aggregatedForToday) {
+      saveNutritionEntry(aggregatedForToday);
+    }
+
+    const lastQuality = createdEntries[createdEntries.length - 1]?.quality || null;
+    return {
+      ok: true,
+      entries: createdEntries,
+      quality: lastQuality,
+      message: `Refeicao composta salva com ${createdEntries.length} item(ns).`,
     };
   };
 
@@ -1533,10 +1635,13 @@ export const AppProvider=({children})=>{
   const getSmartWorkoutRecommendation = () => {
     const todayKey = getTodayKey();
     const weeklyTarget = Number(profile?.trainingDaysPerWeek || 3);
-    const weekPrefix = todayKey.slice(0, 8);
+    const { startKey, endKey } = getWeekBounds(todayKey);
     const trainedThisWeek = new Set(
       workoutLogs
-        .filter((item) => String(item.date || '').startsWith(weekPrefix))
+        .filter((item) => {
+          const dateKey = String(item.date || '');
+          return dateKey >= startKey && dateKey <= endKey;
+        })
         .map((item) => item.date)
     ).size;
 
@@ -2393,6 +2498,7 @@ export const AppProvider=({children})=>{
         saveNutritionEntry,
         searchFoodCatalog,
         addFoodLogEntry,
+        addFoodLogEntriesBatch,
         removeFoodLogEntry,
         getTodayFoodLog,
         evaluateMealQuality,

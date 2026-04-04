@@ -13,6 +13,7 @@ export default function NutritionScanner({ navigation }) {
     estimateNutritionFromPhotoHint,
     searchFoodCatalog,
     addFoodLogEntry,
+    addFoodLogEntriesBatch,
     removeFoodLogEntry,
     getTodayFoodLog,
     evaluateMealQuality,
@@ -160,21 +161,18 @@ export default function NutritionScanner({ navigation }) {
     const now = new Date();
     const loggedAt = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
-    let lastQuality = null;
-    mealDraftItems.forEach((item) => {
-      const result = addFoodLogEntry({
-        foodKey: item.foodKey,
-        label: item.label,
-        quantity: item.quantity,
-        loggedAt,
-      });
-      if (result?.quality) {
-        lastQuality = result.quality;
-      }
+    const result = addFoodLogEntriesBatch({
+      items: mealDraftItems,
+      loggedAt,
     });
 
-    if (lastQuality) {
-      setMealFeedback(`${lastQuality.emoji} ${lastQuality.badge} - refeicao composta salva com sucesso.`);
+    if (!result?.ok) {
+      setMealFeedback('Nao foi possivel salvar a refeicao composta.');
+      return;
+    }
+
+    if (result.quality) {
+      setMealFeedback(`${result.quality.emoji} ${result.quality.badge} - refeicao composta salva com sucesso.`);
     }
 
     trackEvent('food_logged', {

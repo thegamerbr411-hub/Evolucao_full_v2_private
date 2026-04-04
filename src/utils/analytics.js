@@ -6,7 +6,9 @@ const metrics = {
 
 export const trackEvent = (name, data = {}) => {
   metrics[name] = (metrics[name] || 0) + 1;
-  console.log('EVENT:', name, data, 'COUNT:', metrics[name]);
+  if (__DEV__) {
+    console.log('EVENT:', name, data, 'COUNT:', metrics[name]);
+  }
 
   // futuro:
   // firebase.analytics().logEvent(name, data);

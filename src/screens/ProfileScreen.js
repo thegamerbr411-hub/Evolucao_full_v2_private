@@ -118,7 +118,7 @@ export default function ProfileScreen() {
         <Text style={styles.metric}>Nivel {gamification.level} · XP {gamification.xp}</Text>
         <Text style={styles.metric}>Streak: {gamification.streakDays} dias</Text>
         <Text style={styles.metric}>Rotinas salvas: {Array.isArray(userRoutines) ? userRoutines.length : 0}</Text>
-        <Text style={styles.metric}>Ranking/Amigos: pronto para acoplar na proxima sprint.</Text>
+        <Text style={styles.metric}>Comunidade: acompanhe sua evolucao e consistencia semanal.</Text>
       </AppCard>
 
       <AppCard>
