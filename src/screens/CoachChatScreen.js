@@ -220,6 +220,30 @@ function buildPainSafetyLine(pain = '') {
   return 'Dor relatada no perfil: treine com margem de seguranca e ajuste carga antes de buscar falha.';
 }
 
+function getUrgencyStyles(level) {
+  if (level === 'alta') {
+    return {
+      borderColor: '#EF4444',
+      backgroundColor: '#2B1717',
+      badge: 'Urgencia alta',
+    };
+  }
+
+  if (level === 'media') {
+    return {
+      borderColor: '#F59E0B',
+      backgroundColor: '#2D2415',
+      badge: 'Urgencia media',
+    };
+  }
+
+  return {
+    borderColor: '#22C55E',
+    backgroundColor: '#15271B',
+    badge: 'Sob controle',
+  };
+}
+
 export default function CoachChatScreen({ navigation }) {
   const {
     profile,
@@ -235,10 +259,23 @@ export default function CoachChatScreen({ navigation }) {
     addWaterIntake,
   } = useApp();
   const [input, setInput] = useState('');
-  const [coachCard, setCoachCard] = useState({ doneText: '', missingText: '', action: '' });
+  const [coachCard, setCoachCard] = useState({
+    doneText: '',
+    missingText: '',
+    action: '',
+    urgencyLevel: 'baixa',
+    quickActions: {
+      trainingTitle: 'Treinar',
+      nutritionTitle: 'Comer',
+      waterTitle: '+300ml',
+      routineTitle: 'Rotina',
+      waterQuickMl: 300,
+    },
+  });
   const [memory, setMemory] = useState({
     lastUserIntent: null,
     lastCoachMessage: '',
+    lastActions: [],
   });
   const [messages, setMessages] = useState([
     {
@@ -321,6 +358,7 @@ export default function CoachChatScreen({ navigation }) {
           setMemory({
             lastUserIntent: parsed.lastUserIntent || null,
             lastCoachMessage: parsed.lastCoachMessage || '',
+            lastActions: Array.isArray(parsed.lastActions) ? parsed.lastActions : [],
           });
         }
       } catch (error) {
@@ -342,6 +380,17 @@ export default function CoachChatScreen({ navigation }) {
 
     persistCoachMemory();
   }, [memory]);
+
+  const rememberAction = (action) => {
+    setMemory((prev) => {
+      const history = Array.isArray(prev.lastActions) ? prev.lastActions : [];
+      const next = [...history, `${Date.now()}:${action}`].slice(-8);
+      return {
+        ...prev,
+        lastActions: next,
+      };
+    });
+  };
 
   useEffect(() => {
     setMessages((prev) => {
@@ -393,6 +442,39 @@ export default function CoachChatScreen({ navigation }) {
     });
   }, [dayPeriod, trainedToday, smart.isBehindWeek, smart.trainedThisWeek, smart.weeklyTarget, context.proteinToday, context.proteinTarget, context.waterToday, context.waterTarget, weakMeals, today, workoutGamification.streakDays]);
 
+  useEffect(() => {
+    const hour = new Date().getHours();
+    const triggerTexts = [];
+
+    if (hour >= 19 && (context.proteinTarget - context.proteinToday) > 40) {
+      triggerTexts.push('Alerta de noite: faltam mais de 40g de proteina e o dia esta acabando.');
+    }
+
+    if (hour >= 20 && !trainedToday) {
+      triggerTexts.push('Alerta de consistencia: treino ainda nao concluido hoje.');
+    }
+
+    if (!triggerTexts.length) {
+      return;
+    }
+
+    setMessages((prev) => {
+      const triggerId = `trigger-${today}-${hour}-${trainedToday}-${Math.max(0, context.proteinTarget - context.proteinToday)}`;
+      if (prev.some((item) => item.id === triggerId)) {
+        return prev;
+      }
+
+      return [
+        ...prev,
+        {
+          id: triggerId,
+          role: 'coach',
+          text: `Ja foi feito: ${coachCard.doneText}. Falta: ${coachCard.missingText}. Agora: ${triggerTexts[0]}`,
+        },
+      ];
+    });
+  }, [today, trainedToday, context.proteinToday, context.proteinTarget, coachCard.doneText, coachCard.missingText]);
+
   const sendMessage = () => {
     const trimmed = String(input || '').trim();
     if (!trimmed) {
@@ -412,10 +494,16 @@ export default function CoachChatScreen({ navigation }) {
       ? buildPainSafetyLine(currentPain)
       : '';
 
+    let tunedReply = baseReply;
+    const recentActions = Array.isArray(memory.lastActions) ? memory.lastActions.slice(-4).join(' ') : '';
+    if (recentActions.includes('water') && intent === 'hydration') {
+      tunedReply = 'Ja foi feito: voce adicionou agua recentemente. Falta: manter ritmo em blocos menores. Agora: apenas +100ml na proxima hora.';
+    }
+
     const coachMessage = {
       id: `c-${Date.now()}`,
       role: 'coach',
-      text: [baseReply, painSafety].filter(Boolean).join(' '),
+      text: [tunedReply, painSafety].filter(Boolean).join(' '),
     };
 
     if (coachMessage.text === memory.lastCoachMessage) {
@@ -426,33 +514,44 @@ export default function CoachChatScreen({ navigation }) {
     setMemory({
       lastUserIntent: intent,
       lastCoachMessage: coachMessage.text,
+      lastActions: Array.isArray(memory.lastActions) ? memory.lastActions : [],
     });
     setInput('');
     refreshCoachCard();
   };
 
   const addWaterQuick = () => {
-    addWaterIntake(300);
+    const ml = Number(coachCard.quickActions?.waterQuickMl || 0);
+    if (ml > 0) {
+      addWaterIntake(ml);
+      rememberAction(`water_${ml}`);
+    }
     refreshCoachCard();
   };
 
   const openWorkout = () => {
+    rememberAction('workout_open');
     navigation.navigate('TreinoHoje');
   };
 
   const openNutrition = () => {
+    rememberAction('nutrition_open');
     navigation.navigate('Scanner');
   };
 
   const openRoutines = () => {
+    rememberAction('routines_open');
     navigation.navigate('MainTabs', { screen: 'Rotinas' });
   };
+
+  const urgencyUI = getUrgencyStyles(coachCard.urgencyLevel);
 
   return (
     <View style={styles.container}>
       <ScreenHeader title="Conversa com o Personal/Nutri" subtitle="Conversa orientada pelo seu treino, agua e macros do dia." />
 
-      <AppCard style={styles.coachCard}>
+      <AppCard style={[styles.coachCard, { borderColor: urgencyUI.borderColor, backgroundColor: urgencyUI.backgroundColor }]}> 
+        <Text style={styles.urgencyBadge}>{urgencyUI.badge}</Text>
         <Text style={styles.coachTitle}>Ja foi feito</Text>
         <Text style={styles.coachLine}>{coachCard.doneText}</Text>
 
@@ -463,10 +562,10 @@ export default function CoachChatScreen({ navigation }) {
         <Text style={styles.coachAction}>{coachCard.action}</Text>
 
         <View style={styles.quickActionRow}>
-          <PrimaryButton title="Treinar" onPress={openWorkout} style={styles.quickMainBtn} />
-          <SecondaryButton title="Comer" onPress={openNutrition} style={styles.quickBtn} />
-          <SecondaryButton title="Agua" onPress={addWaterQuick} style={styles.quickBtn} />
-          <SecondaryButton title="Rotina" onPress={openRoutines} style={styles.quickBtn} />
+          <PrimaryButton title={coachCard.quickActions?.trainingTitle || 'Treinar'} onPress={openWorkout} style={styles.quickMainBtn} />
+          <SecondaryButton title={coachCard.quickActions?.nutritionTitle || 'Comer'} onPress={openNutrition} style={styles.quickBtn} />
+          <SecondaryButton title={coachCard.quickActions?.waterTitle || '+300ml'} onPress={addWaterQuick} style={styles.quickBtn} />
+          <SecondaryButton title={coachCard.quickActions?.routineTitle || 'Rotina'} onPress={openRoutines} style={styles.quickBtn} />
         </View>
       </AppCard>
 
@@ -514,6 +613,14 @@ const styles = StyleSheet.create({
   },
   coachCard: {
     marginBottom: 10,
+    borderWidth: 1,
+  },
+  urgencyBadge: {
+    color: '#F3F4F6',
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    marginBottom: 6,
   },
   coachTitle: {
     color: colors.textSecondary,

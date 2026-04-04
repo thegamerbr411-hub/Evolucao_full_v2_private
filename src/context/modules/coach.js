@@ -68,9 +68,36 @@ export function buildCoachMessage(state) {
     action = 'Beber agua agora';
   }
 
+  let urgencyLevel = 'baixa';
+  if (
+    missing.needsWorkoutToday &&
+    Number(missing.proteinLeft || 0) >= 30
+  ) {
+    urgencyLevel = 'alta';
+  } else if (
+    Number(missing.proteinLeft || 0) > 0 ||
+    Number(missing.waterLeft || 0) > 0 ||
+    missing.needsWorkoutToday
+  ) {
+    urgencyLevel = 'media';
+  }
+
+  const waterLeft = Number(missing.waterLeft || 0);
+  const waterQuickMl = waterLeft <= 0 ? 0 : waterLeft <= 120 ? 100 : 300;
+
+  const quickActions = {
+    trainingTitle: missing.needsWorkoutToday ? 'Treinar' : 'Treino OK',
+    nutritionTitle: Number(missing.proteinLeft || 0) > 0 ? 'Comer' : 'Proteina OK',
+    waterTitle: waterQuickMl ? `+${waterQuickMl}ml` : 'Agua OK',
+    routineTitle: Number(missing.workoutsLeft || 0) > 0 ? 'Rotina' : 'Rotina OK',
+    waterQuickMl,
+  };
+
   return {
     doneText,
     missingText,
     action,
+    urgencyLevel,
+    quickActions,
   };
 }

@@ -1,8 +1,8 @@
 
-import React,{createContext,useContext,useEffect,useMemo,useState} from 'react';
+import React,{createContext,useContext,useEffect,useMemo,useRef,useState} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { sumNutritionTotals } from './modules/nutrition';
-import { getWeekBounds, getWorkoutDelta } from './modules/workout';
+import { applyPainAdaptiveWorkout, getNextWeightSuggestion, getRecommendedWorkout, getWeekBounds, getWorkoutDelta } from './modules/workout';
 import { buildCoachMessage, buildDailyCoachState, buildWeeklyUrgency } from './modules/coach';
 import { getExerciseNamesFromDatabase } from '../data/exerciseDatabase';
 import { matchNutritionToken, searchNutritionDatabase } from '../data/nutritionDatabase';
@@ -828,6 +828,9 @@ export const AppProvider=({children})=>{
   });
   const [monetization, setMonetization] = useState(DEFAULT_MONETIZATION);
   const [isHydrated, setIsHydrated] = useState(false);
+  const localDecisionCacheRef = useRef({
+    workoutRecommendation: {},
+  });
 
   const hasCompletedQuestionnaire = useMemo(() => Boolean(profile && plan), [profile, plan]);
 
@@ -1589,132 +1592,85 @@ export const AppProvider=({children})=>{
   };
 
   const getTodayWorkout = () => {
-    return getWorkoutBySplit(plan?.trainingSplit).map((exercise, index) => ({
+    const base = getWorkoutBySplit(plan?.trainingSplit).map((exercise, index) => ({
       ...exercise,
       id: `${exercise.name}-${index}`,
       targetWeight: Number(exerciseTargets[exercise.name]?.targetWeight || 0),
     }));
+
+    const pain = String(profile?.currentPain || profile?.pain || '');
+    const catalog = getExerciseCatalogFromSources(workoutLogs);
+    const adaptive = applyPainAdaptiveWorkout(base, pain, catalog);
+
+    if (__DEV__ && adaptive.replacements.length) {
+      console.log('match:', 'local');
+      console.log('pain_adaptation:', adaptive.replacements.map((item) => `${item.from} -> ${item.to}`).join(' | '));
+    }
+
+    return adaptive.exercises;
   };
 
   const getSmartWorkoutRecommendation = () => {
     const todayKey = getTodayKey();
     const weeklyTarget = Number(profile?.trainingDaysPerWeek || 3);
-    const { startKey, endKey } = getWeekBounds(todayKey);
-    const trainedThisWeek = new Set(
-      workoutLogs
-        .filter((item) => {
-          const dateKey = String(item.date || '');
-          return dateKey >= startKey && dateKey <= endKey;
-        })
-        .map((item) => item.date)
-    ).size;
+    const pain = String(profile?.currentPain || profile?.pain || '');
+    const cacheKey = `${todayKey}|${weeklyTarget}|${pain}|${workoutLogs.length}`;
+    const cached = localDecisionCacheRef.current.workoutRecommendation[cacheKey];
 
-    const sessionDates = Array.from(new Set(workoutLogs.map((item) => item.date))).sort((a, b) =>
-      String(b).localeCompare(String(a))
-    );
-
-    const blockedGroups = new Set();
-    const recentGroupsByDate = [];
-
-    sessionDates.forEach((dateKey) => {
-      const diff = getDateDiffInDays(dateKey, todayKey);
-      const groups = Array.from(
-        new Set(
-          workoutLogs
-            .filter((item) => item.date === dateKey)
-            .map((item) => inferMuscleGroup(item.exerciseName))
-            .filter(Boolean)
-        )
-      );
-
-      if (groups.length) {
-        recentGroupsByDate.push({ dateKey, groups });
+    if (cached) {
+      if (__DEV__) {
+        console.log('match:', 'local-cache');
+        console.log('recommendation:', cached.key, '| confidence:', cached.confidence);
       }
+      return cached;
+    }
 
-      if (diff >= 0 && diff < 2) {
-        groups.forEach((group) => blockedGroups.add(group));
-      }
+    const result = getRecommendedWorkout({
+      workoutLogs,
+      weeklyTarget,
+      pain,
+      library: WORKOUT_LIBRARY,
+      catalog: getExerciseCatalogFromSources(workoutLogs),
+      todayKey,
     });
 
-    const clusterUsage = { push: 0, pull: 0, legs: 0, full: 0 };
-    recentGroupsByDate.slice(0, 7).forEach((session) => {
-      if (session.groups.includes('peito') || session.groups.includes('ombro') || session.groups.includes('triceps')) {
-        clusterUsage.push += 1;
-      }
-      if (session.groups.includes('costas') || session.groups.includes('biceps')) {
-        clusterUsage.pull += 1;
-      }
-      if (session.groups.includes('perna')) {
-        clusterUsage.legs += 1;
-      }
-      if (!session.groups.length) {
-        clusterUsage.full += 1;
-      }
-    });
-
-    const options = [
-      {
-        key: 'push',
-        title: 'Peito + Triceps + Ombro',
-        blocked: ['peito', 'ombro', 'triceps'],
-        exercises: WORKOUT_LIBRARY.push,
-      },
-      {
-        key: 'pull',
-        title: 'Costas + Biceps',
-        blocked: ['costas', 'biceps'],
-        exercises: WORKOUT_LIBRARY.pull,
-      },
-      {
-        key: 'legs',
-        title: 'Pernas completas',
-        blocked: ['perna'],
-        exercises: WORKOUT_LIBRARY.legs,
-      },
-      {
-        key: 'full',
-        title: 'Full body de consistencia',
-        blocked: [],
-        exercises: WORKOUT_LIBRARY.fullBody,
-      },
-    ];
-
-    const scored = options.map((item) => {
-      const overlap = item.blocked.filter((group) => blockedGroups.has(group)).length;
-      const score = overlap * 10 + Number(clusterUsage[item.key] || 0);
-      return { ...item, score, overlap };
-    });
-
-    scored.sort((a, b) => a.score - b.score);
-    const best = scored[0] || options[0];
-
-    const yesterday = recentGroupsByDate[0];
-    const yesterdayText = yesterday?.groups?.length
-      ? yesterday.groups.join(', ')
-      : 'nenhum treino recente';
-
-    const justification = best.overlap > 0
-      ? `Sugestao conservadora por descanso muscular: ultimo treino focou ${yesterdayText}.`
-      : `Hoje recomendado ${best.title} porque ontem voce treinou ${yesterdayText}.`;
-
-    const weeklyUrgency = buildWeeklyUrgency(weeklyTarget, trainedThisWeek);
-
-    return {
-      key: best.key,
-      title: best.title,
-      confidence: best.overlap > 0 ? 'media' : 'alta',
-      justification,
-      blockedGroups: Array.from(blockedGroups),
-      trainedThisWeek,
+    const weeklyUrgency = buildWeeklyUrgency(weeklyTarget, result.trainedThisWeek);
+    const recommendation = {
+      key: result.key,
+      title: result.title,
+      confidence: result.confidence >= 0.85 ? 'alta' : result.confidence >= 0.65 ? 'media' : 'baixa',
+      confidenceScore: result.confidence,
+      source: result.source,
+      decisionReasons: result.decisionReasons,
+      replacements: result.replacements,
+      justification: result.remainingToTarget > 0
+        ? `Sugestao local para bater sua meta semanal com seguranca.`
+        : `Sugestao local para manter progresso com boa recuperacao.`,
+      blockedGroups: [],
+      trainedThisWeek: result.trainedThisWeek,
       weeklyTarget,
       remainingToTarget: weeklyUrgency.remainingToTarget,
-      isBehindWeek: trainedThisWeek < weeklyTarget,
+      isBehindWeek: result.trainedThisWeek < weeklyTarget,
       urgencyMessage: weeklyUrgency.urgencyMessage,
-      exercises: best.exercises.map((exercise, index) => ({
+      exercises: result.exercises.map((exercise, index) => ({
         ...exercise,
         id: `smart-${exercise.name}-${index}`,
       })),
+      debug: result.debug,
     };
+
+    localDecisionCacheRef.current.workoutRecommendation[cacheKey] = recommendation;
+    if (__DEV__) {
+      console.log('match:', 'local');
+      console.log('source:', recommendation.source, '| confidence:', recommendation.confidenceScore);
+      console.log('exercise:', recommendation.exercises[0]?.name || 'none');
+    }
+
+    return recommendation;
+  };
+
+  const getRecommendedWorkoutV4 = () => {
+    return getSmartWorkoutRecommendation();
   };
 
   const prepareTodayWorkoutTargets = () => {
@@ -2232,6 +2188,14 @@ export const AppProvider=({children})=>{
     const successInLast3 = last3.filter((item) => !item.failed).length;
     const reference = Number((recentSuccess[0] || recent[0]).weight || 0);
 
+    const v4Suggestion = getNextWeightSuggestion({
+      exerciseName,
+      logs,
+      currentWeight: reference,
+      repsHit: Number((recentSuccess[0] || recent[0])?.reps || 0),
+      targetRepMax: repRange.max,
+    });
+
     if (!reference || reference <= 0) {
       const starter = getDefaultStartingWeight(exerciseName, profile?.level);
       return {
@@ -2254,11 +2218,13 @@ export const AppProvider=({children})=>{
     }
 
     if (failInLast3 >= 2) {
-      const suggested = Math.max(5, roundToStep(reference - step));
+      const suggested = Math.max(5, roundToStep(v4Suggestion.suggestedWeight || (reference - step)));
       return withFallback({
         level: 'reduzir',
         suggestedWeight: suggested,
         delta: roundToStep(suggested - reference),
+        source: v4Suggestion.source,
+        confidenceScore: v4Suggestion.confidence,
         message: 'Houve falhas recentes. Reduza carga para manter tecnica e diminuir risco.',
       });
     }
@@ -2269,11 +2235,13 @@ export const AppProvider=({children})=>{
       );
 
       if (last3AvgReps >= repRange.max) {
-        const suggested = roundToStep(reference + step);
+        const suggested = roundToStep(v4Suggestion.suggestedWeight || (reference + step));
         return withFallback({
           level: 'aumentar',
           suggestedWeight: suggested,
           delta: roundToStep(suggested - reference),
+          source: v4Suggestion.source,
+          confidenceScore: v4Suggestion.confidence,
           message: 'Boa consistencia. Sugestao de progressao leve para proxima sessao.',
         });
       }
@@ -2281,10 +2249,19 @@ export const AppProvider=({children})=>{
 
     return withFallback({
       level: 'manter',
-      suggestedWeight: roundToStep(reference),
+      suggestedWeight: roundToStep(v4Suggestion.suggestedWeight || reference),
       delta: 0,
+      source: v4Suggestion.source,
+      confidenceScore: v4Suggestion.confidence,
       message: 'Mantenha a carga e busque estabilidade de repeticoes antes de subir peso.',
     });
+  };
+
+  const getPainAwareExerciseOptions = (painText = '') => {
+    const catalog = getExerciseCatalogFromSources(workoutLogs);
+    const asExercises = catalog.map((name) => ({ name }));
+    const adapted = adaptWorkoutForPain(asExercises, painText);
+    return adapted.map((item) => item.name);
   };
 
   const getTodayWorkoutSummary = () => {
@@ -2533,11 +2510,13 @@ export const AppProvider=({children})=>{
         applyAutoPlanAdjustment,
         getTodayWorkout,
         getSmartWorkoutRecommendation,
+        getRecommendedWorkoutV4,
         prepareTodayWorkoutTargets,
         saveWorkoutSet,
         saveFreeWorkoutSet,
         getExerciseProgress,
         getExerciseProgressionSuggestion,
+        getPainAwareExerciseOptions,
         getTodayWorkoutSummary,
         getExerciseSetProgress,
         getExerciseCatalog,

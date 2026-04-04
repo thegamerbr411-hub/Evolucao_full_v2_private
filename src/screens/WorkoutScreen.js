@@ -721,6 +721,12 @@ export default function WorkoutScreen({ navigation }) {
           const draftRows = draftSetsByExercise[exercise.name] || [];
           const historySnapshot = getExerciseHistorySnapshot(exercise.name, 6);
           const maxHistoryWeight = Math.max(1, ...historySnapshot.map((item) => Number(item.weight || 0)));
+          const progression = getExerciseProgressionSuggestion(exercise.name);
+          const lastWeight = Number(lastSetByExercise[exercise.name]?.weight || 0);
+          const suggestedWeightNumber = Number(progression?.suggestedWeight || 0);
+          const weightDelta = suggestedWeightNumber > 0 && lastWeight > 0
+            ? Number((suggestedWeightNumber - lastWeight).toFixed(1))
+            : 0;
 
           return (
             <TouchableOpacity
@@ -740,6 +746,12 @@ export default function WorkoutScreen({ navigation }) {
 
               <Text style={styles.progressHint}>
                 Ultimo: {lastSetByExercise[exercise.name]?.weight || 0}kg x {lastSetByExercise[exercise.name]?.reps || 0} · Melhor: {getExerciseProgress(exercise.name).bestWeight || 0}kg
+              </Text>
+              <Text style={styles.progressionLine}>
+                Hoje: {suggestedWeightNumber || 0}kg {weightDelta > 0 ? `( +${weightDelta}kg )` : weightDelta < 0 ? `( ${weightDelta}kg )` : '( manter )'}
+              </Text>
+              <Text style={styles.progressionMetaLine}>
+                Meta hoje: {progression?.message || 'Consolidar tecnica e repetir carga com qualidade.'}
               </Text>
 
               {historySnapshot.length ? (
@@ -1133,6 +1145,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginBottom: 8,
     fontWeight: '600',
+  },
+  progressionLine: {
+    color: '#A7F3D0',
+    fontSize: 12,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  progressionMetaLine: {
+    color: '#BFDBFE',
+    fontSize: 11,
+    fontWeight: '700',
+    marginBottom: 8,
   },
   smallChip: {
     backgroundColor: '#1B2840',
