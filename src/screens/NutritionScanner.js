@@ -12,13 +12,15 @@ export default function NutritionScanner({ navigation }) {
     estimateNutritionFromText,
     estimateNutritionFromPhotoHint,
     searchFoodCatalog,
-    addFoodLogEntry,
     addFoodLogEntriesBatch,
     removeFoodLogEntry,
     getTodayFoodLog,
+    getDailyMacroTargets,
     evaluateMealQuality,
     hasFeatureAccess,
   } = useApp();
+  const [quickMealText, setQuickMealText] = useState('');
+  const [quickMealItems, setQuickMealItems] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [manualText, setManualText] = useState('');
   const [photoHintText, setPhotoHintText] = useState('');
@@ -31,6 +33,88 @@ export default function NutritionScanner({ navigation }) {
 
   const foodOptions = useMemo(() => searchFoodCatalog(searchQuery), [searchFoodCatalog, searchQuery]);
   const todayFoodLog = getTodayFoodLog();
+  const dailyMacroTargets = useMemo(() => getDailyMacroTargets(), [getDailyMacroTargets]);
+  const todayProtein = useMemo(
+    () => todayFoodLog.reduce((acc, item) => acc + Number(item.protein || 0), 0),
+    [todayFoodLog]
+  );
+
+  const normalizeText = (value = '') =>
+    String(value)
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+
+  const getFoodCategory = (food) => {
+    const protein = Number(food?.protein || 0);
+    const carbs = Number(food?.carbs || 0);
+    const fats = Number(food?.fats || 0);
+    const normalizedLabel = normalizeText(food?.label || '');
+
+    if (normalizedLabel.includes('frango') || normalizedLabel.includes('ovo') || normalizedLabel.includes('atum') || normalizedLabel.includes('carne') || normalizedLabel.includes('whey')) {
+      return 'proteina';
+    }
+    if (normalizedLabel.includes('arroz') || normalizedLabel.includes('feijao') || normalizedLabel.includes('pao') || normalizedLabel.includes('macarrao') || normalizedLabel.includes('batata')) {
+      return 'carbo';
+    }
+    if (fats >= protein && fats >= carbs) {
+      return 'gordura';
+    }
+    if (protein >= carbs) {
+      return 'proteina';
+    }
+    return 'carbo';
+  };
+
+  const parseFoodText = (text) => {
+    const tokens = normalizeText(text)
+      .split(/[^a-z0-9]+/)
+      .map((token) => token.trim())
+      .filter(Boolean);
+
+    const parsed = [];
+    const seenKeys = new Set();
+    tokens.forEach((token) => {
+      const options = searchFoodCatalog(token);
+      if (!options.length) {
+        return;
+      }
+
+      const match = options.find((item) => normalizeText(item.label) === token || normalizeText(item.key) === token) || options[0];
+      if (!match || seenKeys.has(match.key)) {
+        return;
+      }
+
+      seenKeys.add(match.key);
+      parsed.push({
+        id: `quick-${match.key}`,
+        foodKey: match.key,
+        label: match.label,
+        category: getFoodCategory(match),
+        quantity: 1,
+        calories: Number(match.calories || 0),
+        protein: Number(match.protein || 0),
+        carbs: Number(match.carbs || 0),
+        fats: Number(match.fats || 0),
+      });
+    });
+
+    return parsed;
+  };
+
+  const quickMealTotals = useMemo(
+    () =>
+      quickMealItems.reduce(
+        (acc, item) => ({
+          calories: acc.calories + Number(item.calories || 0) * Number(item.quantity || 1),
+          protein: acc.protein + Number(item.protein || 0) * Number(item.quantity || 1),
+          carbs: acc.carbs + Number(item.carbs || 0) * Number(item.quantity || 1),
+          fats: acc.fats + Number(item.fats || 0) * Number(item.quantity || 1),
+        }),
+        { calories: 0, protein: 0, carbs: 0, fats: 0 }
+      ),
+    [quickMealItems]
+  );
 
   const getMacroStatus = (totals) => {
     const protein = Number(totals?.protein || 0);
@@ -153,6 +237,44 @@ export default function NutritionScanner({ navigation }) {
     addItemToMealDraft(selectedFood, portionFactor);
   };
 
+  const buildQuickMeal = () => {
+    const parsed = parseFoodText(quickMealText);
+    if (!parsed.length) {
+      setMealFeedback('Nao identifiquei alimentos validos nesse texto.');
+      return;
+    }
+    setQuickMealItems(parsed);
+  };
+
+  const saveQuickMeal = () => {
+    if (!quickMealItems.length) {
+      return;
+    }
+
+    const now = new Date();
+    const loggedAt = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const result = addFoodLogEntriesBatch({
+      items: quickMealItems.map((item) => ({
+        foodKey: item.foodKey,
+        label: item.label,
+        quantity: item.quantity,
+      })),
+      loggedAt,
+    });
+
+    if (!result?.ok) {
+      setMealFeedback('Nao foi possivel salvar a refeicao rapida.');
+      return;
+    }
+
+    const proteinTarget = Number(dailyMacroTargets?.protein || 0);
+    const projectedProtein = todayProtein + Number(quickMealTotals.protein || 0);
+    const proteinGap = Math.max(0, Math.round(proteinTarget - projectedProtein));
+    setMealFeedback(`🟢 Boa refeicao | +${Math.round(quickMealTotals.protein)}g proteina | faltam ${proteinGap}g hoje`);
+    setQuickMealItems([]);
+    setQuickMealText('');
+  };
+
   const saveMealDraft = () => {
     if (!mealDraftItems.length) {
       return;
@@ -205,6 +327,40 @@ export default function NutritionScanner({ navigation }) {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <ScreenHeader title="Nutricao" subtitle="Registre refeicoes com horario. Texto e foto ficam como apoio." />
+
+      <AppCard style={styles.card}>
+        <Text style={styles.cardTitle}>Registro rapido (chat-first)</Text>
+        <TextInput
+          value={quickMealText}
+          onChangeText={setQuickMealText}
+          placeholder="Ex: comi arroz feijao frango"
+          placeholderTextColor="#8AA2C7"
+          style={styles.searchInput}
+        />
+        <PrimaryButton title="Montar refeicao" onPress={buildQuickMeal} style={styles.primaryButton} />
+
+        {quickMealItems.length ? (
+          <View style={styles.quickPreviewWrap}>
+            {quickMealItems.map((item) => (
+              <View key={item.id} style={styles.quickItemRow}>
+                <View style={styles.quickItemLeft}>
+                  <Text style={styles.logTitle}>{item.label}</Text>
+                  <Text style={styles.logMeta}>{item.calories} kcal | P {item.protein}g | C {item.carbs}g | G {item.fats}g</Text>
+                </View>
+                <Text style={[styles.categoryBadge, item.category === 'proteina' ? styles.categoryProtein : item.category === 'carbo' ? styles.categoryCarb : styles.categoryFat]}>
+                  {item.category}
+                </Text>
+              </View>
+            ))}
+
+            <Text style={styles.logMeta}>
+              Total: {Math.round(quickMealTotals.calories)} kcal | P {Math.round(quickMealTotals.protein)}g | C {Math.round(quickMealTotals.carbs)}g | G {Math.round(quickMealTotals.fats)}g
+            </Text>
+
+            <PrimaryButton title="Salvar refeicao" onPress={saveQuickMeal} style={styles.primaryButton} />
+          </View>
+        ) : null}
+      </AppCard>
 
       <AppCard style={styles.card}>
         <Text style={styles.cardTitle}>Catalogo local</Text>
@@ -598,6 +754,46 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
+  },
+  quickPreviewWrap: {
+    marginTop: spacing.sm,
+  },
+  quickItemRow: {
+    marginTop: 8,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  quickItemLeft: {
+    flex: 1,
+  },
+  categoryBadge: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  categoryProtein: {
+    color: '#9DE2C2',
+    borderColor: '#2F7A5B',
+    backgroundColor: '#123429',
+  },
+  categoryCarb: {
+    color: '#FFE0A8',
+    borderColor: '#A06A00',
+    backgroundColor: '#3A2A12',
+  },
+  categoryFat: {
+    color: '#FECACA',
+    borderColor: '#B75A5A',
+    backgroundColor: '#3A1C1C',
   },
   chipAction: {
     borderWidth: 1,

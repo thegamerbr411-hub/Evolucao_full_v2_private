@@ -31,9 +31,10 @@ function getTodayKeyLocal() {
   return `${year}-${month}-${day}`;
 }
 
-function SetField({ value, onChangeText, placeholder }) {
+function SetField({ value, onChangeText, placeholder, inputRef }) {
   return (
     <TextInput
+      ref={inputRef}
       keyboardType="numeric"
       value={value}
       onChangeText={onChangeText}
@@ -53,7 +54,9 @@ export default function WorkoutScreen({ navigation }) {
     getExerciseCatalog,
     getExercisesByMuscleGroup,
     getFreeWorkoutSuggestions,
+    getExerciseProgress,
     getExerciseSetProgress,
+    getExerciseProgressionSuggestion,
     getTodayWorkoutSummary,
     getWorkoutGamification,
     workoutLogs,
@@ -81,9 +84,11 @@ export default function WorkoutScreen({ navigation }) {
   const [newExerciseSets, setNewExerciseSets] = useState('3');
   const [newExerciseReps, setNewExerciseReps] = useState('8-12');
   const [exerciseQuery, setExerciseQuery] = useState('');
+  const [savedSetPulseKey, setSavedSetPulseKey] = useState('');
 
   const scrollRef = useRef(null);
   const exercisePositionsRef = useRef({});
+  const setFieldRefs = useRef({});
   const postWorkoutTriggeredRef = useRef(false);
 
   useEffect(() => {
@@ -105,7 +110,7 @@ export default function WorkoutScreen({ navigation }) {
         }
 
         next[exercise.name] = Array.from({ length: Number(exercise.sets || 3) }, () => ({
-          weight: exercise.targetWeight ? String(exercise.targetWeight) : '',
+          weight: '',
           reps: '',
         }));
         changed = true;
@@ -240,6 +245,36 @@ export default function WorkoutScreen({ navigation }) {
     return filtered.slice(0, 10);
   }, [activeExercise, exerciseCatalog, getFreeWorkoutSuggestions, getExercisesByMuscleGroup, exerciseQuery]);
 
+  const lastSetByExercise = useMemo(() => {
+    const map = {};
+    workoutLogs.forEach((item) => {
+      if (!map[item.exerciseName]) {
+        map[item.exerciseName] = item;
+      }
+    });
+    return map;
+  }, [workoutLogs]);
+
+  const suggestedWeightByExercise = useMemo(() => {
+    const map = {};
+    allExercises.forEach((exercise) => {
+      const suggestion = getExerciseProgressionSuggestion(exercise.name);
+      const suggested = Number(suggestion?.suggestedWeight || exercise.targetWeight || 0);
+      map[exercise.name] = suggested > 0 ? String(suggested) : '';
+    });
+    return map;
+  }, [allExercises, getExerciseProgressionSuggestion]);
+
+  const getSetFieldKey = (exerciseName, setIndex, field) => `${exerciseName}-${setIndex}-${field}`;
+
+  const focusSetField = (exerciseName, setIndex, field = 'weight') => {
+    const key = getSetFieldKey(exerciseName, setIndex, field);
+    const target = setFieldRefs.current[key];
+    if (target?.focus) {
+      target.focus();
+    }
+  };
+
   const normalizeNumericInput = (value) => String(value || '').replace(',', '.').trim();
 
   const isValidSet = (kg, reps) => {
@@ -257,6 +292,10 @@ export default function WorkoutScreen({ navigation }) {
   const skipRest = () => {
     setRestRunning(false);
     setRestSeconds(0);
+  };
+
+  const extendRestByThirty = () => {
+    setRestSeconds((prev) => Math.max(0, Number(prev || 0)) + 30);
   };
 
   const setDraftField = (exerciseName, setIndex, field, value) => {
@@ -325,12 +364,30 @@ export default function WorkoutScreen({ navigation }) {
 
     if (result.xpEvents?.length) {
       setXpFeedback(result.xpEvents.join(' | '));
+    } else {
+      setXpFeedback('+1 serie concluida');
     }
+
+    setSavedSetPulseKey(`${exercise.name}-${setIndex}`);
+    setTimeout(() => setSavedSetPulseKey(''), 500);
 
     startRestTimer();
 
     const currentProgress = getExerciseSetProgress(exercise.name, plannedSets);
     const nextCompleted = currentProgress.completedSets + 1;
+    const nextSetIndex = setIndex + 1;
+
+    if (nextSetIndex >= plannedSets) {
+      addSetToExercise(exercise.name);
+      setTimeout(() => {
+        focusSetField(exercise.name, plannedSets, 'weight');
+      }, 80);
+    } else {
+      setTimeout(() => {
+        focusSetField(exercise.name, nextSetIndex, 'weight');
+      }, 60);
+    }
+
     if (nextCompleted >= plannedSets) {
       jumpToNextExercise(exerciseIndex);
     }
@@ -558,9 +615,14 @@ export default function WorkoutScreen({ navigation }) {
             >
               {formatTimer(restSeconds)}
             </Text>
-            <TouchableOpacity style={styles.skipButton} onPress={skipRest}>
-              <Text style={styles.skipButtonText}>Pular descanso</Text>
-            </TouchableOpacity>
+            <View style={styles.restActionsRow}>
+              <TouchableOpacity style={styles.extendRestButton} onPress={extendRestByThirty}>
+                <Text style={styles.extendRestText}>+30s</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.skipButton} onPress={skipRest}>
+                <Text style={styles.skipButtonText}>Pular descanso</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         ) : null}
 
@@ -623,15 +685,26 @@ export default function WorkoutScreen({ navigation }) {
                 <Text style={styles.smallChip}>Serie {setProgress.nextSet}/{setProgress.totalSets}</Text>
               </View>
 
+              <Text style={styles.progressHint}>
+                Ultimo: {lastSetByExercise[exercise.name]?.weight || 0}kg x {lastSetByExercise[exercise.name]?.reps || 0} · Melhor: {getExerciseProgress(exercise.name).bestWeight || 0}kg
+              </Text>
+
               {isActive ? <Text style={styles.controlHint}>Controles: + serie, - serie e 🗑️ por serie.</Text> : null}
 
               {Array.from({ length: plannedSets }).map((_, setIndex) => {
                 const saved = todaySets[setIndex];
-                const draft = draftRows[setIndex] || { weight: exercise.targetWeight ? String(exercise.targetWeight) : '', reps: '' };
+                const draft = draftRows[setIndex] || { weight: '', reps: '' };
                 const canSave = setIndex === todaySets.length;
+                const suggestedWeight = suggestedWeightByExercise[exercise.name] || '';
 
                 return (
-                  <View key={`${exercise.id}-set-${setIndex}`} style={styles.setRow}>
+                  <View
+                    key={`${exercise.id}-set-${setIndex}`}
+                    style={[
+                      styles.setRow,
+                      savedSetPulseKey === `${exercise.name}-${setIndex}` ? styles.setRowSavedPulse : null,
+                    ]}
+                  >
                     <Text style={styles.setLabel}>{setIndex + 1}S</Text>
 
                     {saved ? (
@@ -649,13 +722,28 @@ export default function WorkoutScreen({ navigation }) {
                         <SetField
                           value={draft.weight}
                           onChangeText={(text) => setDraftField(exercise.name, setIndex, 'weight', text)}
-                          placeholder="kg"
+                          placeholder={suggestedWeight ? `${suggestedWeight}kg` : 'kg'}
+                          inputRef={(ref) => {
+                            setFieldRefs.current[getSetFieldKey(exercise.name, setIndex, 'weight')] = ref;
+                          }}
                         />
                         <SetField
                           value={draft.reps}
                           onChangeText={(text) => setDraftField(exercise.name, setIndex, 'reps', text)}
                           placeholder="reps"
+                          inputRef={(ref) => {
+                            setFieldRefs.current[getSetFieldKey(exercise.name, setIndex, 'reps')] = ref;
+                          }}
                         />
+
+                        {isActive && canSave && suggestedWeight ? (
+                          <TouchableOpacity
+                            style={styles.suggestButton}
+                            onPress={() => setDraftField(exercise.name, setIndex, 'weight', suggestedWeight)}
+                          >
+                            <Text style={styles.suggestButtonText}>usar {suggestedWeight}kg</Text>
+                          </TouchableOpacity>
+                        ) : null}
 
                         {isActive ? (
                           <View style={[styles.rowActionsInline, canSave ? styles.rowActionsInlineCurrent : null]}>
@@ -821,8 +909,26 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     paddingVertical: 10,
+    flex: 1,
   },
   skipButtonText: {
+    color: colors.textPrimary,
+    fontWeight: '800',
+  },
+  restActionsRow: {
+    marginTop: 8,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  extendRestButton: {
+    flex: 1,
+    borderRadius: 10,
+    backgroundColor: colors.secondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+  },
+  extendRestText: {
     color: colors.textPrimary,
     fontWeight: '800',
   },
@@ -932,6 +1038,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
   },
+  progressHint: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    marginBottom: 8,
+    fontWeight: '600',
+  },
   smallChip: {
     backgroundColor: '#1B2840',
     color: '#CFE4FF',
@@ -949,6 +1061,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     marginBottom: 8,
+  },
+  setRowSavedPulse: {
+    backgroundColor: '#123429',
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
   },
   setLabel: {
     width: 26,
@@ -1002,6 +1120,19 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '800',
+  },
+  suggestButton: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    backgroundColor: '#1B2840',
+  },
+  suggestButtonText: {
+    color: colors.textPrimary,
+    fontSize: 11,
+    fontWeight: '700',
   },
   savedSetBox: {
     flex: 1,
