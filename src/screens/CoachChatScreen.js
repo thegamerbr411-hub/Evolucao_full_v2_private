@@ -2,11 +2,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp } from '../context/AppContext';
-import { buildCoachSystemPrompt } from '../data/coachPrompt';
 import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { colors, spacing } from '../theme';
 
 const COACH_MEMORY_KEY = 'coach.memory.v1';
+const TRIGGER_COOLDOWN_MS = 2 * 60 * 60 * 1000;
 
 function getMessageVariant(options, seed) {
   if (!options.length) {
@@ -271,11 +271,18 @@ export default function CoachChatScreen({ navigation }) {
       routineTitle: 'Rotina',
       waterQuickMl: 300,
     },
+    completedGoals: 0,
+    totalGoals: 3,
+    isPerfectDay: false,
   });
+  const [actionFeedback, setActionFeedback] = useState('');
+  const [optimisticWaterDelta, setOptimisticWaterDelta] = useState(0);
   const [memory, setMemory] = useState({
     lastUserIntent: null,
     lastCoachMessage: '',
     lastActions: [],
+    lastAction: null,
+    lastTriggerAt: {},
   });
   const [messages, setMessages] = useState([
     {
@@ -299,6 +306,11 @@ export default function CoachChatScreen({ navigation }) {
     waterTarget: Number((plan?.waterLitersPerDay || 0) * 1000),
   };
 
+  const effectiveContext = useMemo(() => ({
+    ...context,
+    waterToday: Math.max(0, Number(context.waterToday || 0) + Number(optimisticWaterDelta || 0)),
+  }), [context.proteinToday, context.proteinTarget, context.waterToday, context.waterTarget, optimisticWaterDelta]);
+
   const smart = getSmartWorkoutRecommendation();
   const workoutGamification = getWorkoutGamification();
   const trainedToday = workoutLogs.some((item) => item.date === today);
@@ -309,10 +321,10 @@ export default function CoachChatScreen({ navigation }) {
 
   const refreshCoachCard = () => {
     const state = buildDailyCoachState({
-      protein: context.proteinToday,
-      proteinTarget: context.proteinTarget,
-      water: context.waterToday,
-      waterTarget: context.waterTarget,
+      protein: effectiveContext.proteinToday,
+      proteinTarget: effectiveContext.proteinTarget,
+      water: effectiveContext.waterToday,
+      waterTarget: effectiveContext.waterTarget,
       workoutsThisWeek: smart.trainedThisWeek,
       weeklyTarget: smart.weeklyTarget,
       didWorkoutToday: trainedToday,
@@ -320,30 +332,13 @@ export default function CoachChatScreen({ navigation }) {
     setCoachCard(buildCoachMessage(state));
   };
 
-  const coachSystemContext = useMemo(() => {
-    const recentWorkouts = workoutLogs.slice(0, 3).map((item) => ({
-      date: item.date,
-      exerciseName: item.exerciseName,
-      weight: item.weight,
-      reps: item.reps,
-    }));
-
-    return buildCoachSystemPrompt({
-      recentWorkouts,
-      pain: currentPain,
-      level: profile?.level,
-      goal: profile?.goal,
-      calories: Number(todayHistory?.calories || 0),
-      calorieTarget: Number(plan?.caloriesPerDay || 0),
-      water: Number(todayHistory?.waterMl || 0),
-      waterTarget: Number((plan?.waterLitersPerDay || 0) * 1000),
-      weeklyFrequency: Number(profile?.trainingDaysPerWeek || 3),
-    });
-  }, [workoutLogs, currentPain, profile?.level, profile?.goal, profile?.trainingDaysPerWeek, todayHistory?.calories, todayHistory?.waterMl, plan?.caloriesPerDay, plan?.waterLitersPerDay]);
-
   useEffect(() => {
     refreshCoachCard();
-  }, [context.proteinToday, context.proteinTarget, context.waterToday, context.waterTarget, smart.trainedThisWeek, smart.weeklyTarget, trainedToday]);
+  }, [effectiveContext.proteinToday, effectiveContext.proteinTarget, effectiveContext.waterToday, effectiveContext.waterTarget, smart.trainedThisWeek, smart.weeklyTarget, trainedToday]);
+
+  useEffect(() => {
+    setOptimisticWaterDelta(0);
+  }, [context.waterToday]);
 
   useEffect(() => {
     const loadCoachMemory = async () => {
@@ -359,6 +354,8 @@ export default function CoachChatScreen({ navigation }) {
             lastUserIntent: parsed.lastUserIntent || null,
             lastCoachMessage: parsed.lastCoachMessage || '',
             lastActions: Array.isArray(parsed.lastActions) ? parsed.lastActions : [],
+            lastAction: parsed.lastAction || null,
+            lastTriggerAt: parsed.lastTriggerAt && typeof parsed.lastTriggerAt === 'object' ? parsed.lastTriggerAt : {},
           });
         }
       } catch (error) {
@@ -388,78 +385,69 @@ export default function CoachChatScreen({ navigation }) {
       return {
         ...prev,
         lastActions: next,
+        lastAction: action,
       };
     });
   };
 
   useEffect(() => {
-    setMessages((prev) => {
-      const proactiveId = `proactive-${today}-${dayPeriod}`;
-      const hasProactive = prev.some((item) => item.id === proactiveId);
-      if (hasProactive) {
-        return prev;
-      }
-
-      const proactiveTexts = [];
-
-      if (dayPeriod === 'morning') {
-        proactiveTexts.push(`Hoje e dia de ${smart.title}. Foco nisso.`);
-      }
-
-      if (dayPeriod === 'afternoon' && context.proteinToday < context.proteinTarget) {
-        proactiveTexts.push(`Tarde de ajuste: faltam ${Math.max(0, context.proteinTarget - context.proteinToday)}g de proteina. Bora fechar isso hoje.`);
-      }
-
-      if (dayPeriod === 'night' && !trainedToday && workoutGamification.streakDays > 0) {
-        proactiveTexts.push(`Noite decisiva: se nao treinar hoje, pode quebrar seu streak de ${workoutGamification.streakDays} dias.`);
-      }
-
-      if (!trainedToday && smart.isBehindWeek) {
-        proactiveTexts.push(`Voce esta em ${smart.trainedThisWeek}/${smart.weeklyTarget} na semana. Um treino curto agora evita acumulacao.`);
-      }
-      if (context.proteinToday < context.proteinTarget) {
-        proactiveTexts.push(`Faltam ${Math.max(0, context.proteinTarget - context.proteinToday)}g de proteina hoje. Bora fechar isso com uma refeicao proteica ainda hoje.`);
-      }
-      if (weakMeals > 0) {
-        proactiveTexts.push(`Voce teve ${weakMeals} refeicoes fracas em proteina. Proxima refeicao precisa ter fonte proteica principal.`);
-      }
-      if (context.waterToday < context.waterTarget) {
-        proactiveTexts.push(`Hidratacao em ${context.waterToday}/${context.waterTarget}ml. Adicione +300ml agora para recuperar foco.`);
-      }
-
-      if (!proactiveTexts.length) {
-        return prev;
-      }
-
-      return [
-        ...prev,
-        {
-          id: proactiveId,
-          role: 'coach',
-          text: proactiveTexts.join(' '),
-        },
-      ];
-    });
-  }, [dayPeriod, trainedToday, smart.isBehindWeek, smart.trainedThisWeek, smart.weeklyTarget, context.proteinToday, context.proteinTarget, context.waterToday, context.waterTarget, weakMeals, today, workoutGamification.streakDays]);
-
-  useEffect(() => {
     const hour = new Date().getHours();
-    const triggerTexts = [];
+    const proteinLeft = Math.max(0, effectiveContext.proteinTarget - effectiveContext.proteinToday);
+    const waterLeft = Math.max(0, effectiveContext.waterTarget - effectiveContext.waterToday);
+    const triggerCandidates = [];
 
-    if (hour >= 19 && (context.proteinTarget - context.proteinToday) > 40) {
-      triggerTexts.push('Alerta de noite: faltam mais de 40g de proteina e o dia esta acabando.');
+    if (hour < 12 && effectiveContext.proteinToday < 20) {
+      triggerCandidates.push({
+        key: 'morning_protein_low',
+        text: 'Manha: voce ainda nao bateu base proteica. Comece com 1 refeicao forte em proteina.',
+      });
     }
 
-    if (hour >= 20 && !trainedToday) {
-      triggerTexts.push('Alerta de consistencia: treino ainda nao concluido hoje.');
+    if (hour >= 16 && !trainedToday) {
+      triggerCandidates.push({
+        key: 'afternoon_no_workout',
+        text: 'Tarde: treino ainda nao saiu. Bloqueie 30-40min agora para nao empurrar para noite.',
+      });
     }
 
-    if (!triggerTexts.length) {
+    if (hour >= 20 && proteinLeft > 40) {
+      triggerCandidates.push({
+        key: 'night_high_protein_gap',
+        text: 'Noite: faltam mais de 40g de proteina. Se dormir assim, sua recuperacao piora.',
+      });
+    }
+
+    if (hour >= 18 && waterLeft > 700) {
+      triggerCandidates.push({
+        key: 'evening_water_low',
+        text: 'Fim de dia: hidratacao ainda baixa. Faça blocos de +300ml para fechar sua meta.',
+      });
+    }
+
+    if (!triggerCandidates.length) {
       return;
     }
 
+    const now = Date.now();
+    const trigger = triggerCandidates.find((candidate) => {
+      const lastAt = Number(memory.lastTriggerAt?.[candidate.key] || 0);
+      return !lastAt || now - lastAt >= TRIGGER_COOLDOWN_MS;
+    });
+
+    if (!trigger) {
+      return;
+    }
+
+    setMemory((prev) => ({
+      ...prev,
+      lastTriggerAt: {
+        ...(prev.lastTriggerAt || {}),
+        [trigger.key]: now,
+      },
+    }));
+
     setMessages((prev) => {
-      const triggerId = `trigger-${today}-${hour}-${trainedToday}-${Math.max(0, context.proteinTarget - context.proteinToday)}`;
+      const triggerId = `trigger-${today}-${trigger.key}-${Math.floor(now / TRIGGER_COOLDOWN_MS)}`;
       if (prev.some((item) => item.id === triggerId)) {
         return prev;
       }
@@ -469,11 +457,11 @@ export default function CoachChatScreen({ navigation }) {
         {
           id: triggerId,
           role: 'coach',
-          text: `Ja foi feito: ${coachCard.doneText}. Falta: ${coachCard.missingText}. Agora: ${triggerTexts[0]}`,
+          text: `Ja foi feito: ${coachCard.doneText}. Falta: ${coachCard.missingText}. Agora: ${trigger.text}`,
         },
       ];
     });
-  }, [today, trainedToday, context.proteinToday, context.proteinTarget, coachCard.doneText, coachCard.missingText]);
+  }, [today, trainedToday, effectiveContext.proteinToday, effectiveContext.proteinTarget, effectiveContext.waterToday, effectiveContext.waterTarget, coachCard.doneText, coachCard.missingText, memory.lastTriggerAt]);
 
   const sendMessage = () => {
     const trimmed = String(input || '').trim();
@@ -484,7 +472,7 @@ export default function CoachChatScreen({ navigation }) {
     const intents = detectIntents(trimmed);
     const intent = intents[0] || 'general';
     const liveContext = {
-      ...context,
+      ...effectiveContext,
       smart,
       trainedToday,
       weakMeals,
@@ -515,6 +503,8 @@ export default function CoachChatScreen({ navigation }) {
       lastUserIntent: intent,
       lastCoachMessage: coachMessage.text,
       lastActions: Array.isArray(memory.lastActions) ? memory.lastActions : [],
+      lastAction: memory.lastAction || null,
+      lastTriggerAt: memory.lastTriggerAt || {},
     });
     setInput('');
     refreshCoachCard();
@@ -523,24 +513,45 @@ export default function CoachChatScreen({ navigation }) {
   const addWaterQuick = () => {
     const ml = Number(coachCard.quickActions?.waterQuickMl || 0);
     if (ml > 0) {
+      setOptimisticWaterDelta((prev) => Number(prev || 0) + ml);
       addWaterIntake(ml);
       rememberAction(`water_${ml}`);
+      setActionFeedback(`Boa, +${ml}ml registrado 💧`);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `coach-action-water-${Date.now()}`,
+          role: 'coach',
+          text: 'Ja foi feito: hidratacao incrementada agora. Falta: manter blocos menores no restante do dia. Agora: siga para o proximo bloco de foco.',
+        },
+      ]);
     }
     refreshCoachCard();
   };
 
   const openWorkout = () => {
     rememberAction('workout_open');
+    setActionFeedback('Treino aberto. Finaliza essa sessao para fechar o loop de hoje.');
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `coach-action-training-${Date.now()}`,
+        role: 'coach',
+        text: 'Ja foi feito: treino iniciado. Falta: concluir o treino de hoje. Agora: termine a sessao e volte para registrar fechamento.',
+      },
+    ]);
     navigation.navigate('TreinoHoje');
   };
 
   const openNutrition = () => {
     rememberAction('nutrition_open');
+    setActionFeedback('Boa. Registra a refeicao para reduzir o gap de proteina.');
     navigation.navigate('Scanner');
   };
 
   const openRoutines = () => {
     rememberAction('routines_open');
+    setActionFeedback('Perfeito. Ajuste a rotina para garantir consistencia na semana.');
     navigation.navigate('MainTabs', { screen: 'Rotinas' });
   };
 
@@ -560,6 +571,9 @@ export default function CoachChatScreen({ navigation }) {
 
         <Text style={styles.coachTitle}>Agora</Text>
         <Text style={styles.coachAction}>{coachCard.action}</Text>
+        <Text style={styles.progressLine}>Progresso do dia: {coachCard.completedGoals || 0}/{coachCard.totalGoals || 3} metas</Text>
+        {coachCard.isPerfectDay ? <Text style={styles.perfectDayLine}>Dia perfeito 🔥</Text> : null}
+        {actionFeedback ? <Text style={styles.feedbackLine}>{actionFeedback}</Text> : null}
 
         <View style={styles.quickActionRow}>
           <PrimaryButton title={coachCard.quickActions?.trainingTitle || 'Treinar'} onPress={openWorkout} style={styles.quickMainBtn} />
@@ -639,6 +653,24 @@ const styles = StyleSheet.create({
     color: colors.success,
     fontSize: 14,
     fontWeight: '800',
+  },
+  progressLine: {
+    color: '#BFDBFE',
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  perfectDayLine: {
+    color: '#22C55E',
+    fontSize: 13,
+    fontWeight: '900',
+    marginTop: 2,
+  },
+  feedbackLine: {
+    color: '#FDE68A',
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 4,
   },
   quickActionRow: {
     marginTop: 10,

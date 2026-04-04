@@ -93,11 +93,23 @@ export function buildCoachMessage(state) {
     waterQuickMl,
   };
 
+  const completedGoals = [
+    Number(done.protein || 0) >= Number((Number(done.protein || 0) + Number(missing.proteinLeft || 0)) || 0) && Number(done.protein || 0) > 0,
+    Number(done.water || 0) >= Number((Number(done.water || 0) + Number(missing.waterLeft || 0)) || 0) && Number(done.water || 0) > 0,
+    Boolean(done.workout),
+  ].filter(Boolean).length;
+
+  const totalGoals = 3;
+  const isPerfectDay = completedGoals === totalGoals;
+
   return {
     doneText,
     missingText,
     action,
     urgencyLevel,
     quickActions,
+    completedGoals,
+    totalGoals,
+    isPerfectDay,
   };
 }
