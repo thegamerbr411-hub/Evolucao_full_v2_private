@@ -36,6 +36,8 @@ export default function NutritionScanner({ navigation }) {
   const [favoriteFoodKeys, setFavoriteFoodKeys] = useState([]);
   const proteinTargetPerMeal = 30;
 
+  const COMMON_QUICK_ADDS = ['+2 ovos', '+150g frango', '+1 pao', '+1 whey'];
+
   React.useEffect(() => {
     const loadFavorites = async () => {
       try {
@@ -68,6 +70,10 @@ export default function NutritionScanner({ navigation }) {
     () => todayFoodLog.reduce((acc, item) => acc + Number(item.protein || 0), 0),
     [todayFoodLog]
   );
+  const proteinGapToday = useMemo(() => {
+    const target = Number(dailyMacroTargets?.protein || 0);
+    return Math.max(0, Math.round(target - todayProtein));
+  }, [dailyMacroTargets?.protein, todayProtein]);
 
   const normalizeText = (value = '') =>
     String(value)
@@ -96,22 +102,66 @@ export default function NutritionScanner({ navigation }) {
     return 'carbo';
   };
 
+  const parseSegmentQuantity = (segment) => {
+    const normalized = normalizeText(segment);
+    const gramMatch = normalized.match(/(\d+[\.,]?\d*)\s*g\b/);
+    if (gramMatch) {
+      const grams = Number(String(gramMatch[1]).replace(',', '.'));
+      if (Number.isFinite(grams) && grams > 0) {
+        return Math.max(0.1, Number((grams / 100).toFixed(2)));
+      }
+    }
+
+    const unitMatch = normalized.match(/(^|\s)(\d+[\.,]?\d*)\s*(x|un|unid|unidade|ovos?|pao|frango|whey)?\b/);
+    if (unitMatch) {
+      const qty = Number(String(unitMatch[2]).replace(',', '.'));
+      if (Number.isFinite(qty) && qty > 0) {
+        return Math.max(0.1, qty);
+      }
+    }
+
+    return 1;
+  };
+
+  const parseSegmentLabel = (segment) => {
+    return normalizeText(segment)
+      .replace(/\d+[\.,]?\d*\s*g\b/g, ' ')
+      .replace(/\d+[\.,]?\d*\s*(x|un|unid|unidade)\b/g, ' ')
+      .replace(/\b(comi|comer|de|do|da|e)\b/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
   const parseFoodText = (text) => {
-    const tokens = normalizeText(text)
-      .split(/[^a-z0-9]+/)
-      .map((token) => token.trim())
+    const segments = normalizeText(text)
+      .split(/[,+;]|\se\s/g)
+      .map((part) => part.trim())
       .filter(Boolean);
 
     const parsed = [];
     const seenKeys = new Set();
-    tokens.forEach((token) => {
-      const options = searchFoodCatalog(token);
+
+    segments.forEach((segment) => {
+      const quantity = parseSegmentQuantity(segment);
+      const labelHint = parseSegmentLabel(segment);
+      const query = labelHint || segment;
+      const options = searchFoodCatalog(query);
       if (!options.length) {
         return;
       }
 
-      const match = options.find((item) => normalizeText(item.label) === token || normalizeText(item.key) === token) || options[0];
-      if (!match || seenKeys.has(match.key)) {
+      const exact = options.find((item) => normalizeText(item.label) === query || normalizeText(item.key) === query);
+      const match = exact || options[0];
+      if (!match) {
+        return;
+      }
+
+      if (seenKeys.has(match.key)) {
+        parsed.forEach((item) => {
+          if (item.foodKey === match.key) {
+            item.quantity = Number((item.quantity + quantity).toFixed(2));
+          }
+        });
         return;
       }
 
@@ -121,7 +171,7 @@ export default function NutritionScanner({ navigation }) {
         foodKey: match.key,
         label: match.label,
         category: getFoodCategory(match),
-        quantity: 1,
+        quantity,
         calories: Number(match.calories || 0),
         protein: Number(match.protein || 0),
         carbs: Number(match.carbs || 0),
@@ -130,6 +180,41 @@ export default function NutritionScanner({ navigation }) {
     });
 
     return parsed;
+  };
+
+  const quickAutocomplete = useMemo(() => {
+    const normalized = String(quickMealText || '').trim();
+    if (!normalized) {
+      return searchFoodCatalog('').slice(0, 8);
+    }
+    const tokens = normalized.split(/\s+/);
+    const activeToken = tokens[tokens.length - 1] || normalized;
+    return searchFoodCatalog(activeToken).slice(0, 8);
+  }, [quickMealText, searchFoodCatalog]);
+
+  const appendQuickFragment = (fragment) => {
+    const current = String(quickMealText || '').trim();
+    if (!current) {
+      setQuickMealText(fragment);
+      return;
+    }
+    if (current.endsWith('+')) {
+      setQuickMealText(`${current} ${fragment}`.trim());
+      return;
+    }
+    setQuickMealText(`${current} + ${fragment}`);
+  };
+
+  const applyAutocompleteToQuickText = (foodLabel) => {
+    const current = String(quickMealText || '').trim();
+    if (!current) {
+      setQuickMealText(foodLabel);
+      return;
+    }
+
+    const parts = current.split(/\s+/);
+    parts[parts.length - 1] = foodLabel;
+    setQuickMealText(parts.join(' '));
   };
 
   const quickMealTotals = useMemo(
@@ -437,11 +522,26 @@ export default function NutritionScanner({ navigation }) {
         <TextInput
           value={quickMealText}
           onChangeText={setQuickMealText}
-          placeholder="Ex: comi arroz feijao frango"
+          placeholder="Ex: 2 ovos + 150g frango + arroz"
           placeholderTextColor="#8AA2C7"
           style={styles.searchInput}
         />
+        <View style={styles.chipsWrap}>
+          {COMMON_QUICK_ADDS.map((entry) => (
+            <TouchableOpacity key={`quick-add-${entry}`} style={styles.chipAction} onPress={() => appendQuickFragment(entry.replace(/^\+/, ''))}>
+              <Text style={styles.chipActionText}>{entry}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <View style={styles.chipsWrap}>
+          {quickAutocomplete.map((food) => (
+            <TouchableOpacity key={`auto-${food.key}`} style={styles.chipAction} onPress={() => applyAutocompleteToQuickText(food.label)}>
+              <Text style={styles.chipActionText}>{food.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
         <PrimaryButton title="Montar refeicao" onPress={buildQuickMeal} style={styles.primaryButton} />
+        <Text style={styles.gapHint}>Proteina hoje: {Math.round(todayProtein)}g • faltam {proteinGapToday}g</Text>
 
         {quickMealItems.length ? (
           <View style={styles.quickPreviewWrap}>
@@ -449,7 +549,7 @@ export default function NutritionScanner({ navigation }) {
               <View key={item.id} style={styles.quickItemRow}>
                 <View style={styles.quickItemLeft}>
                   <Text style={styles.logTitle}>{item.label}</Text>
-                  <Text style={styles.logMeta}>{item.calories} kcal | P {item.protein}g | C {item.carbs}g | G {item.fats}g</Text>
+                  <Text style={styles.logMeta}>{item.quantity}x • {item.calories} kcal | P {item.protein}g | C {item.carbs}g | G {item.fats}g</Text>
                 </View>
                 <Text style={[styles.categoryBadge, item.category === 'proteina' ? styles.categoryProtein : item.category === 'carbo' ? styles.categoryCarb : styles.categoryFat]}>
                   {item.category}
@@ -895,6 +995,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
+  },
+  gapHint: {
+    marginTop: 8,
+    color: '#A7F3D0',
+    fontSize: 12,
+    fontWeight: '800',
   },
   quickPreviewWrap: {
     marginTop: spacing.sm,
