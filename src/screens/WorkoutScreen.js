@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  Animated,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -46,6 +47,8 @@ function SetField({ value, onChangeText, placeholder, inputRef }) {
   );
 }
 
+const RPE_CHIPS = ['7', '8', '9', '10'];
+
 export default function WorkoutScreen({ navigation }) {
   const {
     getTodayWorkout,
@@ -90,11 +93,16 @@ export default function WorkoutScreen({ navigation }) {
   const [savedSetPulseKey, setSavedSetPulseKey] = useState('');
   const [showWorkoutSummary, setShowWorkoutSummary] = useState(false);
   const [workoutSummary, setWorkoutSummary] = useState(null);
+  const [showSubstitutePicker, setShowSubstitutePicker] = useState(false);
+  const [actionFeedback, setActionFeedback] = useState('');
 
   const scrollRef = useRef(null);
   const exercisePositionsRef = useRef({});
   const setFieldRefs = useRef({});
   const postWorkoutTriggeredRef = useRef(false);
+  const lastCountdownTickRef = useRef(null);
+  const sessionStartXpRef = useRef(null);
+  const actionFeedbackAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     prepareTodayWorkoutTargets();
@@ -117,6 +125,7 @@ export default function WorkoutScreen({ navigation }) {
         next[exercise.name] = Array.from({ length: Number(exercise.sets || 3) }, () => ({
           weight: '',
           reps: '',
+          rpe: '8',
         }));
         changed = true;
       }
@@ -141,15 +150,44 @@ export default function WorkoutScreen({ navigation }) {
   }, [allExercises]);
 
   useEffect(() => {
+    if (sessionStartXpRef.current == null) {
+      sessionStartXpRef.current = Number(gamification.xp || 0);
+    }
+  }, [gamification.xp]);
+
+  const inferRepTarget = (exercise) => {
+    const range = String(exercise?.reps || '8-12');
+    if (range.includes('-')) {
+      const parts = range.split('-').map((item) => Number(String(item).trim())).filter((num) => Number.isFinite(num));
+      if (parts.length === 2) {
+        return String(parts[1]);
+      }
+    }
+    const numeric = Number(range);
+    if (Number.isFinite(numeric) && numeric > 0) {
+      return String(numeric);
+    }
+    return '10';
+  };
+
+  useEffect(() => {
     if (!restRunning) {
+      lastCountdownTickRef.current = null;
       return;
     }
 
     if (restSeconds <= 0) {
       setRestRunning(false);
+      lastCountdownTickRef.current = null;
       Vibration.vibrate(500);
       setRestDoneMessage('Descanso concluido. Proxima serie liberada.');
       return;
+    }
+
+    // Ultimos 5s com pulso haptico para reforcar retorno ao set.
+    if (restSeconds <= 5 && lastCountdownTickRef.current !== restSeconds) {
+      lastCountdownTickRef.current = restSeconds;
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
 
     const timeoutId = setTimeout(() => {
@@ -270,6 +308,45 @@ export default function WorkoutScreen({ navigation }) {
     return map;
   }, [allExercises, getExerciseProgressionSuggestion]);
 
+  // Preenche peso/reps/rpe default para reduzir toque manual no primeiro preenchimento.
+  useEffect(() => {
+    setDraftSetsByExercise((prev) => {
+      const next = { ...prev };
+      let changed = false;
+
+      allExercises.forEach((exercise) => {
+        const rows = Array.isArray(next[exercise.name]) ? [...next[exercise.name]] : [];
+        const suggestedWeight = String(suggestedWeightByExercise[exercise.name] || '');
+        const lastReps = String(lastSetByExercise[exercise.name]?.reps || '');
+        const defaultReps = lastReps || inferRepTarget(exercise);
+        const defaultRpe = String(lastSetByExercise[exercise.name]?.rpe || '8');
+
+        const updatedRows = rows.map((row) => {
+          const normalized = { ...row };
+          if (!String(normalized.weight || '').trim() && suggestedWeight) {
+            normalized.weight = suggestedWeight;
+          }
+          if (!String(normalized.reps || '').trim() && defaultReps) {
+            normalized.reps = defaultReps;
+          }
+          if (!String(normalized.rpe || '').trim()) {
+            normalized.rpe = defaultRpe;
+          }
+
+          if (normalized.weight !== row.weight || normalized.reps !== row.reps || normalized.rpe !== row.rpe) {
+            changed = true;
+          }
+
+          return normalized;
+        });
+
+        next[exercise.name] = updatedRows;
+      });
+
+      return changed ? next : prev;
+    });
+  }, [allExercises, suggestedWeightByExercise, lastSetByExercise]);
+
   const getSetFieldKey = (exerciseName, setIndex, field) => `${exerciseName}-${setIndex}-${field}`;
 
   const focusSetField = (exerciseName, setIndex, field = 'weight') => {
@@ -281,6 +358,26 @@ export default function WorkoutScreen({ navigation }) {
   };
 
   const normalizeNumericInput = (value) => String(value || '').replace(',', '.').trim();
+
+  const showActionToast = (message) => {
+    setActionFeedback(message);
+    actionFeedbackAnim.setValue(0);
+    Animated.sequence([
+      Animated.timing(actionFeedbackAnim, {
+        toValue: 1,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+      Animated.delay(900),
+      Animated.timing(actionFeedbackAnim, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setActionFeedback('');
+    });
+  };
 
   const isValidSet = (kg, reps) => {
     const parsedKg = Number(normalizeNumericInput(kg));
@@ -350,7 +447,7 @@ export default function WorkoutScreen({ navigation }) {
       return;
     }
 
-    const row = (draftSetsByExercise[exercise.name] || [])[setIndex] || { weight: '', reps: '' };
+    const row = (draftSetsByExercise[exercise.name] || [])[setIndex] || { weight: '', reps: '', rpe: '8' };
     if (!isValidSet(row.weight, row.reps)) {
       Alert.alert('Dados invalidos', 'Preencha peso e repeticoes validas.');
       return;
@@ -360,6 +457,7 @@ export default function WorkoutScreen({ navigation }) {
       exerciseName: exercise.name,
       weight: Number(normalizeNumericInput(row.weight)),
       reps: Number(normalizeNumericInput(row.reps)),
+      rpe: Number(normalizeNumericInput(row.rpe || '8')),
       failed: false,
     });
 
@@ -373,6 +471,15 @@ export default function WorkoutScreen({ navigation }) {
     } else {
       setXpFeedback('+1 serie concluida');
     }
+
+    showActionToast(`Serie ${setIndex + 1}/${plannedSets} concluida 🔥`);
+
+    if (result.isNewLoadPR) {
+      const safeDelta = Number(result.prWeightDelta || 0);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      showActionToast(`🔥 Novo recorde! +${safeDelta}kg no ${exercise.name}`);
+    }
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     setSavedSetPulseKey(`${exercise.name}-${setIndex}`);
@@ -429,6 +536,7 @@ export default function WorkoutScreen({ navigation }) {
       rows[setIndex] = {
         weight: String(saved.weight || ''),
         reps: String(saved.reps || ''),
+        rpe: String(saved.rpe || '8'),
       };
       return {
         ...prev,
@@ -451,7 +559,7 @@ export default function WorkoutScreen({ navigation }) {
       ...prev,
       [exerciseName]: [
         ...(prev[exerciseName] || []),
-        { weight: '', reps: '' },
+        { weight: '', reps: '', rpe: '8' },
       ],
     }));
   };
@@ -586,11 +694,36 @@ export default function WorkoutScreen({ navigation }) {
     }
 
     setXpFeedback('Exercicio substituido com sucesso');
+    setShowSubstitutePicker(false);
   };
+
+  const quickReplaceActiveExercise = (exerciseName) => {
+    setNewExerciseName(exerciseName);
+    setTimeout(() => {
+      replaceActiveExercise();
+    }, 0);
+  };
+
+  const substituteCandidates = useMemo(() => {
+    if (!activeExercise) {
+      return [];
+    }
+
+    const group = inferExerciseGroup(activeExercise.name);
+    const sameGroup = group ? getExercisesByMuscleGroup(group) : [];
+    const related = getFreeWorkoutSuggestions([activeExercise.name]);
+    const combined = [...sameGroup, ...related, ...exerciseCatalog];
+    return Array.from(new Set(combined))
+      .filter((item) => String(item || '').toLowerCase() !== String(activeExercise.name || '').toLowerCase())
+      .slice(0, 12);
+  }, [activeExercise, exerciseCatalog, getExercisesByMuscleGroup, getFreeWorkoutSuggestions]);
 
   const finishWorkout = () => {
     const todaySessionLogs = workoutLogs.filter((item) => item.date === todayKey && (item.mode || 'guided') !== 'free');
     const todaySets = todaySessionLogs.length;
+    const exerciseCount = new Set(todaySessionLogs.map((item) => item.exerciseName)).size;
+    const totalVolume = todaySessionLogs.reduce((acc, item) => acc + (Number(item.weight || 0) * Number(item.reps || 0)), 0);
+    const sessionXp = Math.max(0, Number(gamification.xp || 0) - Number(sessionStartXpRef.current || 0));
     const currentWorkout = {
       totalSets: todaySets,
       totalLoad: todaySessionLogs.reduce((acc, item) => acc + (Number(item.weight || 0) * Number(item.reps || 0)), 0),
@@ -617,13 +750,24 @@ export default function WorkoutScreen({ navigation }) {
 
     trackEvent('workout_finish_manual', { guidedSets: todaySets, plannedSets: summary.plannedSets });
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setWorkoutSummary(delta || { setsDiff: 0, loadDiff: 0, isFirst: true });
+    setWorkoutSummary({
+      ...(delta || { setsDiff: 0, loadDiff: 0 }),
+      totalSets: todaySets,
+      exerciseCount,
+      totalVolume,
+      sessionXp,
+    });
     setShowWorkoutSummary(true);
   };
 
   const closeWorkoutSummary = () => {
     setShowWorkoutSummary(false);
     navigation.goBack();
+  };
+
+  const goToEvolution = () => {
+    setShowWorkoutSummary(false);
+    navigation.navigate('Insights');
   };
 
   const savePartialAndExit = () => {
@@ -653,6 +797,41 @@ export default function WorkoutScreen({ navigation }) {
           <Text style={styles.metaText}>{summary.guidedSets}/{summary.plannedSets || 0} series</Text>
           <Text style={styles.metaText}>Nivel {gamification.level} · XP {gamification.xp}</Text>
         </View>
+
+        <View style={styles.progressHeaderWrap}>
+          <Text style={styles.progressHeaderText}>Treino: {Math.round(Number(summary.completionRate || 0) * 100)}% concluido</Text>
+          <Text style={styles.streakText}>🔥 {Number(gamification.streakDays || 0)} dias seguidos</Text>
+        </View>
+        <View style={styles.progressTrack}>
+          <View style={[styles.progressFill, { width: `${Math.max(2, Math.round(Number(summary.completionRate || 0) * 100))}%` }]} />
+        </View>
+
+        {actionFeedback ? (
+          <Animated.View
+            style={[
+              styles.actionToast,
+              {
+                opacity: actionFeedbackAnim,
+                transform: [
+                  {
+                    translateY: actionFeedbackAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [6, 0],
+                    }),
+                  },
+                  {
+                    scale: actionFeedbackAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.98, 1],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <Text style={styles.actionToastText}>{actionFeedback}</Text>
+          </Animated.View>
+        ) : null}
 
         {restRunning ? (
           <View style={styles.restBanner}>
@@ -739,9 +918,21 @@ export default function WorkoutScreen({ navigation }) {
               }}
             >
               <Text style={styles.exerciseName}>{exercise.name}</Text>
+              <View style={styles.lastWorkoutSticky}>
+                <Text style={styles.lastWorkoutStickyTitle}>Ultimo treino</Text>
+                <Text style={styles.lastWorkoutStickyValue}>
+                  {lastSetByExercise[exercise.name]?.weight || 0}kg x {lastSetByExercise[exercise.name]?.reps || 0}
+                  {lastSetByExercise[exercise.name]?.rpe ? ` @RPE ${lastSetByExercise[exercise.name]?.rpe}` : ''}
+                </Text>
+              </View>
               <View style={styles.exerciseChipRow}>
                 <Text style={styles.smallChip}>{plannedSets}x{exercise.reps}</Text>
                 <Text style={styles.smallChip}>Serie {setProgress.nextSet}/{setProgress.totalSets}</Text>
+                {isActive ? (
+                  <TouchableOpacity style={styles.substituteBtn} onPress={() => setShowSubstitutePicker((prev) => !prev)}>
+                    <Text style={styles.substituteBtnText}>Substituir</Text>
+                  </TouchableOpacity>
+                ) : null}
               </View>
 
               <Text style={styles.progressHint}>
@@ -754,7 +945,7 @@ export default function WorkoutScreen({ navigation }) {
                 Meta hoje: {progression?.message || 'Consolidar tecnica e repetir carga com qualidade.'}
               </Text>
 
-              {historySnapshot.length ? (
+              {isActive && historySnapshot.length ? (
                 <View style={styles.historyWrap}>
                   <Text style={styles.historyTitle}>Historico rapido</Text>
                   {historySnapshot.map((entry, index) => (
@@ -774,11 +965,24 @@ export default function WorkoutScreen({ navigation }) {
                 </View>
               ) : null}
 
+              {isActive && showSubstitutePicker ? (
+                <View style={styles.substitutePanel}>
+                  <Text style={styles.substituteTitle}>Troca rapida da mesma categoria</Text>
+                  <View style={styles.substituteChipsWrap}>
+                    {substituteCandidates.map((item) => (
+                      <TouchableOpacity key={`${exercise.id}-sub-${item}`} style={styles.substituteChip} onPress={() => quickReplaceActiveExercise(item)}>
+                        <Text style={styles.substituteChipText}>{item}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              ) : null}
+
               {isActive ? <Text style={styles.controlHint}>Controles: + serie, - serie e 🗑️ por serie.</Text> : null}
 
               {Array.from({ length: plannedSets }).map((_, setIndex) => {
                 const saved = todaySets[setIndex];
-                const draft = draftRows[setIndex] || { weight: '', reps: '' };
+                const draft = draftRows[setIndex] || { weight: '', reps: '', rpe: '8' };
                 const canSave = setIndex === todaySets.length;
                 const suggestedWeight = suggestedWeightByExercise[exercise.name] || '';
 
@@ -795,7 +999,7 @@ export default function WorkoutScreen({ navigation }) {
                     {saved ? (
                       <View style={styles.savedSetBox}>
                         <View>
-                          <Text style={styles.savedSetText}>{saved.weight}kg x {saved.reps}</Text>
+                            <Text style={styles.savedSetText}>{saved.weight}kg x {saved.reps} {saved.rpe ? `@RPE ${saved.rpe}` : ''}</Text>
                           <Text style={styles.savedSetHint}>Serie salva</Text>
                         </View>
                         <View style={styles.savedActionsWrap}>
@@ -825,6 +1029,24 @@ export default function WorkoutScreen({ navigation }) {
                             setFieldRefs.current[getSetFieldKey(exercise.name, setIndex, 'reps')] = ref;
                           }}
                         />
+
+                        <View style={styles.rpeWrap}>
+                          <Text style={styles.rpeLabel}>RPE</Text>
+                          <View style={styles.rpeChipsRow}>
+                            {RPE_CHIPS.map((chip) => (
+                              <TouchableOpacity
+                                key={`${exercise.id}-${setIndex}-rpe-${chip}`}
+                                style={[
+                                  styles.rpeChip,
+                                  String(draft.rpe || '8') === chip ? styles.rpeChipActive : null,
+                                ]}
+                                onPress={() => setDraftField(exercise.name, setIndex, 'rpe', chip)}
+                              >
+                                <Text style={styles.rpeChipText}>{chip}</Text>
+                              </TouchableOpacity>
+                            ))}
+                          </View>
+                        </View>
 
                         {isActive && canSave && suggestedWeight ? (
                           <TouchableOpacity
@@ -868,7 +1090,7 @@ export default function WorkoutScreen({ navigation }) {
                 </View>
               ) : null}
 
-              {!isActive ? <Text style={styles.inactiveHint}>Toque para focar</Text> : null}
+              {!isActive ? <Text style={styles.inactiveHint}>Toque para focar • {setProgress.completedSets}/{setProgress.totalSets} series</Text> : null}
             </TouchableOpacity>
           );
         })}
@@ -933,13 +1155,18 @@ export default function WorkoutScreen({ navigation }) {
 
         {showWorkoutSummary ? (
           <AppCard style={styles.summaryCard}>
-            <Text style={styles.summaryTitle}>Treino finalizado</Text>
-            <Text style={styles.summaryLine}>+{Number(workoutSummary?.setsDiff || 0)} series</Text>
-            <Text style={styles.summaryLine}>+{Number(workoutSummary?.loadDiff || 0)}kg total</Text>
+            <Text style={styles.summaryTitle}>Treino concluido 🔥</Text>
+            <Text style={styles.summaryLine}>Exercicios: {Number(workoutSummary?.exerciseCount || 0)}</Text>
+            <Text style={styles.summaryLine}>Series: {Number(workoutSummary?.totalSets || 0)}</Text>
+            <Text style={styles.summaryLine}>Volume: {Math.round(Number(workoutSummary?.totalVolume || 0))}kg</Text>
+            <Text style={styles.summaryLine}>+{Number(workoutSummary?.sessionXp || 0)} XP</Text>
+            <Text style={styles.summaryLine}>+{Number(workoutSummary?.setsDiff || 0)} series vs ultimo treino</Text>
+            <Text style={styles.summaryLine}>+{Number(workoutSummary?.loadDiff || 0)}kg vs ultimo treino</Text>
             {Number(workoutSummary?.loadDiff || 0) > 0 ? (
               <Text style={styles.summaryPositive}>Evolucao vs ultima sessao</Text>
             ) : null}
-            <PrimaryButton title="Concluir" onPress={closeWorkoutSummary} style={styles.finishButton} />
+            <PrimaryButton title="Treino concluido" onPress={closeWorkoutSummary} style={styles.finishButton} />
+            <SecondaryButton title="Ver evolucao" onPress={goToEvolution} style={styles.partialButton} />
           </AppCard>
         ) : null}
       </ScrollView>
@@ -974,6 +1201,51 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 10,
+  },
+  progressHeaderWrap: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  progressHeaderText: {
+    color: '#CFE4FF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  streakText: {
+    color: '#FDBA74',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  progressTrack: {
+    width: '100%',
+    height: 10,
+    borderRadius: 999,
+    backgroundColor: '#1A283C',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#2F4766',
+    marginBottom: 10,
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 999,
+    backgroundColor: '#66C7A3',
+  },
+  actionToast: {
+    borderWidth: 1,
+    borderColor: '#2F7A5B',
+    backgroundColor: '#123429',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 8,
+  },
+  actionToastText: {
+    color: '#D1FAE5',
+    fontSize: 12,
+    fontWeight: '900',
   },
   metaText: {
     color: colors.textSecondary,
@@ -1120,13 +1392,34 @@ const styles = StyleSheet.create({
   exerciseCardMuted: {
     backgroundColor: colors.card,
     borderColor: colors.border,
-    opacity: 0.74,
+    opacity: 0.6,
+    transform: [{ scale: 0.985 }],
   },
   exerciseName: {
     fontSize: 23,
     fontWeight: '800',
     color: colors.textPrimary,
     marginBottom: 8,
+  },
+  lastWorkoutSticky: {
+    borderWidth: 1,
+    borderColor: '#365A8D',
+    borderRadius: 10,
+    backgroundColor: '#14253F',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    marginBottom: 8,
+  },
+  lastWorkoutStickyTitle: {
+    color: '#93C5FD',
+    fontSize: 10,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  lastWorkoutStickyValue: {
+    color: '#E0ECFF',
+    fontSize: 13,
+    fontWeight: '800',
   },
   exerciseChipRow: {
     flexDirection: 'row',
@@ -1170,6 +1463,52 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
   },
+  substituteBtn: {
+    borderWidth: 1,
+    borderColor: '#60A5FA',
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    backgroundColor: '#172A45',
+  },
+  substituteBtnText: {
+    color: '#BFDBFE',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  substitutePanel: {
+    borderWidth: 1,
+    borderColor: '#365A8D',
+    borderRadius: 10,
+    padding: 8,
+    backgroundColor: '#141E2E',
+    marginBottom: 8,
+  },
+  substituteTitle: {
+    color: '#BFDBFE',
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  substituteChipsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  substituteChip: {
+    borderWidth: 1,
+    borderColor: '#4B6C96',
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    backgroundColor: '#1B2B44',
+  },
+  substituteChipText: {
+    color: '#E2E8F0',
+    fontSize: 11,
+    fontWeight: '700',
+  },
   setRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1197,6 +1536,45 @@ const styles = StyleSheet.create({
     backgroundColor: '#141922',
     color: colors.textPrimary,
     fontSize: 15,
+  },
+  rpeWrap: {
+    borderWidth: 1,
+    borderColor: '#36506E',
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+    backgroundColor: '#111C2B',
+  },
+  rpeLabel: {
+    color: '#9CC4F7',
+    fontSize: 10,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  rpeChipsRow: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  rpeChip: {
+    minWidth: 28,
+    borderWidth: 1,
+    borderColor: '#4B6C96',
+    borderRadius: 999,
+    backgroundColor: '#1B2B44',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 5,
+    paddingHorizontal: 6,
+  },
+  rpeChipActive: {
+    borderColor: '#93C5FD',
+    backgroundColor: '#254974',
+  },
+  rpeChipText: {
+    color: '#E2E8F0',
+    fontSize: 11,
+    fontWeight: '800',
   },
   rowActionsInline: {
     flexDirection: 'row',

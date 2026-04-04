@@ -1717,12 +1717,17 @@ export const AppProvider=({children})=>{
     });
   };
 
-  const saveWorkoutSet = ({ exerciseName, weight, reps, failed, mode = 'guided' }) => {
+  const saveWorkoutSet = ({ exerciseName, weight, reps, failed, rpe, mode = 'guided' }) => {
     const parsedWeight = Number(weight);
     const parsedReps = Number(reps);
+    const parsedRpe = rpe == null || rpe === '' ? null : Number(rpe);
 
     if (!exerciseName || !parsedWeight || !parsedReps || parsedWeight < 0 || parsedReps <= 0) {
       return { ok: false, message: 'Informe peso e repeticoes validos.' };
+    }
+
+    if (parsedRpe != null && (!Number.isFinite(parsedRpe) || parsedRpe < 6 || parsedRpe > 10)) {
+      return { ok: false, message: 'RPE deve ficar entre 6 e 10.' };
     }
 
     const todayKey = getTodayKey();
@@ -1770,6 +1775,7 @@ export const AppProvider=({children})=>{
       exerciseName,
       weight: parsedWeight,
       reps: parsedReps,
+      ...(parsedRpe != null ? { rpe: parsedRpe } : {}),
       failed: Boolean(failed),
       mode,
     };
@@ -1808,6 +1814,8 @@ export const AppProvider=({children})=>{
     return {
       ok: true,
       xpDelta,
+      isNewLoadPR,
+      prWeightDelta: isNewLoadPR ? roundToStep(parsedWeight - bestPreviousWeight, 0.5) : 0,
       xpEvents: [
         `+${XP_RULES.completeSet} XP por serie concluida`,
         ...(isNewLoadPR ? [`+${XP_RULES.newLoadPR} XP por nova carga`] : []),
@@ -2024,6 +2032,7 @@ export const AppProvider=({children})=>{
         date: item.date,
         weight: Number(item.weight || 0),
         reps: Number(item.reps || 0),
+        rpe: item.rpe != null ? Number(item.rpe) : null,
         failed: Boolean(item.failed),
       }));
   };
@@ -2184,6 +2193,10 @@ export const AppProvider=({children})=>{
     const recent = logs.slice(0, 6);
     const recentSuccess = recent.filter((item) => !item.failed);
     const last3 = recent.slice(0, 3);
+    const last3WithRpe = last3.filter((item) => Number.isFinite(Number(item.rpe)));
+    const last3AvgRpe = last3WithRpe.length
+      ? Number((last3WithRpe.reduce((acc, item) => acc + Number(item.rpe || 0), 0) / last3WithRpe.length).toFixed(1))
+      : null;
     const failInLast3 = last3.filter((item) => item.failed).length;
     const successInLast3 = last3.filter((item) => !item.failed).length;
     const reference = Number((recentSuccess[0] || recent[0]).weight || 0);
@@ -2217,7 +2230,7 @@ export const AppProvider=({children})=>{
       });
     }
 
-    if (failInLast3 >= 2) {
+    if (failInLast3 >= 2 || (last3AvgRpe != null && last3AvgRpe >= 9.5)) {
       const suggested = Math.max(5, roundToStep(v4Suggestion.suggestedWeight || (reference - step)));
       return withFallback({
         level: 'reduzir',
@@ -2225,7 +2238,9 @@ export const AppProvider=({children})=>{
         delta: roundToStep(suggested - reference),
         source: v4Suggestion.source,
         confidenceScore: v4Suggestion.confidence,
-        message: 'Houve falhas recentes. Reduza carga para manter tecnica e diminuir risco.',
+        message: last3AvgRpe != null && last3AvgRpe >= 9.5
+          ? 'RPE medio muito alto. Reduza carga para manter qualidade e recuperar melhor.'
+          : 'Houve falhas recentes. Reduza carga para manter tecnica e diminuir risco.',
       });
     }
 
@@ -2234,7 +2249,7 @@ export const AppProvider=({children})=>{
         last3.reduce((acc, item) => acc + Number(item.reps || 0), 0) / successInLast3
       );
 
-      if (last3AvgReps >= repRange.max) {
+      if (last3AvgReps >= repRange.max && (last3AvgRpe == null || last3AvgRpe <= 8.5)) {
         const suggested = roundToStep(v4Suggestion.suggestedWeight || (reference + step));
         return withFallback({
           level: 'aumentar',
@@ -2242,7 +2257,16 @@ export const AppProvider=({children})=>{
           delta: roundToStep(suggested - reference),
           source: v4Suggestion.source,
           confidenceScore: v4Suggestion.confidence,
-          message: 'Boa consistencia. Sugestao de progressao leve para proxima sessao.',
+          message: `Boa consistencia${last3AvgRpe != null ? ` com RPE medio ${last3AvgRpe}` : ''}. Sugestao de progressao leve para proxima sessao.`,
+        });
+      }
+
+      if (last3AvgRpe != null && last3AvgRpe > 8.5) {
+        return withFallback({
+          level: 'manter',
+          suggestedWeight: roundToStep(reference),
+          delta: 0,
+          message: `Carga mantida: RPE medio ${last3AvgRpe} indica alta intensidade no momento.`,
         });
       }
     }
