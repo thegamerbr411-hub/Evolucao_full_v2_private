@@ -38,7 +38,7 @@ function DayRow({ item, isLast }) {
 }
 
 export default function WeeklyMacroScreen({ navigation }) {
-  const { getWeeklyMacroSummary, hasFeatureAccess } = useApp();
+  const { getWeeklyMacroSummary, getNutritionFeedback, hasFeatureAccess } = useApp();
 
   if (!hasFeatureAccess('weekly_macros')) {
     return (
@@ -54,6 +54,53 @@ export default function WeeklyMacroScreen({ navigation }) {
 
   const summary = useMemo(() => getWeeklyMacroSummary(), [getWeeklyMacroSummary]);
   const hasData = Array.isArray(summary.days) && summary.days.length > 0;
+  const weeklyFeedback = useMemo(
+    () => getNutritionFeedback({
+      proteinConsumed: Number(summary.avgProtein || 0),
+      caloriesConsumed: Number(summary.avgCalories || 0),
+      trainedToday: Number(summary.trainedDays || 0) > 0,
+    }),
+    [getNutritionFeedback, summary.avgProtein, summary.avgCalories, summary.trainedDays]
+  );
+
+  const last4Days = useMemo(() => (summary.days || []).slice(0, 4), [summary.days]);
+  const proteinRisk = useMemo(() => {
+    const lowInLast4 = last4Days.filter((item) => item.proteinStatus === 'baixo').length;
+    return {
+      lowInLast4,
+      isHigh: lowInLast4 >= 3,
+      message: lowInLast4 >= 3
+        ? 'Risco de perda de massa magra identificado.'
+        : 'Sem risco alto de proteina na semana atual.',
+    };
+  }, [last4Days]);
+
+  const trainingProteinCorrelation = useMemo(() => {
+    const trained = (summary.days || []).filter((item) => item.trained);
+    const trainedProteinOk = trained.filter((item) => item.proteinStatus !== 'baixo').length;
+    return {
+      trainedDays: trained.length,
+      trainedProteinOk,
+      trainedProteinLow: Math.max(0, trained.length - trainedProteinOk),
+    };
+  }, [summary.days]);
+
+  const weeklyActions = useMemo(() => {
+    const actions = [];
+    if (proteinRisk.isHigh) {
+      actions.push('Adicionar +20g de proteina no cafe da manha dos proximos 3 dias.');
+    }
+    if (summary.highFatDays >= 3) {
+      actions.push('Reduzir ~300 kcal no jantar de domingo (corte de gorduras ocultas).');
+    }
+    if (!actions.length && summary.lowCarbDays >= 3 && summary.trainedDays >= 2) {
+      actions.push('Adicionar +30g de carbo no pre-treino para sustentar performance.');
+    }
+    if (actions.length < 2) {
+      actions.push('Fechar o dia com uma fonte limpa de proteina (iogurte, frango ou whey).');
+    }
+    return actions.slice(0, 2);
+  }, [proteinRisk.isHigh, summary.highFatDays, summary.lowCarbDays, summary.trainedDays]);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -70,6 +117,16 @@ export default function WeeklyMacroScreen({ navigation }) {
             <Text style={styles.line}>Dias analisados: {summary.analyzedDays}</Text>
             <Text style={styles.line}>Treinos: {summary.trainedDays}</Text>
             <Text style={styles.line}>Dias com proteina baixa: {summary.lowProteinDays}</Text>
+          </AppCard>
+
+          <AppCard>
+            <Text style={styles.section}>Risco da semana</Text>
+            <Text style={[styles.lineStrong, proteinRisk.isHigh ? styles.riskHigh : styles.riskOk]}>
+              {proteinRisk.isHigh ? '⚠️ Alto' : '✅ Controlado'}
+            </Text>
+            <Text style={styles.line}>{proteinRisk.message}</Text>
+            <Text style={styles.line}>Feedback do coach: {weeklyFeedback?.title || '-'}</Text>
+            <Text style={styles.line}>Sugestao: {weeklyFeedback?.suggestion || '-'}</Text>
           </AppCard>
 
           <AppCard>
@@ -90,6 +147,19 @@ export default function WeeklyMacroScreen({ navigation }) {
           <AppCard>
             <Text style={styles.section}>Insight IA</Text>
             <Text style={styles.line}>{summary.insight}</Text>
+          </AppCard>
+
+          <AppCard>
+            <Text style={styles.section}>Correlacao treino x proteina</Text>
+            <Text style={styles.line}>Treinos na semana: {trainingProteinCorrelation.trainedDays}</Text>
+            <Text style={styles.line}>Treinos com proteina adequada: {trainingProteinCorrelation.trainedProteinOk}</Text>
+            <Text style={styles.line}>Treinos com proteina baixa: {trainingProteinCorrelation.trainedProteinLow}</Text>
+          </AppCard>
+
+          <AppCard>
+            <Text style={styles.section}>Plano de 2 acoes</Text>
+            <Text style={styles.line}>1. {weeklyActions[0]}</Text>
+            <Text style={styles.line}>2. {weeklyActions[1]}</Text>
           </AppCard>
         </>
       )}
@@ -122,6 +192,17 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 20,
     marginBottom: 4,
+  },
+  lineStrong: {
+    fontSize: 13,
+    fontWeight: '900',
+    marginBottom: 4,
+  },
+  riskHigh: {
+    color: '#FCD34D',
+  },
+  riskOk: {
+    color: '#86EFAC',
   },
   emptyText: {
     color: colors.textSecondary,

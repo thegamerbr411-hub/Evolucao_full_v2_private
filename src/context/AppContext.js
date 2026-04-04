@@ -2372,6 +2372,7 @@ export const AppProvider=({children})=>{
     if (missingProtein <= 0) {
       return {
         tone: 'success',
+        urgency: 'ok',
         title: 'Meta de proteina batida hoje 🔥',
         message: didTrainToday
           ? 'Excelente timing para recuperacao muscular apos o treino.'
@@ -2384,6 +2385,7 @@ export const AppProvider=({children})=>{
     if (caloriesRatio >= 0.9 && proteinRatio < 0.75) {
       return {
         tone: 'warning',
+        urgency: 'alta',
         title: `Faltam ${missingProtein}g de proteina hoje`,
         message: 'Calorias no teto, mas proteina baixa. Priorize fonte limpa agora para proteger resultado.',
         suggestion,
@@ -2393,6 +2395,7 @@ export const AppProvider=({children})=>{
 
     return {
       tone: didTrainToday ? 'priority' : 'default',
+      urgency: missingProtein > 35 || didTrainToday ? 'media' : 'ok',
       title: `Faltam ${missingProtein}g de proteina hoje`,
       message: didTrainToday
         ? 'Voce treinou hoje. Priorize proteina agora para acelerar recuperacao e performance.'

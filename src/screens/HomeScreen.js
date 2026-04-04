@@ -12,6 +12,7 @@ export default function HomeScreen({ navigation }) {
     gamification,
     getSmartWorkoutRecommendation,
     getDailyMacroTargets,
+    getNutritionFeedback,
   } = useApp();
 
   const today = useMemo(() => {
@@ -32,6 +33,11 @@ export default function HomeScreen({ navigation }) {
   const waterTarget = Number((plan?.waterLitersPerDay || 0) * 1000);
   const waterPercent = waterTarget > 0 ? Math.min(1, waterToday / waterTarget) : 0;
   const proteinRemaining = Math.max(0, proteinTarget - proteinToday);
+  const trainedToday = workoutLogs.some((item) => item.date === today);
+  const nutritionFeedback = useMemo(
+    () => getNutritionFeedback({ proteinConsumed: proteinToday, caloriesConsumed: Number(todayHistory?.calories || 0), trainedToday }),
+    [getNutritionFeedback, proteinToday, todayHistory?.calories, trainedToday]
+  );
   const waterRemaining = Math.max(0, waterTarget - waterToday);
   const monthPrefix = today.slice(0, 7);
   const monthlyWorkoutDays = new Set(
@@ -40,7 +46,6 @@ export default function HomeScreen({ navigation }) {
       .map((item) => item.date)
   ).size;
   const streakDays = Number(gamification?.streakDays || 0);
-  const trainedToday = workoutLogs.some((item) => item.date === today);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -56,11 +61,12 @@ export default function HomeScreen({ navigation }) {
       <AppCard>
         <Text style={styles.cardLabel}>Proteina</Text>
         <MetricText value={`${proteinToday} / ${proteinTarget}g`} label="Meta diaria" />
-        <Text style={styles.cardSub}>
-          {proteinRemaining > 0
+        <Text style={[styles.cardSub, nutritionFeedback?.urgency === 'alta' ? styles.proteinHighUrgency : nutritionFeedback?.urgency === 'media' ? styles.proteinMediumUrgency : null]}>
+          {nutritionFeedback?.title || (proteinRemaining > 0
             ? `Faltam ${proteinRemaining}g de proteina - bora fechar isso hoje.`
-            : 'Meta de proteina fechada hoje. Excelente consistencia.'}
+            : 'Meta de proteina fechada hoje. Excelente consistencia.')}
         </Text>
+        <Text style={styles.cardSub}>{nutritionFeedback?.suggestion || ''}</Text>
       </AppCard>
 
       <AppCard>
@@ -123,6 +129,14 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
     color: colors.warning,
     fontSize: 12,
+    fontWeight: '800',
+  },
+  proteinHighUrgency: {
+    color: '#FCD34D',
+    fontWeight: '800',
+  },
+  proteinMediumUrgency: {
+    color: '#BFDBFE',
     fontWeight: '800',
   },
   primaryButton: {

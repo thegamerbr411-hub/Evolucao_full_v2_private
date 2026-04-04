@@ -65,6 +65,7 @@ export default function WorkoutScreen({ navigation }) {
     getTodayWorkoutSummary,
     getWorkoutGamification,
     getWorkoutDelta,
+    getNutritionFeedback,
     workoutLogs,
     hasFeatureAccess,
   } = useApp();
@@ -95,6 +96,8 @@ export default function WorkoutScreen({ navigation }) {
   const [workoutSummary, setWorkoutSummary] = useState(null);
   const [showSubstitutePicker, setShowSubstitutePicker] = useState(false);
   const [actionFeedback, setActionFeedback] = useState('');
+
+  const postWorkoutNutritionFeedback = getNutritionFeedback({ trainedToday: true });
 
   const scrollRef = useRef(null);
   const exercisePositionsRef = useRef({});
@@ -1165,6 +1168,10 @@ export default function WorkoutScreen({ navigation }) {
             {Number(workoutSummary?.loadDiff || 0) > 0 ? (
               <Text style={styles.summaryPositive}>Evolucao vs ultima sessao</Text>
             ) : null}
+            <View style={styles.postWorkoutNutritionWrap}>
+              <Text style={styles.postWorkoutNutritionTitle}>Agora: +{Math.max(0, Number(postWorkoutNutritionFeedback?.missingProtein || 0))}g proteina recomendado</Text>
+              <Text style={styles.postWorkoutNutritionText}>{postWorkoutNutritionFeedback?.suggestion || 'Sugestao indisponivel'}</Text>
+            </View>
             <PrimaryButton title="Treino concluido" onPress={closeWorkoutSummary} style={styles.finishButton} />
             <SecondaryButton title="Ver evolucao" onPress={goToEvolution} style={styles.partialButton} />
           </AppCard>
@@ -1839,6 +1846,26 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     marginBottom: 8,
+  },
+  postWorkoutNutritionWrap: {
+    borderWidth: 1,
+    borderColor: '#365A8D',
+    borderRadius: 10,
+    backgroundColor: '#14253F',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginBottom: 8,
+  },
+  postWorkoutNutritionTitle: {
+    color: '#BFDBFE',
+    fontSize: 12,
+    fontWeight: '900',
+    marginBottom: 4,
+  },
+  postWorkoutNutritionText: {
+    color: '#E2E8F0',
+    fontSize: 12,
+    fontWeight: '700',
   },
   inactiveHint: {
     marginTop: 8,
