@@ -6,6 +6,7 @@ import { applyPainAdaptiveWorkout, getNextWeightSuggestion, getRecommendedWorkou
 import { buildCoachMessage, buildDailyCoachState, buildWeeklyUrgency } from './modules/coach';
 import { getExerciseNamesFromDatabase } from '../data/exerciseDatabase';
 import { matchNutritionToken, searchNutritionDatabase } from '../data/nutritionDatabase';
+import { sendIntelligentNotification } from '../utils/notifications';
 
 const AppContext=createContext();
 const STORAGE_KEY = 'evolucao.profile_plan.v1';
@@ -2574,6 +2575,69 @@ export const AppProvider=({children})=>{
       };
     });
   };
+
+  useEffect(() => {
+    if (!isHydrated || !profile || !plan) {
+      return;
+    }
+
+    const scheduleContextualNotifications = async () => {
+      const now = new Date();
+      const hour = now.getHours();
+      const weekDay = now.getDay();
+      const todayKey = getTodayKey();
+
+      const nutritionFeedback = getNutritionFeedback();
+      const workoutSummary = getTodayWorkoutSummary();
+      const weekly = getWeeklyMacroSummary();
+      const missingProtein = Number(nutritionFeedback?.missingProtein || 0);
+
+      if (workoutSummary.completionRate >= 1 && missingProtein > 0) {
+        await sendIntelligentNotification({
+          eventKey: `post-workout-${todayKey}`,
+          title: 'Treino concluido 🔥',
+          body: `${nutritionFeedback.title}. ${nutritionFeedback.suggestion}`,
+          data: { source: 'post_workout', action: 'open_nutrition' },
+          delaySeconds: 15 * 60,
+        });
+      }
+
+      if (hour >= 12 && hour < 16 && missingProtein >= 20) {
+        await sendIntelligentNotification({
+          eventKey: `midday-protein-${todayKey}`,
+          title: 'Proteina baixa ate agora',
+          body: `${nutritionFeedback.title}. ${nutritionFeedback.suggestion}`,
+          data: { source: 'midday', action: 'open_nutrition' },
+          delaySeconds: 1,
+        });
+      }
+
+      if (hour >= 20 && missingProtein > 0) {
+        await sendIntelligentNotification({
+          eventKey: `night-close-gap-${todayKey}`,
+          title: 'Ainda da pra bater sua meta 💪',
+          body: `${nutritionFeedback.title}. ${nutritionFeedback.suggestion}`,
+          data: { source: 'night', action: 'open_nutrition' },
+          delaySeconds: 1,
+        });
+      }
+
+      if ((weekDay === 0 || weekDay === 6) && Number(weekly.lowProteinDays || 0) >= 2) {
+        const week = getWeekBounds(todayKey);
+        await sendIntelligentNotification({
+          eventKey: `weekly-review-${week.startKey}`,
+          title: 'Resumo da semana',
+          body: `Treino ok, mas proteina baixa em ${weekly.lowProteinDays} dia(s). Ajuste hoje e feche forte.`,
+          data: { source: 'weekly', action: 'open_weekly' },
+          delaySeconds: 1,
+        });
+      }
+    };
+
+    scheduleContextualNotifications().catch(() => {
+      // Falha de notificacao nao deve quebrar fluxo principal.
+    });
+  }, [isHydrated, profile, plan, nutritionLogs, workoutLogs, history]);
 
   return(
     <AppContext.Provider
