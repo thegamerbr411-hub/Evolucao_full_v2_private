@@ -1,6 +1,9 @@
 
 import React,{createContext,useContext,useEffect,useMemo,useState} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { sumNutritionTotals } from './modules/nutrition';
+import { getWeekBounds } from './modules/workout';
+import { buildWeeklyUrgency } from './modules/coach';
 
 const AppContext=createContext();
 const STORAGE_KEY = 'evolucao.profile_plan.v1';
@@ -313,29 +316,6 @@ function getDateDiffInDays(fromDateKey, toDateKey) {
   const from = new Date(`${fromDateKey}T12:00:00`);
   const to = new Date(`${toDateKey}T12:00:00`);
   return Math.floor((to - from) / (1000 * 60 * 60 * 24));
-}
-
-function getWeekBounds(dateKey) {
-  const base = new Date(`${dateKey}T12:00:00`);
-  const weekday = (base.getDay() + 6) % 7;
-
-  const start = new Date(base);
-  start.setDate(base.getDate() - weekday);
-
-  const end = new Date(start);
-  end.setDate(start.getDate() + 6);
-
-  const toDateKey = (value) => {
-    const year = value.getFullYear();
-    const month = String(value.getMonth() + 1).padStart(2, '0');
-    const day = String(value.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-
-  return {
-    startKey: toDateKey(start),
-    endKey: toDateKey(end),
-  };
 }
 
 function normalizeText(value = '') {
@@ -1180,15 +1160,7 @@ export const AppProvider=({children})=>{
     setNutritionLogs((prev) => {
       const next = [entry, ...prev];
       const todayEntries = next.filter((item) => item.date === entryDate);
-      aggregatedForToday = todayEntries.reduce(
-        (acc, item) => ({
-          calories: acc.calories + Number(item.calories || 0),
-          protein: acc.protein + Number(item.protein || 0),
-          carbs: acc.carbs + Number(item.carbs || 0),
-          fats: acc.fats + Number(item.fats || 0),
-        }),
-        { calories: 0, protein: 0, carbs: 0, fats: 0 }
-      );
+      aggregatedForToday = sumNutritionTotals(todayEntries);
       return next;
     });
 
@@ -1249,15 +1221,7 @@ export const AppProvider=({children})=>{
 
       const next = [...nextEntries, ...prev];
       const todayEntries = next.filter((item) => item.date === entryDate);
-      aggregatedForToday = todayEntries.reduce(
-        (acc, item) => ({
-          calories: acc.calories + Number(item.calories || 0),
-          protein: acc.protein + Number(item.protein || 0),
-          carbs: acc.carbs + Number(item.carbs || 0),
-          fats: acc.fats + Number(item.fats || 0),
-        }),
-        { calories: 0, protein: 0, carbs: 0, fats: 0 }
-      );
+      aggregatedForToday = sumNutritionTotals(todayEntries);
       createdEntries = nextEntries;
       return next;
     });
@@ -1290,15 +1254,7 @@ export const AppProvider=({children})=>{
     setNutritionLogs(remainingLogs);
 
     const remainingToday = remainingLogs.filter((item) => item.date === entryDate);
-    const aggregated = remainingToday.reduce(
-      (acc, item) => ({
-        calories: acc.calories + Number(item.calories || 0),
-        protein: acc.protein + Number(item.protein || 0),
-        carbs: acc.carbs + Number(item.carbs || 0),
-        fats: acc.fats + Number(item.fats || 0),
-      }),
-      { calories: 0, protein: 0, carbs: 0, fats: 0 }
-    );
+    const aggregated = sumNutritionTotals(remainingToday);
 
     const todayKey = getTodayKey();
     if (entryDate === todayKey) {
@@ -1733,10 +1689,7 @@ export const AppProvider=({children})=>{
       ? `Sugestao conservadora por descanso muscular: ultimo treino focou ${yesterdayText}.`
       : `Hoje recomendado ${best.title} porque ontem voce treinou ${yesterdayText}.`;
 
-    const remainingToTarget = Math.max(0, weeklyTarget - trainedThisWeek);
-    const urgencyMessage = remainingToTarget > 0
-      ? `Faltam ${remainingToTarget} treino(s) para bater sua meta semanal.`
-      : 'Meta semanal batida. Mantenha o ritmo para consolidar progresso.';
+    const weeklyUrgency = buildWeeklyUrgency(weeklyTarget, trainedThisWeek);
 
     return {
       key: best.key,
@@ -1746,9 +1699,9 @@ export const AppProvider=({children})=>{
       blockedGroups: Array.from(blockedGroups),
       trainedThisWeek,
       weeklyTarget,
-      remainingToTarget,
+      remainingToTarget: weeklyUrgency.remainingToTarget,
       isBehindWeek: trainedThisWeek < weeklyTarget,
-      urgencyMessage,
+      urgencyMessage: weeklyUrgency.urgencyMessage,
       exercises: best.exercises.map((exercise, index) => ({
         ...exercise,
         id: `smart-${exercise.name}-${index}`,
