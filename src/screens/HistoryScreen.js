@@ -1,6 +1,8 @@
 import React, { useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useApp } from '../context/AppContext';
+import { AppCard, PrimaryButton, ScreenHeader } from '../components/ui';
+import { colors, spacing } from '../theme';
 
 const weekDays = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SAB'];
 
@@ -33,21 +35,18 @@ export default function HistoryScreen({ navigation }) {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Historico dos Ultimos 7 Dias</Text>
-      <Text style={styles.subtitle}>Consistencia diaria e resumo semanal.</Text>
+      <ScreenHeader title="Historico dos Ultimos 7 Dias" subtitle="Consistencia diaria e resumo semanal." />
 
-      <View style={styles.summaryCard}>
+      <AppCard>
         <Text style={styles.summaryTitle}>Resumo semanal</Text>
         <Text style={styles.summaryLine}>Media de calorias: {summary.averageCalories || 0} kcal</Text>
         <Text style={styles.summaryLine}>Dias treinados: {summary.trainedDays || 0}</Text>
         <Text style={styles.summaryLine}>Dias fora da meta: {summary.outOfTargetDays || 0}</Text>
 
-        <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('IAWeekly')}>
-          <Text style={styles.buttonText}>IA analisar minha semana</Text>
-        </TouchableOpacity>
-      </View>
+        <PrimaryButton title="IA analisar minha semana" onPress={() => navigation.navigate('Insights')} style={styles.button} />
+      </AppCard>
 
-      <View style={styles.listCard}>
+      <AppCard style={styles.listCard}>
         {recentHistory.length ? (
           recentHistory.map((item) => {
             const status = statusLabel(item.status, item.trained);
@@ -67,7 +66,7 @@ export default function HistoryScreen({ navigation }) {
         ) : (
           <Text style={styles.empty}>Nenhuma analise salva ainda. Gere uma analise do dia primeiro.</Text>
         )}
-      </View>
+      </AppCard>
     </ScrollView>
   );
 }
@@ -75,72 +74,40 @@ export default function HistoryScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    backgroundColor: '#F6F8FC',
+    backgroundColor: colors.background,
     paddingTop: 56,
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#121826',
-  },
-  subtitle: {
-    marginTop: 8,
-    marginBottom: 20,
-    color: '#495268',
-    fontSize: 15,
-  },
-  summaryCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#DCE2F0',
-    padding: 14,
-    marginBottom: 14,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
   },
   summaryTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#17233F',
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   summaryLine: {
-    color: '#3A4358',
+    color: colors.textSecondary,
     fontSize: 14,
     marginBottom: 4,
   },
   button: {
-    marginTop: 10,
-    backgroundColor: '#111C3D',
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 14,
+    marginTop: spacing.sm,
   },
   listCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#DCE2F0',
     paddingVertical: 4,
   },
   row: {
     paddingVertical: 12,
     paddingHorizontal: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#EEF1F8',
+    borderBottomColor: colors.border,
     flexDirection: 'row',
     alignItems: 'center',
   },
   day: {
     width: 44,
     fontWeight: '800',
-    color: '#111B35',
+    color: colors.textPrimary,
   },
   middle: {
     flex: 1,
@@ -150,17 +117,17 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   metaText: {
-    color: '#52607A',
+    color: colors.textSecondary,
     fontSize: 13,
     marginTop: 2,
   },
   dateText: {
-    color: '#6C7790',
+    color: colors.textSecondary,
     fontSize: 12,
   },
   empty: {
     padding: 14,
-    color: '#66728F',
+    color: colors.textSecondary,
     fontSize: 14,
   },
 });

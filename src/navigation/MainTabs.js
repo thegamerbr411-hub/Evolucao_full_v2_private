@@ -7,6 +7,7 @@ import WorkoutsHubScreen from '../screens/WorkoutsHubScreen';
 import CoachChatScreen from '../screens/CoachChatScreen';
 import RoutinesScreen from '../screens/RoutinesScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import { colors } from '../theme';
 
 const Tab = createBottomTabNavigator();
 
@@ -17,9 +18,11 @@ export default function MainTabs() {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#0F766E',
-        tabBarInactiveTintColor: '#6B7280',
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textSecondary,
         tabBarStyle: {
+          backgroundColor: colors.card,
+          borderTopColor: colors.border,
           height: 56 + Math.max(10, insets.bottom + 6),
           paddingBottom: Math.max(10, insets.bottom),
           paddingTop: 8,

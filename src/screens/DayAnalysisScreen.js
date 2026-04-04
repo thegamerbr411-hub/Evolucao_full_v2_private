@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useApp } from '../context/AppContext';
+import { AppCard, PrimaryButton, ScreenHeader } from '../components/ui';
+import { colors, spacing } from '../theme';
 
 function statusColor(status) {
   if (status === 'ok') {
@@ -95,13 +97,12 @@ export default function DayAnalysisScreen({ route }) {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>IA Analisando Seu Dia</Text>
-      <Text style={styles.subtitle}>Receba uma recomendacao rapida com base no seu plano.</Text>
+      <ScreenHeader title="IA Analisando Seu Dia" subtitle="Receba uma recomendacao rapida com base no seu plano." />
 
-      <View style={styles.card}>
+      <AppCard>
         <Text style={styles.cardTitle}>Meta de calorias</Text>
         <Text style={styles.bigNumber}>{targetCalories ? `${targetCalories} kcal` : '-'}</Text>
-      </View>
+      </AppCard>
 
       <View style={styles.fieldGroup}>
         <Text style={styles.label}>Calorias consumidas hoje</Text>
@@ -152,12 +153,10 @@ export default function DayAnalysisScreen({ route }) {
         <Switch value={trainedToday} onValueChange={setTrainedToday} />
       </View>
 
-      <TouchableOpacity style={styles.button} onPress={handleAnalyze}>
-        <Text style={styles.buttonText}>Analisar meu dia</Text>
-      </TouchableOpacity>
+      <PrimaryButton title="Analisar meu dia" onPress={handleAnalyze} />
 
       {insight ? (
-        <View style={styles.resultCard}>
+        <AppCard style={styles.resultCard}>
           <Text style={styles.resultTitle}>Diagnostico IA</Text>
           <Text style={styles.resultMessage}>{insight.message}</Text>
           <Text style={styles.resultSubTitle}>Analise de macros</Text>
@@ -182,7 +181,7 @@ export default function DayAnalysisScreen({ route }) {
           <Text style={styles.macroFeedback}>{insight?.macroInsight?.message}</Text>
           <Text style={styles.macroCoachFeedback}>{humanMacroFeedback(insight?.macroInsight)}</Text>
           <Text style={styles.autoSaved}>Analise salva automaticamente no historico.</Text>
-        </View>
+        </AppCard>
       ) : null}
     </ScrollView>
   );
@@ -191,39 +190,20 @@ export default function DayAnalysisScreen({ route }) {
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    backgroundColor: '#F6F8FC',
+    backgroundColor: colors.background,
     paddingTop: 56,
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#121826',
-  },
-  subtitle: {
-    marginTop: 8,
-    marginBottom: 20,
-    color: '#495268',
-    fontSize: 15,
-  },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#DCE2F0',
-    padding: 16,
-    marginBottom: 20,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
   },
   cardTitle: {
     fontSize: 14,
-    color: '#4A5267',
+    color: colors.textSecondary,
     marginBottom: 6,
   },
   bigNumber: {
     fontSize: 30,
     fontWeight: '800',
-    color: '#0C1A38',
+    color: colors.textPrimary,
   },
   fieldGroup: {
     marginBottom: 16,
@@ -231,13 +211,13 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#2C3346',
+    color: colors.textSecondary,
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#141922',
     borderWidth: 1,
-    borderColor: '#C9D2E4',
+    borderColor: colors.border,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
@@ -249,46 +229,30 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  button: {
-    backgroundColor: '#111C3D',
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 15,
-  },
   resultCard: {
-    marginTop: 16,
-    backgroundColor: '#EAF2FF',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#B9CFFF',
-    padding: 14,
+    marginTop: spacing.md,
   },
   resultTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#12387D',
+    color: colors.textPrimary,
     marginBottom: 6,
   },
   resultMessage: {
-    color: '#1B2C54',
+    color: colors.textSecondary,
     fontSize: 14,
     lineHeight: 20,
   },
   autoSaved: {
     marginTop: 10,
-    color: '#2C4E9B',
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: '600',
   },
   resultSubTitle: {
     marginTop: 10,
     fontSize: 13,
-    color: '#12387D',
+    color: colors.textPrimary,
     fontWeight: '800',
   },
   macroRow: {
@@ -300,17 +264,17 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   macroLabel: {
-    color: '#1B2C54',
+    color: colors.textPrimary,
     fontWeight: '700',
   },
   macroValue: {
-    color: '#35508A',
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: '700',
   },
   macroTrack: {
     height: 8,
-    backgroundColor: '#C8D6F2',
+    backgroundColor: colors.border,
     borderRadius: 999,
     overflow: 'hidden',
   },
@@ -324,13 +288,13 @@ const styles = StyleSheet.create({
   },
   macroFeedback: {
     marginTop: 8,
-    color: '#173262',
+    color: colors.textSecondary,
     fontSize: 13,
     lineHeight: 18,
   },
   macroCoachFeedback: {
     marginTop: 8,
-    color: '#10386D',
+    color: colors.textPrimary,
     fontSize: 13,
     lineHeight: 20,
     fontWeight: '700',

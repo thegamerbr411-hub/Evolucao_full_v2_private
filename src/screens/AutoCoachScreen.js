@@ -1,26 +1,22 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+﻿import React, { useCallback, useMemo, useState } from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useApp } from '../context/AppContext';
+import { AppCard, PrimaryButton, ScreenHeader } from '../components/ui';
+import { colors, spacing } from '../theme';
 
-const DARK = '#0F172A';
-const CARD = '#1E293B';
-const BORDER = '#2E3F58';
-const TEXT = '#E2E8F0';
-const MUTED = '#94A3B8';
-const ACCENT = '#60A5FA';
+const CARD = colors.card;
+const BORDER = colors.border;
+const TEXT = colors.textPrimary;
+const MUTED = colors.textSecondary;
+const ACCENT = colors.secondary;
 
 function ScoreArc({ score }) {
   const color =
-    score >= 85 ? '#2A9E66' :
+    score >= 85 ? colors.success :
     score >= 70 ? '#3B82F6' :
-    score >= 50 ? '#F59E0B' :
-    '#C14343';
+    score >= 50 ? colors.warning :
+    colors.danger;
+
   return (
     <View style={styles.scoreArcWrapper}>
       <View style={[styles.scoreCircle, { borderColor: color }]}>
@@ -45,27 +41,23 @@ function MiniBar({ label, value, max, color }) {
 }
 
 function MissionCard({ mission, onComplete }) {
-  const borderColor = mission.completed ? '#2A9E66' : BORDER;
+  const borderColor = mission.completed ? colors.success : BORDER;
   const bgColor = mission.completed ? '#0F2A1A' : CARD;
+
   return (
     <View style={[styles.missionCard, { borderColor, backgroundColor: bgColor }]}>
       <View style={styles.missionLeft}>
         <Text style={styles.missionIcon}>{mission.icon}</Text>
         <View style={styles.missionInfo}>
-          <Text style={[styles.missionTitle, mission.completed && styles.missionTitleDone]}>
-            {mission.title}
-          </Text>
+          <Text style={[styles.missionTitle, mission.completed ? styles.missionTitleDone : null]}>{mission.title}</Text>
           <Text style={styles.missionDesc}>{mission.description}</Text>
         </View>
       </View>
       <View style={styles.missionRight}>
         {mission.completed ? (
-          <Text style={styles.missionDoneText}>✓ Feito</Text>
+          <Text style={styles.missionDoneText}>Feito</Text>
         ) : (
-          <TouchableOpacity
-            style={styles.missionBtn}
-            onPress={() => onComplete(mission.id, mission.xpReward)}
-          >
+          <TouchableOpacity style={styles.missionBtn} onPress={() => onComplete(mission.id, mission.xpReward)}>
             <Text style={styles.missionBtnText}>+{mission.xpReward} XP</Text>
           </TouchableOpacity>
         )}
@@ -75,19 +67,19 @@ function MissionCard({ mission, onComplete }) {
 }
 
 function SuggestionCard({ suggestion, applied, onApply }) {
-  const isApplied = applied;
   const isAlert = suggestion.payload == null;
+
   return (
-    <View style={[styles.suggCard, isAlert && styles.suggCardAlert]}>
+    <View style={[styles.suggCard, isAlert ? styles.suggCardAlert : null]}>
       <View style={styles.suggHeader}>
         <Text style={styles.suggIcon}>{suggestion.icon}</Text>
         <Text style={styles.suggTitle}>{suggestion.title}</Text>
       </View>
       <Text style={styles.suggReason}>{suggestion.reason}</Text>
-      {!isAlert && (
+      {!isAlert ? (
         <View style={styles.suggFooter}>
           <Text style={styles.suggAction}>{suggestion.action}</Text>
-          {isApplied ? (
+          {applied ? (
             <View style={styles.appliedBadge}>
               <Text style={styles.appliedText}>Aplicado</Text>
             </View>
@@ -97,30 +89,20 @@ function SuggestionCard({ suggestion, applied, onApply }) {
             </TouchableOpacity>
           )}
         </View>
-      )}
+      ) : null}
     </View>
   );
 }
 
 export default function AutoCoachScreen({ navigation }) {
-  const { getPerformanceScore, getAutoCoachSuggestions, applyMacroOverride, getDailyMissions, completeMission, hasFeatureAccess } = useApp();
-
-  if (!hasFeatureAccess('auto_coach')) {
-    return (
-      <View style={[styles.container, styles.lockContainer]}>
-        <View style={styles.content}>
-          <Text style={styles.title}>Auto Coach</Text>
-          <Text style={styles.subtitle}>Recurso premium para ajustes inteligentes.</Text>
-          <TouchableOpacity
-            style={styles.unlockButton}
-            onPress={() => navigation.replace('Paywall', { featureKey: 'auto_coach', source: 'auto_coach_screen' })}
-          >
-            <Text style={styles.unlockButtonText}>Desbloquear PRO</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
+  const {
+    getPerformanceScore,
+    getAutoCoachSuggestions,
+    applyMacroOverride,
+    getDailyMissions,
+    completeMission,
+    hasFeatureAccess,
+  } = useApp();
 
   const [appliedIds, setAppliedIds] = useState([]);
   const [missionFeedback, setMissionFeedback] = useState('');
@@ -137,108 +119,89 @@ export default function AutoCoachScreen({ navigation }) {
   const handleComplete = useCallback((missionId, xpReward) => {
     completeMission(missionId, xpReward);
     setMissionFeedback(`+${xpReward} XP`);
-    setTimeout(() => setMissionFeedback(''), 2000);
+    setTimeout(() => setMissionFeedback(''), 1800);
   }, [completeMission]);
 
-  const alreadyApplied = coach.applied;
+  if (!hasFeatureAccess('auto_coach')) {
+    return (
+      <View style={styles.lockContainer}>
+        <ScreenHeader title="Auto Coach" subtitle="Recurso premium para ajustes inteligentes." />
+        <PrimaryButton
+          title="Desbloquear PRO"
+          onPress={() => navigation.replace('Paywall', { featureKey: 'auto_coach', source: 'auto_coach_screen' })}
+        />
+      </View>
+    );
+  }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-        <Text style={styles.backText}>← Voltar</Text>
-      </TouchableOpacity>
+    <ScrollView contentContainerStyle={styles.content}>
+      <ScreenHeader title="Auto Coach" subtitle="IA analisa sua semana e age por voce" />
 
-      <Text style={styles.title}>Auto Coach</Text>
-      <Text style={styles.subtitle}>IA analisa sua semana e age por voce</Text>
-
-      {/* Performance Score */}
-      <View style={styles.scoreCard}>
+      <AppCard style={styles.scoreCard}>
         <View style={styles.scoreLeft}>
           <Text style={styles.sectionTitle}>Performance Score</Text>
           <Text style={[styles.scoreLabel, score.score >= 70 ? styles.scoreLabelGood : score.score >= 50 ? styles.scoreLabelMed : styles.scoreLabelLow]}>
             {score.label}
           </Text>
           <MiniBar label="Treino" value={score.training} max={score.maxTraining} color="#3B82F6" />
-          <MiniBar label="Dieta" value={score.diet} max={score.maxDiet} color="#2A9E66" />
-          <MiniBar label="Consistencia" value={score.consistency} max={score.maxConsistency} color="#F59E0B" />
+          <MiniBar label="Dieta" value={score.diet} max={score.maxDiet} color={colors.success} />
+          <MiniBar label="Consistencia" value={score.consistency} max={score.maxConsistency} color={colors.warning} />
         </View>
         <ScoreArc score={score.score} />
-      </View>
+      </AppCard>
 
-      {/* Daily Missions */}
       <Text style={styles.sectionTitle}>Missoes do dia</Text>
       {missionFeedback ? (
         <View style={styles.xpToast}>
-          <Text style={styles.xpToastText}>{missionFeedback} conquistado!</Text>
+          <Text style={styles.xpToastText}>{missionFeedback} conquistado</Text>
         </View>
       ) : null}
-      {missions.map((m) => (
-        <MissionCard key={m.id} mission={m} onComplete={handleComplete} />
+      {missions.map((mission) => (
+        <MissionCard key={mission.id} mission={mission} onComplete={handleComplete} />
       ))}
 
-      {/* Auto Coach Suggestions */}
-      <Text style={[styles.sectionTitle, { marginTop: 20 }]}>Ajustes automaticos</Text>
+      <Text style={[styles.sectionTitle, styles.sectionTop]}>Ajustes automaticos</Text>
       {!coach.hasData ? (
-        <View style={styles.emptyCard}>
+        <AppCard style={styles.emptyCard}>
           <Text style={styles.emptyText}>{coach.message}</Text>
-        </View>
+        </AppCard>
       ) : coach.suggestions.length === 0 ? (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyText}>
-            Seus macros e treinos estao dentro do esperado esta semana.{'\n'}Continue assim!
-          </Text>
-        </View>
+        <AppCard style={styles.emptyCard}>
+          <Text style={styles.emptyText}>Seus macros e treinos estao dentro do esperado esta semana. Continue assim.</Text>
+        </AppCard>
       ) : (
         <>
-          {alreadyApplied ? (
-            <View style={styles.appliedInfoRow}>
-              <Text style={styles.appliedInfoText}>Ultimo ajuste aplicado em {alreadyApplied}</Text>
-            </View>
+          {coach.applied ? (
+            <Text style={styles.appliedInfoText}>Ultimo ajuste aplicado em {coach.applied}</Text>
           ) : null}
-          {coach.suggestions.map((s) => (
+          {coach.suggestions.map((suggestion) => (
             <SuggestionCard
-              key={s.id}
-              suggestion={s}
-              applied={appliedIds.includes(s.id)}
-              onApply={(payload) => handleApply(payload, s.id)}
+              key={suggestion.id}
+              suggestion={suggestion}
+              applied={appliedIds.includes(suggestion.id)}
+              onApply={(payload) => handleApply(payload, suggestion.id)}
             />
           ))}
         </>
       )}
-
-      <View style={styles.spacer} />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: DARK,
-  },
   content: {
-    paddingHorizontal: 16,
+    flexGrow: 1,
+    backgroundColor: colors.background,
     paddingTop: 56,
-    paddingBottom: 40,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
   },
-  backBtn: {
-    marginBottom: 12,
-  },
-  backText: {
-    color: ACCENT,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: TEXT,
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 13,
-    color: MUTED,
-    marginBottom: 20,
+  lockContainer: {
+    flex: 1,
+    backgroundColor: colors.background,
+    paddingTop: 56,
+    paddingHorizontal: spacing.lg,
   },
   sectionTitle: {
     fontSize: 12,
@@ -248,16 +211,13 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     marginBottom: 10,
   },
-  // Score card
+  sectionTop: {
+    marginTop: 18,
+  },
   scoreCard: {
-    backgroundColor: CARD,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: BORDER,
-    padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
   },
   scoreLeft: {
     flex: 1,
@@ -266,11 +226,11 @@ const styles = StyleSheet.create({
   scoreLabel: {
     fontSize: 15,
     fontWeight: '700',
-    marginBottom: 12,
+    marginBottom: 10,
   },
-  scoreLabelGood: { color: '#2A9E66' },
-  scoreLabelMed: { color: '#F59E0B' },
-  scoreLabelLow: { color: '#C14343' },
+  scoreLabelGood: { color: colors.success },
+  scoreLabelMed: { color: colors.warning },
+  scoreLabelLow: { color: colors.danger },
   scoreArcWrapper: {
     alignItems: 'center',
   },
@@ -305,7 +265,7 @@ const styles = StyleSheet.create({
   miniBarBg: {
     flex: 1,
     height: 4,
-    backgroundColor: '#2E3F58',
+    backgroundColor: BORDER,
     borderRadius: 4,
     overflow: 'hidden',
   },
@@ -319,7 +279,6 @@ const styles = StyleSheet.create({
     width: 28,
     textAlign: 'right',
   },
-  // Missions
   missionCard: {
     borderRadius: 12,
     borderWidth: 1,
@@ -373,26 +332,25 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   missionDoneText: {
-    color: '#2A9E66',
+    color: colors.success,
     fontSize: 13,
     fontWeight: '700',
   },
   xpToast: {
-    backgroundColor: '#172033',
+    backgroundColor: CARD,
     borderRadius: 10,
     paddingVertical: 8,
     paddingHorizontal: 14,
     alignSelf: 'flex-start',
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#2B4A6F',
+    borderColor: BORDER,
   },
   xpToastText: {
-    color: '#60A5FA',
+    color: ACCENT,
     fontSize: 13,
     fontWeight: '700',
   },
-  // Suggestions
   suggCard: {
     backgroundColor: CARD,
     borderRadius: 14,
@@ -421,7 +379,7 @@ const styles = StyleSheet.create({
   },
   suggReason: {
     fontSize: 13,
-    color: '#CBD5E1',
+    color: MUTED,
     lineHeight: 20,
     marginBottom: 12,
   },
@@ -453,26 +411,20 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#2A9E66',
+    borderColor: colors.success,
   },
   appliedText: {
-    color: '#2A9E66',
+    color: colors.success,
     fontSize: 13,
     fontWeight: '700',
-  },
-  appliedInfoRow: {
-    marginBottom: 10,
   },
   appliedInfoText: {
     fontSize: 12,
     color: MUTED,
+    marginBottom: 10,
   },
   emptyCard: {
-    backgroundColor: CARD,
-    borderRadius: 14,
     padding: 24,
-    borderWidth: 1,
-    borderColor: BORDER,
     alignItems: 'center',
   },
   emptyText: {
@@ -481,21 +433,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
   },
-  spacer: {
-    height: 20,
-  },
-  lockContainer: {
-    justifyContent: 'center',
-  },
   unlockButton: {
     marginTop: 12,
-    backgroundColor: '#1D4ED8',
-    borderRadius: 10,
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  unlockButtonText: {
-    color: '#E2ECFF',
-    fontWeight: '800',
   },
 });

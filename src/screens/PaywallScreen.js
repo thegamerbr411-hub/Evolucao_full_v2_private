@@ -2,6 +2,8 @@ import React, { useEffect, useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { getAnalyticsMetrics, getConversionRates, trackEvent } from '../utils/analytics';
+import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
+import { colors, spacing } from '../theme';
 
 const FEATURE_COPY = {
   auto_coach: {
@@ -41,17 +43,16 @@ export default function PaywallScreen({ navigation, route }) {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.badge}>EVOLUCAO PRO</Text>
-      <Text style={styles.title}>Seu personal com IA</Text>
-      <Text style={styles.subtitle}>Treine e evolua com inteligencia real.</Text>
+      <ScreenHeader title="Seu personal com IA" subtitle="Treine e evolua com inteligencia real." />
 
-      <View style={styles.highlightCard}>
+      <AppCard style={styles.highlightCard}>
         <Text style={styles.highlightTitle}>Voce tentou acessar:</Text>
         <Text style={styles.highlightFeature}>{copy.title}</Text>
         <Text style={styles.highlightSub}>{copy.subtitle}</Text>
         <Text style={styles.painText}>⚠️ {copy.pain}</Text>
         {dynamicMessage ? <Text style={styles.dynamicPainText}>⚠️ {dynamicMessage}</Text> : null}
         {__DEV__ ? <Text style={styles.sourceText}>Origem: {source}</Text> : null}
-      </View>
+      </AppCard>
 
       <View style={styles.planCardPrimary}>
         <Text style={styles.planTag}>RECOMENDADO</Text>
@@ -65,54 +66,52 @@ export default function PaywallScreen({ navigation, route }) {
         <Text style={styles.planPriceSecondary}>R$ 19,90/mes</Text>
       </View>
 
-      <View style={styles.bulletsCard}>
+      <AppCard style={styles.bulletsCard}>
         <Text style={styles.bullet}>- Auto Coach completo com ajustes automaticos</Text>
         <Text style={styles.bullet}>- Analise semanal premium de macros e performance</Text>
         <Text style={styles.bullet}>- Scanner por foto real (modo avancado)</Text>
         <Text style={styles.bullet}>- Recursos de comunidade e ranking para manter consistencia</Text>
         <Text style={styles.bullet}>- 7 dias de garantia</Text>
         <Text style={styles.bullet}>- Cancele quando quiser</Text>
-      </View>
+      </AppCard>
 
-      <View style={styles.proofCard}>
+      <AppCard style={styles.proofCard}>
         <Text style={styles.proofText}>🔥 Mais de 1.000 treinos ja foram registrados no app.</Text>
         <Text style={styles.urgencyText}>⚠️ Oferta de preco atual pode sair a qualquer momento.</Text>
-      </View>
+      </AppCard>
 
       {__DEV__ ? (
-        <View style={styles.metricsCard}>
+        <AppCard style={styles.metricsCard}>
           <Text style={styles.metricsTitle}>Funil interno</Text>
           <Text style={styles.metricsLine}>paywall_open: {metrics.paywall_open || 0}</Text>
           <Text style={styles.metricsLine}>trial_start: {metrics.trial_start || 0}</Text>
           <Text style={styles.metricsLine}>pro_activated: {metrics.pro_activated || 0}</Text>
           <Text style={styles.metricsRates}>📊 Trial: {rates.trialRate}%</Text>
           <Text style={styles.metricsRates}>💎 PRO: {rates.proRate}%</Text>
-        </View>
+        </AppCard>
       ) : null}
 
       {canStartTrial ? (
-        <TouchableOpacity
+        <PrimaryButton
+          title="Comecar gratis agora"
           style={styles.ctaButton}
           onPress={() => {
             trackEvent('trial_start', { source, featureKey });
             startProTrial();
             navigation.goBack();
           }}
-        >
-          <Text style={styles.ctaButtonText}>Comecar gratis agora</Text>
-        </TouchableOpacity>
+        />
       ) : null}
 
-      <TouchableOpacity
+      <SecondaryButton
+        title="Ja sou PRO"
         style={styles.trialButton}
         onPress={() => {
           trackEvent('pro_activated', { source, featureKey });
           activateProPlan();
           navigation.goBack();
         }}
-      >
-        <Text style={styles.trialButtonText}>Ja sou PRO</Text>
-      </TouchableOpacity>
+      />
 
       <TouchableOpacity
         style={styles.backButton}
@@ -130,10 +129,10 @@ export default function PaywallScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    backgroundColor: '#0A1224',
+    backgroundColor: colors.background,
     paddingTop: 56,
-    paddingHorizontal: 18,
-    paddingBottom: 28,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
   },
   badge: {
     alignSelf: 'flex-start',
@@ -147,25 +146,8 @@ const styles = StyleSheet.create({
     fontSize: 11,
     letterSpacing: 0.6,
   },
-  title: {
-    marginTop: 12,
-    fontSize: 31,
-    fontWeight: '900',
-    color: '#F8FAFC',
-  },
-  subtitle: {
-    marginTop: 8,
-    color: '#A8B7D3',
-    fontSize: 14,
-    lineHeight: 21,
-  },
   highlightCard: {
-    marginTop: 16,
-    backgroundColor: '#13294B',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#365E95',
-    padding: 14,
+    marginTop: spacing.md,
   },
   highlightTitle: {
     color: '#A8C9F7',
@@ -258,20 +240,10 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   bulletsCard: {
-    marginTop: 12,
-    backgroundColor: '#101D34',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#2B446D',
-    padding: 12,
+    marginTop: spacing.md,
   },
   proofCard: {
-    marginTop: 10,
-    backgroundColor: '#1A2942',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#3A557E',
-    padding: 12,
+    marginTop: spacing.sm,
   },
   proofText: {
     color: '#E5EDFF',
@@ -287,12 +259,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   metricsCard: {
-    marginTop: 10,
-    backgroundColor: '#0E1A2F',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#2B446D',
-    padding: 12,
+    marginTop: spacing.sm,
   },
   metricsTitle: {
     color: '#BFD4F7',
@@ -320,28 +287,10 @@ const styles = StyleSheet.create({
     lineHeight: 19,
   },
   ctaButton: {
-    marginTop: 14,
-    backgroundColor: '#2A9E66',
-    borderRadius: 12,
-    alignItems: 'center',
-    paddingVertical: 14,
-  },
-  ctaButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '800',
-    fontSize: 15,
+    marginTop: spacing.md,
   },
   trialButton: {
-    marginTop: 10,
-    backgroundColor: '#1D4ED8',
-    borderRadius: 12,
-    alignItems: 'center',
-    paddingVertical: 13,
-  },
-  trialButtonText: {
-    color: '#E9F1FF',
-    fontWeight: '800',
-    fontSize: 14,
+    marginTop: spacing.sm,
   },
   backButton: {
     marginTop: 10,
