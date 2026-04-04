@@ -12,6 +12,7 @@ import FreeWorkoutScreen from '../screens/FreeWorkoutScreen';
 import WeeklyMacroScreen from '../screens/WeeklyMacroScreen';
 import AutoCoachScreen from '../screens/AutoCoachScreen';
 import PaywallScreen from '../screens/PaywallScreen';
+import InsightsScreen from '../screens/InsightsScreen';
 import MainTabs from './MainTabs';
 
 const Stack = createNativeStackNavigator();
@@ -32,11 +33,12 @@ export default function RootNavigator(){
       <Stack.Screen name="MainTabs" component={MainTabs}/>
       <Stack.Screen name="Scanner" component={NutritionScanner}/>
       <Stack.Screen name="AnaliseDia" component={DayAnalysisScreen}/>
-      <Stack.Screen name="Historico" component={HistoryScreen}/>
-      <Stack.Screen name="IAWeekly" component={WeeklyInsightScreen}/>
+      <Stack.Screen name="Insights" component={InsightsScreen}/>
+      <Stack.Screen name="Historico" component={InsightsScreen}/>
+      <Stack.Screen name="IAWeekly" component={InsightsScreen}/>
       <Stack.Screen name="TreinoHoje" component={WorkoutScreen}/>
       <Stack.Screen name="TreinoLivre" component={FreeWorkoutScreen}/>
-      <Stack.Screen name="MacroSemanal" component={WeeklyMacroScreen}/>
+      <Stack.Screen name="MacroSemanal" component={InsightsScreen}/>
       <Stack.Screen name="AutoCoach" component={AutoCoachScreen}/>
       <Stack.Screen name="Paywall" component={PaywallScreen}/>
     </Stack.Navigator>

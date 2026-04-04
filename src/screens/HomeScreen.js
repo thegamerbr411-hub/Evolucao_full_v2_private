@@ -87,7 +87,7 @@ export default function HomeScreen({ navigation }) {
         <Text style={styles.cardSub}>📈 {monthlyWorkoutDays} dias treinados no mes</Text>
       </AppCard>
 
-      <SecondaryButton title="Ver detalhes" onPress={() => navigation.navigate('Historico')} />
+      <SecondaryButton title="Ver detalhes" onPress={() => navigation.navigate('Insights')} />
     </ScrollView>
   );
 }
