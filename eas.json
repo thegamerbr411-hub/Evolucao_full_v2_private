@@ -1,0 +1,15 @@
+{
+  "cli": {
+    "version": ">= 16.13.3"
+  },
+  "build": {
+    "preview": {
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production": {
+      "autoIncrement": true
+    }
+  }
+}
