@@ -47,6 +47,15 @@ const NUTRITION_DB = [
   { key: 'atum', label: 'Atum', calories: 132, protein: 28, carbs: 0, fats: 1 },
 ];
 
+const FOOD_CATALOG = NUTRITION_DB.map((item) => ({
+  key: item.key,
+  label: item.label,
+  calories: item.calories,
+  protein: item.protein,
+  carbs: item.carbs,
+  fats: item.fats,
+}));
+
 const FRACTION_WORDS = {
   metade: 0.5,
   meia: 0.5,
@@ -133,6 +142,13 @@ function getTodayKey() {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function getNowTimeLabel() {
+  const date = new Date();
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
 }
 
 function normalizeHistoryStatus(insightStatus) {
@@ -293,11 +309,59 @@ function getPreviousDateKey(dateKey) {
   return `${year}-${month}-${day}`;
 }
 
+function getDateDiffInDays(fromDateKey, toDateKey) {
+  const from = new Date(`${fromDateKey}T12:00:00`);
+  const to = new Date(`${toDateKey}T12:00:00`);
+  return Math.floor((to - from) / (1000 * 60 * 60 * 24));
+}
+
 function normalizeText(value = '') {
   return String(value)
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '');
+}
+
+function evaluateMealQuality({ protein = 0, calories = 0, carbs = 0, fats = 0 }) {
+  const safeProtein = Number(protein || 0);
+  const safeCalories = Number(calories || 0);
+  const safeCarbs = Number(carbs || 0);
+  const safeFats = Number(fats || 0);
+  const proteinDensity = safeCalories > 0 ? (safeProtein * 4) / safeCalories : 0;
+
+  if (safeProtein >= 28 && proteinDensity >= 0.3 && safeFats <= 20) {
+    return {
+      level: 'good',
+      badge: 'Boa refeicao',
+      emoji: '🟢',
+      message: 'Boa refeicao: proteina forte para recuperar e evoluir.',
+    };
+  }
+
+  if (safeProtein < 18 || proteinDensity < 0.2) {
+    return {
+      level: 'weak_protein',
+      badge: 'Fraca em proteina',
+      emoji: '🔴',
+      message: 'Fraca em proteina: adicione uma fonte proteica para fechar melhor.',
+    };
+  }
+
+  if (safeFats > 26 && safeCarbs < 20) {
+    return {
+      level: 'high_fat',
+      badge: 'Ok, mas pesada',
+      emoji: '🟡',
+      message: 'Ok, mas pesada: ajuste gordura na proxima refeicao.',
+    };
+  }
+
+  return {
+    level: 'ok',
+    badge: 'Ok',
+    emoji: '🟡',
+    message: 'Refeicao ok: da para otimizar um pouco a proteina.',
+  };
 }
 
 function parseQuantityFromText(text) {
@@ -415,8 +479,54 @@ function estimateNutritionFromTextInput(inputText) {
     .map((item) => item.trim())
     .filter(Boolean);
 
+  const comboItems = [];
+  if (text.includes('pao') && text.includes('ovo')) {
+    const eggCountMatch = text.match(/(\d+)\s*ovos?/);
+    const eggCount = eggCountMatch ? Number(eggCountMatch[1]) : 2;
+    const breadIsFrench = text.includes('pao frances');
+    const breadKcal = breadIsFrench ? 135 : 140;
+    const breadProtein = breadIsFrench ? 4.5 : 5;
+    const breadCarbs = breadIsFrench ? 26 : 25;
+    const breadFat = breadIsFrench ? 1.8 : 2;
+
+    const totalCalories = round(breadKcal + eggCount * 78);
+    const totalProtein = round(breadProtein + eggCount * 6);
+    const totalCarbs = round(breadCarbs + eggCount * 1);
+    const totalFats = round(breadFat + eggCount * 5);
+
+    comboItems.push({
+      label: breadIsFrench ? 'Pao frances com ovos' : 'Pao com ovos',
+      quantity: 1,
+      calories: totalCalories,
+      protein: totalProtein,
+      carbs: totalCarbs,
+      fats: totalFats,
+    });
+  }
+
   const items = [];
   const unknown = [];
+  const tokenTotals = { calories: 0, protein: 0, carbs: 0, fats: 0 };
+  const tokenDb = NUTRITION_DB.reduce((acc, item) => {
+    acc[item.key] = item;
+    return acc;
+  }, {});
+
+  // Fallback token parser for simple strings like: "pao ovo frango"
+  const plainTokens = text
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter(Boolean);
+  plainTokens.forEach((token) => {
+    const mapped = tokenDb[token];
+    if (!mapped) {
+      return;
+    }
+    tokenTotals.calories += round(mapped.calories);
+    tokenTotals.protein += round(mapped.protein);
+    tokenTotals.carbs += round(mapped.carbs);
+    tokenTotals.fats += round(mapped.fats);
+  });
 
   for (const chunk of chunks) {
     const food = NUTRITION_DB.find((entry) => chunk.includes(entry.key));
@@ -436,14 +546,16 @@ function estimateNutritionFromTextInput(inputText) {
     });
   }
 
-  if (!items.length) {
+  const allItems = [...comboItems, ...items];
+
+  if (!allItems.length) {
     return {
       ok: false,
       message: 'Nao consegui identificar alimentos conhecidos. Tente termos simples.',
     };
   }
 
-  const totals = items.reduce(
+  const reducedTotals = allItems.reduce(
     (acc, item) => ({
       calories: acc.calories + item.calories,
       protein: acc.protein + item.protein,
@@ -453,11 +565,18 @@ function estimateNutritionFromTextInput(inputText) {
     { calories: 0, protein: 0, carbs: 0, fats: 0 }
   );
 
+  const totals = {
+    calories: Math.max(reducedTotals.calories, tokenTotals.calories),
+    protein: Math.max(reducedTotals.protein, tokenTotals.protein),
+    carbs: Math.max(reducedTotals.carbs, tokenTotals.carbs),
+    fats: Math.max(reducedTotals.fats, tokenTotals.fats),
+  };
+
   return {
     ok: true,
     source: 'text',
     totals,
-    items,
+    items: allItems,
     unknown,
     message: unknown.length
       ? 'Estimativa concluida com alguns itens nao reconhecidos.'
@@ -690,7 +809,9 @@ export const AppProvider=({children})=>{
   const [profile, setProfile] = useState(null);
   const [plan, setPlan] = useState(null);
   const [history, setHistory] = useState([]);
+  const [nutritionLogs, setNutritionLogs] = useState([]);
   const [workoutLogs, setWorkoutLogs] = useState([]);
+  const [userRoutines, setUserRoutines] = useState([]);
   const [exerciseTargets, setExerciseTargets] = useState({});
   const [gamification, setGamification] = useState({
     xp: 0,
@@ -722,8 +843,16 @@ export const AppProvider=({children})=>{
           setHistory(parsed.history);
         }
 
+        if (Array.isArray(parsed?.nutritionLogs)) {
+          setNutritionLogs(parsed.nutritionLogs);
+        }
+
         if (Array.isArray(parsed?.workoutLogs)) {
           setWorkoutLogs(parsed.workoutLogs);
+        }
+
+        if (Array.isArray(parsed?.userRoutines)) {
+          setUserRoutines(parsed.userRoutines);
         }
 
         if (parsed?.exerciseTargets && typeof parsed.exerciseTargets === 'object') {
@@ -774,7 +903,9 @@ export const AppProvider=({children})=>{
               profile,
               plan,
               history,
+              nutritionLogs,
               workoutLogs,
+              userRoutines,
               exerciseTargets,
               gamification,
               monetization,
@@ -789,7 +920,7 @@ export const AppProvider=({children})=>{
     };
 
     persist();
-  }, [profile, plan, history, workoutLogs, exerciseTargets, gamification, monetization, isHydrated]);
+  }, [profile, plan, history, nutritionLogs, workoutLogs, userRoutines, exerciseTargets, gamification, monetization, isHydrated]);
 
   const saveQuestionnaire = (formData) => {
     const normalized = {
@@ -805,11 +936,42 @@ export const AppProvider=({children})=>{
     setPlan(generatePlan(normalized));
   };
 
+  const updateProfileSettings = (partialData = {}) => {
+    if (!profile) {
+      return { ok: false, message: 'Perfil ainda nao foi definido.' };
+    }
+
+    const nextProfile = {
+      ...profile,
+      ...partialData,
+      currentWeight: Number(partialData.currentWeight ?? profile.currentWeight),
+      targetWeight: Number(partialData.targetWeight ?? profile.targetWeight),
+      trainingDaysPerWeek: Number(partialData.trainingDaysPerWeek ?? profile.trainingDaysPerWeek),
+      height: Number(partialData.height ?? profile.height),
+    };
+
+    setProfile(nextProfile);
+
+    setPlan((prev) => {
+      const regenerated = generatePlan(nextProfile);
+      return {
+        ...regenerated,
+        macroOverrides: prev?.macroOverrides || null,
+        weeklyTrainingAdjustment: prev?.weeklyTrainingAdjustment || null,
+        lastAutoAdjustmentAt: prev?.lastAutoAdjustmentAt || null,
+      };
+    });
+
+    return { ok: true, message: 'Perfil atualizado com sucesso.' };
+  };
+
   const resetQuestionnaire = () => {
     setProfile(null);
     setPlan(null);
     setHistory([]);
+    setNutritionLogs([]);
     setWorkoutLogs([]);
+    setUserRoutines([]);
     setExerciseTargets({});
     setGamification({
       xp: 0,
@@ -896,6 +1058,7 @@ export const AppProvider=({children})=>{
 
   const saveDailyHistory = ({ consumedCalories, protein, carbs, fats, trainedToday, insight, macroInsight }) => {
     const entryDate = getTodayKey();
+    const existingToday = history.find((item) => item.date === entryDate);
     const normalizedEntry = {
       date: entryDate,
       calories: Number(consumedCalories),
@@ -906,6 +1069,7 @@ export const AppProvider=({children})=>{
       status: normalizeHistoryStatus(insight.status),
       insight: insight.message,
       macroInsight: macroInsight?.message || '',
+      waterMl: Number(existingToday?.waterMl || 0),
     };
 
     setHistory((prev) => {
@@ -930,6 +1094,7 @@ export const AppProvider=({children})=>{
         status: existing?.status || 'ok',
         insight: existing?.insight || 'Nutricao registrada pelo scanner.',
         macroInsight: existing?.macroInsight || '',
+        waterMl: Number(existing?.waterMl || 0),
       };
 
       const withoutToday = prev.filter((item) => item.date !== entryDate);
@@ -941,6 +1106,134 @@ export const AppProvider=({children})=>{
       ok: true,
       message: 'Nutricao salva no historico de hoje.',
     };
+  };
+
+  const searchFoodCatalog = (query = '') => {
+    const normalized = normalizeText(query);
+    if (!normalized.trim()) {
+      return FOOD_CATALOG.slice(0, 20);
+    }
+
+    return FOOD_CATALOG
+      .filter((item) => normalizeText(item.label).includes(normalized) || normalizeText(item.key).includes(normalized))
+      .slice(0, 20);
+  };
+
+  const getTodayFoodLog = () => {
+    const todayKey = getTodayKey();
+    return nutritionLogs
+      .filter((item) => item.date === todayKey)
+      .sort((a, b) => String(b.loggedAt || '').localeCompare(String(a.loggedAt || '')));
+  };
+
+  const addFoodLogEntry = ({ foodKey, label, quantity = 1, loggedAt }) => {
+    const food = FOOD_CATALOG.find((item) => item.key === foodKey) || FOOD_CATALOG.find((item) => normalizeText(item.label) === normalizeText(label || ''));
+    if (!food) {
+      return { ok: false, message: 'Alimento nao encontrado no catalogo local.' };
+    }
+
+    const safeQuantity = Math.max(0.1, Number(quantity || 1));
+    const totals = {
+      calories: round(food.calories * safeQuantity),
+      protein: round(food.protein * safeQuantity),
+      carbs: round(food.carbs * safeQuantity),
+      fats: round(food.fats * safeQuantity),
+    };
+
+    const entryDate = getTodayKey();
+    const quality = evaluateMealQuality(totals);
+    const entry = {
+      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      date: entryDate,
+      loggedAt: loggedAt || getNowTimeLabel(),
+      foodKey: food.key,
+      label: food.label,
+      quantity: safeQuantity,
+      quality,
+      ...totals,
+    };
+
+    setNutritionLogs((prev) => [entry, ...prev]);
+
+    const todayEntries = getTodayFoodLog();
+    const nextEntries = [entry, ...todayEntries];
+    const aggregated = nextEntries.reduce(
+      (acc, item) => ({
+        calories: acc.calories + Number(item.calories || 0),
+        protein: acc.protein + Number(item.protein || 0),
+        carbs: acc.carbs + Number(item.carbs || 0),
+        fats: acc.fats + Number(item.fats || 0),
+      }),
+      { calories: 0, protein: 0, carbs: 0, fats: 0 }
+    );
+
+    saveNutritionEntry(aggregated);
+
+    return {
+      ok: true,
+      entry,
+      quality,
+      message: `Alimento registrado. ${quality.emoji} ${quality.badge}.`,
+    };
+  };
+
+  const removeFoodLogEntry = (entryId) => {
+    const target = nutritionLogs.find((item) => item.id === entryId);
+    if (!target) {
+      return { ok: false, message: 'Registro alimentar nao encontrado.' };
+    }
+
+    const entryDate = target.date;
+    const remainingLogs = nutritionLogs.filter((item) => item.id !== entryId);
+    setNutritionLogs(remainingLogs);
+
+    const remainingToday = remainingLogs.filter((item) => item.date === entryDate);
+    const aggregated = remainingToday.reduce(
+      (acc, item) => ({
+        calories: acc.calories + Number(item.calories || 0),
+        protein: acc.protein + Number(item.protein || 0),
+        carbs: acc.carbs + Number(item.carbs || 0),
+        fats: acc.fats + Number(item.fats || 0),
+      }),
+      { calories: 0, protein: 0, carbs: 0, fats: 0 }
+    );
+
+    const todayKey = getTodayKey();
+    if (entryDate === todayKey) {
+      saveNutritionEntry(aggregated);
+    }
+
+    return { ok: true, message: 'Registro removido com sucesso.' };
+  };
+
+  const addWaterIntake = (ml) => {
+    const value = Number(ml || 0);
+    if (!value || value <= 0) {
+      return { ok: false, message: 'Informe um volume de agua valido.' };
+    }
+
+    const entryDate = getTodayKey();
+    setHistory((prev) => {
+      const existing = prev.find((item) => item.date === entryDate);
+      const normalizedEntry = {
+        date: entryDate,
+        calories: Number(existing?.calories || 0),
+        protein: Number(existing?.protein || 0),
+        carbs: Number(existing?.carbs || 0),
+        fats: Number(existing?.fats || 0),
+        trained: Boolean(existing?.trained),
+        status: existing?.status || 'ok',
+        insight: existing?.insight || 'Hidratacao atualizada no dia.',
+        macroInsight: existing?.macroInsight || '',
+        waterMl: Number(existing?.waterMl || 0) + value,
+      };
+
+      const withoutToday = prev.filter((item) => item.date !== entryDate);
+      const next = [normalizedEntry, ...withoutToday];
+      return next.slice(0, 30);
+    });
+
+    return { ok: true, message: `${value}ml de agua adicionados.` };
   };
 
   const analyzeDay = ({ consumedCalories, protein, carbs = 0, fats = 0, trainedToday }) => {
@@ -1237,6 +1530,127 @@ export const AppProvider=({children})=>{
     }));
   };
 
+  const getSmartWorkoutRecommendation = () => {
+    const todayKey = getTodayKey();
+    const weeklyTarget = Number(profile?.trainingDaysPerWeek || 3);
+    const weekPrefix = todayKey.slice(0, 8);
+    const trainedThisWeek = new Set(
+      workoutLogs
+        .filter((item) => String(item.date || '').startsWith(weekPrefix))
+        .map((item) => item.date)
+    ).size;
+
+    const sessionDates = Array.from(new Set(workoutLogs.map((item) => item.date))).sort((a, b) =>
+      String(b).localeCompare(String(a))
+    );
+
+    const blockedGroups = new Set();
+    const recentGroupsByDate = [];
+
+    sessionDates.forEach((dateKey) => {
+      const diff = getDateDiffInDays(dateKey, todayKey);
+      const groups = Array.from(
+        new Set(
+          workoutLogs
+            .filter((item) => item.date === dateKey)
+            .map((item) => inferMuscleGroup(item.exerciseName))
+            .filter(Boolean)
+        )
+      );
+
+      if (groups.length) {
+        recentGroupsByDate.push({ dateKey, groups });
+      }
+
+      if (diff >= 0 && diff < 2) {
+        groups.forEach((group) => blockedGroups.add(group));
+      }
+    });
+
+    const clusterUsage = { push: 0, pull: 0, legs: 0, full: 0 };
+    recentGroupsByDate.slice(0, 7).forEach((session) => {
+      if (session.groups.includes('peito') || session.groups.includes('ombro') || session.groups.includes('triceps')) {
+        clusterUsage.push += 1;
+      }
+      if (session.groups.includes('costas') || session.groups.includes('biceps')) {
+        clusterUsage.pull += 1;
+      }
+      if (session.groups.includes('perna')) {
+        clusterUsage.legs += 1;
+      }
+      if (!session.groups.length) {
+        clusterUsage.full += 1;
+      }
+    });
+
+    const options = [
+      {
+        key: 'push',
+        title: 'Peito + Triceps + Ombro',
+        blocked: ['peito', 'ombro', 'triceps'],
+        exercises: WORKOUT_LIBRARY.push,
+      },
+      {
+        key: 'pull',
+        title: 'Costas + Biceps',
+        blocked: ['costas', 'biceps'],
+        exercises: WORKOUT_LIBRARY.pull,
+      },
+      {
+        key: 'legs',
+        title: 'Pernas completas',
+        blocked: ['perna'],
+        exercises: WORKOUT_LIBRARY.legs,
+      },
+      {
+        key: 'full',
+        title: 'Full body de consistencia',
+        blocked: [],
+        exercises: WORKOUT_LIBRARY.fullBody,
+      },
+    ];
+
+    const scored = options.map((item) => {
+      const overlap = item.blocked.filter((group) => blockedGroups.has(group)).length;
+      const score = overlap * 10 + Number(clusterUsage[item.key] || 0);
+      return { ...item, score, overlap };
+    });
+
+    scored.sort((a, b) => a.score - b.score);
+    const best = scored[0] || options[0];
+
+    const yesterday = recentGroupsByDate[0];
+    const yesterdayText = yesterday?.groups?.length
+      ? yesterday.groups.join(', ')
+      : 'nenhum treino recente';
+
+    const justification = best.overlap > 0
+      ? `Sugestao conservadora por descanso muscular: ultimo treino focou ${yesterdayText}.`
+      : `Hoje recomendado ${best.title} porque ontem voce treinou ${yesterdayText}.`;
+
+    const remainingToTarget = Math.max(0, weeklyTarget - trainedThisWeek);
+    const urgencyMessage = remainingToTarget > 0
+      ? `Faltam ${remainingToTarget} treino(s) para bater sua meta semanal.`
+      : 'Meta semanal batida. Mantenha o ritmo para consolidar progresso.';
+
+    return {
+      key: best.key,
+      title: best.title,
+      confidence: best.overlap > 0 ? 'media' : 'alta',
+      justification,
+      blockedGroups: Array.from(blockedGroups),
+      trainedThisWeek,
+      weeklyTarget,
+      remainingToTarget,
+      isBehindWeek: trainedThisWeek < weeklyTarget,
+      urgencyMessage,
+      exercises: best.exercises.map((exercise, index) => ({
+        ...exercise,
+        id: `smart-${exercise.name}-${index}`,
+      })),
+    };
+  };
+
   const prepareTodayWorkoutTargets = () => {
     const today = getTodayKey();
     const todayWorkout = getWorkoutBySplit(plan?.trainingSplit);
@@ -1402,6 +1816,118 @@ export const AppProvider=({children})=>{
     return getExerciseCatalogFromSources(workoutLogs);
   };
 
+  const getUserRoutines = () => {
+    return Array.isArray(userRoutines) ? userRoutines : [];
+  };
+
+  const createUserRoutine = ({ name, frequency = 3, exercises = [] }) => {
+    const safeName = String(name || '').trim();
+    if (!safeName) {
+      return { ok: false, message: 'Informe um nome para a rotina.' };
+    }
+
+    const cleanedExercises = Array.isArray(exercises)
+      ? exercises.map((item) => String(item || '').trim()).filter(Boolean)
+      : [];
+
+    if (!cleanedExercises.length) {
+      return { ok: false, message: 'Adicione ao menos um exercicio.' };
+    }
+
+    const routine = {
+      id: `routine-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      name: safeName,
+      frequency: Math.max(1, Number(frequency || 3)),
+      exercises: cleanedExercises,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    setUserRoutines((prev) => [routine, ...prev]);
+    return { ok: true, routine, message: 'Rotina criada com sucesso.' };
+  };
+
+  const updateUserRoutine = ({ routineId, name, frequency, exercises }) => {
+    let updatedRoutine = null;
+
+    setUserRoutines((prev) =>
+      prev.map((item) => {
+        if (item.id !== routineId) {
+          return item;
+        }
+
+        const nextName = String(name || item.name || '').trim();
+        const nextFrequency = Math.max(1, Number(frequency || item.frequency || 3));
+        const nextExercises = Array.isArray(exercises)
+          ? exercises.map((entry) => String(entry || '').trim()).filter(Boolean)
+          : item.exercises;
+
+        updatedRoutine = {
+          ...item,
+          name: nextName,
+          frequency: nextFrequency,
+          exercises: nextExercises,
+          updatedAt: new Date().toISOString(),
+        };
+
+        return updatedRoutine;
+      })
+    );
+
+    if (!updatedRoutine) {
+      return { ok: false, message: 'Rotina nao encontrada.' };
+    }
+
+    return { ok: true, routine: updatedRoutine, message: 'Rotina atualizada.' };
+  };
+
+  const duplicateUserRoutine = (routineId) => {
+    const source = userRoutines.find((item) => item.id === routineId);
+    if (!source) {
+      return { ok: false, message: 'Rotina nao encontrada para duplicar.' };
+    }
+
+    return createUserRoutine({
+      name: `${source.name} (copia)`,
+      frequency: source.frequency,
+      exercises: source.exercises,
+    });
+  };
+
+  const deleteUserRoutine = (routineId) => {
+    const exists = userRoutines.some((item) => item.id === routineId);
+    if (!exists) {
+      return { ok: false, message: 'Rotina nao encontrada para remover.' };
+    }
+
+    setUserRoutines((prev) => prev.filter((item) => item.id !== routineId));
+    return { ok: true, message: 'Rotina removida.' };
+  };
+
+  const getExercisesByMuscleGroup = (groupKey) => {
+    const normalized = String(groupKey || '').toLowerCase();
+    const catalog = getExerciseCatalogFromSources(workoutLogs);
+
+    const filters = {
+      peito: ['supino', 'crucifixo', 'peck'],
+      costas: ['remada', 'puxada', 'pull'],
+      perna: ['agachamento', 'leg press', 'stiff', 'panturrilha', 'extensora', 'flexora', 'passada', 'terra'],
+      ombro: ['desenvolvimento', 'elevacao'],
+      triceps: ['triceps', 'supino'],
+      biceps: ['rosca', 'biceps', 'puxada'],
+    };
+
+    const keywords = filters[normalized] || [];
+    if (!keywords.length) {
+      return catalog;
+    }
+
+    return catalog.filter((name) => {
+      const lowerName = String(name || '').toLowerCase();
+      return keywords.some((keyword) => lowerName.includes(keyword));
+    });
+  };
+
   const getFreeWorkoutSuggestions = (selectedExercises = []) => {
     const normalized = Array.isArray(selectedExercises) ? selectedExercises : [];
     const used = new Set(normalized);
@@ -1450,6 +1976,37 @@ export const AppProvider=({children})=>{
     });
 
     return result;
+  };
+
+  const removeTodayWorkoutSet = ({ exerciseName, setIndex, mode = 'guided' }) => {
+    const today = getTodayKey();
+    const normalizedMode = mode || 'guided';
+    let removed = false;
+
+    setWorkoutLogs((prev) => {
+      const todayExerciseLogs = prev
+        .filter(
+          (item) =>
+            item.date === today &&
+            item.exerciseName === exerciseName &&
+            (item.mode || 'guided') === normalizedMode
+        )
+        .sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
+
+      const selected = todayExerciseLogs[setIndex];
+      if (!selected) {
+        return prev;
+      }
+
+      removed = true;
+      return prev.filter((item) => item.id !== selected.id);
+    });
+
+    if (!removed) {
+      return { ok: false, message: 'Serie nao encontrada para remover.' };
+    }
+
+    return { ok: true, message: 'Serie removida com sucesso.' };
   };
 
   const getExerciseProgress = (exerciseName) => {
@@ -1790,6 +2347,7 @@ export const AppProvider=({children})=>{
         profile,
         plan,
         history,
+        nutritionLogs,
         workoutLogs,
         exerciseTargets,
         gamification,
@@ -1797,6 +2355,7 @@ export const AppProvider=({children})=>{
         hasCompletedQuestionnaire,
         isHydrated,
         saveQuestionnaire,
+        updateProfileSettings,
         resetQuestionnaire,
         analyzeDay,
         getRecentHistory,
@@ -1805,6 +2364,7 @@ export const AppProvider=({children})=>{
         getAutoAdjustmentSuggestion,
         applyAutoPlanAdjustment,
         getTodayWorkout,
+        getSmartWorkoutRecommendation,
         prepareTodayWorkoutTargets,
         saveWorkoutSet,
         saveFreeWorkoutSet,
@@ -1813,6 +2373,12 @@ export const AppProvider=({children})=>{
         getTodayWorkoutSummary,
         getExerciseSetProgress,
         getExerciseCatalog,
+        getUserRoutines,
+        createUserRoutine,
+        updateUserRoutine,
+        duplicateUserRoutine,
+        deleteUserRoutine,
+        getExercisesByMuscleGroup,
         getFreeWorkoutSuggestions,
         getWorkoutGamification,
         estimateNutritionFromText,
@@ -1825,10 +2391,17 @@ export const AppProvider=({children})=>{
         getDailyMissions,
         completeMission,
         saveNutritionEntry,
+        searchFoodCatalog,
+        addFoodLogEntry,
+        removeFoodLogEntry,
+        getTodayFoodLog,
+        evaluateMealQuality,
+        addWaterIntake,
         getSubscriptionStatus,
         hasFeatureAccess,
         startProTrial,
         activateProPlan,
+        removeTodayWorkoutSet,
       }}
     >
       {children}

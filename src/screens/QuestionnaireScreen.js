@@ -20,7 +20,13 @@ const levels = [
   { key: 'intermediario', label: 'Intermediario' },
 ];
 
-const trainingDays = ['3', '4', '5'];
+const trainingDays = [
+  { key: '3', label: '3x' },
+  { key: '4', label: '4x' },
+  { key: '5', label: '5x' },
+  { key: '6', label: '6x' },
+  { key: 'custom', label: 'Personalizado' },
+];
 
 function OptionGroup({ title, options, selected, onSelect }) {
   return (
@@ -68,15 +74,17 @@ export default function QuestionnaireScreen({ navigation }) {
   const [targetWeight, setTargetWeight] = useState('');
   const [height, setHeight] = useState('');
   const [daysPerWeek, setDaysPerWeek] = useState('3');
+  const [customDaysPerWeek, setCustomDaysPerWeek] = useState('');
 
   const handleSubmit = () => {
+    const trainingDaysValue = Number(daysPerWeek === 'custom' ? customDaysPerWeek : daysPerWeek);
     const payload = {
       goal,
       level,
       currentWeight: Number(currentWeight),
       targetWeight: Number(targetWeight),
       height: Number(height),
-      trainingDaysPerWeek: Number(daysPerWeek),
+      trainingDaysPerWeek: trainingDaysValue,
     };
 
     const isInvalid =
@@ -88,7 +96,10 @@ export default function QuestionnaireScreen({ navigation }) {
       payload.targetWeight < 30 ||
       payload.targetWeight > 300 ||
       payload.height < 120 ||
-      payload.height > 230;
+      payload.height > 230 ||
+      !payload.trainingDaysPerWeek ||
+      payload.trainingDaysPerWeek < 2 ||
+      payload.trainingDaysPerWeek > 7;
 
     if (isInvalid) {
       Alert.alert('Dados invalidos', 'Preencha os campos com valores validos para continuar.');
@@ -98,7 +109,7 @@ export default function QuestionnaireScreen({ navigation }) {
     saveQuestionnaire(payload);
     navigation.reset({
       index: 0,
-      routes: [{ name: 'Home' }],
+      routes: [{ name: 'MainTabs' }],
     });
   };
 
@@ -135,18 +146,27 @@ export default function QuestionnaireScreen({ navigation }) {
         <Text style={styles.label}>Dias de treino por semana</Text>
         <View style={styles.rowWrap}>
           {trainingDays.map((day) => {
-            const selected = daysPerWeek === day;
+            const selected = daysPerWeek === day.key;
             return (
               <TouchableOpacity
-                key={day}
+                key={day.key}
                 style={[styles.chip, selected && styles.chipSelected]}
-                onPress={() => setDaysPerWeek(day)}
+                onPress={() => setDaysPerWeek(day.key)}
               >
-                <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{day}x</Text>
+                <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{day.label}</Text>
               </TouchableOpacity>
             );
           })}
         </View>
+        {daysPerWeek === 'custom' ? (
+          <TextInput
+            value={customDaysPerWeek}
+            onChangeText={setCustomDaysPerWeek}
+            placeholder="Quantos dias por semana? (2 a 7)"
+            keyboardType="numeric"
+            style={[styles.input, { marginTop: 10 }]}
+          />
+        ) : null}
       </View>
 
       <TouchableOpacity style={styles.button} onPress={handleSubmit}>

@@ -50,7 +50,7 @@ export default function PaywallScreen({ navigation, route }) {
         <Text style={styles.highlightSub}>{copy.subtitle}</Text>
         <Text style={styles.painText}>⚠️ {copy.pain}</Text>
         {dynamicMessage ? <Text style={styles.dynamicPainText}>⚠️ {dynamicMessage}</Text> : null}
-        <Text style={styles.sourceText}>Origem: {source}</Text>
+        {__DEV__ ? <Text style={styles.sourceText}>Origem: {source}</Text> : null}
       </View>
 
       <View style={styles.planCardPrimary}>
@@ -70,6 +70,8 @@ export default function PaywallScreen({ navigation, route }) {
         <Text style={styles.bullet}>- Analise semanal premium de macros e performance</Text>
         <Text style={styles.bullet}>- Scanner por foto real (modo avancado)</Text>
         <Text style={styles.bullet}>- Recursos sociais e ranking (proximas releases)</Text>
+        <Text style={styles.bullet}>- 7 dias de garantia</Text>
+        <Text style={styles.bullet}>- Cancele quando quiser</Text>
       </View>
 
       <View style={styles.proofCard}>

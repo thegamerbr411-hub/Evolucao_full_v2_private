@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -45,6 +47,10 @@ export default function WorkoutScreen({ navigation }) {
     getTodayWorkout,
     prepareTodayWorkoutTargets,
     saveWorkoutSet,
+    removeTodayWorkoutSet,
+    getExerciseCatalog,
+    getExercisesByMuscleGroup,
+    getFreeWorkoutSuggestions,
     getExerciseSetProgress,
     getTodayWorkoutSummary,
     getWorkoutGamification,
@@ -53,16 +59,26 @@ export default function WorkoutScreen({ navigation }) {
   } = useApp();
 
   const todayKey = useMemo(() => getTodayKeyLocal(), []);
-  const exercises = useMemo(() => getTodayWorkout(), [getTodayWorkout]);
+  const baseExercises = useMemo(() => getTodayWorkout(), [getTodayWorkout]);
+  const [sessionBaseExercises, setSessionBaseExercises] = useState([]);
+  const [customExercises, setCustomExercises] = useState([]);
+  const allExercises = useMemo(() => [...sessionBaseExercises, ...customExercises], [sessionBaseExercises, customExercises]);
+  const exerciseCatalog = useMemo(() => getExerciseCatalog(), [getExerciseCatalog]);
   const summary = useMemo(() => getTodayWorkoutSummary(), [getTodayWorkoutSummary]);
   const gamification = useMemo(() => getWorkoutGamification(), [getWorkoutGamification]);
 
   const [activeExerciseIndex, setActiveExerciseIndex] = useState(0);
   const [draftSetsByExercise, setDraftSetsByExercise] = useState({});
-  const [restPreset, setRestPreset] = useState(75);
+  const [setCountByExercise, setSetCountByExercise] = useState({});
+  const [restPreset, setRestPreset] = useState(60);
   const [restSeconds, setRestSeconds] = useState(0);
   const [restRunning, setRestRunning] = useState(false);
+  const [restDoneMessage, setRestDoneMessage] = useState('');
   const [xpFeedback, setXpFeedback] = useState('');
+  const [newExerciseName, setNewExerciseName] = useState('');
+  const [newExerciseSets, setNewExerciseSets] = useState('3');
+  const [newExerciseReps, setNewExerciseReps] = useState('8-12');
+  const [exerciseQuery, setExerciseQuery] = useState('');
 
   const scrollRef = useRef(null);
   const exercisePositionsRef = useRef({});
@@ -73,16 +89,20 @@ export default function WorkoutScreen({ navigation }) {
   }, []);
 
   useEffect(() => {
+    setSessionBaseExercises(baseExercises.map((item) => ({ ...item })));
+  }, [baseExercises]);
+
+  useEffect(() => {
     setDraftSetsByExercise((prev) => {
       const next = { ...prev };
       let changed = false;
 
-      for (const exercise of exercises) {
+      for (const exercise of allExercises) {
         if (next[exercise.name]) {
           continue;
         }
 
-        next[exercise.name] = Array.from({ length: exercise.sets }, () => ({
+        next[exercise.name] = Array.from({ length: Number(exercise.sets || 3) }, () => ({
           weight: exercise.targetWeight ? String(exercise.targetWeight) : '',
           reps: '',
         }));
@@ -91,7 +111,22 @@ export default function WorkoutScreen({ navigation }) {
 
       return changed ? next : prev;
     });
-  }, [exercises]);
+  }, [allExercises]);
+
+  useEffect(() => {
+    setSetCountByExercise((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      for (const exercise of allExercises) {
+        if (next[exercise.name]) {
+          continue;
+        }
+        next[exercise.name] = Number(exercise.sets || 3);
+        changed = true;
+      }
+      return changed ? next : prev;
+    });
+  }, [allExercises]);
 
   useEffect(() => {
     if (!restRunning) {
@@ -101,7 +136,7 @@ export default function WorkoutScreen({ navigation }) {
     if (restSeconds <= 0) {
       setRestRunning(false);
       Vibration.vibrate(500);
-      Alert.alert('Descanso concluido', 'Pode iniciar a proxima serie.');
+      setRestDoneMessage('Descanso concluido. Proxima serie liberada.');
       return;
     }
 
@@ -111,6 +146,18 @@ export default function WorkoutScreen({ navigation }) {
 
     return () => clearTimeout(timeoutId);
   }, [restRunning, restSeconds]);
+
+  useEffect(() => {
+    if (!restDoneMessage) {
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      setRestDoneMessage('');
+    }, 2200);
+
+    return () => clearTimeout(timeoutId);
+  }, [restDoneMessage]);
 
   useEffect(() => {
     if (!xpFeedback) {
@@ -150,7 +197,7 @@ export default function WorkoutScreen({ navigation }) {
   }, [summary.completionRate, summary.guidedSets, summary.plannedSets, hasFeatureAccess, navigation]);
 
   useEffect(() => {
-    const activeExercise = exercises[activeExerciseIndex];
+    const activeExercise = allExercises[activeExerciseIndex];
     if (!activeExercise || !scrollRef.current) {
       return;
     }
@@ -159,9 +206,45 @@ export default function WorkoutScreen({ navigation }) {
     if (typeof y === 'number') {
       scrollRef.current.scrollTo({ y: Math.max(0, y - 20), animated: true });
     }
-  }, [activeExerciseIndex, exercises]);
+  }, [activeExerciseIndex, allExercises]);
 
-  const activeExercise = exercises[activeExerciseIndex] || null;
+  const activeExercise = allExercises[activeExerciseIndex] || null;
+
+  const inferExerciseGroup = (exerciseName) => {
+    const lower = String(exerciseName || '').toLowerCase();
+    if (lower.includes('supino') || lower.includes('crucifixo') || lower.includes('peck')) return 'peito';
+    if (lower.includes('remada') || lower.includes('puxada') || lower.includes('pull')) return 'costas';
+    if (lower.includes('agach') || lower.includes('leg') || lower.includes('stiff') || lower.includes('panturrilha') || lower.includes('terra')) return 'perna';
+    if (lower.includes('desenvolvimento') || lower.includes('elevacao')) return 'ombro';
+    if (lower.includes('triceps')) return 'triceps';
+    if (lower.includes('rosca') || lower.includes('biceps')) return 'biceps';
+    return null;
+  };
+
+  const suggestedExercises = useMemo(() => {
+    if (!activeExercise) {
+      return exerciseCatalog.slice(0, 8);
+    }
+
+    const group = inferExerciseGroup(activeExercise.name);
+    const sameGroup = group ? getExercisesByMuscleGroup(group) : [];
+    const related = getFreeWorkoutSuggestions([activeExercise.name]);
+    const combined = [...sameGroup, ...related, ...exerciseCatalog];
+    const unique = Array.from(new Set(combined));
+    const query = String(exerciseQuery || '').toLowerCase().trim();
+    const filtered = query
+      ? unique.filter((name) => name.toLowerCase().includes(query))
+      : unique;
+    return filtered.slice(0, 10);
+  }, [activeExercise, exerciseCatalog, getFreeWorkoutSuggestions, getExercisesByMuscleGroup, exerciseQuery]);
+
+  const normalizeNumericInput = (value) => String(value || '').replace(',', '.').trim();
+
+  const isValidSet = (kg, reps) => {
+    const parsedKg = Number(normalizeNumericInput(kg));
+    const parsedReps = Number(normalizeNumericInput(reps));
+    return kg !== '' && reps !== '' && parsedKg > 0 && parsedReps > 0;
+  };
 
   const startRestTimer = (seconds = restPreset) => {
     Vibration.vibrate(80);
@@ -188,18 +271,20 @@ export default function WorkoutScreen({ navigation }) {
   };
 
   const jumpToNextExercise = (currentIndex) => {
-    for (let index = currentIndex + 1; index < exercises.length; index += 1) {
-      const item = exercises[index];
-      const progress = getExerciseSetProgress(item.name, item.sets);
+    for (let index = currentIndex + 1; index < allExercises.length; index += 1) {
+      const item = allExercises[index];
+      const plannedSets = Number(setCountByExercise[item.name] || item.sets || 3);
+      const progress = getExerciseSetProgress(item.name, plannedSets);
       if (!progress.isDone) {
         setActiveExerciseIndex(index);
         return;
       }
     }
 
-    for (let index = 0; index < exercises.length; index += 1) {
-      const item = exercises[index];
-      const progress = getExerciseSetProgress(item.name, item.sets);
+    for (let index = 0; index < allExercises.length; index += 1) {
+      const item = allExercises[index];
+      const plannedSets = Number(setCountByExercise[item.name] || item.sets || 3);
+      const progress = getExerciseSetProgress(item.name, plannedSets);
       if (!progress.isDone) {
         setActiveExerciseIndex(index);
         return;
@@ -207,7 +292,8 @@ export default function WorkoutScreen({ navigation }) {
     }
   };
 
-  const saveSetLine = (exercise, exerciseIndex, setIndex, failed) => {
+  const saveSetLine = (exercise, exerciseIndex, setIndex) => {
+    const plannedSets = Number(setCountByExercise[exercise.name] || exercise.sets || 3);
     const todaySets = workoutLogs
       .filter((item) => item.date === todayKey && item.exerciseName === exercise.name && (item.mode || 'guided') !== 'free');
 
@@ -218,11 +304,16 @@ export default function WorkoutScreen({ navigation }) {
     }
 
     const row = (draftSetsByExercise[exercise.name] || [])[setIndex] || { weight: '', reps: '' };
+    if (!isValidSet(row.weight, row.reps)) {
+      Alert.alert('Dados invalidos', 'Preencha peso e repeticoes validas.');
+      return;
+    }
+
     const result = saveWorkoutSet({
       exerciseName: exercise.name,
-      weight: Number(row.weight),
-      reps: Number(row.reps),
-      failed,
+      weight: Number(normalizeNumericInput(row.weight)),
+      reps: Number(normalizeNumericInput(row.reps)),
+      failed: false,
     });
 
     if (!result.ok) {
@@ -236,14 +327,202 @@ export default function WorkoutScreen({ navigation }) {
 
     startRestTimer();
 
-    const currentProgress = getExerciseSetProgress(exercise.name, exercise.sets);
+    const currentProgress = getExerciseSetProgress(exercise.name, plannedSets);
     const nextCompleted = currentProgress.completedSets + 1;
-    if (nextCompleted >= exercise.sets) {
+    if (nextCompleted >= plannedSets) {
       jumpToNextExercise(exerciseIndex);
     }
   };
 
-  if (!exercises.length) {
+  const removeSavedSet = (exerciseName, setIndex) => {
+    const result = removeTodayWorkoutSet({ exerciseName, setIndex, mode: 'guided' });
+    if (!result.ok) {
+      Alert.alert('Nao foi possivel remover', result.message);
+      return;
+    }
+    Vibration.vibrate(40);
+    setXpFeedback('Serie removida');
+  };
+
+  const addSetToExercise = (exerciseName) => {
+    setSetCountByExercise((prev) => ({
+      ...prev,
+      [exerciseName]: Number(prev[exerciseName] || 0) + 1,
+    }));
+
+    setDraftSetsByExercise((prev) => ({
+      ...prev,
+      [exerciseName]: [
+        ...(prev[exerciseName] || []),
+        { weight: '', reps: '' },
+      ],
+    }));
+  };
+
+  const removeLastSetFromExercise = (exerciseName) => {
+    const plannedSets = Number(setCountByExercise[exerciseName] || 0);
+    if (plannedSets <= 1) {
+      Alert.alert('Limite minimo', 'Cada exercicio precisa de pelo menos 1 serie.');
+      return;
+    }
+
+    const todaySets = workoutLogs
+      .filter((item) => item.date === todayKey && item.exerciseName === exerciseName && (item.mode || 'guided') !== 'free');
+
+    if (todaySets.length >= plannedSets) {
+      Alert.alert('Remova primeiro', 'A ultima serie ja foi salva. Exclua ela antes de reduzir o total.');
+      return;
+    }
+
+    setSetCountByExercise((prev) => ({
+      ...prev,
+      [exerciseName]: Math.max(1, Number(prev[exerciseName] || 1) - 1),
+    }));
+
+    setDraftSetsByExercise((prev) => {
+      const currentRows = prev[exerciseName] || [];
+      return {
+        ...prev,
+        [exerciseName]: currentRows.slice(0, -1),
+      };
+    });
+  };
+
+  const removeDraftSet = (exerciseName, setIndex) => {
+    const todaySets = workoutLogs
+      .filter((item) => item.date === todayKey && item.exerciseName === exerciseName && (item.mode || 'guided') !== 'free');
+
+    if (setIndex < todaySets.length) {
+      const result = removeTodayWorkoutSet({ exerciseName, setIndex, mode: 'guided' });
+      if (!result.ok) {
+        Alert.alert('Nao foi possivel remover', result.message);
+        return;
+      }
+      Vibration.vibrate(40);
+      return;
+    }
+
+    setDraftSetsByExercise((prev) => {
+      const currentRows = prev[exerciseName] || [];
+      const nextRows = currentRows.filter((_, idx) => idx !== setIndex);
+      return {
+        ...prev,
+        [exerciseName]: nextRows,
+      };
+    });
+
+    setSetCountByExercise((prev) => ({
+      ...prev,
+      [exerciseName]: Math.max(1, Number(prev[exerciseName] || 1) - 1),
+    }));
+  };
+
+  const addExerciseToWorkout = () => {
+    const safeName = String(newExerciseName || '').trim();
+    const sets = Number(newExerciseSets);
+    const reps = String(newExerciseReps || '').trim() || '8-12';
+
+    if (!safeName || !sets || sets <= 0) {
+      Alert.alert('Dados invalidos', 'Informe nome e quantidade de series validas para o exercicio.');
+      return;
+    }
+
+    if (!exerciseCatalog.includes(safeName)) {
+      Alert.alert('Escolha da lista', 'Selecione um exercicio existente na lista de sugestoes.');
+      return;
+    }
+
+    if (allExercises.some((item) => item.name.toLowerCase() === safeName.toLowerCase())) {
+      Alert.alert('Exercicio ja existe', 'Esse exercicio ja esta no treino de hoje.');
+      return;
+    }
+
+    const exercise = {
+      id: `custom-${Date.now()}`,
+      name: safeName,
+      sets,
+      reps,
+      targetWeight: 0,
+    };
+
+    setCustomExercises((prev) => [...prev, exercise]);
+    setSetCountByExercise((prev) => ({ ...prev, [safeName]: sets }));
+    setNewExerciseName('');
+    setNewExerciseSets('3');
+    setNewExerciseReps('8-12');
+    setActiveExerciseIndex(allExercises.length);
+  };
+
+  const replaceActiveExercise = () => {
+    const safeName = String(newExerciseName || '').trim();
+    if (!safeName) {
+      Alert.alert('Escolha um exercicio', 'Selecione um exercicio da lista para substituir.');
+      return;
+    }
+
+    if (!exerciseCatalog.includes(safeName)) {
+      Alert.alert('Escolha da lista', 'Selecione um exercicio existente na lista de sugestoes.');
+      return;
+    }
+
+    if (!activeExercise) {
+      return;
+    }
+
+    if (activeExerciseIndex < sessionBaseExercises.length) {
+      setSessionBaseExercises((prev) =>
+        prev.map((item, index) =>
+          index === activeExerciseIndex
+            ? { ...item, name: safeName, id: `${safeName}-${index}` }
+            : item
+        )
+      );
+    } else {
+      const customIndex = activeExerciseIndex - sessionBaseExercises.length;
+      setCustomExercises((prev) =>
+        prev.map((item, index) =>
+          index === customIndex
+            ? { ...item, name: safeName, id: `${safeName}-custom-${index}` }
+            : item
+        )
+      );
+    }
+
+    setXpFeedback('Exercicio substituido com sucesso');
+  };
+
+  const finishWorkout = () => {
+    const todaySets = workoutLogs.filter((item) => item.date === todayKey && (item.mode || 'guided') !== 'free').length;
+    const previousDates = Array.from(
+      new Set(
+        workoutLogs
+          .filter((item) => item.date !== todayKey && (item.mode || 'guided') !== 'free')
+          .map((item) => item.date)
+      )
+    ).sort((a, b) => String(b).localeCompare(String(a)));
+    const previousDate = previousDates[0];
+    const previousSets = previousDate
+      ? workoutLogs.filter((item) => item.date === previousDate && (item.mode || 'guided') !== 'free').length
+      : 0;
+    const deltaSets = todaySets - previousSets;
+
+    trackEvent('workout_finish_manual', { guidedSets: todaySets, plannedSets: summary.plannedSets });
+    const comparison = previousDate
+      ? deltaSets >= 0
+        ? `+${deltaSets} series vs ultima sessao.`
+        : `${deltaSets} series vs ultima sessao.`
+      : 'Primeira sessao registrada para comparacao.';
+    Alert.alert('Treino concluido', `${todaySets} series registradas. ${comparison}`);
+    navigation.goBack();
+  };
+
+  const savePartialAndExit = () => {
+    const todaySets = workoutLogs.filter((item) => item.date === todayKey && (item.mode || 'guided') !== 'free').length;
+    trackEvent('workout_partial_saved', { guidedSets: todaySets, plannedSets: summary.plannedSets });
+    navigation.goBack();
+  };
+
+  if (!allExercises.length) {
     return (
       <View style={styles.emptyContainer}>
         <Text style={styles.title}>Treino de hoje</Text>
@@ -253,133 +532,237 @@ export default function WorkoutScreen({ navigation }) {
   }
 
   return (
-    <ScrollView ref={scrollRef} contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Treino de hoje</Text>
-      <Text style={styles.subtitle}>Fluxo rapido: preencher serie e salvar.</Text>
+    <KeyboardAvoidingView
+      style={styles.keyboardContainer}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView ref={scrollRef} contentContainerStyle={styles.container}>
+        <Text style={styles.title}>Treino de hoje</Text>
+        <Text style={styles.subtitle}>Fluxo rapido: preencher e salvar serie.</Text>
 
-      <View style={styles.topRow}>
-        <Text style={styles.metaText}>{summary.guidedSets}/{summary.plannedSets || 0} series</Text>
-        <Text style={styles.metaText}>Nivel {gamification.level} · XP {gamification.xp}</Text>
-      </View>
+        <View style={styles.topRow}>
+          <Text style={styles.metaText}>{summary.guidedSets}/{summary.plannedSets || 0} series</Text>
+          <Text style={styles.metaText}>Nivel {gamification.level} · XP {gamification.xp}</Text>
+        </View>
 
-      {restRunning ? (
-        <View style={styles.restBanner}>
-          <Text style={styles.restBannerLabel}>DESCANSO — {activeExercise?.name || 'TREINO'}</Text>
-          <Text
-            style={[
-              styles.restBannerTimer,
-              restSeconds <= 15 ? styles.restBannerTimerDanger : null,
-              restSeconds % 2 === 0 ? styles.restBannerTimerPulse : null,
-            ]}
-          >
-            {formatTimer(restSeconds)}
-          </Text>
-          <TouchableOpacity style={styles.skipButton} onPress={skipRest}>
-            <Text style={styles.skipButtonText}>Pular descanso</Text>
+        {restRunning ? (
+          <View style={styles.restBanner}>
+            <Text style={styles.restBannerLabel}>DESCANSO - {activeExercise?.name || 'TREINO'}</Text>
+            <Text
+              style={[
+                styles.restBannerTimer,
+                restSeconds <= 15 ? styles.restBannerTimerDanger : null,
+                restSeconds % 2 === 0 ? styles.restBannerTimerPulse : null,
+              ]}
+            >
+              {formatTimer(restSeconds)}
+            </Text>
+            <TouchableOpacity style={styles.skipButton} onPress={skipRest}>
+              <Text style={styles.skipButtonText}>Pular descanso</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
+        {xpFeedback ? <Text style={styles.xpFeedback}>{xpFeedback}</Text> : null}
+        {restDoneMessage ? <Text style={styles.restDoneMessage}>{restDoneMessage}</Text> : null}
+
+        <View style={styles.presetRow}>
+          {[30, 60, 120].map((value) => (
+            <TouchableOpacity
+              key={value}
+              style={[
+                styles.presetBtn,
+                value === 30 ? styles.presetBtnFast : null,
+                value === 60 ? styles.presetBtnDefault : null,
+                value === 120 ? styles.presetBtnLong : null,
+                restPreset === value ? styles.presetBtnActive : null,
+              ]}
+              onPress={() => setRestPreset(value)}
+            >
+              <Text
+                style={[
+                  styles.presetText,
+                  value === 30 ? styles.presetTextFast : null,
+                  value === 120 ? styles.presetTextLong : null,
+                  restPreset === value ? styles.presetTextActive : null,
+                ]}
+              >
+                {value}s
+              </Text>
+            </TouchableOpacity>
+          ))}
+          <TouchableOpacity style={styles.manualRestBtn} onPress={() => startRestTimer(restPreset)}>
+            <Text style={styles.manualRestText}>Descanso</Text>
           </TouchableOpacity>
         </View>
-      ) : null}
 
-      {xpFeedback ? <Text style={styles.xpFeedback}>{xpFeedback}</Text> : null}
+        {allExercises.map((exercise, exerciseIndex) => {
+          const plannedSets = Number(setCountByExercise[exercise.name] || exercise.sets || 3);
+          const setProgress = getExerciseSetProgress(exercise.name, plannedSets);
+          const isActive = exerciseIndex === activeExerciseIndex;
+          const todaySets = workoutLogs
+            .filter((item) => item.date === todayKey && item.exerciseName === exercise.name && (item.mode || 'guided') !== 'free')
+            .slice(0, plannedSets);
 
-      <View style={styles.presetRow}>
-        {[60, 75, 90].map((value) => (
-          <TouchableOpacity
-            key={value}
-            style={[styles.presetBtn, restPreset === value ? styles.presetBtnActive : null]}
-            onPress={() => setRestPreset(value)}
-          >
-            <Text style={[styles.presetText, restPreset === value ? styles.presetTextActive : null]}>{value}s</Text>
-          </TouchableOpacity>
-        ))}
-        <TouchableOpacity style={styles.manualRestBtn} onPress={() => startRestTimer(restPreset)}>
-          <Text style={styles.manualRestText}>Descanso</Text>
-        </TouchableOpacity>
-      </View>
+          const draftRows = draftSetsByExercise[exercise.name] || [];
 
-      {exercises.map((exercise, exerciseIndex) => {
-        const setProgress = getExerciseSetProgress(exercise.name, exercise.sets);
-        const isActive = exerciseIndex === activeExerciseIndex;
-        const todaySets = workoutLogs
-          .filter((item) => item.date === todayKey && item.exerciseName === exercise.name && (item.mode || 'guided') !== 'free')
-          .slice(0, exercise.sets);
+          return (
+            <TouchableOpacity
+              key={exercise.id}
+              activeOpacity={0.95}
+              onPress={() => setActiveExerciseIndex(exerciseIndex)}
+              style={[styles.exerciseCard, isActive ? styles.exerciseCardActive : styles.exerciseCardMuted]}
+              onLayout={(event) => {
+                exercisePositionsRef.current[exercise.id] = event.nativeEvent.layout.y;
+              }}
+            >
+              <Text style={styles.exerciseName}>{exercise.name}</Text>
+              <View style={styles.exerciseChipRow}>
+                <Text style={styles.smallChip}>{plannedSets}x{exercise.reps}</Text>
+                <Text style={styles.smallChip}>Serie {setProgress.nextSet}/{setProgress.totalSets}</Text>
+              </View>
 
-        const draftRows = draftSetsByExercise[exercise.name] || [];
+              {Array.from({ length: plannedSets }).map((_, setIndex) => {
+                const saved = todaySets[setIndex];
+                const draft = draftRows[setIndex] || { weight: exercise.targetWeight ? String(exercise.targetWeight) : '', reps: '' };
+                const canSave = setIndex === todaySets.length;
 
-        return (
-          <TouchableOpacity
-            key={exercise.id}
-            activeOpacity={0.95}
-            onPress={() => setActiveExerciseIndex(exerciseIndex)}
-            style={[styles.exerciseCard, isActive ? styles.exerciseCardActive : styles.exerciseCardMuted]}
-            onLayout={(event) => {
-              exercisePositionsRef.current[exercise.id] = event.nativeEvent.layout.y;
-            }}
-          >
-            <Text style={styles.exerciseName}>{exercise.name}</Text>
-            <View style={styles.exerciseChipRow}>
-              <Text style={styles.smallChip}>{exercise.sets}x{exercise.reps}</Text>
-              <Text style={styles.smallChip}>Serie {setProgress.nextSet}/{setProgress.totalSets}</Text>
-            </View>
+                return (
+                  <View key={`${exercise.id}-set-${setIndex}`} style={styles.setRow}>
+                    <Text style={styles.setLabel}>{setIndex + 1}S</Text>
 
-            {Array.from({ length: exercise.sets }).map((_, setIndex) => {
-              const saved = todaySets[setIndex];
-              const draft = draftRows[setIndex] || { weight: exercise.targetWeight ? String(exercise.targetWeight) : '', reps: '' };
-              const canSave = setIndex === todaySets.length;
-
-              return (
-                <View key={`${exercise.id}-set-${setIndex}`} style={styles.setRow}>
-                  <Text style={styles.setLabel}>{setIndex + 1}S</Text>
-
-                  {saved ? (
-                    <View style={styles.savedSetBox}>
-                      <Text style={styles.savedSetText}>{saved.weight}kg x {saved.reps}</Text>
-                      {saved.failed ? <Text style={styles.savedSetFail}>falha</Text> : null}
-                    </View>
-                  ) : (
-                    <>
-                      <SetField
-                        value={draft.weight}
-                        onChangeText={(text) => setDraftField(exercise.name, setIndex, 'weight', text)}
-                        placeholder="kg"
-                      />
-                      <SetField
-                        value={draft.reps}
-                        onChangeText={(text) => setDraftField(exercise.name, setIndex, 'reps', text)}
-                        placeholder="reps"
-                      />
-
-                      {isActive ? (
-                        <View style={[styles.rowActionsInline, canSave ? styles.rowActionsInlineCurrent : null]}>
-                          <TouchableOpacity
-                            style={[styles.inlineBtn, styles.inlineBtnGood, !canSave ? styles.inlineBtnDisabled : null]}
-                            onPress={() => canSave && saveSetLine(exercise, exerciseIndex, setIndex, false)}
-                          >
-                            <Text style={styles.inlineBtnText}>+ serie</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={[styles.inlineBtn, styles.inlineBtnBad, !canSave ? styles.inlineBtnDisabled : null]}
-                            onPress={() => canSave && saveSetLine(exercise, exerciseIndex, setIndex, true)}
-                          >
-                            <Text style={styles.inlineBtnText}>- serie</Text>
-                          </TouchableOpacity>
+                    {saved ? (
+                      <View style={styles.savedSetBox}>
+                        <View>
+                          <Text style={styles.savedSetText}>{saved.weight}kg x {saved.reps}</Text>
+                          <Text style={styles.savedSetHint}>Serie salva</Text>
                         </View>
-                      ) : null}
-                    </>
-                  )}
-                </View>
-              );
-            })}
+                        <TouchableOpacity style={styles.removeSetBtn} onPress={() => removeSavedSet(exercise.name, setIndex)}>
+                          <Text style={styles.removeSetBtnText}>Excluir</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <>
+                        <SetField
+                          value={draft.weight}
+                          onChangeText={(text) => setDraftField(exercise.name, setIndex, 'weight', text)}
+                          placeholder="kg"
+                        />
+                        <SetField
+                          value={draft.reps}
+                          onChangeText={(text) => setDraftField(exercise.name, setIndex, 'reps', text)}
+                          placeholder="reps"
+                        />
 
-            {!isActive ? <Text style={styles.inactiveHint}>Toque para focar</Text> : null}
+                        {isActive ? (
+                          <View style={[styles.rowActionsInline, canSave ? styles.rowActionsInlineCurrent : null]}>
+                            <TouchableOpacity
+                              style={[styles.inlineBtn, styles.inlineBtnGood, !canSave ? styles.inlineBtnDisabled : null]}
+                              onPress={() => canSave && saveSetLine(exercise, exerciseIndex, setIndex)}
+                            >
+                              <Text style={styles.inlineBtnText}>Salvar serie</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={styles.inlineBtnRemove}
+                              onPress={() => removeDraftSet(exercise.name, setIndex)}
+                            >
+                              <Text style={styles.inlineBtnText}>Excluir</Text>
+                            </TouchableOpacity>
+                          </View>
+                        ) : null}
+                      </>
+                    )}
+                  </View>
+                );
+              })}
+
+              {isActive ? (
+                <View style={styles.setActionsRow}>
+                  <TouchableOpacity style={styles.addSetButton} onPress={() => addSetToExercise(exercise.name)}>
+                    <Text style={styles.addSetButtonText}>+ Adicionar serie</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.removeLastSetButton} onPress={() => removeLastSetFromExercise(exercise.name)}>
+                    <Text style={styles.addSetButtonText}>- Remover ultima</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+
+              {!isActive ? <Text style={styles.inactiveHint}>Toque para focar</Text> : null}
+            </TouchableOpacity>
+          );
+        })}
+
+        <View style={styles.addExerciseCard}>
+          <Text style={styles.addExerciseTitle}>Selecionar exercicio existente</Text>
+          <TextInput
+            value={exerciseQuery}
+            onChangeText={setExerciseQuery}
+            placeholder="Buscar exercicio"
+            placeholderTextColor="#8FA5CB"
+            style={styles.addExerciseInput}
+          />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.suggestionScroll}>
+            <View style={styles.suggestionRow}>
+              {suggestedExercises.map((item) => (
+                <TouchableOpacity key={item} style={styles.suggestionChip} onPress={() => setNewExerciseName(item)}>
+                  <Text style={styles.suggestionChipText}>{item}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+          <Text style={styles.addExerciseTitle}>Adicionar/substituir exercicio</Text>
+          <TextInput
+            value={newExerciseName}
+            onChangeText={setNewExerciseName}
+            placeholder="Exercicio selecionado"
+            placeholderTextColor="#8FA5CB"
+            style={styles.addExerciseInput}
+          />
+          <View style={styles.addExerciseRow}>
+            <TextInput
+              value={newExerciseSets}
+              onChangeText={setNewExerciseSets}
+              placeholder="Series"
+              placeholderTextColor="#8FA5CB"
+              keyboardType="numeric"
+              style={[styles.addExerciseInput, styles.addExerciseSmallInput]}
+            />
+            <TextInput
+              value={newExerciseReps}
+              onChangeText={setNewExerciseReps}
+              placeholder="Reps ex: 8-12"
+              placeholderTextColor="#8FA5CB"
+              style={[styles.addExerciseInput, styles.addExerciseSmallInput]}
+            />
+          </View>
+          <View style={styles.actionRow}>
+            <TouchableOpacity style={styles.addExerciseButton} onPress={addExerciseToWorkout}>
+              <Text style={styles.addExerciseButtonText}>+ Adicionar exercicio</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.replaceExerciseButton} onPress={replaceActiveExercise}>
+              <Text style={styles.addExerciseButtonText}>Substituir exercicio</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={styles.finishCard}>
+          <TouchableOpacity style={styles.finishButton} onPress={finishWorkout}>
+            <Text style={styles.finishButtonText}>Finalizar treino</Text>
           </TouchableOpacity>
-        );
-      })}
-    </ScrollView>
+          <TouchableOpacity style={styles.partialButton} onPress={savePartialAndExit}>
+            <Text style={styles.partialButtonText}>Salvar parcial e sair</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  keyboardContainer: {
+    flex: 1,
+    backgroundColor: '#0D1322',
+  },
   container: {
     flexGrow: 1,
     backgroundColor: '#0D1322',
@@ -461,6 +844,12 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     marginBottom: 8,
   },
+  restDoneMessage: {
+    color: '#B9FBC0',
+    fontSize: 13,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
   presetRow: {
     flexDirection: 'row',
     gap: 8,
@@ -468,19 +857,38 @@ const styles = StyleSheet.create({
   },
   presetBtn: {
     borderWidth: 1,
-    borderColor: '#476A9C',
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 7,
   },
+  presetBtnFast: {
+    borderColor: '#66C7A3',
+    backgroundColor: '#153A2B',
+  },
+  presetBtnDefault: {
+    borderColor: '#476A9C',
+    backgroundColor: '#203454',
+  },
+  presetBtnLong: {
+    borderColor: '#36506E',
+    backgroundColor: '#172333',
+    opacity: 0.86,
+  },
   presetBtnActive: {
     backgroundColor: '#DBEAFE',
     borderColor: '#DBEAFE',
+    opacity: 1,
+    transform: [{ scale: 1.06 }],
   },
   presetText: {
-    color: '#B9D8FF',
     fontWeight: '700',
     fontSize: 12,
+  },
+  presetTextFast: {
+    color: '#A9F1D5',
+  },
+  presetTextLong: {
+    color: '#9EB4CF',
   },
   presetTextActive: {
     color: '#0F3B7A',
@@ -516,7 +924,7 @@ const styles = StyleSheet.create({
   exerciseCardMuted: {
     backgroundColor: '#111D35',
     borderColor: '#243C65',
-    opacity: 0.6,
+    opacity: 0.65,
   },
   exerciseName: {
     fontSize: 23,
@@ -559,10 +967,10 @@ const styles = StyleSheet.create({
     borderColor: '#4B6896',
     borderRadius: 10,
     paddingHorizontal: 10,
-    paddingVertical: 8,
+    paddingVertical: 12,
     backgroundColor: '#0F1D36',
     color: '#F2F7FF',
-    fontSize: 13,
+    fontSize: 15,
   },
   rowActionsInline: {
     flexDirection: 'row',
@@ -578,24 +986,28 @@ const styles = StyleSheet.create({
   inlineBtn: {
     borderRadius: 8,
     paddingHorizontal: 9,
-    paddingVertical: 9,
+    paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   inlineBtnGood: {
     backgroundColor: '#28A765',
   },
-  inlineBtnBad: {
-    backgroundColor: '#B63A3A',
-  },
   inlineBtnDisabled: {
     opacity: 0.45,
+  },
+  inlineBtnRemove: {
+    backgroundColor: '#7F1D1D',
+    borderRadius: 8,
+    paddingHorizontal: 9,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   inlineBtnText: {
     color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '800',
-    textTransform: 'lowercase',
   },
   savedSetBox: {
     flex: 1,
@@ -607,17 +1019,163 @@ const styles = StyleSheet.create({
     borderColor: '#355B8E',
     borderRadius: 10,
     paddingHorizontal: 10,
-    paddingVertical: 8,
+    paddingVertical: 11,
+  },
+  removeSetBtn: {
+    borderRadius: 8,
+    backgroundColor: '#7F1D1D',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  removeSetBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
   },
   savedSetText: {
     color: '#EAF2FF',
     fontSize: 13,
     fontWeight: '700',
   },
-  savedSetFail: {
-    color: '#F6B6B6',
+  savedSetHint: {
+    color: '#8FB1DD',
     fontSize: 11,
     fontWeight: '700',
+  },
+  setActionsRow: {
+    marginTop: 4,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  addSetButton: {
+    flex: 1,
+    marginTop: 4,
+    backgroundColor: '#2D4F80',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#5F89C4',
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  addSetButtonText: {
+    color: '#F2F7FF',
+    fontWeight: '800',
+    fontSize: 13,
+  },
+  removeLastSetButton: {
+    flex: 1,
+    marginTop: 4,
+    backgroundColor: '#7F1D1D',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#B75A5A',
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  addExerciseCard: {
+    marginTop: 8,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#2B446D',
+    backgroundColor: '#111D35',
+    padding: 12,
+  },
+  suggestionScroll: {
+    marginBottom: 8,
+  },
+  suggestionRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  suggestionChip: {
+    borderWidth: 1,
+    borderColor: '#4B6896',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: '#0F1D36',
+  },
+  suggestionChipText: {
+    color: '#D5E6FF',
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  addExerciseTitle: {
+    color: '#EAF2FF',
+    fontWeight: '800',
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  addExerciseRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  addExerciseInput: {
+    borderWidth: 1,
+    borderColor: '#4B6896',
+    borderRadius: 10,
+    backgroundColor: '#0F1D36',
+    color: '#F2F7FF',
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    marginBottom: 8,
+    fontSize: 14,
+  },
+  addExerciseSmallInput: {
+    flex: 1,
+  },
+  addExerciseButton: {
+    flex: 1,
+    backgroundColor: '#355B8E',
+    borderRadius: 10,
+    alignItems: 'center',
+    paddingVertical: 11,
+  },
+  addExerciseButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 14,
+  },
+  replaceExerciseButton: {
+    flex: 1,
+    backgroundColor: '#425A77',
+    borderRadius: 10,
+    alignItems: 'center',
+    paddingVertical: 11,
+  },
+  finishCard: {
+    marginTop: 12,
+    marginBottom: 18,
+  },
+  finishButton: {
+    backgroundColor: '#2A9E66',
+    borderRadius: 12,
+    alignItems: 'center',
+    paddingVertical: 14,
+    minHeight: 50,
+  },
+  finishButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '900',
+    fontSize: 15,
+  },
+  partialButton: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#476A9C',
+    borderRadius: 12,
+    alignItems: 'center',
+    paddingVertical: 12,
+    minHeight: 50,
+  },
+  partialButtonText: {
+    color: '#CFE4FF',
+    fontWeight: '700',
+    fontSize: 14,
   },
   inactiveHint: {
     marginTop: 8,
