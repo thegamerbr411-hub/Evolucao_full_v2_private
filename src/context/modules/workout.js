@@ -20,3 +20,14 @@ export function getWeekBounds(dateKey) {
     endKey: toDateKey(end),
   };
 }
+
+export function getWorkoutDelta(current, previous) {
+  if (!previous) {
+    return null;
+  }
+
+  return {
+    setsDiff: Number(current?.totalSets || 0) - Number(previous?.totalSets || 0),
+    loadDiff: Number(current?.totalLoad || 0) - Number(previous?.totalLoad || 0),
+  };
+}

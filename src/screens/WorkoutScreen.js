@@ -11,6 +11,7 @@ import {
   Vibration,
   View,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useApp } from '../context/AppContext';
 import { trackEvent } from '../utils/analytics';
 import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
@@ -60,6 +61,7 @@ export default function WorkoutScreen({ navigation }) {
     getExerciseHistorySnapshot,
     getTodayWorkoutSummary,
     getWorkoutGamification,
+    getWorkoutDelta,
     workoutLogs,
     hasFeatureAccess,
   } = useApp();
@@ -86,6 +88,8 @@ export default function WorkoutScreen({ navigation }) {
   const [newExerciseReps, setNewExerciseReps] = useState('8-12');
   const [exerciseQuery, setExerciseQuery] = useState('');
   const [savedSetPulseKey, setSavedSetPulseKey] = useState('');
+  const [showWorkoutSummary, setShowWorkoutSummary] = useState(false);
+  const [workoutSummary, setWorkoutSummary] = useState(null);
 
   const scrollRef = useRef(null);
   const exercisePositionsRef = useRef({});
@@ -286,6 +290,7 @@ export default function WorkoutScreen({ navigation }) {
 
   const startRestTimer = (seconds = restPreset) => {
     Vibration.vibrate(80);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setRestSeconds(seconds);
     setRestRunning(true);
   };
@@ -368,6 +373,7 @@ export default function WorkoutScreen({ navigation }) {
     } else {
       setXpFeedback('+1 serie concluida');
     }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     setSavedSetPulseKey(`${exercise.name}-${setIndex}`);
     setTimeout(() => setSavedSetPulseKey(''), 500);
@@ -583,27 +589,40 @@ export default function WorkoutScreen({ navigation }) {
   };
 
   const finishWorkout = () => {
-    const todaySets = workoutLogs.filter((item) => item.date === todayKey && (item.mode || 'guided') !== 'free').length;
-    const previousDates = Array.from(
-      new Set(
-        workoutLogs
-          .filter((item) => item.date !== todayKey && (item.mode || 'guided') !== 'free')
-          .map((item) => item.date)
-      )
-    ).sort((a, b) => String(b).localeCompare(String(a)));
-    const previousDate = previousDates[0];
-    const previousSets = previousDate
-      ? workoutLogs.filter((item) => item.date === previousDate && (item.mode || 'guided') !== 'free').length
-      : 0;
-    const deltaSets = todaySets - previousSets;
+    const todaySessionLogs = workoutLogs.filter((item) => item.date === todayKey && (item.mode || 'guided') !== 'free');
+    const todaySets = todaySessionLogs.length;
+    const currentWorkout = {
+      totalSets: todaySets,
+      totalLoad: todaySessionLogs.reduce((acc, item) => acc + (Number(item.weight || 0) * Number(item.reps || 0)), 0),
+    };
+
+    const previousDates = Array.from(new Set(
+      workoutLogs
+        .filter((item) => item.date !== todayKey && (item.mode || 'guided') !== 'free')
+        .map((item) => item.date)
+    )).sort((a, b) => String(b).localeCompare(String(a)));
+
+    const previousDate = previousDates[0] || null;
+    const previousLogs = previousDate
+      ? workoutLogs.filter((item) => item.date === previousDate && (item.mode || 'guided') !== 'free')
+      : [];
+    const previousWorkout = previousDate
+      ? {
+          totalSets: previousLogs.length,
+          totalLoad: previousLogs.reduce((acc, item) => acc + (Number(item.weight || 0) * Number(item.reps || 0)), 0),
+        }
+      : null;
+
+    const delta = getWorkoutDelta(currentWorkout, previousWorkout);
 
     trackEvent('workout_finish_manual', { guidedSets: todaySets, plannedSets: summary.plannedSets });
-    const comparison = previousDate
-      ? deltaSets >= 0
-        ? `+${deltaSets} series vs ultima sessao.`
-        : `${deltaSets} series vs ultima sessao.`
-      : 'Primeira sessao registrada para comparacao.';
-    Alert.alert('Treino concluido', `${todaySets} series registradas. ${comparison}`);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setWorkoutSummary(delta || { setsDiff: 0, loadDiff: 0, isFirst: true });
+    setShowWorkoutSummary(true);
+  };
+
+  const closeWorkoutSummary = () => {
+    setShowWorkoutSummary(false);
     navigation.goBack();
   };
 
@@ -899,6 +918,18 @@ export default function WorkoutScreen({ navigation }) {
           <PrimaryButton title="Finalizar treino" onPress={finishWorkout} style={styles.finishButton} />
           <SecondaryButton title="Salvar parcial e sair" onPress={savePartialAndExit} style={styles.partialButton} />
         </View>
+
+        {showWorkoutSummary ? (
+          <AppCard style={styles.summaryCard}>
+            <Text style={styles.summaryTitle}>Treino finalizado</Text>
+            <Text style={styles.summaryLine}>+{Number(workoutSummary?.setsDiff || 0)} series</Text>
+            <Text style={styles.summaryLine}>+{Number(workoutSummary?.loadDiff || 0)}kg total</Text>
+            {Number(workoutSummary?.loadDiff || 0) > 0 ? (
+              <Text style={styles.summaryPositive}>Evolucao vs ultima sessao</Text>
+            ) : null}
+            <PrimaryButton title="Concluir" onPress={closeWorkoutSummary} style={styles.finishButton} />
+          </AppCard>
+        ) : null}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -1385,6 +1416,27 @@ const styles = StyleSheet.create({
   },
   partialButton: {
     marginTop: 0,
+  },
+  summaryCard: {
+    marginBottom: 24,
+  },
+  summaryTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.textPrimary,
+    marginBottom: 8,
+  },
+  summaryLine: {
+    color: colors.textPrimary,
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  summaryPositive: {
+    color: colors.success,
+    fontSize: 13,
+    fontWeight: '800',
+    marginBottom: 8,
   },
   inactiveHint: {
     marginTop: 8,

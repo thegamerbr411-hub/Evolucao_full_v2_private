@@ -2,8 +2,10 @@
 import React,{createContext,useContext,useEffect,useMemo,useState} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { sumNutritionTotals } from './modules/nutrition';
-import { getWeekBounds } from './modules/workout';
-import { buildWeeklyUrgency } from './modules/coach';
+import { getWeekBounds, getWorkoutDelta } from './modules/workout';
+import { buildCoachMessage, buildDailyCoachState, buildWeeklyUrgency } from './modules/coach';
+import { getExerciseNamesFromDatabase } from '../data/exerciseDatabase';
+import { matchNutritionToken, searchNutritionDatabase } from '../data/nutritionDatabase';
 
 const AppContext=createContext();
 const STORAGE_KEY = 'evolucao.profile_plan.v1';
@@ -510,29 +512,29 @@ function estimateNutritionFromTextInput(inputText) {
   const items = [];
   const unknown = [];
   const tokenTotals = { calories: 0, protein: 0, carbs: 0, fats: 0 };
-  const tokenDb = NUTRITION_DB.reduce((acc, item) => {
-    acc[item.key] = item;
-    return acc;
-  }, {});
-
   // Fallback token parser for simple strings like: "pao ovo frango"
   const plainTokens = text
     .split(/\s+/)
     .map((token) => token.trim())
     .filter(Boolean);
   plainTokens.forEach((token) => {
-    const mapped = tokenDb[token];
+    const mapped = matchNutritionToken(token);
     if (!mapped) {
       return;
     }
-    tokenTotals.calories += round(mapped.calories);
-    tokenTotals.protein += round(mapped.protein);
-    tokenTotals.carbs += round(mapped.carbs);
-    tokenTotals.fats += round(mapped.fats);
+    tokenTotals.calories += round(mapped.calories || 0);
+    tokenTotals.protein += round(mapped.protein || 0);
+    tokenTotals.carbs += round(mapped.carbs || 0);
+    tokenTotals.fats += round(mapped.fats || 0);
   });
 
   for (const chunk of chunks) {
-    const food = NUTRITION_DB.find((entry) => chunk.includes(entry.key));
+    const token = chunk
+      .split(/\s+/)
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .find((part) => Boolean(matchNutritionToken(part))) || chunk;
+    const food = matchNutritionToken(token);
     if (!food) {
       unknown.push(chunk);
       continue;
@@ -540,12 +542,12 @@ function estimateNutritionFromTextInput(inputText) {
 
     const quantity = parseQuantityFromText(chunk);
     items.push({
-      label: food.label,
+      label: food.label || token,
       quantity,
-      calories: round(food.calories * quantity),
-      protein: round(food.protein * quantity),
-      carbs: round(food.carbs * quantity),
-      fats: round(food.fats * quantity),
+      calories: round(Number(food.calories || 0) * quantity),
+      protein: round(Number(food.protein || 0) * quantity),
+      carbs: round(Number(food.carbs || 0) * quantity),
+      fats: round(Number(food.fats || 0) * quantity),
     });
   }
 
@@ -658,11 +660,12 @@ function inferMuscleGroup(exerciseName = '') {
 }
 
 function getExerciseCatalogFromSources(logs) {
+  const localNames = getExerciseNamesFromDatabase();
   const libraryNames = Object.values(WORKOUT_LIBRARY)
     .flat()
     .map((item) => item.name);
   const loggedNames = logs.map((item) => item.exerciseName).filter(Boolean);
-  return Array.from(new Set([...libraryNames, ...loggedNames])).sort((a, b) => a.localeCompare(b));
+  return Array.from(new Set([...localNames, ...libraryNames, ...loggedNames])).sort((a, b) => a.localeCompare(b));
 }
 
 function generatePlan(profile) {
@@ -1112,6 +1115,11 @@ export const AppProvider=({children})=>{
   };
 
   const searchFoodCatalog = (query = '') => {
+    const localMatches = searchNutritionDatabase(query);
+    if (localMatches.length) {
+      return localMatches;
+    }
+
     const normalized = normalizeText(query);
     if (!normalized.trim()) {
       return FOOD_CATALOG.slice(0, 20);
@@ -2555,6 +2563,9 @@ export const AppProvider=({children})=>{
         applyMacroOverride,
         getDailyMissions,
         completeMission,
+        buildDailyCoachState,
+        buildCoachMessage,
+        getWorkoutDelta,
         saveNutritionEntry,
         searchFoodCatalog,
         addFoodLogEntry,

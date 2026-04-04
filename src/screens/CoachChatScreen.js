@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp } from '../context/AppContext';
-import { ScreenHeader } from '../components/ui';
+import { buildCoachSystemPrompt } from '../data/coachPrompt';
+import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { colors, spacing } from '../theme';
 
 const COACH_MEMORY_KEY = 'coach.memory.v1';
@@ -198,9 +199,43 @@ function getCoachReply(message, context, turnIndex, memory) {
   ], seed);
 }
 
-export default function CoachChatScreen() {
-  const { history, getDailyMacroTargets, plan, workoutLogs, getSmartWorkoutRecommendation, getTodayFoodLog, getWorkoutGamification } = useApp();
+function buildPainSafetyLine(pain = '') {
+  const normalized = String(pain || '').toLowerCase();
+  if (!normalized || normalized.includes('nenhuma')) {
+    return '';
+  }
+
+  if (normalized.includes('ombro')) {
+    return 'Atenção dor no ombro: reduza carga em movimentos de empurrar e priorize execucao sem falha tecnica.';
+  }
+
+  if (normalized.includes('joelho')) {
+    return 'Atenção dor no joelho: reduza amplitude e carga em agachamentos pesados hoje.';
+  }
+
+  if (normalized.includes('lombar') || normalized.includes('coluna')) {
+    return 'Atenção lombar: evite cargas altas em hinge/agachamento e mantenha coluna neutra o treino inteiro.';
+  }
+
+  return 'Dor relatada no perfil: treine com margem de seguranca e ajuste carga antes de buscar falha.';
+}
+
+export default function CoachChatScreen({ navigation }) {
+  const {
+    profile,
+    history,
+    getDailyMacroTargets,
+    plan,
+    workoutLogs,
+    getSmartWorkoutRecommendation,
+    getTodayFoodLog,
+    getWorkoutGamification,
+    buildDailyCoachState,
+    buildCoachMessage,
+    addWaterIntake,
+  } = useApp();
   const [input, setInput] = useState('');
+  const [coachCard, setCoachCard] = useState({ doneText: '', missingText: '', action: '' });
   const [memory, setMemory] = useState({
     lastUserIntent: null,
     lastCoachMessage: '',
@@ -233,6 +268,45 @@ export default function CoachChatScreen() {
   const todayMeals = getTodayFoodLog();
   const weakMeals = todayMeals.filter((meal) => meal.quality?.level === 'weak_protein').length;
   const dayPeriod = getDayPeriod();
+  const currentPain = String(profile?.currentPain || profile?.pain || 'nenhuma dor informada');
+
+  const refreshCoachCard = () => {
+    const state = buildDailyCoachState({
+      protein: context.proteinToday,
+      proteinTarget: context.proteinTarget,
+      water: context.waterToday,
+      waterTarget: context.waterTarget,
+      workoutsThisWeek: smart.trainedThisWeek,
+      weeklyTarget: smart.weeklyTarget,
+      didWorkoutToday: trainedToday,
+    });
+    setCoachCard(buildCoachMessage(state));
+  };
+
+  const coachSystemContext = useMemo(() => {
+    const recentWorkouts = workoutLogs.slice(0, 3).map((item) => ({
+      date: item.date,
+      exerciseName: item.exerciseName,
+      weight: item.weight,
+      reps: item.reps,
+    }));
+
+    return buildCoachSystemPrompt({
+      recentWorkouts,
+      pain: currentPain,
+      level: profile?.level,
+      goal: profile?.goal,
+      calories: Number(todayHistory?.calories || 0),
+      calorieTarget: Number(plan?.caloriesPerDay || 0),
+      water: Number(todayHistory?.waterMl || 0),
+      waterTarget: Number((plan?.waterLitersPerDay || 0) * 1000),
+      weeklyFrequency: Number(profile?.trainingDaysPerWeek || 3),
+    });
+  }, [workoutLogs, currentPain, profile?.level, profile?.goal, profile?.trainingDaysPerWeek, todayHistory?.calories, todayHistory?.waterMl, plan?.caloriesPerDay, plan?.waterLitersPerDay]);
+
+  useEffect(() => {
+    refreshCoachCard();
+  }, [context.proteinToday, context.proteinTarget, context.waterToday, context.waterTarget, smart.trainedThisWeek, smart.weeklyTarget, trainedToday]);
 
   useEffect(() => {
     const loadCoachMemory = async () => {
@@ -333,10 +407,15 @@ export default function CoachChatScreen() {
       trainedToday,
       weakMeals,
     };
+    const baseReply = getCoachReply(trimmed, liveContext, messages.length, memory);
+    const painSafety = (intent === 'training' || intent === 'routine' || intent === 'late_workout')
+      ? buildPainSafetyLine(currentPain)
+      : '';
+
     const coachMessage = {
       id: `c-${Date.now()}`,
       role: 'coach',
-      text: getCoachReply(trimmed, liveContext, messages.length, memory),
+      text: [baseReply, painSafety].filter(Boolean).join(' '),
     };
 
     if (coachMessage.text === memory.lastCoachMessage) {
@@ -349,11 +428,47 @@ export default function CoachChatScreen() {
       lastCoachMessage: coachMessage.text,
     });
     setInput('');
+    refreshCoachCard();
+  };
+
+  const addWaterQuick = () => {
+    addWaterIntake(300);
+    refreshCoachCard();
+  };
+
+  const openWorkout = () => {
+    navigation.navigate('TreinoHoje');
+  };
+
+  const openNutrition = () => {
+    navigation.navigate('Scanner');
+  };
+
+  const openRoutines = () => {
+    navigation.navigate('MainTabs', { screen: 'Rotinas' });
   };
 
   return (
     <View style={styles.container}>
       <ScreenHeader title="Conversa com o Personal/Nutri" subtitle="Conversa orientada pelo seu treino, agua e macros do dia." />
+
+      <AppCard style={styles.coachCard}>
+        <Text style={styles.coachTitle}>Ja foi feito</Text>
+        <Text style={styles.coachLine}>{coachCard.doneText}</Text>
+
+        <Text style={styles.coachTitle}>Falta</Text>
+        <Text style={styles.coachLine}>{coachCard.missingText}</Text>
+
+        <Text style={styles.coachTitle}>Agora</Text>
+        <Text style={styles.coachAction}>{coachCard.action}</Text>
+
+        <View style={styles.quickActionRow}>
+          <PrimaryButton title="Treinar" onPress={openWorkout} style={styles.quickMainBtn} />
+          <SecondaryButton title="Comer" onPress={openNutrition} style={styles.quickBtn} />
+          <SecondaryButton title="Agua" onPress={addWaterQuick} style={styles.quickBtn} />
+          <SecondaryButton title="Rotina" onPress={openRoutines} style={styles.quickBtn} />
+        </View>
+      </AppCard>
 
       <ScrollView style={styles.chatBox} contentContainerStyle={styles.chatContent}>
         {messages.map((message) => (
@@ -367,6 +482,9 @@ export default function CoachChatScreen() {
         <TextInput
           value={input}
           onChangeText={setInput}
+          onSubmitEditing={sendMessage}
+          returnKeyType="send"
+          blurOnSubmit={false}
           placeholder="Ex: nao consegui treinar hoje"
           placeholderTextColor="#7A8B99"
           style={styles.input}
@@ -393,6 +511,40 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     marginBottom: 10,
+  },
+  coachCard: {
+    marginBottom: 10,
+  },
+  coachTitle: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    marginBottom: 3,
+    marginTop: 6,
+  },
+  coachLine: {
+    color: colors.textPrimary,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  coachAction: {
+    color: colors.success,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  quickActionRow: {
+    marginTop: 10,
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+    alignItems: 'center',
+  },
+  quickMainBtn: {
+    minWidth: 110,
+  },
+  quickBtn: {
+    minWidth: 88,
   },
   chatContent: {
     padding: spacing.md,
