@@ -158,18 +158,21 @@ export default function NutritionScanner({ navigation }) {
         return;
       }
 
-      if (seenKeys.has(match.key)) {
+      const identityKey = match.id || match.key;
+
+      if (seenKeys.has(identityKey)) {
         parsed.forEach((item) => {
-          if (item.foodKey === match.key) {
+          if ((item.foodId && item.foodId === match.id) || item.foodKey === match.key) {
             item.quantity = Number((item.quantity + quantity).toFixed(2));
           }
         });
         return;
       }
 
-      seenKeys.add(match.key);
+      seenKeys.add(identityKey);
       parsed.push({
         id: `quick-${match.key}`,
+        foodId: match.id,
         foodKey: match.key,
         label: match.label,
         category: getFoodCategory(match),
@@ -264,6 +267,7 @@ export default function NutritionScanner({ navigation }) {
       ...prev,
       {
         id: `meal-item-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        foodId: food.id,
         foodKey: food.key,
         label: food.label,
         quantity: safeQuantity,
@@ -280,7 +284,11 @@ export default function NutritionScanner({ navigation }) {
     () =>
       mealDraftItems.reduce(
         (acc, item) => {
-          const food = searchFoodCatalog(item.label).find((entry) => entry.key === item.foodKey) || getFoodByLabel(item.label);
+          const food = searchFoodCatalog(item.label).find(
+            (entry) =>
+              (item.foodId && entry.id === item.foodId)
+              || (item.foodKey && entry.key === item.foodKey)
+          ) || getFoodByLabel(item.label);
           if (!food) {
             return acc;
           }
@@ -342,6 +350,7 @@ export default function NutritionScanner({ navigation }) {
     const loggedAt = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     const result = addFoodLogEntriesBatch({
       items: latestMealGroup.items.map((item) => ({
+        foodId: item.foodId,
         foodKey: item.foodKey,
         label: item.label,
         quantity: Number(item.quantity || 1),
@@ -446,6 +455,7 @@ export default function NutritionScanner({ navigation }) {
     const loggedAt = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     const result = addFoodLogEntriesBatch({
       items: quickMealItems.map((item) => ({
+        foodId: item.foodId,
         foodKey: item.foodKey,
         label: item.label,
         quantity: item.quantity,

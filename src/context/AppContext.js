@@ -5,7 +5,7 @@ import { sumNutritionTotals } from './modules/nutrition';
 import { applyPainAdaptiveWorkout, getNextWeightSuggestion, getRecommendedWorkout, getWeekBounds, getWorkoutDelta } from './modules/workout';
 import { buildCoachMessage, buildDailyCoachState, buildWeeklyUrgency } from './modules/coach';
 import { getCanonicalExerciseId, getCanonicalMuscleGroup, getExerciseNamesFromDatabase } from '../data/exerciseDatabase';
-import { matchNutritionToken, searchNutritionDatabase } from '../data/nutritionDatabase';
+import { getCanonicalFoodData, getFoodCatalog, matchNutritionToken, searchNutritionDatabase } from '../data/nutritionDatabase';
 import { sendIntelligentNotification } from '../utils/notifications';
 
 const AppContext=createContext();
@@ -53,14 +53,7 @@ const NUTRITION_DB = [
   { key: 'atum', label: 'Atum', calories: 132, protein: 28, carbs: 0, fats: 1 },
 ];
 
-const FOOD_CATALOG = NUTRITION_DB.map((item) => ({
-  key: item.key,
-  label: item.label,
-  calories: item.calories,
-  protein: item.protein,
-  carbs: item.carbs,
-  fats: item.fats,
-}));
+const FOOD_CATALOG = getFoodCatalog();
 
 const FRACTION_WORDS = {
   metade: 0.5,
@@ -333,6 +326,24 @@ function normalizeText(value = '') {
     .replace(/[\u0300-\u036f]/g, '');
 }
 
+function resolveFoodCatalogEntry({ foodId, foodKey, label }) {
+  const direct = getCanonicalFoodData(foodId || foodKey || label || '');
+  if (direct) {
+    return direct;
+  }
+
+  const normalizedLabel = normalizeText(label || '');
+  if (!normalizedLabel) {
+    return null;
+  }
+
+  return (
+    FOOD_CATALOG.find((item) => normalizeText(item.label) === normalizedLabel)
+    || FOOD_CATALOG.find((item) => normalizeText(item.key) === normalizedLabel)
+    || null
+  );
+}
+
 function evaluateMealQuality({ protein = 0, calories = 0, carbs = 0, fats = 0 }) {
   const safeProtein = Number(protein || 0);
   const safeCalories = Number(calories || 0);
@@ -548,6 +559,8 @@ function estimateNutritionFromTextInput(inputText) {
 
     const quantity = parseQuantityFromText(chunk);
     items.push({
+      foodId: food.id || undefined,
+      foodKey: food.key || normalizeText(food.label || token),
       label: food.label || token,
       quantity,
       calories: round(Number(food.calories || 0) * quantity),
@@ -1189,7 +1202,7 @@ export const AppProvider=({children})=>{
   };
 
   const addFoodLogEntry = ({ foodKey, label, quantity = 1, loggedAt }) => {
-    const food = FOOD_CATALOG.find((item) => item.key === foodKey) || FOOD_CATALOG.find((item) => normalizeText(item.label) === normalizeText(label || ''));
+    const food = resolveFoodCatalogEntry({ foodKey, label });
     if (!food) {
       return { ok: false, message: 'Alimento nao encontrado no catalogo local.' };
     }
@@ -1208,6 +1221,7 @@ export const AppProvider=({children})=>{
       id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
       date: entryDate,
       loggedAt: loggedAt || getNowTimeLabel(),
+      foodId: food.id || undefined,
       foodKey: food.key,
       label: food.label,
       quantity: safeQuantity,
@@ -1245,8 +1259,11 @@ export const AppProvider=({children})=>{
       const nextEntries = [];
 
       items.forEach((item) => {
-        const food = FOOD_CATALOG.find((entry) => entry.key === item.foodKey)
-          || FOOD_CATALOG.find((entry) => normalizeText(entry.label) === normalizeText(item.label || ''));
+        const food = resolveFoodCatalogEntry({
+          foodId: item.foodId,
+          foodKey: item.foodKey,
+          label: item.label,
+        });
 
         if (!food) {
           return;
@@ -1265,6 +1282,7 @@ export const AppProvider=({children})=>{
           id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
           date: entryDate,
           loggedAt: safeLoggedAt,
+          foodId: food.id || undefined,
           foodKey: food.key,
           label: food.label,
           quantity: safeQuantity,
