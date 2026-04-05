@@ -75,7 +75,72 @@ function normalize(value = '') {
     .trim();
 }
 
+function normalizeGroupName(group = '') {
+  const normalized = normalize(group);
+  if (normalized === 'pernas') return 'perna';
+  if (normalized === 'ombros') return 'ombro';
+  return normalized;
+}
+
 export const allExercises = Object.values(exerciseDatabase).flat();
+
+const exerciseIndexById = allExercises.reduce((acc, item) => {
+  acc[item.id] = item;
+  return acc;
+}, {});
+
+const exerciseNameAliasMap = allExercises.reduce((acc, item) => {
+  const key = normalize(item.nome);
+  acc[key] = item;
+  return acc;
+}, {
+  'supino reto barra': null,
+  'supino inclinado halter': null,
+  'desenvolvimento militar barra': null,
+  'desenvolvimento militar halter': null,
+  'puxada frontal polia': null,
+  'rosca direta barra': null,
+  'triceps corda polia': null,
+  'triceps testa barra ez': null,
+  'remada curvada barra': null,
+  'remada baixa triangulo': null,
+  'face pull polia': null,
+  'leg press': null,
+  'stiff': null,
+  'levantamento terra romeno': null,
+  'panturrilha em pe': null,
+  'panturrilha sentado': null,
+  'elevacao lateral halter': null,
+  'rosca martelo halter': null,
+});
+
+function buildAliasLink(alias, target) {
+  const normalizedAlias = normalize(alias);
+  const normalizedTarget = normalize(target);
+  const resolved = exerciseNameAliasMap[normalizedTarget] || allExercises.find((item) => normalize(item.nome).includes(normalizedTarget));
+  if (resolved) {
+    exerciseNameAliasMap[normalizedAlias] = resolved;
+  }
+}
+
+buildAliasLink('supino reto barra', 'supino reto com barra');
+buildAliasLink('supino inclinado halter', 'supino inclinado com halteres');
+buildAliasLink('desenvolvimento militar barra', 'desenvolvimento militar com barra');
+buildAliasLink('desenvolvimento militar halter', 'desenvolvimento com halteres');
+buildAliasLink('puxada frontal polia', 'puxada frente no pulldown');
+buildAliasLink('rosca direta barra', 'rosca direta com barra');
+buildAliasLink('triceps corda polia', 'triceps corda no cabo');
+buildAliasLink('triceps testa barra ez', 'triceps testa com barra ez');
+buildAliasLink('remada curvada barra', 'remada curvada com barra');
+buildAliasLink('remada baixa triangulo', 'remada baixa no cabo');
+buildAliasLink('face pull polia', 'face pull no cabo');
+buildAliasLink('leg press', 'leg press 45');
+buildAliasLink('stiff', 'stiff com halteres');
+buildAliasLink('levantamento terra romeno', 'levantamento terra romeno');
+buildAliasLink('panturrilha em pe', 'panturrilha em pe');
+buildAliasLink('panturrilha sentado', 'panturrilha sentado');
+buildAliasLink('elevacao lateral halter', 'elevacao lateral');
+buildAliasLink('rosca martelo halter', 'rosca martelo');
 
 export function getExerciseNamesFromDatabase() {
   return allExercises.map((item) => item.nome);
@@ -87,12 +152,43 @@ export function findExerciseByName(query = '') {
     return null;
   }
 
+  if (exerciseNameAliasMap[normalized]) {
+    return exerciseNameAliasMap[normalized];
+  }
+
   const exact = allExercises.find((item) => normalize(item.nome) === normalized);
   if (exact) {
     return exact;
   }
 
   return allExercises.find((item) => normalize(item.nome).includes(normalized)) || null;
+}
+
+export function getExerciseById(exerciseId = '') {
+  return exerciseIndexById[String(exerciseId || '')] || null;
+}
+
+export function getCanonicalExerciseData(exerciseName = '') {
+  const found = findExerciseByName(exerciseName);
+  if (!found) {
+    return null;
+  }
+
+  return {
+    id: found.id,
+    name: found.nome,
+    group: normalizeGroupName(found.grupo),
+    type: found.tipo,
+    level: found.nivel,
+  };
+}
+
+export function getCanonicalExerciseId(exerciseName = '') {
+  return getCanonicalExerciseData(exerciseName)?.id || null;
+}
+
+export function getCanonicalMuscleGroup(exerciseName = '') {
+  return getCanonicalExerciseData(exerciseName)?.group || null;
 }
 
 export function getExerciseTipsForPain(painText = '') {

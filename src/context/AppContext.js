@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { sumNutritionTotals } from './modules/nutrition';
 import { applyPainAdaptiveWorkout, getNextWeightSuggestion, getRecommendedWorkout, getWeekBounds, getWorkoutDelta } from './modules/workout';
 import { buildCoachMessage, buildDailyCoachState, buildWeeklyUrgency } from './modules/coach';
-import { getExerciseNamesFromDatabase } from '../data/exerciseDatabase';
+import { getCanonicalExerciseId, getCanonicalMuscleGroup, getExerciseNamesFromDatabase } from '../data/exerciseDatabase';
 import { matchNutritionToken, searchNutritionDatabase } from '../data/nutritionDatabase';
 import { sendIntelligentNotification } from '../utils/notifications';
 
@@ -182,6 +182,11 @@ function roundToStep(value, step = 2.5) {
 }
 
 function isLowerBodyExercise(exerciseName) {
+  const canonicalGroup = getCanonicalMuscleGroup(exerciseName);
+  if (canonicalGroup === 'perna') {
+    return true;
+  }
+
   const lowerKeywords = [
     'Agachamento',
     'Leg Press',
@@ -614,6 +619,11 @@ function estimateNutritionFromPhotoHintInput(description, portionFactor = 1) {
 }
 
 function inferMuscleGroup(exerciseName = '') {
+  const canonical = getCanonicalMuscleGroup(exerciseName);
+  if (canonical) {
+    return canonical;
+  }
+
   const name = String(exerciseName);
 
   if (
@@ -1773,6 +1783,7 @@ export const AppProvider=({children})=>{
       id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
       date: todayKey,
       createdAt: new Date().toISOString(),
+      exerciseId: getCanonicalExerciseId(exerciseName) || undefined,
       exerciseName,
       weight: parsedWeight,
       reps: parsedReps,

@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useNotifications, useNutrition, useWorkout } from '../hooks';
+import { getCanonicalMuscleGroup } from '../data/exerciseDatabase';
 import { trackEvent } from '../utils/analytics';
 import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { colors, spacing } from '../theme';
@@ -264,6 +265,9 @@ export default function WorkoutScreen({ navigation }) {
   const activeExercise = allExercises[activeExerciseIndex] || null;
 
   const inferExerciseGroup = (exerciseName) => {
+    const canonical = getCanonicalMuscleGroup(exerciseName);
+    if (canonical) return canonical;
+
     const lower = String(exerciseName || '').toLowerCase();
     if (lower.includes('supino') || lower.includes('crucifixo') || lower.includes('peck')) return 'peito';
     if (lower.includes('remada') || lower.includes('puxada') || lower.includes('pull')) return 'costas';

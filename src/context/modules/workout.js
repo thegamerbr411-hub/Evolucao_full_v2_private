@@ -1,3 +1,5 @@
+import { getCanonicalMuscleGroup } from '../../data/exerciseDatabase';
+
 export function getWeekBounds(dateKey) {
   const base = new Date(`${dateKey}T12:00:00`);
   const weekday = (base.getDay() + 6) % 7;
@@ -40,6 +42,9 @@ function normalize(value = '') {
 }
 
 function inferMuscleGroup(name = '') {
+  const canonical = getCanonicalMuscleGroup(name);
+  if (canonical) return canonical;
+
   const lower = normalize(name);
   if (lower.includes('supino') || lower.includes('crucifixo') || lower.includes('peck')) return 'peito';
   if (lower.includes('remada') || lower.includes('puxada') || lower.includes('pull')) return 'costas';
