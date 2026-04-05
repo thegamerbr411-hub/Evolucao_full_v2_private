@@ -670,6 +670,43 @@ function inferMuscleGroup(exerciseName = '') {
   return null;
 }
 
+function normalizeExerciseLabel(value = '') {
+  return String(value)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+}
+
+function resolveExerciseIdentity(exerciseName = '', exerciseId = null) {
+  const safeName = String(exerciseName || '').trim();
+  const canonicalId = String(exerciseId || '').trim() || getCanonicalExerciseId(safeName) || null;
+  return {
+    exerciseId: canonicalId,
+    exerciseName: safeName,
+    normalizedName: normalizeExerciseLabel(safeName),
+  };
+}
+
+function matchesExerciseLog(logItem, identity) {
+  if (!logItem || !identity) {
+    return false;
+  }
+
+  if (identity.exerciseId) {
+    const logId = String(logItem.exerciseId || '').trim() || getCanonicalExerciseId(logItem.exerciseName || '');
+    if (logId && logId === identity.exerciseId) {
+      return true;
+    }
+  }
+
+  return normalizeExerciseLabel(logItem.exerciseName || '') === identity.normalizedName;
+}
+
+function filterLogsByExercise(logs = [], identity) {
+  return (Array.isArray(logs) ? logs : []).filter((item) => matchesExerciseLog(item, identity));
+}
+
 function getExerciseCatalogFromSources(logs) {
   const localNames = getExerciseNamesFromDatabase();
   const libraryNames = Object.values(WORKOUT_LIBRARY)
@@ -1728,12 +1765,13 @@ export const AppProvider=({children})=>{
     });
   };
 
-  const saveWorkoutSet = ({ exerciseName, weight, reps, failed, rpe, mode = 'guided' }) => {
+  const saveWorkoutSet = ({ exerciseName, exerciseId, weight, reps, failed, rpe, mode = 'guided' }) => {
     const parsedWeight = Number(weight);
     const parsedReps = Number(reps);
     const parsedRpe = rpe == null || rpe === '' ? null : Number(rpe);
+    const identity = resolveExerciseIdentity(exerciseName, exerciseId);
 
-    if (!exerciseName || !parsedWeight || !parsedReps || parsedWeight < 0 || parsedReps <= 0) {
+    if (!identity.exerciseName || !parsedWeight || !parsedReps || parsedWeight < 0 || parsedReps <= 0) {
       return { ok: false, message: 'Informe peso e repeticoes validos.' };
     }
 
@@ -1742,7 +1780,7 @@ export const AppProvider=({children})=>{
     }
 
     const todayKey = getTodayKey();
-    const previousLogsForExercise = workoutLogs.filter((item) => item.exerciseName === exerciseName);
+    const previousLogsForExercise = filterLogsByExercise(workoutLogs, identity);
     const bestPreviousWeight = previousLogsForExercise
       .filter((item) => !item.failed)
       .reduce((best, item) => Math.max(best, Number(item.weight || 0)), 0);
@@ -1783,8 +1821,8 @@ export const AppProvider=({children})=>{
       id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
       date: todayKey,
       createdAt: new Date().toISOString(),
-      exerciseId: getCanonicalExerciseId(exerciseName) || undefined,
-      exerciseName,
+      exerciseId: identity.exerciseId || undefined,
+      exerciseName: identity.exerciseName,
       weight: parsedWeight,
       reps: parsedReps,
       ...(parsedRpe != null ? { rpe: parsedRpe } : {}),
@@ -1796,8 +1834,8 @@ export const AppProvider=({children})=>{
 
     setExerciseTargets((prev) => ({
       ...prev,
-      [exerciseName]: {
-        ...(prev[exerciseName] || {}),
+      [identity.exerciseName]: {
+        ...(prev[identity.exerciseName] || {}),
         targetWeight: parsedWeight,
       },
     }));
@@ -1837,10 +1875,12 @@ export const AppProvider=({children})=>{
     };
   };
 
-  const getExerciseSetProgress = (exerciseName, plannedSets = 3) => {
+  const getExerciseSetProgress = (exerciseName, plannedSets = 3, exerciseId = null) => {
     const today = getTodayKey();
-    const todayExerciseLogs = workoutLogs.filter(
-      (item) => item.date === today && item.exerciseName === exerciseName
+    const identity = resolveExerciseIdentity(exerciseName, exerciseId);
+    const todayExerciseLogs = filterLogsByExercise(
+      workoutLogs.filter((item) => item.date === today),
+      identity
     );
     const completedSets = todayExerciseLogs.length;
     const totalSets = Math.max(1, Number(plannedSets) || 1);
@@ -2034,10 +2074,10 @@ export const AppProvider=({children})=>{
     });
   };
 
-  const getExerciseHistorySnapshot = (exerciseName, limit = 6) => {
+  const getExerciseHistorySnapshot = (exerciseName, limit = 6, exerciseId = null) => {
     const safeLimit = Math.max(1, Number(limit || 6));
-    return workoutLogs
-      .filter((item) => item.exerciseName === exerciseName)
+    const identity = resolveExerciseIdentity(exerciseName, exerciseId);
+    return filterLogsByExercise(workoutLogs, identity)
       .slice(0, safeLimit)
       .reverse()
       .map((item) => ({
@@ -2123,9 +2163,10 @@ export const AppProvider=({children})=>{
     return result;
   };
 
-  const removeTodayWorkoutSet = ({ exerciseName, setIndex, mode = 'guided' }) => {
+  const removeTodayWorkoutSet = ({ exerciseName, exerciseId, setIndex, mode = 'guided' }) => {
     const today = getTodayKey();
     const normalizedMode = mode || 'guided';
+    const identity = resolveExerciseIdentity(exerciseName, exerciseId);
     let removed = false;
 
     setWorkoutLogs((prev) => {
@@ -2133,7 +2174,7 @@ export const AppProvider=({children})=>{
         .filter(
           (item) =>
             item.date === today &&
-            item.exerciseName === exerciseName &&
+            matchesExerciseLog(item, identity) &&
             (item.mode || 'guided') === normalizedMode
         )
         .sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
@@ -2154,8 +2195,9 @@ export const AppProvider=({children})=>{
     return { ok: true, message: 'Serie removida com sucesso.' };
   };
 
-  const getExerciseProgress = (exerciseName) => {
-    const logs = workoutLogs.filter((item) => item.exerciseName === exerciseName);
+  const getExerciseProgress = (exerciseName, exerciseId = null) => {
+    const identity = resolveExerciseIdentity(exerciseName, exerciseId);
+    const logs = filterLogsByExercise(workoutLogs, identity);
 
     if (!logs.length) {
       return {
@@ -2178,8 +2220,9 @@ export const AppProvider=({children})=>{
     };
   };
 
-  const getExerciseProgressionSuggestion = (exerciseName) => {
-    const logs = workoutLogs.filter((item) => item.exerciseName === exerciseName);
+  const getExerciseProgressionSuggestion = (exerciseName, exerciseId = null) => {
+    const identity = resolveExerciseIdentity(exerciseName, exerciseId);
+    const logs = filterLogsByExercise(workoutLogs, identity);
     const template = getExerciseTemplate(exerciseName);
     const repRange = parseRepRange(template?.reps);
     const step = getProgressionStep(exerciseName);

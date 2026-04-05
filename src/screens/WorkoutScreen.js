@@ -278,6 +278,27 @@ export default function WorkoutScreen({ navigation }) {
     return null;
   };
 
+  const getExerciseKey = (exerciseName = '') => {
+    const canonicalId = getCanonicalExerciseId(exerciseName);
+    if (canonicalId) {
+      return `id:${canonicalId}`;
+    }
+    return `name:${String(exerciseName || '').toLowerCase().trim()}`;
+  };
+
+  const isSameExerciseLog = (entry, exerciseName) => {
+    if (!entry) {
+      return false;
+    }
+
+    const targetKey = getExerciseKey(exerciseName);
+    const logKey = entry.exerciseId
+      ? `id:${entry.exerciseId}`
+      : getExerciseKey(entry.exerciseName);
+
+    return targetKey === logKey;
+  };
+
   const suggestedExercises = useMemo(() => {
     if (!activeExercise) {
       return exerciseCatalog.slice(0, 8);
@@ -298,12 +319,17 @@ export default function WorkoutScreen({ navigation }) {
   const lastSetByExercise = useMemo(() => {
     const map = {};
     workoutLogs.forEach((item) => {
-      if (!map[item.exerciseName]) {
-        map[item.exerciseName] = item;
+      const key = item.exerciseId ? `id:${item.exerciseId}` : getExerciseKey(item.exerciseName);
+      if (!map[key]) {
+        map[key] = item;
       }
     });
     return map;
   }, [workoutLogs]);
+
+  const getLastSetForExercise = (exerciseName) => {
+    return lastSetByExercise[getExerciseKey(exerciseName)] || null;
+  };
 
   const suggestedWeightByExercise = useMemo(() => {
     const map = {};
@@ -324,9 +350,10 @@ export default function WorkoutScreen({ navigation }) {
       allExercises.forEach((exercise) => {
         const rows = Array.isArray(next[exercise.name]) ? [...next[exercise.name]] : [];
         const suggestedWeight = String(suggestedWeightByExercise[exercise.name] || '');
-        const lastReps = String(lastSetByExercise[exercise.name]?.reps || '');
+        const lastSet = getLastSetForExercise(exercise.name);
+        const lastReps = String(lastSet?.reps || '');
         const defaultReps = lastReps || inferRepTarget(exercise);
-        const defaultRpe = String(lastSetByExercise[exercise.name]?.rpe || '8');
+        const defaultRpe = String(lastSet?.rpe || '8');
 
         const updatedRows = rows.map((row) => {
           const normalized = { ...row };
@@ -446,7 +473,7 @@ export default function WorkoutScreen({ navigation }) {
   const saveSetLine = (exercise, exerciseIndex, setIndex) => {
     const plannedSets = Number(setCountByExercise[exercise.name] || exercise.sets || 3);
     const todaySets = workoutLogs
-      .filter((item) => item.date === todayKey && item.exerciseName === exercise.name && (item.mode || 'guided') !== 'free');
+      .filter((item) => item.date === todayKey && isSameExerciseLog(item, exercise.name) && (item.mode || 'guided') !== 'free');
 
     const nextIndex = todaySets.length;
     if (setIndex !== nextIndex) {
@@ -462,6 +489,7 @@ export default function WorkoutScreen({ navigation }) {
 
     const result = saveWorkoutSet({
       exerciseName: exercise.name,
+      exerciseId: getCanonicalExerciseId(exercise.name) || undefined,
       weight: Number(normalizeNumericInput(row.weight)),
       reps: Number(normalizeNumericInput(row.reps)),
       rpe: Number(normalizeNumericInput(row.rpe || '8')),
@@ -526,7 +554,7 @@ export default function WorkoutScreen({ navigation }) {
 
   const editSavedSet = (exerciseName, setIndex) => {
     const todaySets = workoutLogs
-      .filter((item) => item.date === todayKey && item.exerciseName === exerciseName && (item.mode || 'guided') !== 'free');
+      .filter((item) => item.date === todayKey && isSameExerciseLog(item, exerciseName) && (item.mode || 'guided') !== 'free');
     const saved = todaySets[setIndex];
     if (!saved) {
       return;
@@ -579,7 +607,7 @@ export default function WorkoutScreen({ navigation }) {
     }
 
     const todaySets = workoutLogs
-      .filter((item) => item.date === todayKey && item.exerciseName === exerciseName && (item.mode || 'guided') !== 'free');
+      .filter((item) => item.date === todayKey && isSameExerciseLog(item, exerciseName) && (item.mode || 'guided') !== 'free');
 
     if (todaySets.length >= plannedSets) {
       Alert.alert('Remova primeiro', 'A ultima serie ja foi salva. Exclua ela antes de reduzir o total.');
@@ -602,7 +630,7 @@ export default function WorkoutScreen({ navigation }) {
 
   const removeDraftSet = (exerciseName, setIndex) => {
     const todaySets = workoutLogs
-      .filter((item) => item.date === todayKey && item.exerciseName === exerciseName && (item.mode || 'guided') !== 'free');
+      .filter((item) => item.date === todayKey && isSameExerciseLog(item, exerciseName) && (item.mode || 'guided') !== 'free');
 
     if (setIndex < todaySets.length) {
       const result = removeTodayWorkoutSet({ exerciseName, setIndex, mode: 'guided' });
@@ -901,14 +929,15 @@ export default function WorkoutScreen({ navigation }) {
           const setProgress = getExerciseSetProgress(exercise.name, plannedSets);
           const isActive = exerciseIndex === activeExerciseIndex;
           const todaySets = workoutLogs
-            .filter((item) => item.date === todayKey && item.exerciseName === exercise.name && (item.mode || 'guided') !== 'free')
+            .filter((item) => item.date === todayKey && isSameExerciseLog(item, exercise.name) && (item.mode || 'guided') !== 'free')
             .slice(0, plannedSets);
 
           const draftRows = draftSetsByExercise[exercise.name] || [];
           const historySnapshot = getExerciseHistorySnapshot(exercise.name, 6);
           const maxHistoryWeight = Math.max(1, ...historySnapshot.map((item) => Number(item.weight || 0)));
           const progression = getExerciseProgressionSuggestion(exercise.name);
-          const lastWeight = Number(lastSetByExercise[exercise.name]?.weight || 0);
+          const lastSet = getLastSetForExercise(exercise.name);
+          const lastWeight = Number(lastSet?.weight || 0);
           const suggestedWeightNumber = Number(progression?.suggestedWeight || 0);
           const weightDelta = suggestedWeightNumber > 0 && lastWeight > 0
             ? Number((suggestedWeightNumber - lastWeight).toFixed(1))
@@ -928,8 +957,8 @@ export default function WorkoutScreen({ navigation }) {
               <View style={styles.lastWorkoutSticky}>
                 <Text style={styles.lastWorkoutStickyTitle}>Ultimo treino</Text>
                 <Text style={styles.lastWorkoutStickyValue}>
-                  {lastSetByExercise[exercise.name]?.weight || 0}kg x {lastSetByExercise[exercise.name]?.reps || 0}
-                  {lastSetByExercise[exercise.name]?.rpe ? ` @RPE ${lastSetByExercise[exercise.name]?.rpe}` : ''}
+                  {lastSet?.weight || 0}kg x {lastSet?.reps || 0}
+                  {lastSet?.rpe ? ` @RPE ${lastSet?.rpe}` : ''}
                 </Text>
               </View>
               <View style={styles.exerciseChipRow}>
@@ -943,7 +972,7 @@ export default function WorkoutScreen({ navigation }) {
               </View>
 
               <Text style={styles.progressHint}>
-                Ultimo: {lastSetByExercise[exercise.name]?.weight || 0}kg x {lastSetByExercise[exercise.name]?.reps || 0} · Melhor: {getExerciseProgress(exercise.name).bestWeight || 0}kg
+                Ultimo: {lastSet?.weight || 0}kg x {lastSet?.reps || 0} · Melhor: {getExerciseProgress(exercise.name).bestWeight || 0}kg
               </Text>
               <Text style={styles.progressionLine}>
                 Hoje: {suggestedWeightNumber || 0}kg {weightDelta > 0 ? `( +${weightDelta}kg )` : weightDelta < 0 ? `( ${weightDelta}kg )` : '( manter )'}

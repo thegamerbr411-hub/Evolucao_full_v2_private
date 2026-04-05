@@ -1,4 +1,5 @@
 import { getCanonicalMuscleGroup } from '../../data/exerciseDatabase';
+import { getExerciseById } from '../../data/exerciseDatabase';
 
 export function getWeekBounds(dateKey) {
   const base = new Date(`${dateKey}T12:00:00`);
@@ -53,6 +54,18 @@ function inferMuscleGroup(name = '') {
   if (lower.includes('triceps')) return 'triceps';
   if (lower.includes('rosca') || lower.includes('biceps')) return 'biceps';
   return null;
+}
+
+function inferMuscleGroupFromLog(entry = {}) {
+  const byId = getExerciseById(entry.exerciseId || '');
+  if (byId?.grupo) {
+    const normalized = normalize(byId.grupo);
+    if (normalized === 'pernas') return 'perna';
+    if (normalized === 'ombros') return 'ombro';
+    return normalized;
+  }
+
+  return inferMuscleGroup(entry.exerciseName || '');
 }
 
 function getClusterFromGroup(group) {
@@ -179,7 +192,7 @@ export function getRecommendedWorkout({
     const groups = Array.from(new Set(
       workoutLogs
         .filter((item) => item.date === key)
-        .map((item) => inferMuscleGroup(item.exerciseName))
+        .map((item) => inferMuscleGroupFromLog(item))
         .filter(Boolean)
     ));
     if (groups.length) {
