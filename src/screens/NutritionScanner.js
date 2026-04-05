@@ -10,7 +10,7 @@ import { colors, spacing } from '../theme';
 
 const FAVORITES_STORAGE_KEY = 'nutrition.favorite.foods.v1';
 
-export default function NutritionScanner({ navigation }) {
+export default function NutritionScanner({ navigation, route }) {
   const {
     estimateNutritionFromText,
     estimateNutritionFromPhotoHint,
@@ -65,6 +65,20 @@ export default function NutritionScanner({ navigation }) {
       // Ignora falha local de persistencia para nao quebrar o fluxo.
     });
   }, [favoriteFoodKeys]);
+
+  React.useEffect(() => {
+    const suggested = String(route?.params?.prefillQuickMealText || '').trim();
+    if (!suggested) {
+      return;
+    }
+
+    setQuickMealText(suggested);
+    setMealFeedback('Atalho inteligente aplicado. Toque em "Montar refeicao" para salvar mais rapido.');
+
+    if (navigation?.setParams) {
+      navigation.setParams({ prefillQuickMealText: undefined });
+    }
+  }, [route?.params?.prefillQuickMealText, navigation]);
 
   const foodOptions = useMemo(() => searchFoodCatalog(searchQuery), [searchFoodCatalog, searchQuery]);
   const todayFoodLog = getTodayFoodLog();

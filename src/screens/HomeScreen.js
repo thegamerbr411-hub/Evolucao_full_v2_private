@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useInsights, useWorkout, useNutrition } from '../hooks';
+import { useNotifications } from '../hooks';
 import { AppCard, MetricText, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { colors, radius, spacing } from '../theme';
 
@@ -8,6 +9,8 @@ export default function HomeScreen({ navigation }) {
   const { getDailyMacroTargets, getNutritionFeedback, history, plan, workoutLogs } = useNutrition();
   const { gamification, getSmartWorkoutRecommendation } = useWorkout();
   const { getPerformanceRecoveryInsight } = useInsights();
+  const { addWaterIntake } = useNotifications();
+  const [quickActionFeedback, setQuickActionFeedback] = useState('');
 
   const today = useMemo(() => {
     const date = new Date();
@@ -44,6 +47,88 @@ export default function HomeScreen({ navigation }) {
     training: trainedToday ? 'ok' : 'pending',
     protein: proteinRatio >= 1 ? 'ok' : 'pending',
     water: waterPercent >= 1 ? 'ok' : 'pending',
+  };
+
+  const getScoreByDate = (dateKey) => {
+    const dayHistory = history.find((item) => item.date === dateKey) || null;
+    const dayProtein = Number(dayHistory?.protein || 0);
+    const dayWater = Number(dayHistory?.waterMl || 0);
+    const dayTrained = workoutLogs.some((item) => String(item.date || '') === String(dateKey));
+    const dayProteinRatio = proteinTarget > 0 ? Math.min(1, dayProtein / proteinTarget) : 0;
+    const dayWaterRatio = waterTarget > 0 ? Math.min(1, dayWater / waterTarget) : 0;
+    const dayTrainingRatio = dayTrained ? 1 : 0;
+
+    return Math.round(dayTrainingRatio * 35 + dayProteinRatio * 40 + dayWaterRatio * 25);
+  };
+
+  const scoreTrendRows = useMemo(() => {
+    const dateSet = new Set(history.map((item) => String(item.date || '')).filter(Boolean));
+    dateSet.add(today);
+
+    const sorted = Array.from(dateSet)
+      .sort((a, b) => String(a).localeCompare(String(b)))
+      .slice(-7);
+
+    if (!sorted.length) {
+      return [];
+    }
+
+    const rows = sorted.map((dateKey) => ({
+      date: dateKey,
+      score: getScoreByDate(dateKey),
+    }));
+
+    const maxScore = Math.max(1, ...rows.map((item) => item.score));
+    return rows.map((item) => ({
+      ...item,
+      scorePct: Math.max(5, Math.round((item.score / maxScore) * 100)),
+    }));
+  }, [history, today, workoutLogs, proteinTarget, waterTarget]);
+
+  const scoreStats = useMemo(() => {
+    if (!scoreTrendRows.length) {
+      return { avg: 0, best: 0 };
+    }
+
+    const total = scoreTrendRows.reduce((acc, item) => acc + Number(item.score || 0), 0);
+    return {
+      avg: Math.round(total / scoreTrendRows.length),
+      best: Math.max(...scoreTrendRows.map((item) => Number(item.score || 0))),
+    };
+  }, [scoreTrendRows]);
+
+  useEffect(() => {
+    if (!quickActionFeedback) {
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      setQuickActionFeedback('');
+    }, 2000);
+
+    return () => clearTimeout(timeoutId);
+  }, [quickActionFeedback]);
+
+  const handleChecklistPress = (type) => {
+    if (type === 'training') {
+      navigation.navigate('TreinoHoje');
+      return;
+    }
+
+    if (type === 'protein') {
+      navigation.navigate('Scanner', {
+        prefillQuickMealText: '150g frango + 1 whey',
+        source: 'home_score_protein',
+      });
+      return;
+    }
+
+    if (type === 'water') {
+      const result = addWaterIntake(300);
+      if (result?.ok) {
+        setQuickActionFeedback('+300ml de agua adicionados');
+      }
+    }
   };
   const monthPrefix = today.slice(0, 7);
   const monthlyWorkoutDays = new Set(
@@ -139,23 +224,39 @@ export default function HomeScreen({ navigation }) {
           <View style={[styles.scoreFill, { width: `${Math.max(4, dayScore)}%` }]} />
         </View>
         <View style={styles.scoreChecklist}>
-          <View style={styles.scoreChecklistRow}>
+          <TouchableOpacity style={styles.scoreChecklistRow} activeOpacity={0.9} onPress={() => handleChecklistPress('training')}>
             <Text style={styles.scoreChecklistLabel}>Treino</Text>
             <Text style={dayScoreStatus.training === 'ok' ? styles.scoreOk : styles.scorePending}>
               {dayScoreStatus.training === 'ok' ? '✔' : '✖'}
             </Text>
-          </View>
-          <View style={styles.scoreChecklistRow}>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.scoreChecklistRow} activeOpacity={0.9} onPress={() => handleChecklistPress('protein')}>
             <Text style={styles.scoreChecklistLabel}>Proteína</Text>
             <Text style={dayScoreStatus.protein === 'ok' ? styles.scoreOk : styles.scorePending}>
               {dayScoreStatus.protein === 'ok' ? '✔' : '✖'}
             </Text>
-          </View>
-          <View style={styles.scoreChecklistRow}>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.scoreChecklistRow} activeOpacity={0.9} onPress={() => handleChecklistPress('water')}>
             <Text style={styles.scoreChecklistLabel}>Água</Text>
             <Text style={dayScoreStatus.water === 'ok' ? styles.scoreOk : styles.scorePending}>
               {dayScoreStatus.water === 'ok' ? '✔' : '✖'}
             </Text>
+          </TouchableOpacity>
+        </View>
+        {quickActionFeedback ? <Text style={styles.quickActionFeedback}>{quickActionFeedback}</Text> : null}
+        <View style={styles.scoreTrendWrap}>
+          <Text style={styles.scoreTrendTitle}>Tendência 7 dias</Text>
+          <Text style={styles.scoreTrendMeta}>Média {scoreStats.avg} • Melhor {scoreStats.best}</Text>
+          <View style={styles.scoreTrendRows}>
+            {scoreTrendRows.map((item) => (
+              <View key={`score-${item.date}`} style={styles.scoreTrendRow}>
+                <Text style={styles.scoreTrendDate}>{item.date.slice(5)}</Text>
+                <View style={styles.scoreTrendTrack}>
+                  <View style={[styles.scoreTrendFill, { width: `${item.scorePct}%` }]} />
+                </View>
+                <Text style={styles.scoreTrendValue}>{item.score}</Text>
+              </View>
+            ))}
           </View>
         </View>
       </AppCard>
@@ -436,6 +537,66 @@ const styles = StyleSheet.create({
   scorePending: {
     color: '#FCA5A5',
     fontSize: 14,
+    fontWeight: '900',
+  },
+  quickActionFeedback: {
+    marginTop: 8,
+    color: '#86EFAC',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  scoreTrendWrap: {
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: '#324A6E',
+    borderRadius: 10,
+    padding: 8,
+    backgroundColor: '#111B2A',
+  },
+  scoreTrendTitle: {
+    color: '#BFDBFE',
+    fontSize: 11,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  scoreTrendMeta: {
+    color: '#9FB8DB',
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 2,
+    marginBottom: 6,
+  },
+  scoreTrendRows: {
+    gap: 6,
+  },
+  scoreTrendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  scoreTrendDate: {
+    width: 42,
+    color: '#D3E3FA',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  scoreTrendTrack: {
+    flex: 1,
+    height: 6,
+    borderRadius: radius.pill,
+    backgroundColor: '#223047',
+    overflow: 'hidden',
+  },
+  scoreTrendFill: {
+    height: '100%',
+    borderRadius: radius.pill,
+    backgroundColor: '#FCD34D',
+  },
+  scoreTrendValue: {
+    width: 28,
+    textAlign: 'right',
+    color: '#F8FAFC',
+    fontSize: 10,
     fontWeight: '900',
   },
 });
