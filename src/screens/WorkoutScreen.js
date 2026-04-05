@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useNotifications, useNutrition, useWorkout } from '../hooks';
-import { getCanonicalMuscleGroup } from '../data/exerciseDatabase';
+import { getCanonicalExerciseId, getCanonicalMuscleGroup } from '../data/exerciseDatabase';
 import { trackEvent } from '../utils/analytics';
 import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { colors, spacing } from '../theme';
@@ -49,6 +49,30 @@ function SetField({ value, onChangeText, placeholder, inputRef }) {
 }
 
 const RPE_CHIPS = ['7', '8', '9', '10'];
+const SPARKLINE_WIDTH = 230;
+const SPARKLINE_HEIGHT = 58;
+
+function buildSparklinePoints(values = [], width = SPARKLINE_WIDTH, height = SPARKLINE_HEIGHT) {
+  const safeValues = Array.isArray(values) ? values.map((entry) => Number(entry || 0)) : [];
+  if (!safeValues.length) {
+    return [];
+  }
+
+  const min = Math.min(...safeValues);
+  const max = Math.max(...safeValues);
+  const range = Math.max(1, max - min);
+  const xStep = safeValues.length > 1 ? width / (safeValues.length - 1) : width;
+
+  return safeValues.map((value, index) => {
+    const normalized = (value - min) / range;
+    return {
+      x: Math.round(index * xStep),
+      y: Math.round(height - normalized * height),
+      value,
+      normalized,
+    };
+  });
+}
 
 export default function WorkoutScreen({ navigation }) {
   const {
@@ -933,12 +957,32 @@ export default function WorkoutScreen({ navigation }) {
             .slice(0, plannedSets);
 
           const draftRows = draftSetsByExercise[exercise.name] || [];
-          const historySnapshot = getExerciseHistorySnapshot(exercise.name, 6);
-          const maxHistoryWeight = Math.max(1, ...historySnapshot.map((item) => Number(item.weight || 0)));
-          const progression = getExerciseProgressionSuggestion(exercise.name);
+          const exerciseId = getCanonicalExerciseId(exercise.name) || undefined;
+          const historySnapshot = getExerciseHistorySnapshot(exercise.name, 5, exerciseId);
+          const progression = getExerciseProgressionSuggestion(exercise.name, exerciseId);
+          const exerciseProgress = getExerciseProgress(exercise.name, exerciseId);
           const lastSet = getLastSetForExercise(exercise.name);
           const lastWeight = Number(lastSet?.weight || 0);
           const suggestedWeightNumber = Number(progression?.suggestedWeight || 0);
+          const prWeight = Number(exerciseProgress?.bestWeight || 0);
+          const prGap = Math.max(0, Number((prWeight - suggestedWeightNumber).toFixed(1)));
+          const sparklineValues = historySnapshot.map((item) => Number(item.weight || 0));
+          const sparklinePoints = buildSparklinePoints(sparklineValues, SPARKLINE_WIDTH, SPARKLINE_HEIGHT);
+          const sparklineSegments = sparklinePoints.slice(1).map((point, index) => {
+            const prev = sparklinePoints[index];
+            const dx = point.x - prev.x;
+            const dy = point.y - prev.y;
+            const length = Math.sqrt(dx * dx + dy * dy);
+            const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+            return {
+              key: `${exercise.id}-seg-${index}`,
+              left: (prev.x + point.x) / 2 - length / 2,
+              top: (prev.y + point.y) / 2,
+              width: length,
+              angle,
+              rising: dy < 0,
+            };
+          });
           const weightDelta = suggestedWeightNumber > 0 && lastWeight > 0
             ? Number((suggestedWeightNumber - lastWeight).toFixed(1))
             : 0;
@@ -981,23 +1025,63 @@ export default function WorkoutScreen({ navigation }) {
                 Meta hoje: {progression?.message || 'Consolidar tecnica e repetir carga com qualidade.'}
               </Text>
 
+              {isActive ? (
+                <View style={styles.prCard}>
+                  <View style={styles.prCardHeader}>
+                    <Text style={styles.prCardTitle}>Recorde pessoal</Text>
+                    <Text style={styles.prCardBadge}>{exerciseId ? 'ID canonico' : 'Fallback nome'}</Text>
+                  </View>
+                  <Text style={styles.prCardWeight}>{prWeight || 0}kg</Text>
+                  <Text style={styles.prCardMeta}>
+                    {prGap > 0
+                      ? `Faltam ${prGap}kg para bater o PR hoje.`
+                      : 'Carga sugerida em faixa de recorde. Hora de atacar!'}
+                  </Text>
+                </View>
+              ) : null}
+
               {isActive && historySnapshot.length ? (
                 <View style={styles.historyWrap}>
-                  <Text style={styles.historyTitle}>Historico rapido</Text>
-                  {historySnapshot.map((entry, index) => (
-                    <View key={`${exercise.id}-history-${entry.date}-${index}`} style={styles.historyRow}>
-                      <Text style={styles.historyLabel}>{entry.date.slice(5)} · {entry.weight}kg x {entry.reps}</Text>
-                      <View style={styles.historyBarTrack}>
+                  <Text style={styles.historyTitle}>Evolucao (ultimas 5 cargas)</Text>
+                  <View style={styles.sparklineWrap}>
+                    <View style={styles.sparklineCanvas}>
+                      {sparklineSegments.map((segment) => (
                         <View
+                          key={segment.key}
                           style={[
-                            styles.historyBarFill,
-                            { width: `${Math.max(8, Math.round((Number(entry.weight || 0) / maxHistoryWeight) * 100))}%` },
-                            entry.failed ? styles.historyBarFail : null,
+                            styles.sparklineSegment,
+                            {
+                              left: segment.left,
+                              top: segment.top,
+                              width: segment.width,
+                              transform: [{ rotate: `${segment.angle}deg` }],
+                              backgroundColor: segment.rising ? '#4ADE80' : '#93C5FD',
+                            },
                           ]}
                         />
-                      </View>
+                      ))}
+                      {sparklinePoints.map((point, index) => (
+                        <View
+                          key={`${exercise.id}-point-${index}`}
+                          style={[
+                            styles.sparklinePoint,
+                            {
+                              left: point.x - 3,
+                              top: point.y - 3,
+                              backgroundColor: index === sparklinePoints.length - 1 ? '#FCD34D' : '#93C5FD',
+                            },
+                          ]}
+                        />
+                      ))}
                     </View>
-                  ))}
+                    <View style={styles.sparklineFooter}>
+                      {historySnapshot.map((entry, index) => (
+                        <Text key={`${exercise.id}-legend-${entry.date}-${index}`} style={styles.sparklineLabel}>
+                          {entry.date.slice(5)} {entry.weight}kg
+                        </Text>
+                      ))}
+                    </View>
+                  </View>
                 </View>
               ) : null}
 
@@ -1491,6 +1575,42 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 8,
   },
+  prCard: {
+    borderWidth: 1,
+    borderColor: '#4A6EA3',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    backgroundColor: '#122238',
+    marginBottom: 8,
+  },
+  prCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  prCardTitle: {
+    color: '#CFE4FF',
+    fontSize: 11,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  prCardBadge: {
+    color: '#93C5FD',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  prCardWeight: {
+    color: '#FCD34D',
+    fontSize: 22,
+    fontWeight: '900',
+  },
+  prCardMeta: {
+    color: '#BFDBFE',
+    fontSize: 11,
+    fontWeight: '700',
+  },
   smallChip: {
     backgroundColor: '#1B2840',
     color: '#CFE4FF',
@@ -1724,6 +1844,45 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textTransform: 'uppercase',
     marginBottom: 6,
+  },
+  sparklineWrap: {
+    borderWidth: 1,
+    borderColor: '#3A5C86',
+    borderRadius: 8,
+    backgroundColor: '#101926',
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+  },
+  sparklineCanvas: {
+    width: SPARKLINE_WIDTH,
+    height: SPARKLINE_HEIGHT,
+    position: 'relative',
+    alignSelf: 'center',
+    marginBottom: 8,
+  },
+  sparklineSegment: {
+    position: 'absolute',
+    height: 2,
+    borderRadius: 999,
+  },
+  sparklinePoint: {
+    position: 'absolute',
+    width: 6,
+    height: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#0B1220',
+  },
+  sparklineFooter: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    justifyContent: 'center',
+  },
+  sparklineLabel: {
+    color: '#9CC4F7',
+    fontSize: 10,
+    fontWeight: '700',
   },
   historyRow: {
     marginBottom: 6,
