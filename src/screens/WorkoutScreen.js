@@ -13,7 +13,7 @@ import {
   View,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { useApp } from '../context/AppContext';
+import { useNotifications, useNutrition, useWorkout } from '../hooks';
 import { trackEvent } from '../utils/analytics';
 import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { colors, spacing } from '../theme';
@@ -65,10 +65,10 @@ export default function WorkoutScreen({ navigation }) {
     getTodayWorkoutSummary,
     getWorkoutGamification,
     getWorkoutDelta,
-    getNutritionFeedback,
     workoutLogs,
-    hasFeatureAccess,
-  } = useApp();
+  } = useWorkout();
+  const { getNutritionFeedback } = useNutrition();
+  const { hasFeatureAccess } = useNotifications();
 
   const todayKey = useMemo(() => getTodayKeyLocal(), []);
   const baseExercises = useMemo(() => getTodayWorkout(), [getTodayWorkout]);

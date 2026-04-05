@@ -3,7 +3,7 @@ import React, { useMemo, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { useApp } from '../context/AppContext';
+import { useNotifications, useNutrition } from '../hooks';
 import { trackEvent } from '../utils/analytics';
 import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { colors, spacing } from '../theme';
@@ -21,9 +21,9 @@ export default function NutritionScanner({ navigation }) {
     getDailyMacroTargets,
     getNutritionFeedback,
     evaluateMealQuality,
-    hasFeatureAccess,
     nutritionLogs,
-  } = useApp();
+  } = useNutrition();
+  const { hasFeatureAccess } = useNotifications();
   const [quickMealText, setQuickMealText] = useState('');
   const [quickMealItems, setQuickMealItems] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');

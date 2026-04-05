@@ -1,19 +1,12 @@
 import React, { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useApp } from '../context/AppContext';
+import { useWorkout, useNutrition } from '../hooks';
 import { AppCard, MetricText, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { colors, radius, spacing } from '../theme';
 
 export default function HomeScreen({ navigation }) {
-  const {
-    plan,
-    history,
-    workoutLogs,
-    gamification,
-    getSmartWorkoutRecommendation,
-    getDailyMacroTargets,
-    getNutritionFeedback,
-  } = useApp();
+  const { getSmartWorkoutRecommendation, getDailyMacroTargets, getNutritionFeedback, history, plan, workoutLogs } = useNutrition();
+  const { gamification } = useWorkout();
 
   const today = useMemo(() => {
     const date = new Date();

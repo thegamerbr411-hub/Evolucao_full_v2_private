@@ -1,6 +1,6 @@
 ﻿import React, { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useApp } from '../context/AppContext';
+import { useNotifications, useNutrition } from '../hooks';
 import { AppCard, PrimaryButton, ScreenHeader } from '../components/ui';
 import { colors, spacing } from '../theme';
 
@@ -38,7 +38,8 @@ function DayRow({ item, isLast }) {
 }
 
 export default function WeeklyMacroScreen({ navigation }) {
-  const { getWeeklyMacroSummary, getNutritionFeedback, hasFeatureAccess } = useApp();
+  const { getWeeklyMacroSummary, getNutritionFeedback } = useNutrition();
+  const { hasFeatureAccess } = useNotifications();
 
   if (!hasFeatureAccess('weekly_macros')) {
     return (
