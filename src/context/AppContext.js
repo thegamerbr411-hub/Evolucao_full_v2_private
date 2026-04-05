@@ -2839,6 +2839,7 @@ export const AppProvider=({children})=>{
       const nutritionFeedback = getNutritionFeedback();
       const workoutSummary = getTodayWorkoutSummary();
       const weekly = getWeeklyMacroSummary();
+      const recoveryInsight = getPerformanceRecoveryInsight();
       const missingProtein = Number(nutritionFeedback?.missingProtein || 0);
 
       if (workoutSummary.completionRate >= 1 && missingProtein > 0) {
@@ -2878,6 +2879,16 @@ export const AppProvider=({children})=>{
           title: 'Resumo da semana',
           body: `Treino ok, mas proteina baixa em ${weekly.lowProteinDays} dia(s). Ajuste hoje e feche forte.`,
           data: { source: 'weekly', action: 'open_weekly' },
+          delaySeconds: 1,
+        });
+      }
+
+      if (hour >= 18 && recoveryInsight?.tone === 'warning') {
+        await sendIntelligentNotification({
+          eventKey: `recovery-warning-${todayKey}`,
+          title: recoveryInsight.title || 'Recuperacao em risco',
+          body: recoveryInsight.message || 'Proteja seus resultados com ajuste nutricional hoje.',
+          data: { source: 'recovery_insight', action: 'open_nutrition' },
           delaySeconds: 1,
         });
       }
