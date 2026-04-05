@@ -20,7 +20,16 @@ export default function HomeScreen({ navigation }) {
     return `${year}-${month}-${day}`;
   }, []);
 
-  const smartWorkout = useMemo(() => getSmartWorkoutRecommendation(), [getSmartWorkoutRecommendation]);
+  const smartWorkout = useMemo(() => {
+    try {
+      return getSmartWorkoutRecommendation();
+    } catch (_error) {
+      return {
+        title: 'Treino do dia',
+        justification: 'Nao foi possivel carregar recomendacao agora. Use o treino livre enquanto sincronizamos.',
+      };
+    }
+  }, [getSmartWorkoutRecommendation]);
   const macroTargets = useMemo(() => getDailyMacroTargets(), [getDailyMacroTargets]);
 
   const todayHistory = history.find((item) => item.date === today) || null;

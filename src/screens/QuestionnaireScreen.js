@@ -106,11 +106,15 @@ export default function QuestionnaireScreen({ navigation }) {
       return;
     }
 
-    saveQuestionnaire(payload);
-    navigation.reset({
-      index: 0,
-      routes: [{ name: 'MainTabs' }],
-    });
+    try {
+      saveQuestionnaire(payload);
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'MainTabs' }],
+      });
+    } catch (_error) {
+      Alert.alert('Erro ao salvar', 'Nao foi possivel concluir o questionario agora. Tente novamente.');
+    }
   };
 
   return (
