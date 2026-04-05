@@ -37,6 +37,14 @@ export default function HomeScreen({ navigation }) {
     [getPerformanceRecoveryInsight, history, workoutLogs]
   );
   const waterRemaining = Math.max(0, waterTarget - waterToday);
+  const proteinRatio = proteinTarget > 0 ? Math.min(1, proteinToday / proteinTarget) : 0;
+  const trainingProgress = trainedToday ? 1 : 0;
+  const dayScore = Math.round(trainingProgress * 35 + proteinRatio * 40 + waterPercent * 25);
+  const dayScoreStatus = {
+    training: trainedToday ? 'ok' : 'pending',
+    protein: proteinRatio >= 1 ? 'ok' : 'pending',
+    water: waterPercent >= 1 ? 'ok' : 'pending',
+  };
   const monthPrefix = today.slice(0, 7);
   const monthlyWorkoutDays = new Set(
     workoutLogs
@@ -113,6 +121,43 @@ export default function HomeScreen({ navigation }) {
           {recoveryInsight?.title || 'Sem insight no momento'}
         </Text>
         <Text style={styles.cardSub}>{recoveryInsight?.message || 'Continue registrando para liberar recomendações mais precisas.'}</Text>
+      </AppCard>
+
+      <AppCard>
+        <Text style={styles.cardLabel}>Score do dia</Text>
+        <View style={styles.scoreHeaderRow}>
+          <Text style={styles.scoreValue}>{dayScore}/100</Text>
+          <Text style={styles.scoreHint}>
+            {dayScore >= 85
+              ? 'Dia forte. Mantenha consistência.'
+              : dayScore >= 65
+              ? 'Bom ritmo. Falta pouco para fechar.'
+              : 'Hoje ainda dá para virar o jogo.'}
+          </Text>
+        </View>
+        <View style={styles.scoreTrack}>
+          <View style={[styles.scoreFill, { width: `${Math.max(4, dayScore)}%` }]} />
+        </View>
+        <View style={styles.scoreChecklist}>
+          <View style={styles.scoreChecklistRow}>
+            <Text style={styles.scoreChecklistLabel}>Treino</Text>
+            <Text style={dayScoreStatus.training === 'ok' ? styles.scoreOk : styles.scorePending}>
+              {dayScoreStatus.training === 'ok' ? '✔' : '✖'}
+            </Text>
+          </View>
+          <View style={styles.scoreChecklistRow}>
+            <Text style={styles.scoreChecklistLabel}>Proteína</Text>
+            <Text style={dayScoreStatus.protein === 'ok' ? styles.scoreOk : styles.scorePending}>
+              {dayScoreStatus.protein === 'ok' ? '✔' : '✖'}
+            </Text>
+          </View>
+          <View style={styles.scoreChecklistRow}>
+            <Text style={styles.scoreChecklistLabel}>Água</Text>
+            <Text style={dayScoreStatus.water === 'ok' ? styles.scoreOk : styles.scorePending}>
+              {dayScoreStatus.water === 'ok' ? '✔' : '✖'}
+            </Text>
+          </View>
+        </View>
       </AppCard>
 
       <AppCard>
@@ -332,5 +377,65 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 12,
     fontWeight: '700',
+  },
+  scoreHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  scoreValue: {
+    color: '#F8FAFC',
+    fontSize: 28,
+    fontWeight: '900',
+  },
+  scoreHint: {
+    flex: 1,
+    textAlign: 'right',
+    color: '#BFDBFE',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  scoreTrack: {
+    marginTop: 8,
+    height: 10,
+    borderRadius: radius.pill,
+    backgroundColor: '#223047',
+    overflow: 'hidden',
+  },
+  scoreFill: {
+    height: '100%',
+    backgroundColor: '#FCD34D',
+    borderRadius: radius.pill,
+  },
+  scoreChecklist: {
+    marginTop: 10,
+    gap: 6,
+  },
+  scoreChecklistRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    backgroundColor: '#141922',
+  },
+  scoreChecklistLabel: {
+    color: colors.textPrimary,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  scoreOk: {
+    color: '#86EFAC',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  scorePending: {
+    color: '#FCA5A5',
+    fontSize: 14,
+    fontWeight: '900',
   },
 });
