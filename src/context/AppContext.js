@@ -2655,6 +2655,95 @@ export const AppProvider=({children})=>{
     };
   };
 
+  const getDailyScoreForDate = (dateKey) => {
+    const safeDate = String(dateKey || '').trim();
+    if (!safeDate) {
+      return {
+        date: '',
+        score: 0,
+        trainingScore: 0,
+        proteinScore: 0,
+        waterScore: 0,
+      };
+    }
+
+    const macroTargets = getNutritionMacroTargets(plan, profile);
+    const proteinTarget = Number(macroTargets?.protein || 0);
+    const waterTarget = Number((plan?.waterLitersPerDay || 0) * 1000);
+    const dayHistory = history.find((item) => String(item.date || '') === safeDate) || null;
+    const trained = workoutLogs.some((item) => String(item.date || '') === safeDate);
+    const protein = Number(dayHistory?.protein || 0);
+    const water = Number(dayHistory?.waterMl || 0);
+
+    const trainingRatio = trained ? 1 : 0;
+    const proteinRatio = proteinTarget > 0 ? clamp(protein / proteinTarget, 0, 1) : 0;
+    const waterRatio = waterTarget > 0 ? clamp(water / waterTarget, 0, 1) : 0;
+
+    const trainingScore = Math.round(trainingRatio * 35);
+    const proteinScore = Math.round(proteinRatio * 40);
+    const waterScore = Math.round(waterRatio * 25);
+
+    return {
+      date: safeDate,
+      score: trainingScore + proteinScore + waterScore,
+      trainingScore,
+      proteinScore,
+      waterScore,
+      trained,
+      protein,
+      water,
+    };
+  };
+
+  const getScoreTrendSummary = (days = 7) => {
+    const safeDays = Math.max(1, Number(days || 7));
+    const todayKey = getTodayKey();
+    const dateSet = new Set(history.map((item) => String(item.date || '')).filter(Boolean));
+    dateSet.add(todayKey);
+
+    const dateKeys = Array.from(dateSet)
+      .sort((a, b) => String(b).localeCompare(String(a)))
+      .slice(0, safeDays);
+
+    const points = dateKeys.map((date) => getDailyScoreForDate(date));
+
+    if (!points.length) {
+      return {
+        points: [],
+        averageScore: 0,
+        todayScore: 0,
+        scoreDropPercent: 0,
+        twoDayDrop: false,
+      };
+    }
+
+    const todayPoint = points.find((point) => point.date === todayKey) || points[0];
+    const baseline = points.filter((point) => point.date !== todayKey);
+    const averageBaseline = baseline.length
+      ? baseline.reduce((acc, point) => acc + Number(point.score || 0), 0) / baseline.length
+      : Number(todayPoint.score || 0);
+    const scoreDropPercent = averageBaseline > 0
+      ? Math.round(((averageBaseline - Number(todayPoint.score || 0)) / averageBaseline) * 100)
+      : 0;
+
+    const [latest, previous, third] = points;
+    const twoDayDrop = Boolean(
+      latest &&
+      previous &&
+      third &&
+      Number(latest.score || 0) < Number(previous.score || 0) &&
+      Number(previous.score || 0) < Number(third.score || 0)
+    );
+
+    return {
+      points,
+      averageScore: Math.round(averageBaseline),
+      todayScore: Number(todayPoint.score || 0),
+      scoreDropPercent,
+      twoDayDrop,
+    };
+  };
+
   const getPerformanceScore = () => {
     const last7 = history.slice(0, 7);
     const n = last7.length;
@@ -2840,6 +2929,7 @@ export const AppProvider=({children})=>{
       const workoutSummary = getTodayWorkoutSummary();
       const weekly = getWeeklyMacroSummary();
       const recoveryInsight = getPerformanceRecoveryInsight();
+      const scoreTrend = getScoreTrendSummary(7);
       const missingProtein = Number(nutritionFeedback?.missingProtein || 0);
 
       if (workoutSummary.completionRate >= 1 && missingProtein > 0) {
@@ -2889,6 +2979,24 @@ export const AppProvider=({children})=>{
           title: recoveryInsight.title || 'Recuperacao em risco',
           body: recoveryInsight.message || 'Proteja seus resultados com ajuste nutricional hoje.',
           data: { source: 'recovery_insight', action: 'open_nutrition' },
+          delaySeconds: 1,
+        });
+      }
+
+      if (
+        hour >= 18 &&
+        scoreTrend?.points?.length >= 3 &&
+        (scoreTrend.twoDayDrop || Number(scoreTrend.scoreDropPercent || 0) >= 30)
+      ) {
+        const reason = scoreTrend.twoDayDrop
+          ? 'queda por 2 dias seguidos'
+          : `queda de ${scoreTrend.scoreDropPercent}% vs sua media recente`;
+
+        await sendIntelligentNotification({
+          eventKey: `performance-alert-${todayKey}`,
+          title: 'Seu score pediu resgate hoje',
+          body: `Notamos ${reason}. Quer ajuda para recuperar agora com uma acao simples?`,
+          data: { source: 'score_drop', action: 'open_home_score' },
           delaySeconds: 1,
         });
       }
@@ -2952,6 +3060,8 @@ export const AppProvider=({children})=>{
         estimateNutritionFromPhotoHint,
         getDailyMacroTargets,
         getNutritionFeedback,
+        getDailyScoreForDate,
+        getScoreTrendSummary,
         getTopFoods,
         getPerformanceRecoveryInsight,
         getWeeklyMacroSummary,
