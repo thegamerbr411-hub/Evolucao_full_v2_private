@@ -16,6 +16,8 @@ export function useNutrition() {
       getDailyMacroTargets: app.getDailyMacroTargets,
       getWeeklyMacroSummary: app.getWeeklyMacroSummary,
       getNutritionFeedback: app.getNutritionFeedback,
+      getTopFoods: app.getTopFoods,
+      getPerformanceRecoveryInsight: app.getPerformanceRecoveryInsight,
       evaluateMealQuality: app.evaluateMealQuality,
       saveNutritionEntry: app.saveNutritionEntry,
       nutritionLogs: app.nutritionLogs,

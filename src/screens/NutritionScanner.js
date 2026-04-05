@@ -20,6 +20,8 @@ export default function NutritionScanner({ navigation }) {
     getTodayFoodLog,
     getDailyMacroTargets,
     getNutritionFeedback,
+    getTopFoods,
+    getPerformanceRecoveryInsight,
     evaluateMealQuality,
     nutritionLogs,
   } = useNutrition();
@@ -68,6 +70,14 @@ export default function NutritionScanner({ navigation }) {
   const todayFoodLog = getTodayFoodLog();
   const dailyMacroTargets = useMemo(() => getDailyMacroTargets(), [getDailyMacroTargets]);
   const nutritionFeedback = getNutritionFeedback();
+  const topFoodsSummary = useMemo(
+    () => getTopFoods({ days: 7, limit: 5 }),
+    [getTopFoods, nutritionLogs]
+  );
+  const recoveryInsight = useMemo(
+    () => getPerformanceRecoveryInsight(),
+    [getPerformanceRecoveryInsight, nutritionLogs]
+  );
   const todayProtein = useMemo(
     () => todayFoodLog.reduce((acc, item) => acc + Number(item.protein || 0), 0),
     [todayFoodLog]
@@ -542,6 +552,55 @@ export default function NutritionScanner({ navigation }) {
         </Text>
         <Text style={styles.feedbackText}>{nutritionFeedback?.message || ''}</Text>
         <Text style={styles.feedbackSuggestion}>{nutritionFeedback?.suggestion || ''}</Text>
+      </AppCard>
+
+      <AppCard style={styles.card}>
+        <Text style={styles.cardTitle}>Top fuel da semana</Text>
+        <Text style={styles.foodsSummaryMeta}>
+          {topFoodsSummary?.daysAnalyzed || 0} dia(s) analisados • {topFoodsSummary?.totalEntries || 0} registro(s)
+        </Text>
+        {topFoodsSummary?.topFood ? (
+          <View style={styles.topFoodHero}>
+            <Text style={styles.topFoodHeroTitle}>Mais relevante para proteína</Text>
+            <Text style={styles.topFoodHeroName}>{topFoodsSummary.topFood.label}</Text>
+            <Text style={styles.topFoodHeroMeta}>
+              {topFoodsSummary.topFood.proteinTotal}g proteína • {topFoodsSummary.topFood.caloriesTotal} kcal
+            </Text>
+          </View>
+        ) : (
+          <Text style={styles.emptyLine}>Sem dados suficientes para ranking semanal.</Text>
+        )}
+
+        {Array.isArray(topFoodsSummary?.ranking) ? topFoodsSummary.ranking.slice(0, 5).map((item) => (
+          <View key={`top-food-${item.foodId || item.label}`} style={styles.rankingRow}>
+            <Text style={styles.rankingPosition}>#{item.rank}</Text>
+            <View style={styles.rankingCenter}>
+              <Text style={styles.rankingLabel}>{item.label}</Text>
+              <Text style={styles.rankingMeta}>{item.entries}x | qty {item.quantityTotal}x</Text>
+            </View>
+            <View style={styles.rankingRight}>
+              <Text style={styles.rankingProtein}>{item.proteinTotal}g P</Text>
+              <Text style={styles.rankingCalories}>{item.caloriesTotal} kcal</Text>
+            </View>
+          </View>
+        )) : null}
+      </AppCard>
+
+      <AppCard style={styles.card}>
+        <Text style={styles.cardTitle}>Insight cruzado treino x recuperação</Text>
+        <Text
+          style={[
+            styles.crossInsightTitle,
+            recoveryInsight?.tone === 'warning'
+              ? styles.crossInsightWarning
+              : recoveryInsight?.tone === 'success'
+              ? styles.crossInsightSuccess
+              : null,
+          ]}
+        >
+          {recoveryInsight?.title || 'Insight indisponível'}
+        </Text>
+        <Text style={styles.crossInsightText}>{recoveryInsight?.message || ''}</Text>
       </AppCard>
 
       <AppCard style={styles.card}>
@@ -1125,5 +1184,99 @@ const styles = StyleSheet.create({
     color: '#A7F3D0',
     fontSize: 12,
     fontWeight: '800',
+  },
+  foodsSummaryMeta: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  topFoodHero: {
+    borderWidth: 1,
+    borderColor: '#355E90',
+    borderRadius: 10,
+    padding: 10,
+    backgroundColor: '#14253F',
+    marginBottom: 8,
+  },
+  topFoodHeroTitle: {
+    color: '#93C5FD',
+    fontSize: 11,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  topFoodHeroName: {
+    color: '#F8FAFC',
+    fontSize: 18,
+    fontWeight: '900',
+    marginTop: 2,
+  },
+  topFoodHeroMeta: {
+    color: '#A7F3D0',
+    fontSize: 12,
+    fontWeight: '800',
+    marginTop: 2,
+  },
+  rankingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    backgroundColor: '#141922',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginTop: 6,
+  },
+  rankingPosition: {
+    width: 26,
+    color: '#BFDBFE',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  rankingCenter: {
+    flex: 1,
+  },
+  rankingLabel: {
+    color: colors.textPrimary,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  rankingMeta: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  rankingRight: {
+    alignItems: 'flex-end',
+  },
+  rankingProtein: {
+    color: '#86EFAC',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  rankingCalories: {
+    color: '#93C5FD',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  crossInsightTitle: {
+    color: '#BFDBFE',
+    fontSize: 14,
+    fontWeight: '900',
+    marginBottom: 6,
+  },
+  crossInsightWarning: {
+    color: '#FCD34D',
+  },
+  crossInsightSuccess: {
+    color: '#86EFAC',
+  },
+  crossInsightText: {
+    color: colors.textPrimary,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 19,
   },
 });

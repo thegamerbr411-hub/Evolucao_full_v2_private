@@ -319,6 +319,15 @@ function getDateDiffInDays(fromDateKey, toDateKey) {
   return Math.floor((to - from) / (1000 * 60 * 60 * 24));
 }
 
+function getLatestDateKeysFromLogs(logs = [], days = 7) {
+  const safeDays = Math.max(1, Number(days || 7));
+  return Array.from(
+    new Set((Array.isArray(logs) ? logs : []).map((item) => String(item.date || '')).filter(Boolean))
+  )
+    .sort((a, b) => String(b).localeCompare(String(a)))
+    .slice(0, safeDays);
+}
+
 function normalizeText(value = '') {
   return String(value)
     .toLowerCase()
@@ -2411,6 +2420,174 @@ export const AppProvider=({children})=>{
     return getNutritionMacroTargets(plan, profile);
   };
 
+  const getTopFoods = ({ days = 7, limit = 5 } = {}) => {
+    const recentDates = getLatestDateKeysFromLogs(nutritionLogs, days);
+    const dateSet = new Set(recentDates);
+    const safeLimit = Math.max(1, Number(limit || 5));
+
+    if (!recentDates.length) {
+      return {
+        daysAnalyzed: 0,
+        totalEntries: 0,
+        ranking: [],
+        topFood: null,
+      };
+    }
+
+    const totalsByFood = new Map();
+
+    nutritionLogs
+      .filter((item) => dateSet.has(String(item.date || '')))
+      .forEach((item) => {
+        const resolved = getCanonicalFoodData(item.foodId || item.foodKey || item.label || '');
+        const fallbackKey = normalizeText(item.foodKey || item.label || 'desconhecido');
+        const identity = resolved?.id || fallbackKey;
+
+        if (!totalsByFood.has(identity)) {
+          totalsByFood.set(identity, {
+            foodId: resolved?.id || null,
+            label: resolved?.label || item.label || item.foodKey || 'Alimento',
+            entries: 0,
+            quantityTotal: 0,
+            proteinTotal: 0,
+            caloriesTotal: 0,
+          });
+        }
+
+        const current = totalsByFood.get(identity);
+        current.entries += 1;
+        current.quantityTotal += Number(item.quantity || 0);
+        current.proteinTotal += Number(item.protein || 0);
+        current.caloriesTotal += Number(item.calories || 0);
+      });
+
+    const ranking = Array.from(totalsByFood.values())
+      .sort((a, b) => {
+        const proteinDiff = Number(b.proteinTotal || 0) - Number(a.proteinTotal || 0);
+        if (proteinDiff !== 0) {
+          return proteinDiff;
+        }
+        return Number(b.caloriesTotal || 0) - Number(a.caloriesTotal || 0);
+      })
+      .slice(0, safeLimit)
+      .map((item, index) => ({
+        rank: index + 1,
+        ...item,
+        proteinTotal: round(item.proteinTotal),
+        caloriesTotal: round(item.caloriesTotal),
+        quantityTotal: Number(item.quantityTotal.toFixed(1)),
+      }));
+
+    return {
+      daysAnalyzed: recentDates.length,
+      totalEntries: nutritionLogs.filter((item) => dateSet.has(String(item.date || ''))).length,
+      ranking,
+      topFood: ranking[0] || null,
+    };
+  };
+
+  const getPerformanceRecoveryInsight = () => {
+    const macroTargets = getNutritionMacroTargets(plan, profile);
+    const recentHistory = history.slice(0, 6);
+
+    if (!recentHistory.length) {
+      return {
+        tone: 'default',
+        title: 'Sem dados suficientes para cruzamento',
+        message: 'Registre alguns dias de treino e nutricao para liberar insight de recuperacao.',
+        prSignals: 0,
+        proteinDeltaPercent: 0,
+      };
+    }
+
+    const recent3 = recentHistory.slice(0, 3);
+    const previous3 = recentHistory.slice(3, 6);
+    const avgRecentProtein = recent3.length
+      ? recent3.reduce((acc, item) => acc + Number(item.protein || 0), 0) / recent3.length
+      : 0;
+    const avgPreviousProtein = previous3.length
+      ? previous3.reduce((acc, item) => acc + Number(item.protein || 0), 0) / previous3.length
+      : avgRecentProtein;
+
+    const proteinDeltaPercent = avgPreviousProtein > 0
+      ? Math.round(((avgRecentProtein - avgPreviousProtein) / avgPreviousProtein) * 100)
+      : 0;
+
+    const recentWorkoutDates = getLatestDateKeysFromLogs(workoutLogs, 3);
+    const recentWorkoutSet = new Set(recentWorkoutDates);
+    const trainedDaysRecent = recentWorkoutDates.length;
+
+    const sortedWorkoutLogs = [...workoutLogs]
+      .filter((item) => !item.failed)
+      .sort((a, b) => {
+        const byDate = String(a.date || '').localeCompare(String(b.date || ''));
+        if (byDate !== 0) {
+          return byDate;
+        }
+        return String(a.createdAt || '').localeCompare(String(b.createdAt || ''));
+      });
+
+    const bestByExercise = new Map();
+    let prSignals = 0;
+
+    sortedWorkoutLogs.forEach((entry) => {
+      const identity = resolveExerciseIdentity(entry.exerciseName, entry.exerciseId);
+      const exerciseKey = identity.exerciseId || normalizeExerciseLabel(entry.exerciseName || '');
+      const currentBest = Number(bestByExercise.get(exerciseKey) || 0);
+      const weight = Number(entry.weight || 0);
+
+      if (recentWorkoutSet.has(String(entry.date || '')) && weight > currentBest) {
+        prSignals += 1;
+      }
+
+      if (weight > currentBest) {
+        bestByExercise.set(exerciseKey, weight);
+      }
+    });
+
+    const targetProtein = Number(macroTargets?.protein || 0);
+    const recentRatio = targetProtein > 0 ? avgRecentProtein / targetProtein : 0;
+
+    if (trainedDaysRecent >= 2 && prSignals > 0 && proteinDeltaPercent <= -10) {
+      return {
+        tone: 'warning',
+        title: 'Performance subindo, recuperacao em risco',
+        message: `Voce teve sinal de PR recente, mas a proteina caiu ${Math.abs(proteinDeltaPercent)}% vs janela anterior. Priorize refeicao proteica hoje para sustentar evolucao.`,
+        prSignals,
+        proteinDeltaPercent,
+      };
+    }
+
+    if (trainedDaysRecent >= 2 && recentRatio < 0.8) {
+      const deficit = Math.max(0, Math.round(targetProtein - avgRecentProtein));
+      return {
+        tone: 'warning',
+        title: 'Treino consistente, proteina abaixo do ideal',
+        message: `Nos ultimos 3 dias voce treinou ${trainedDaysRecent} dia(s), mas ficou em media ${deficit}g abaixo da meta de proteina.`,
+        prSignals,
+        proteinDeltaPercent,
+      };
+    }
+
+    if (prSignals > 0 && recentRatio >= 0.9) {
+      return {
+        tone: 'success',
+        title: 'Recuperacao alinhada com a performance',
+        message: `Bom sinal: PR recente com proteina em faixa forte. Mantenha o ritmo para consolidar ganho de carga.`,
+        prSignals,
+        proteinDeltaPercent,
+      };
+    }
+
+    return {
+      tone: 'default',
+      title: 'Base consistente em construcao',
+      message: 'Seu treino e nutricao estao progredindo. Continue registrando para liberar insights mais agressivos.',
+      prSignals,
+      proteinDeltaPercent,
+    };
+  };
+
   const getNutritionFeedback = ({ proteinConsumed, caloriesConsumed, trainedToday } = {}) => {
     const macroTargets = getNutritionMacroTargets(plan, profile);
     const todayTotals = sumNutritionTotals(getTodayFoodLog());
@@ -2764,6 +2941,8 @@ export const AppProvider=({children})=>{
         estimateNutritionFromPhotoHint,
         getDailyMacroTargets,
         getNutritionFeedback,
+        getTopFoods,
+        getPerformanceRecoveryInsight,
         getWeeklyMacroSummary,
         getPerformanceScore,
         getAutoCoachSuggestions,
