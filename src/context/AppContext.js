@@ -1,14 +1,31 @@
 
-import React,{createContext,useContext,useEffect,useMemo,useRef,useState} from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { sumNutritionTotals } from './modules/nutrition';
 import { applyPainAdaptiveWorkout, getNextWeightSuggestion, getRecommendedWorkout, getWeekBounds, getWorkoutDelta } from './modules/workout';
 import { buildCoachMessage, buildDailyCoachState, buildWeeklyUrgency } from './modules/coach';
 import { getCanonicalExerciseId, getCanonicalMuscleGroup, getExerciseNamesFromDatabase } from '../data/exerciseDatabase';
 import { getCanonicalFoodData, getFoodCatalog, matchNutritionToken, searchNutritionDatabase } from '../data/nutritionDatabase';
 import { sendIntelligentNotification } from '../utils/notifications';
+import {
+  getAnalyticsSnapshot,
+  getProductMetricsSnapshot,
+  getProductMetricsSnapshotHistory,
+  saveProductMetricsSnapshot,
+  SCREENS,
+  setAnalyticsContext,
+  trackEvent,
+} from '../utils/analytics';
+import { logError } from '../core/logger';
+import { useSubscriptionDomain } from './subscription/SubscriptionProvider';
+import { getJsonItem, removeItem, setJsonItem } from '../services/storageService';
+import { getTodayWorkoutUseCase } from '../domains/workout/useCases/getTodayWorkout';
+import { getMacroTargetsUseCase } from '../domains/nutrition/useCases/getMacroTargets';
+import { getRecoveryInsightUseCase } from '../domains/coach/useCases/getRecoveryInsight';
 
 const AppContext=createContext();
+const WorkoutContext = createContext(null);
+const NutritionContext = createContext(null);
+const CoachContext = createContext(null);
 const STORAGE_KEY = 'evolucao.profile_plan.v1';
 
 const CALORIE_RANGES = {
@@ -24,34 +41,6 @@ const XP_RULES = {
   consistencyBonus: 30,
   xpPerLevel: 300,
 };
-
-const DEFAULT_MONETIZATION = {
-  plan: 'free',
-  trialStartedAt: null,
-  trialDays: 3,
-  proSince: null,
-};
-
-const NUTRITION_DB = [
-  { key: 'pao', label: 'Pao', calories: 140, protein: 5, carbs: 25, fats: 2 },
-  { key: 'pao frances', label: 'Pao frances', calories: 135, protein: 4.5, carbs: 26, fats: 1.8 },
-  { key: 'ovo', label: 'Ovo', calories: 78, protein: 6, carbs: 1, fats: 5 },
-  { key: 'ovo inteiro', label: 'Ovo inteiro', calories: 78, protein: 6, carbs: 1, fats: 5 },
-  { key: 'queijo', label: 'Queijo', calories: 95, protein: 6, carbs: 1, fats: 7 },
-  { key: 'queijo mussarela', label: 'Queijo mussarela', calories: 86, protein: 6, carbs: 1, fats: 6 },
-  { key: 'frango', label: 'Frango', calories: 165, protein: 31, carbs: 0, fats: 4 },
-  { key: 'arroz', label: 'Arroz', calories: 130, protein: 2.5, carbs: 28, fats: 0.3 },
-  { key: 'feijao', label: 'Feijao', calories: 77, protein: 5, carbs: 14, fats: 0.5 },
-  { key: 'banana', label: 'Banana', calories: 90, protein: 1, carbs: 23, fats: 0.2 },
-  { key: 'iogurte', label: 'Iogurte', calories: 120, protein: 8, carbs: 12, fats: 4 },
-  { key: 'whey', label: 'Whey', calories: 120, protein: 24, carbs: 4, fats: 2 },
-  { key: 'carne', label: 'Carne', calories: 220, protein: 26, carbs: 0, fats: 13 },
-  { key: 'batata', label: 'Batata', calories: 86, protein: 2, carbs: 20, fats: 0.1 },
-  { key: 'aveia', label: 'Aveia', calories: 110, protein: 4, carbs: 19, fats: 2.5 },
-  { key: 'leite', label: 'Leite', calories: 103, protein: 8, carbs: 12, fats: 2.4 },
-  { key: 'macarrao', label: 'Macarrao', calories: 158, protein: 5.8, carbs: 31, fats: 0.9 },
-  { key: 'atum', label: 'Atum', calories: 132, protein: 28, carbs: 0, fats: 1 },
-];
 
 const FOOD_CATALOG = getFoodCatalog();
 
@@ -151,15 +140,15 @@ function getNowTimeLabel() {
 }
 
 function normalizeHistoryStatus(insightStatus) {
-  if (insightStatus === 'otimo') {
-    return 'ok';
-  }
+  const statusMap = {
+    otimo: 'ok',
+    abaixo_meta: 'abaixo',
+    recuperacao_baixa: 'abaixo',
+    sem_plano: 'sem_plano',
+    dados_insuficientes: 'sem_dados',
+  };
 
-  if (insightStatus === 'abaixo_meta' || insightStatus === 'recuperacao_baixa') {
-    return 'abaixo';
-  }
-
-  return 'acima';
+  return statusMap[insightStatus] || 'indefinido';
 }
 
 function round(value) {
@@ -420,21 +409,30 @@ function parseQuantityFromText(text) {
 }
 
 function getNutritionMacroTargets(planData, profileData) {
-  const calories = Number(planData?.caloriesPerDay || 0);
-  const weight = Number(profileData?.currentWeight || 70);
-  const goal = profileData?.goal;
-  const proteinFactor = goal === 'emagrecer' ? 2 : goal === 'ganhar_massa' ? 1.8 : 1.9;
-  const proteinTarget = round(weight * proteinFactor);
-  const fatsTarget = round((calories * 0.27) / 9);
-  const carbsTarget = round(Math.max(0, (calories - proteinTarget * 4 - fatsTarget * 9) / 4));
+  const result = getMacroTargetsUseCase({
+    calories: Number(planData?.caloriesPerDay || 0),
+    weight: Number(profileData?.currentWeight || 70),
+    goal: String(profileData?.goal || ''),
+    overrides: planData?.macroOverrides || {},
+  });
 
-  const overrides = planData?.macroOverrides || {};
-  return {
-    protein: overrides.protein != null ? overrides.protein : proteinTarget,
-    carbs: overrides.carbs != null ? overrides.carbs : carbsTarget,
-    fats: overrides.fats != null ? overrides.fats : fatsTarget,
-    calories,
-  };
+  if (result?.error) {
+    logError(
+      {
+        code: result.error,
+        message: 'Failed to resolve macro targets use case',
+      },
+      { screen: SCREENS.CONTEXT, action: 'getNutritionMacroTargets' }
+    );
+    return {
+      protein: 0,
+      carbs: 0,
+      fats: 0,
+      calories: Number(planData?.caloriesPerDay || 0),
+    };
+  }
+
+  return result;
 }
 
 function classifyMacro(consumed, target) {
@@ -881,7 +879,15 @@ function buildTrainingAdjustment({ trainingGap, consistencyScore }) {
 }
 
 export const AppProvider=({children})=>{
-  const [user,setUser]=useState(null);
+  const {
+    monetization,
+    getSubscriptionStatus,
+    hasFeatureAccess,
+    startProTrial,
+    activateProPlan,
+    resetSubscription,
+  } = useSubscriptionDomain();
+
   const [profile, setProfile] = useState(null);
   const [plan, setPlan] = useState(null);
   const [history, setHistory] = useState([]);
@@ -896,23 +902,85 @@ export const AppProvider=({children})=>{
     lastWorkoutDate: null,
     completedMissions: {},
   });
-  const [monetization, setMonetization] = useState(DEFAULT_MONETIZATION);
   const [isHydrated, setIsHydrated] = useState(false);
   const localDecisionCacheRef = useRef({
     workoutRecommendation: {},
   });
+  const workoutStartedTrackedRef = useRef({});
+  const dailyCaloriesCompletedTrackedRef = useRef({});
+  const missedDayTrackedRef = useRef({});
+  const workoutFlowStartedAtRef = useRef({});
 
   const hasCompletedQuestionnaire = useMemo(() => Boolean(profile && plan), [profile, plan]);
+
+  const getUserStateSnapshot = useCallback(() => {
+    const subscription = getSubscriptionStatus();
+    return {
+      streak: Number(gamification?.streakDays || 0),
+      planType: String(plan?.trainingSplit || plan?.goal || 'unknown'),
+      energyLevel: String(profile?.energyLevel || profile?.level || 'unknown'),
+      isPro: Boolean(subscription?.isPro),
+    };
+  }, [gamification?.streakDays, getSubscriptionStatus, plan?.goal, plan?.trainingSplit, profile?.energyLevel, profile?.level]);
+
+  useEffect(() => {
+    setAnalyticsContext({
+      userId: String(profile?.id || 'anonymous'),
+    });
+  }, [profile?.id]);
+
+  useEffect(() => {
+    const todayKey = getTodayKey();
+    const hasGuidedToday = workoutLogs.some(
+      (item) => item.date === todayKey && (item.mode || 'guided') === 'guided'
+    );
+    if (hasGuidedToday) {
+      workoutStartedTrackedRef.current[todayKey] = true;
+    }
+
+    const todayHistory = history.find((item) => item.date === todayKey);
+    const caloriesTarget = Number(plan?.caloriesPerDay || 0);
+    if (caloriesTarget > 0 && Number(todayHistory?.calories || 0) >= caloriesTarget) {
+      dailyCaloriesCompletedTrackedRef.current[todayKey] = true;
+    }
+  }, [workoutLogs, history, plan?.caloriesPerDay]);
+
+  useEffect(() => {
+    if (!isHydrated) {
+      return;
+    }
+
+    const todayKey = getTodayKey();
+    const lastWorkoutDate = gamification?.lastWorkoutDate;
+    const previousStreak = Number(gamification?.streakDays || 0);
+    if (!lastWorkoutDate || previousStreak <= 0 || missedDayTrackedRef.current[todayKey]) {
+      return;
+    }
+
+    const diffDays = getDateDiffInDays(lastWorkoutDate, todayKey);
+    if (diffDays >= 2) {
+      missedDayTrackedRef.current[todayKey] = true;
+      trackEvent('missed_day', {
+        screen: SCREENS.CONTEXT,
+        meta: {
+          domain: 'engagement',
+          version: 1,
+          dayKey: todayKey,
+          previousStreak,
+          lastActiveDay: lastWorkoutDate,
+        },
+      });
+    }
+  }, [gamification?.lastWorkoutDate, gamification?.streakDays, isHydrated]);
 
   useEffect(() => {
     const loadFromStorage = async () => {
       try {
-        const raw = await AsyncStorage.getItem(STORAGE_KEY);
-        if (!raw) {
+        const parsed = await getJsonItem(STORAGE_KEY);
+        if (!parsed) {
           return;
         }
 
-        const parsed = JSON.parse(raw);
         if (parsed?.profile && parsed?.plan) {
           setProfile(parsed.profile);
           setPlan(parsed.plan);
@@ -950,14 +1018,6 @@ export const AppProvider=({children})=>{
           });
         }
 
-        if (parsed?.monetization && typeof parsed.monetization === 'object') {
-          setMonetization({
-            plan: parsed.monetization.plan === 'pro' ? 'pro' : 'free',
-            trialStartedAt: parsed.monetization.trialStartedAt || null,
-            trialDays: Number(parsed.monetization.trialDays || 3),
-            proSince: parsed.monetization.proSince || null,
-          });
-        }
       } catch (error) {
         // Silently ignore corrupted local data.
       } finally {
@@ -976,22 +1036,18 @@ export const AppProvider=({children})=>{
     const persist = async () => {
       try {
         if (profile && plan) {
-          await AsyncStorage.setItem(
-            STORAGE_KEY,
-            JSON.stringify({
-              profile,
-              plan,
-              history,
-              nutritionLogs,
-              workoutLogs,
-              userRoutines,
-              exerciseTargets,
-              gamification,
-              monetization,
-            })
-          );
+          await setJsonItem(STORAGE_KEY, {
+            profile,
+            plan,
+            history,
+            nutritionLogs,
+            workoutLogs,
+            userRoutines,
+            exerciseTargets,
+            gamification,
+          });
         } else {
-          await AsyncStorage.removeItem(STORAGE_KEY);
+          await removeItem(STORAGE_KEY);
         }
       } catch (error) {
         // Ignore storage write errors to avoid breaking UX.
@@ -999,9 +1055,9 @@ export const AppProvider=({children})=>{
     };
 
     persist();
-  }, [profile, plan, history, nutritionLogs, workoutLogs, userRoutines, exerciseTargets, gamification, monetization, isHydrated]);
+  }, [profile, plan, history, nutritionLogs, workoutLogs, userRoutines, exerciseTargets, gamification, isHydrated]);
 
-  const saveQuestionnaire = (formData) => {
+  const saveQuestionnaire = useCallback((formData) => {
     const normalized = {
       goal: formData.goal,
       level: formData.level,
@@ -1013,9 +1069,9 @@ export const AppProvider=({children})=>{
 
     setProfile(normalized);
     setPlan(generatePlan(normalized));
-  };
+  }, []);
 
-  const updateProfileSettings = (partialData = {}) => {
+  const updateProfileSettings = useCallback((partialData = {}) => {
     if (!profile) {
       return { ok: false, message: 'Perfil ainda nao foi definido.' };
     }
@@ -1042,9 +1098,9 @@ export const AppProvider=({children})=>{
     });
 
     return { ok: true, message: 'Perfil atualizado com sucesso.' };
-  };
+  }, [profile]);
 
-  const resetQuestionnaire = () => {
+  const resetQuestionnaire = useCallback(() => {
     setProfile(null);
     setPlan(null);
     setHistory([]);
@@ -1059,81 +1115,8 @@ export const AppProvider=({children})=>{
       lastWorkoutDate: null,
       completedMissions: {},
     });
-    setMonetization(DEFAULT_MONETIZATION);
-  };
-
-  const getSubscriptionStatus = () => {
-    const isProPlan = monetization.plan === 'pro';
-    const trialStart = monetization.trialStartedAt;
-    const trialDays = Number(monetization.trialDays || 3);
-
-    if (isProPlan) {
-      return {
-        isPro: true,
-        source: 'pro',
-        trialRemainingDays: 0,
-      };
-    }
-
-    if (!trialStart) {
-      return {
-        isPro: false,
-        source: 'free',
-        trialRemainingDays: 0,
-      };
-    }
-
-    const startDate = new Date(`${trialStart}T12:00:00`);
-    const todayDate = new Date(`${getTodayKey()}T12:00:00`);
-    const elapsed = Math.max(0, Math.floor((todayDate - startDate) / (1000 * 60 * 60 * 24)));
-    const remaining = Math.max(0, trialDays - elapsed);
-
-    return {
-      isPro: remaining > 0,
-      source: remaining > 0 ? 'trial' : 'free',
-      trialRemainingDays: remaining,
-    };
-  };
-
-  const hasFeatureAccess = (featureKey) => {
-    const freeFeatures = new Set([
-      'guided_workout',
-      'free_workout',
-      'sets_logging',
-      'scanner_text',
-      'history_basic',
-      'xp_levels',
-      'day_analysis',
-    ]);
-
-    if (freeFeatures.has(featureKey)) {
-      return true;
-    }
-
-    return getSubscriptionStatus().isPro;
-  };
-
-  const startProTrial = () => {
-    setMonetization((prev) => {
-      if (prev.plan === 'pro' || prev.trialStartedAt) {
-        return prev;
-      }
-
-      return {
-        ...prev,
-        trialStartedAt: getTodayKey(),
-        trialDays: Number(prev.trialDays || 3),
-      };
-    });
-  };
-
-  const activateProPlan = () => {
-    setMonetization((prev) => ({
-      ...prev,
-      plan: 'pro',
-      proSince: getTodayKey(),
-    }));
-  };
+    resetSubscription();
+  }, [resetSubscription]);
 
   const saveDailyHistory = ({ consumedCalories, protein, carbs, fats, trainedToday, insight, macroInsight }) => {
     const entryDate = getTodayKey();
@@ -1159,7 +1142,12 @@ export const AppProvider=({children})=>{
   };
 
   const saveNutritionEntry = ({ calories, protein, carbs, fats }) => {
+    const startedAt = Date.now();
     const entryDate = getTodayKey();
+    const caloriesTarget = Number(plan?.caloriesPerDay || 0);
+    const previousToday = history.find((item) => item.date === entryDate);
+    const previousCalories = Number(previousToday?.calories || 0);
+    const nextCalories = Number(calories || 0);
 
     setHistory((prev) => {
       const existing = prev.find((item) => item.date === entryDate);
@@ -1179,6 +1167,58 @@ export const AppProvider=({children})=>{
       const withoutToday = prev.filter((item) => item.date !== entryDate);
       const next = [normalizedEntry, ...withoutToday];
       return next.slice(0, 30);
+    });
+
+    if (
+      caloriesTarget > 0 &&
+      !dailyCaloriesCompletedTrackedRef.current[entryDate] &&
+      previousCalories < caloriesTarget &&
+      nextCalories >= caloriesTarget
+    ) {
+      dailyCaloriesCompletedTrackedRef.current[entryDate] = true;
+      const adherenceScore = clamp(nextCalories / caloriesTarget, 0, 1);
+      trackEvent('daily_calories_completed', {
+        screen: SCREENS.NUTRITION,
+        meta: {
+          domain: 'nutrition',
+          version: 1,
+          dayKey: entryDate,
+          calories: nextCalories,
+          caloriesTarget,
+          adherenceScore,
+          userState: getUserStateSnapshot(),
+        },
+      });
+
+      trackEvent('nutrition_day_completed', {
+        screen: SCREENS.CONTEXT,
+        meta: {
+          domain: 'nutrition',
+          version: 1,
+          action: 'saveNutritionEntry',
+          dayKey: entryDate,
+          totalCalories: nextCalories,
+          protein: Number(protein || 0),
+          adherenceScore,
+          userState: getUserStateSnapshot(),
+        },
+      });
+    }
+
+    trackEvent('nutrition_day_saved', {
+      screen: SCREENS.CONTEXT,
+      meta: {
+        domain: 'nutrition',
+        version: 1,
+        action: 'saveNutritionEntry',
+        dayKey: entryDate,
+        calories: nextCalories,
+        protein: Number(protein || 0),
+        carbs: Number(carbs || 0),
+        fats: Number(fats || 0),
+        durationMs: Date.now() - startedAt,
+        userState: getUserStateSnapshot(),
+      },
     });
 
     return {
@@ -1213,6 +1253,17 @@ export const AppProvider=({children})=>{
   const addFoodLogEntry = ({ foodKey, label, quantity = 1, loggedAt }) => {
     const food = resolveFoodCatalogEntry({ foodKey, label });
     if (!food) {
+      trackEvent('food_log_save_failed', {
+        screen: SCREENS.CONTEXT,
+        meta: {
+          domain: 'nutrition',
+          version: 1,
+          action: 'addFoodLogEntry',
+          reason: 'food_not_found',
+          foodKey: String(foodKey || ''),
+          label: String(label || ''),
+        },
+      });
       return { ok: false, message: 'Alimento nao encontrado no catalogo local.' };
     }
 
@@ -1237,6 +1288,22 @@ export const AppProvider=({children})=>{
       quality,
       ...totals,
     };
+
+    trackEvent('meal_logged', {
+      screen: SCREENS.NUTRITION,
+      meta: {
+        domain: 'nutrition',
+        version: 'v1',
+        source: 'single_item',
+        dayKey: entryDate,
+        itemCount: 1,
+        calories: totals.calories,
+        protein: totals.protein,
+        carbs: totals.carbs,
+        fats: totals.fats,
+        quality: quality.level,
+      },
+    });
 
     let aggregatedForToday = null;
     setNutritionLogs((prev) => {
@@ -1313,12 +1380,47 @@ export const AppProvider=({children})=>{
     });
 
     if (!createdEntries.length) {
+      trackEvent('food_log_save_failed', {
+        screen: SCREENS.CONTEXT,
+        meta: {
+          domain: 'nutrition',
+          version: 1,
+          action: 'addFoodLogEntriesBatch',
+          reason: 'empty_or_invalid_batch',
+          itemCount: Array.isArray(items) ? items.length : 0,
+        },
+      });
       return { ok: false, message: 'Nenhum alimento valido para salvar.' };
     }
 
     if (aggregatedForToday) {
       saveNutritionEntry(aggregatedForToday);
     }
+
+    const batchTotals = createdEntries.reduce(
+      (acc, item) => ({
+        calories: acc.calories + Number(item.calories || 0),
+        protein: acc.protein + Number(item.protein || 0),
+        carbs: acc.carbs + Number(item.carbs || 0),
+        fats: acc.fats + Number(item.fats || 0),
+      }),
+      { calories: 0, protein: 0, carbs: 0, fats: 0 }
+    );
+
+    trackEvent('meal_logged', {
+      screen: SCREENS.NUTRITION,
+      meta: {
+        domain: 'nutrition',
+        version: 'v1',
+        source: 'batch',
+        dayKey: entryDate,
+        itemCount: createdEntries.length,
+        calories: round(batchTotals.calories),
+        protein: round(batchTotals.protein),
+        carbs: round(batchTotals.carbs),
+        fats: round(batchTotals.fats),
+      },
+    });
 
     const lastQuality = createdEntries[createdEntries.length - 1]?.quality || null;
     return {
@@ -1667,15 +1769,19 @@ export const AppProvider=({children})=>{
   };
 
   const getTodayWorkout = () => {
-    const base = getWorkoutBySplit(plan?.trainingSplit).map((exercise, index) => ({
-      ...exercise,
-      id: `${exercise.name}-${index}`,
-      targetWeight: Number(exerciseTargets[exercise.name]?.targetWeight || 0),
-    }));
+    const adaptive = getTodayWorkoutUseCase({
+      trainingSplit: plan?.trainingSplit,
+      exerciseTargets,
+      profile,
+      workoutLogs,
+      library: WORKOUT_LIBRARY,
+      applyPainAdaptiveWorkout,
+      getExerciseCatalogFromSources,
+    });
 
-    const pain = String(profile?.currentPain || profile?.pain || '');
-    const catalog = getExerciseCatalogFromSources(workoutLogs);
-    const adaptive = applyPainAdaptiveWorkout(base, pain, catalog);
+    if (adaptive?.error) {
+      return [];
+    }
 
     if (__DEV__ && adaptive.replacements.length) {
       console.log('match:', 'local');
@@ -1793,16 +1899,43 @@ export const AppProvider=({children})=>{
   };
 
   const saveWorkoutSet = ({ exerciseName, exerciseId, weight, reps, failed, rpe, mode = 'guided' }) => {
+    const startedAt = Date.now();
     const parsedWeight = Number(weight);
     const parsedReps = Number(reps);
     const parsedRpe = rpe == null || rpe === '' ? null : Number(rpe);
     const identity = resolveExerciseIdentity(exerciseName, exerciseId);
 
     if (!identity.exerciseName || !parsedWeight || !parsedReps || parsedWeight < 0 || parsedReps <= 0) {
+      trackEvent('workout_set_save_failed', {
+        screen: SCREENS.CONTEXT,
+        meta: {
+          domain: 'workout',
+          version: 1,
+          action: 'saveWorkoutSet',
+          reason: 'invalid_weight_or_reps',
+          exerciseName: String(identity.exerciseName || exerciseName || ''),
+          mode,
+          durationMs: Date.now() - startedAt,
+          userState: getUserStateSnapshot(),
+        },
+      });
       return { ok: false, message: 'Informe peso e repeticoes validos.' };
     }
 
     if (parsedRpe != null && (!Number.isFinite(parsedRpe) || parsedRpe < 6 || parsedRpe > 10)) {
+      trackEvent('workout_set_save_failed', {
+        screen: SCREENS.CONTEXT,
+        meta: {
+          domain: 'workout',
+          version: 1,
+          action: 'saveWorkoutSet',
+          reason: 'invalid_rpe',
+          exerciseName: identity.exerciseName,
+          mode,
+          durationMs: Date.now() - startedAt,
+          userState: getUserStateSnapshot(),
+        },
+      });
       return { ok: false, message: 'RPE deve ficar entre 6 e 10.' };
     }
 
@@ -1829,6 +1962,40 @@ export const AppProvider=({children})=>{
 
     if (willCompleteWorkoutToday) {
       workoutCompletionXp += XP_RULES.completeWorkout;
+    }
+
+    if (mode === 'guided' && todayGuidedBefore === 0 && !workoutStartedTrackedRef.current[todayKey]) {
+      workoutStartedTrackedRef.current[todayKey] = true;
+      workoutFlowStartedAtRef.current[todayKey] = Date.now();
+      trackEvent('workout_started', {
+        screen: SCREENS.WORKOUT,
+        meta: {
+          domain: 'workout',
+          version: 1,
+          dayKey: todayKey,
+          trainingSplit: String(plan?.trainingSplit || ''),
+          plannedSets: plannedGuidedSets,
+          userState: getUserStateSnapshot(),
+        },
+      });
+    }
+
+    if (willCompleteWorkoutToday) {
+      const flowStart = Number(workoutFlowStartedAtRef.current[todayKey] || startedAt);
+      const flowDurationMs = Math.max(0, Date.now() - flowStart);
+      trackEvent('workout_completed', {
+        screen: SCREENS.WORKOUT,
+        meta: {
+          domain: 'workout',
+          version: 1,
+          dayKey: todayKey,
+          guidedSets: todayGuidedBefore + 1,
+          plannedSets: plannedGuidedSets,
+          completionRate: plannedGuidedSets > 0 ? 1 : 0,
+          durationMs: flowDurationMs,
+          userState: getUserStateSnapshot(),
+        },
+      });
     }
 
     const consistencyBonusXp =
@@ -1872,13 +2039,27 @@ export const AppProvider=({children})=>{
       const previousDate = prev?.lastWorkoutDate || null;
       const isConsecutive = previousDate === getPreviousDateKey(todayKey);
       const sameDay = previousDate === todayKey;
+      const previousStreakDays = Number(prev?.streakDays || 0);
       const nextStreak = willCompleteWorkoutToday
         ? sameDay
           ? Number(prev?.streakDays || 1)
           : isConsecutive
-          ? Number(prev?.streakDays || 0) + 1
+          ? previousStreakDays + 1
           : 1
-        : Number(prev?.streakDays || 0);
+        : previousStreakDays;
+
+      if (willCompleteWorkoutToday && nextStreak !== previousStreakDays) {
+        trackEvent('streak_updated', {
+          screen: SCREENS.CONTEXT,
+          meta: {
+            domain: 'engagement',
+            version: 1,
+            dayKey: todayKey,
+            streak: nextStreak,
+            previousStreak: previousStreakDays,
+          },
+        });
+      }
 
       return {
         xp: prevXp + xpDelta,
@@ -1886,6 +2067,23 @@ export const AppProvider=({children})=>{
         streakDays: nextStreak,
         lastWorkoutDate: willCompleteWorkoutToday ? todayKey : previousDate,
       };
+    });
+
+    trackEvent('workout_set_saved', {
+      screen: SCREENS.CONTEXT,
+      meta: {
+        domain: 'workout',
+        version: 1,
+        action: 'saveWorkoutSet',
+        dayKey: todayKey,
+        exerciseName: identity.exerciseName,
+        mode,
+        weight: parsedWeight,
+        reps: parsedReps,
+        isNewLoadPR,
+        durationMs: Date.now() - startedAt,
+        userState: getUserStateSnapshot(),
+      },
     });
 
     return {
@@ -2363,13 +2561,6 @@ export const AppProvider=({children})=>{
     });
   };
 
-  const getPainAwareExerciseOptions = (painText = '') => {
-    const catalog = getExerciseCatalogFromSources(workoutLogs);
-    const asExercises = catalog.map((name) => ({ name }));
-    const adapted = adaptWorkoutForPain(asExercises, painText);
-    return adapted.map((item) => item.name);
-  };
-
   const getTodayWorkoutSummary = () => {
     const today = getTodayKey();
     const todayLogs = workoutLogs.filter((item) => item.date === today);
@@ -2547,6 +2738,18 @@ export const AppProvider=({children})=>{
 
     const targetProtein = Number(macroTargets?.protein || 0);
     const recentRatio = targetProtein > 0 ? avgRecentProtein / targetProtein : 0;
+    const recovery = getRecoveryInsightUseCase({ proteinRatio: recentRatio });
+    const recoveryScore = recovery?.error ? 0 : Number(recovery.recoveryScore || 0);
+    const recoveryStatus = recovery?.error ? 'sem_dados' : recovery.recoveryStatus;
+    if (recovery?.error) {
+      logError(
+        {
+          code: recovery.error,
+          message: 'Failed to resolve recovery insight use case',
+        },
+        { screen: SCREENS.CONTEXT, action: 'getPerformanceRecoveryInsight' }
+      );
+    }
 
     if (trainedDaysRecent >= 2 && prSignals > 0 && proteinDeltaPercent <= -10) {
       return {
@@ -2555,6 +2758,7 @@ export const AppProvider=({children})=>{
         message: `Voce teve sinal de PR recente, mas a proteina caiu ${Math.abs(proteinDeltaPercent)}% vs janela anterior. Priorize refeicao proteica hoje para sustentar evolucao.`,
         prSignals,
         proteinDeltaPercent,
+        recoveryStatus,
       };
     }
 
@@ -2566,6 +2770,7 @@ export const AppProvider=({children})=>{
         message: `Nos ultimos 3 dias voce treinou ${trainedDaysRecent} dia(s), mas ficou em media ${deficit}g abaixo da meta de proteina.`,
         prSignals,
         proteinDeltaPercent,
+        recoveryStatus,
       };
     }
 
@@ -2576,6 +2781,7 @@ export const AppProvider=({children})=>{
         message: `Bom sinal: PR recente com proteina em faixa forte. Mantenha o ritmo para consolidar ganho de carga.`,
         prSignals,
         proteinDeltaPercent,
+        recoveryStatus,
       };
     }
 
@@ -2585,6 +2791,7 @@ export const AppProvider=({children})=>{
       message: 'Seu treino e nutricao estao progredindo. Continue registrando para liberar insights mais agressivos.',
       prSignals,
       proteinDeltaPercent,
+      recoveryStatus,
     };
   };
 
@@ -2775,6 +2982,23 @@ export const AppProvider=({children})=>{
     else label = 'Pouco dados';
     return { score: totalScore, training: trainingScore, diet: dietScore, consistency: consistencyScore, label, maxTraining: 40, maxDiet: 35, maxConsistency: 25 };
   };
+
+  const getDebugMetricsSnapshot = () => {
+    return getAnalyticsSnapshot();
+  };
+
+  const getProductMetricsDashboard = useCallback(async () => {
+    const snapshot = getProductMetricsSnapshot();
+    const history = await saveProductMetricsSnapshot(snapshot);
+    return {
+      snapshot,
+      history,
+    };
+  }, []);
+
+  const getProductMetricsHistory = useCallback(async () => {
+    return getProductMetricsSnapshotHistory();
+  }, []);
 
   const getAutoCoachSuggestions = () => {
     const weeklyMacro = getWeeklyMacroSummary();
@@ -3007,11 +3231,7 @@ export const AppProvider=({children})=>{
     });
   }, [isHydrated, profile, plan, nutritionLogs, workoutLogs, history]);
 
-  return(
-    <AppContext.Provider
-      value={{
-        user,
-        setUser,
+  const contextValue = useMemo(() => ({
         profile,
         plan,
         history,
@@ -3039,7 +3259,6 @@ export const AppProvider=({children})=>{
         saveFreeWorkoutSet,
         getExerciseProgress,
         getExerciseProgressionSuggestion,
-        getPainAwareExerciseOptions,
         getTodayWorkoutSummary,
         getExerciseSetProgress,
         getExerciseCatalog,
@@ -3064,6 +3283,9 @@ export const AppProvider=({children})=>{
         getScoreTrendSummary,
         getTopFoods,
         getPerformanceRecoveryInsight,
+        getDebugMetricsSnapshot,
+        getProductMetricsDashboard,
+        getProductMetricsHistory,
         getWeeklyMacroSummary,
         getPerformanceScore,
         getAutoCoachSuggestions,
@@ -3086,11 +3308,231 @@ export const AppProvider=({children})=>{
         startProTrial,
         activateProPlan,
         removeTodayWorkoutSet,
-      }}
+      }), [
+        profile,
+        plan,
+        history,
+        nutritionLogs,
+        workoutLogs,
+        exerciseTargets,
+        gamification,
+        monetization,
+        hasCompletedQuestionnaire,
+        isHydrated,
+        saveQuestionnaire,
+        updateProfileSettings,
+        resetQuestionnaire,
+        analyzeDay,
+        getRecentHistory,
+        getWeeklySummary,
+        getWeeklyInsight,
+        getAutoAdjustmentSuggestion,
+        applyAutoPlanAdjustment,
+        getTodayWorkout,
+        getSmartWorkoutRecommendation,
+        getRecommendedWorkoutV4,
+        prepareTodayWorkoutTargets,
+        saveWorkoutSet,
+        saveFreeWorkoutSet,
+        getExerciseProgress,
+        getExerciseProgressionSuggestion,
+        getTodayWorkoutSummary,
+        getExerciseSetProgress,
+        getExerciseCatalog,
+        getUserRoutines,
+        createUserRoutine,
+        updateUserRoutine,
+        duplicateUserRoutine,
+        reorderUserRoutineExercises,
+        deleteUserRoutine,
+        getWorkoutTemplates,
+        createRoutineFromTemplate,
+        saveTodayWorkoutAsRoutine,
+        getExercisesByMuscleGroup,
+        getFreeWorkoutSuggestions,
+        getWorkoutGamification,
+        getExerciseHistorySnapshot,
+        estimateNutritionFromText,
+        estimateNutritionFromPhotoHint,
+        getDailyMacroTargets,
+        getNutritionFeedback,
+        getDailyScoreForDate,
+        getScoreTrendSummary,
+        getTopFoods,
+        getPerformanceRecoveryInsight,
+        getDebugMetricsSnapshot,
+        getProductMetricsDashboard,
+        getProductMetricsHistory,
+        getWeeklyMacroSummary,
+        getPerformanceScore,
+        getAutoCoachSuggestions,
+        applyMacroOverride,
+        getDailyMissions,
+        completeMission,
+        saveNutritionEntry,
+        searchFoodCatalog,
+        addFoodLogEntry,
+        addFoodLogEntriesBatch,
+        removeFoodLogEntry,
+        getTodayFoodLog,
+        evaluateMealQuality,
+        addWaterIntake,
+        getSubscriptionStatus,
+        hasFeatureAccess,
+        startProTrial,
+        activateProPlan,
+        removeTodayWorkoutSet,
+      ]);
+
+  const workoutValue = useMemo(() => ({
+    getTodayWorkout,
+    getSmartWorkoutRecommendation,
+    getRecommendedWorkoutV4,
+    prepareTodayWorkoutTargets,
+    saveWorkoutSet,
+    saveFreeWorkoutSet,
+    removeTodayWorkoutSet,
+    getExerciseProgress,
+    getExerciseSetProgress,
+    getExerciseProgressionSuggestion,
+    getExerciseCatalog,
+    getExercisesByMuscleGroup,
+    getFreeWorkoutSuggestions,
+    getWorkoutGamification,
+    getExerciseHistorySnapshot,
+    getTodayWorkoutSummary,
+    getWorkoutDelta,
+    workoutLogs,
+    gamification,
+    exerciseTargets,
+  }), [
+    getTodayWorkout,
+    getSmartWorkoutRecommendation,
+    getRecommendedWorkoutV4,
+    prepareTodayWorkoutTargets,
+    saveWorkoutSet,
+    saveFreeWorkoutSet,
+    removeTodayWorkoutSet,
+    getExerciseProgress,
+    getExerciseSetProgress,
+    getExerciseProgressionSuggestion,
+    getExerciseCatalog,
+    getExercisesByMuscleGroup,
+    getFreeWorkoutSuggestions,
+    getWorkoutGamification,
+    getExerciseHistorySnapshot,
+    getTodayWorkoutSummary,
+    getWorkoutDelta,
+    workoutLogs,
+    gamification,
+    exerciseTargets,
+  ]);
+
+  const nutritionValue = useMemo(() => ({
+    estimateNutritionFromText,
+    estimateNutritionFromPhotoHint,
+    searchFoodCatalog,
+    addFoodLogEntry,
+    addFoodLogEntriesBatch,
+    removeFoodLogEntry,
+    getTodayFoodLog,
+    getDailyMacroTargets,
+    getWeeklyMacroSummary,
+    getNutritionFeedback,
+    getTopFoods,
+    getPerformanceRecoveryInsight,
+    evaluateMealQuality,
+    saveNutritionEntry,
+    nutritionLogs,
+    history,
+    plan,
+  }), [
+    estimateNutritionFromText,
+    estimateNutritionFromPhotoHint,
+    searchFoodCatalog,
+    addFoodLogEntry,
+    addFoodLogEntriesBatch,
+    removeFoodLogEntry,
+    getTodayFoodLog,
+    getDailyMacroTargets,
+    getWeeklyMacroSummary,
+    getNutritionFeedback,
+    getTopFoods,
+    getPerformanceRecoveryInsight,
+    evaluateMealQuality,
+    saveNutritionEntry,
+    nutritionLogs,
+    history,
+    plan,
+  ]);
+
+  const coachValue = useMemo(() => ({
+    buildDailyCoachState,
+    buildCoachMessage,
+    getAutoCoachSuggestions,
+    applyMacroOverride,
+    getDailyMissions,
+    completeMission,
+    getPerformanceScore,
+    getNutritionFeedback,
+    getSmartWorkoutRecommendation,
+    addWaterIntake,
+    history,
+    nutritionLogs,
+    workoutLogs,
+  }), [
+    getAutoCoachSuggestions,
+    applyMacroOverride,
+    getDailyMissions,
+    completeMission,
+    getPerformanceScore,
+    getNutritionFeedback,
+    getSmartWorkoutRecommendation,
+    addWaterIntake,
+    history,
+    nutritionLogs,
+    workoutLogs,
+  ]);
+
+  return(
+    <AppContext.Provider
+      value={contextValue}
     >
-      {children}
+      <WorkoutContext.Provider value={workoutValue}>
+        <NutritionContext.Provider value={nutritionValue}>
+          <CoachContext.Provider value={coachValue}>
+            {children}
+          </CoachContext.Provider>
+        </NutritionContext.Provider>
+      </WorkoutContext.Provider>
     </AppContext.Provider>
   );
 };
 
 export const useApp=()=>useContext(AppContext);
+export const useWorkoutDomain = () => {
+  const context = useContext(WorkoutContext);
+  if (!context) {
+    throw new Error('useWorkoutDomain must be used within AppProvider');
+  }
+
+  return context;
+};
+
+export const useNutritionDomain = () => {
+  const context = useContext(NutritionContext);
+  if (!context) {
+    throw new Error('useNutritionDomain must be used within AppProvider');
+  }
+
+  return context;
+};
+
+export const useCoachDomain = () => {
+  const context = useContext(CoachContext);
+  if (!context) {
+    throw new Error('useCoachDomain must be used within AppProvider');
+  }
+
+  return context;
+};

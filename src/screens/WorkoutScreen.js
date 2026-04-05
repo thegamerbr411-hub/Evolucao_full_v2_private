@@ -15,7 +15,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { useNotifications, useNutrition, useWorkout } from '../hooks';
 import { getCanonicalExerciseId, getCanonicalMuscleGroup } from '../data/exerciseDatabase';
-import { trackEvent } from '../utils/analytics';
+import { SCREENS, trackAppError, trackEvent } from '../utils/analytics';
 import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { colors, spacing } from '../theme';
 
@@ -123,6 +123,30 @@ export default function WorkoutScreen({ navigation }) {
   const [actionFeedback, setActionFeedback] = useState('');
 
   const postWorkoutNutritionFeedback = getNutritionFeedback({ trainedToday: true });
+
+  const navigateWithTracking = (target, params, action) => {
+    trackEvent('navigation_triggered', {
+      screen: SCREENS.WORKOUT,
+      meta: {
+        domain: 'navigation',
+        version: 1,
+        action,
+        from: SCREENS.WORKOUT,
+        to: target,
+      },
+    });
+
+    try {
+      navigation.navigate(target, params);
+    } catch (error) {
+      trackAppError(error, {
+        screen: SCREENS.WORKOUT,
+        action: 'navigation.navigate',
+        target,
+        context: { navigationAction: action },
+      });
+    }
+  };
 
   const scrollRef = useRef(null);
   const exercisePositionsRef = useRef({});
@@ -259,18 +283,13 @@ export default function WorkoutScreen({ navigation }) {
     }
 
     postWorkoutTriggeredRef.current = true;
-    trackEvent('workout_completed', {
-      guidedSets: summary.guidedSets,
-      plannedSets: summary.plannedSets,
-      completionRate: summary.completionRate,
-    });
 
     if (!hasFeatureAccess('auto_coach')) {
-      navigation.navigate('Paywall', {
+      navigateWithTracking('Paywall', {
         featureKey: 'auto_coach',
         source: 'post_workout',
         message: 'Treino completo, mas voce ainda esta treinando no escuro. O Auto Coach ajusta seu treino automaticamente.',
-      });
+      }, 'post_workout_paywall');
     }
   }, [summary.completionRate, summary.guidedSets, summary.plannedSets, hasFeatureAccess, navigation]);
 
@@ -826,7 +845,7 @@ export default function WorkoutScreen({ navigation }) {
 
   const goToEvolution = () => {
     setShowWorkoutSummary(false);
-    navigation.navigate('Insights');
+    navigateWithTracking('Insights', undefined, 'post_workout_insights');
   };
 
   const savePartialAndExit = () => {

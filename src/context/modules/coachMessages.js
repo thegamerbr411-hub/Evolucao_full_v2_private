@@ -1,0 +1,75 @@
+export function buildCoachMessage(state) {
+  const done = state?.done || {};
+  const missing = state?.missing || {};
+
+  const doneText =
+    `Proteina: ${Number(done.protein || 0)}g | Agua: ${Number(done.water || 0)}ml` +
+    (done.workout ? ' | Treino: ✔' : ' | Treino: ❌');
+
+  const missingParts = [];
+  if (Number(missing.proteinLeft || 0) > 0) {
+    missingParts.push(`${Number(missing.proteinLeft || 0)}g proteina`);
+  }
+  if (Number(missing.waterLeft || 0) > 0) {
+    missingParts.push(`${Number(missing.waterLeft || 0)}ml agua`);
+  }
+  if (missing.needsWorkoutToday) {
+    missingParts.push('treino');
+  }
+
+  const missingText = missingParts.length ? missingParts.join(' + ') : 'Nada critico';
+
+  let action = 'Manter consistencia';
+  if (missing.needsWorkoutToday) {
+    action = 'Iniciar treino agora';
+  } else if (Number(missing.proteinLeft || 0) > 0) {
+    action = 'Fazer refeicao proteica';
+  } else if (Number(missing.waterLeft || 0) > 0) {
+    action = 'Beber agua agora';
+  }
+
+  let urgencyLevel = 'baixa';
+  if (
+    missing.needsWorkoutToday &&
+    Number(missing.proteinLeft || 0) >= 30
+  ) {
+    urgencyLevel = 'alta';
+  } else if (
+    Number(missing.proteinLeft || 0) > 0 ||
+    Number(missing.waterLeft || 0) > 0 ||
+    missing.needsWorkoutToday
+  ) {
+    urgencyLevel = 'media';
+  }
+
+  const waterLeft = Number(missing.waterLeft || 0);
+  const waterQuickMl = waterLeft <= 0 ? 0 : waterLeft <= 120 ? 100 : 300;
+
+  const quickActions = {
+    trainingTitle: missing.needsWorkoutToday ? 'Treinar' : 'Treino OK',
+    nutritionTitle: Number(missing.proteinLeft || 0) > 0 ? 'Comer' : 'Proteina OK',
+    waterTitle: waterQuickMl ? `+${waterQuickMl}ml` : 'Agua OK',
+    routineTitle: Number(missing.workoutsLeft || 0) > 0 ? 'Rotina' : 'Rotina OK',
+    waterQuickMl,
+  };
+
+  const completedGoals = [
+    Number(done.protein || 0) >= Number((Number(done.protein || 0) + Number(missing.proteinLeft || 0)) || 0) && Number(done.protein || 0) > 0,
+    Number(done.water || 0) >= Number((Number(done.water || 0) + Number(missing.waterLeft || 0)) || 0) && Number(done.water || 0) > 0,
+    Boolean(done.workout),
+  ].filter(Boolean).length;
+
+  const totalGoals = 3;
+  const isPerfectDay = completedGoals === totalGoals;
+
+  return {
+    doneText,
+    missingText,
+    action,
+    urgencyLevel,
+    quickActions,
+    completedGoals,
+    totalGoals,
+    isPerfectDay,
+  };
+}

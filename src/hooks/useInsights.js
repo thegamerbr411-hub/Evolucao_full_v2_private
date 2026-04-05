@@ -1,14 +1,14 @@
 import { useMemo } from 'react';
-import { useApp } from '../context/AppContext';
+import { useNutritionDomain } from '../context/AppContext';
 
 export function useInsights() {
-  const app = useApp();
+  const nutrition = useNutritionDomain();
 
   return useMemo(
     () => ({
-      getTopFoods: app.getTopFoods,
-      getPerformanceRecoveryInsight: app.getPerformanceRecoveryInsight,
+      getTopFoods: nutrition.getTopFoods,
+      getPerformanceRecoveryInsight: nutrition.getPerformanceRecoveryInsight,
     }),
-    [app]
+    [nutrition]
   );
 }

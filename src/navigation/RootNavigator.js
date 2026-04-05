@@ -11,6 +11,7 @@ import WorkoutScreen from '../screens/WorkoutScreen';
 import FreeWorkoutScreen from '../screens/FreeWorkoutScreen';
 import WeeklyMacroScreen from '../screens/WeeklyMacroScreen';
 import AutoCoachScreen from '../screens/AutoCoachScreen';
+import DebugMetricsScreen from '../screens/DebugMetricsScreen';
 import PaywallScreen from '../screens/PaywallScreen';
 import InsightsScreen from '../screens/InsightsScreen';
 import MainTabs from './MainTabs';
@@ -40,6 +41,7 @@ export default function RootNavigator(){
       <Stack.Screen name="TreinoLivre" component={FreeWorkoutScreen}/>
       <Stack.Screen name="MacroSemanal" component={WeeklyMacroScreen}/>
       <Stack.Screen name="AutoCoach" component={AutoCoachScreen}/>
+      {(__DEV__ ? true : false) ? <Stack.Screen name="DebugMetrics" component={DebugMetricsScreen}/> : null}
       <Stack.Screen name="Paywall" component={PaywallScreen}/>
     </Stack.Navigator>
   );

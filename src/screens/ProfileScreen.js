@@ -16,7 +16,7 @@ const LEVELS = [
   { key: 'avancado', label: 'Avancado' },
 ];
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ navigation }) {
   const {
     profile,
     plan,
@@ -128,6 +128,9 @@ export default function ProfileScreen() {
         <Text style={styles.metric}>Estrategia: {String(plan?.strategy || 'recomposicao')}</Text>
       </AppCard>
 
+      {(__DEV__ ? true : false) ? (
+        <PrimaryButton title="Abrir Debug Metrics" onPress={() => navigation.navigate('DebugMetrics')} />
+      ) : null}
       <PrimaryButton title="Salvar perfil" onPress={saveProfile} />
     </ScrollView>
   );

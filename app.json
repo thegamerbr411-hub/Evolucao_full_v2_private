@@ -3,20 +3,8 @@
     "name": "Evolucao",
     "slug": "evolucao-full-v2",
     "version": "1.0.0",
-    "orientation": "portrait",
-    "userInterfaceStyle": "automatic",
-    "splash": {
-      "resizeMode": "contain",
-      "backgroundColor": "#0A1224"
-    },
     "assetBundlePatterns": [
       "**/*"
-    ],
-    "android": {
-      "package": "com.evolucao.app",
-      "adaptiveIcon": {
-        "backgroundColor": "#0A1224"
-      }
-    }
+    ]
   }
 }

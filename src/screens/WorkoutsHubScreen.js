@@ -1,8 +1,41 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { colors, spacing } from '../theme';
+
+export function WorkoutsHubView({ navigation, summary, todayWorkout, recommended }) {
+  const safeSummary = summary || { guidedSets: 0 };
+  const safeTodayWorkout = Array.isArray(todayWorkout) ? todayWorkout : [];
+  const safeRecommended = recommended || { title: 'Sem recomendacao', source: 'fallback', confidenceScore: 0, decisionReasons: [], replacements: [] };
+
+  return (
+    <ScrollView contentContainerStyle={styles.container}>
+      <ScreenHeader title="Treinos" subtitle="Planeje, execute e ajuste o treino do dia." />
+
+      <AppCard>
+        <Text style={styles.cardTitle}>Hoje</Text>
+        <Text style={styles.cardLine}>Exercicios planejados: {safeTodayWorkout.length}</Text>
+        <Text style={styles.cardLine}>Series registradas: {safeSummary.guidedSets}</Text>
+      </AppCard>
+
+      <AppCard>
+        <Text style={styles.cardTitle}>Motor inteligente V4</Text>
+        <Text style={styles.cardLine}>Treino recomendado: {safeRecommended.title}</Text>
+        <Text style={styles.cardLine}>Fonte: {safeRecommended.source} | Confianca: {Math.round(Number(safeRecommended.confidenceScore || 0) * 100)}%</Text>
+        {(safeRecommended.decisionReasons || []).map((reason) => (
+          <Text key={reason} style={styles.reasonLine}>* {reason}</Text>
+        ))}
+        {(safeRecommended.replacements || []).map((change, index) => (
+          <Text key={`${change.from}-${change.to}-${index}`} style={styles.replacementLine}>Adaptacao automatica: {`${change.from} para ${change.to}`}</Text>
+        ))}
+      </AppCard>
+
+      <PrimaryButton title="Iniciar treino recomendado" onPress={() => navigation.navigate('TreinoHoje')} style={styles.primaryButton} />
+      <SecondaryButton title="Treino livre" onPress={() => navigation.navigate('TreinoLivre')} />
+    </ScrollView>
+  );
+}
 
 export default function WorkoutsHubScreen({ navigation }) {
   const { getTodayWorkoutSummary, getTodayWorkout, getRecommendedWorkoutV4 } = useApp();
@@ -10,41 +43,17 @@ export default function WorkoutsHubScreen({ navigation }) {
   const todayWorkout = getTodayWorkout();
   const recommended = getRecommendedWorkoutV4();
 
-  return (
-    <View style={styles.container}>
-      <ScreenHeader title="Treinos" subtitle="Planeje, execute e ajuste o treino do dia." />
-
-      <AppCard>
-        <Text style={styles.cardTitle}>Hoje</Text>
-        <Text style={styles.cardLine}>Exercicios planejados: {todayWorkout.length}</Text>
-        <Text style={styles.cardLine}>Series registradas: {summary.guidedSets}</Text>
-      </AppCard>
-
-      <AppCard>
-        <Text style={styles.cardTitle}>Motor inteligente V4</Text>
-        <Text style={styles.cardLine}>Treino recomendado: {recommended.title}</Text>
-        <Text style={styles.cardLine}>Fonte: {recommended.source} | Confianca: {Math.round(Number(recommended.confidenceScore || 0) * 100)}%</Text>
-        {(recommended.decisionReasons || []).map((reason) => (
-          <Text key={reason} style={styles.reasonLine}>• {reason}</Text>
-        ))}
-        {(recommended.replacements || []).map((change, index) => (
-          <Text key={`${change.from}-${change.to}-${index}`} style={styles.replacementLine}>Adaptacao automatica: {change.from} {'=>'} {change.to}</Text>
-        ))}
-      </AppCard>
-
-      <PrimaryButton title="Iniciar treino recomendado" onPress={() => navigation.navigate('TreinoHoje')} style={styles.primaryButton} />
-
-      <SecondaryButton title="Treino livre" onPress={() => navigation.navigate('TreinoLivre')} />
-    </View>
-  );
+  return <WorkoutsHubView navigation={navigation} summary={summary} todayWorkout={todayWorkout} recommended={recommended} />;
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
     backgroundColor: colors.background,
     paddingTop: 56,
     paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
+    gap: spacing.md,
   },
   cardTitle: {
     color: colors.textPrimary,

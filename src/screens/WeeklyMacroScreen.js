@@ -40,18 +40,7 @@ function DayRow({ item, isLast }) {
 export default function WeeklyMacroScreen({ navigation }) {
   const { getWeeklyMacroSummary, getNutritionFeedback } = useNutrition();
   const { hasFeatureAccess } = useNotifications();
-
-  if (!hasFeatureAccess('weekly_macros')) {
-    return (
-      <View style={styles.lockContainer}>
-        <ScreenHeader title="Macros da Semana" subtitle="Esse recurso faz parte do Evolucao PRO." />
-        <PrimaryButton
-          title="Desbloquear PRO"
-          onPress={() => navigation.replace('Paywall', { featureKey: 'weekly_macros', source: 'weekly_macro_screen' })}
-        />
-      </View>
-    );
-  }
+  const hasAccess = hasFeatureAccess('weekly_macros');
 
   const summary = useMemo(() => getWeeklyMacroSummary(), [getWeeklyMacroSummary]);
   const hasData = Array.isArray(summary.days) && summary.days.length > 0;
@@ -102,6 +91,18 @@ export default function WeeklyMacroScreen({ navigation }) {
     }
     return actions.slice(0, 2);
   }, [proteinRisk.isHigh, summary.highFatDays, summary.lowCarbDays, summary.trainedDays]);
+
+  if (!hasAccess) {
+    return (
+      <View style={styles.lockContainer}>
+        <ScreenHeader title="Macros da Semana" subtitle="Esse recurso faz parte do Evolucao PRO." />
+        <PrimaryButton
+          title="Desbloquear PRO"
+          onPress={() => navigation.replace('Paywall', { featureKey: 'weekly_macros', source: 'weekly_macro_screen' })}
+        />
+      </View>
+    );
+  }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>

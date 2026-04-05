@@ -4,7 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useNotifications, useNutrition } from '../hooks';
-import { trackEvent } from '../utils/analytics';
+import { SCREENS, trackAppError, trackEvent } from '../utils/analytics';
 import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { colors, spacing } from '../theme';
 
@@ -38,6 +38,30 @@ export default function NutritionScanner({ navigation, route }) {
   const [mealDraftItems, setMealDraftItems] = useState([]);
   const [favoriteFoodKeys, setFavoriteFoodKeys] = useState([]);
   const proteinTargetPerMeal = 30;
+
+  const navigateWithTracking = (target, params, action) => {
+    trackEvent('navigation_triggered', {
+      screen: SCREENS.NUTRITION,
+      meta: {
+        domain: 'navigation',
+        version: 1,
+        action,
+        from: SCREENS.NUTRITION,
+        to: target,
+      },
+    });
+
+    try {
+      navigation.navigate(target, params);
+    } catch (error) {
+      trackAppError(error, {
+        screen: SCREENS.NUTRITION,
+        action: 'navigation.navigate',
+        target,
+        context: { navigationAction: action },
+      });
+    }
+  };
 
   const COMMON_QUICK_ADDS = ['+2 ovos', '+150g frango', '+1 pao', '+1 whey'];
 
@@ -405,7 +429,7 @@ export default function NutritionScanner({ navigation, route }) {
 
   const runPhotoEstimate = async (source) => {
     if (!hasFeatureAccess('photo_scanner')) {
-      navigation.navigate('Paywall', { featureKey: 'photo_scanner', source: 'scanner_photo_button' });
+      navigateWithTracking('Paywall', { featureKey: 'photo_scanner', source: 'scanner_photo_button' }, 'photo_scanner_paywall');
       return;
     }
 
@@ -475,6 +499,8 @@ export default function NutritionScanner({ navigation, route }) {
       return;
     }
 
+    const startedAt = Date.now();
+
     const now = new Date();
     const loggedAt = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     const result = addFoodLogEntriesBatch({
@@ -488,9 +514,31 @@ export default function NutritionScanner({ navigation, route }) {
     });
 
     if (!result?.ok) {
+      trackEvent('quick_meal_save_failed', {
+        screen: SCREENS.NUTRITION,
+        meta: {
+          domain: 'nutrition',
+          version: 1,
+          action: 'saveQuickMeal',
+          reason: 'batch_save_failed',
+          itemCount: quickMealItems.length,
+          durationMs: Date.now() - startedAt,
+        },
+      });
       setMealFeedback('Nao foi possivel salvar a refeicao rapida.');
       return;
     }
+
+    trackEvent('quick_meal_saved', {
+      screen: SCREENS.NUTRITION,
+      meta: {
+        domain: 'nutrition',
+        version: 1,
+        action: 'saveQuickMeal',
+        itemCount: quickMealItems.length,
+        durationMs: Date.now() - startedAt,
+      },
+    });
 
     const proteinTarget = Number(dailyMacroTargets?.protein || 0);
     const projectedProtein = todayProtein + Number(quickMealTotals.protein || 0);
@@ -510,6 +558,8 @@ export default function NutritionScanner({ navigation, route }) {
       return;
     }
 
+    const startedAt = Date.now();
+
     const now = new Date();
     const loggedAt = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
@@ -519,6 +569,17 @@ export default function NutritionScanner({ navigation, route }) {
     });
 
     if (!result?.ok) {
+      trackEvent('meal_draft_save_failed', {
+        screen: SCREENS.NUTRITION,
+        meta: {
+          domain: 'nutrition',
+          version: 1,
+          action: 'saveMealDraft',
+          reason: 'batch_save_failed',
+          itemCount: mealDraftItems.length,
+          durationMs: Date.now() - startedAt,
+        },
+      });
       setMealFeedback('Nao foi possivel salvar a refeicao composta.');
       return;
     }
@@ -527,6 +588,17 @@ export default function NutritionScanner({ navigation, route }) {
       const projectedFeedback = getNutritionFeedback();
       setMealFeedback(`${result.quality.emoji} ${result.quality.badge} - refeicao composta salva com sucesso. ${projectedFeedback.suggestion}`);
     }
+
+    trackEvent('meal_draft_saved', {
+      screen: SCREENS.NUTRITION,
+      meta: {
+        domain: 'nutrition',
+        version: 1,
+        action: 'saveMealDraft',
+        itemCount: mealDraftItems.length,
+        durationMs: Date.now() - startedAt,
+      },
+    });
 
     trackEvent('food_logged', {
       calories: Math.round(mealDraftTotals.calories),
@@ -539,20 +611,20 @@ export default function NutritionScanner({ navigation, route }) {
     setMealDraftItems([]);
 
     if (!hasFeatureAccess('weekly_macros')) {
-      navigation.navigate('Paywall', {
+      navigateWithTracking('Paywall', {
         featureKey: 'weekly_macros',
         source: 'post_food',
         message: 'Voce registrou sua refeicao, mas ainda nao sabe se bateu sua meta semanal. Veja isso no PRO.',
-      });
+      }, 'post_food_paywall');
       return;
     }
 
-    navigation.navigate('AnaliseDia', {
+    navigateWithTracking('AnaliseDia', {
       prefillCalories: Math.round(mealDraftTotals.calories),
       prefillProtein: Math.round(mealDraftTotals.protein),
       prefillCarbs: Math.round(mealDraftTotals.carbs),
       prefillFats: Math.round(mealDraftTotals.fats),
-    });
+    }, 'post_food_day_analysis');
   };
 
   return (
