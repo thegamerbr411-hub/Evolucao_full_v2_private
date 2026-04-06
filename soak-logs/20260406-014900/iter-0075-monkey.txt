@@ -1,0 +1,122 @@
+﻿  bash arg: -p
+  bash arg: com.evolucao.app
+  bash arg: --pct-syskeys
+  bash arg: 0
+  bash arg: --throttle
+  bash arg: 80
+  bash arg: -v
+  bash arg: 220
+args: [-p, com.evolucao.app, --pct-syskeys, 0, --throttle, 80, -v, 220]
+ arg: "-p"
+ arg: "com.evolucao.app"
+ arg: "--pct-syskeys"
+ arg: "0"
+ arg: "--throttle"
+ arg: "80"
+ arg: "-v"
+ arg: "220"
+data="com.evolucao.app"
+arg="--pct-syskeys" mCurArgData="null" mNextArg=3 argwas="--pct-syskeys" nextarg="0"
+data="0"
+arg="--throttle" mCurArgData="null" mNextArg=5 argwas="--throttle" nextarg="80"
+data="80"
+:Monkey: seed=1775468218686 count=220
+:AllowPackage: com.evolucao.app
+:IncludeCategory: android.intent.category.LAUNCHER
+:IncludeCategory: android.intent.category.MONKEY
+// Event percentages:
+//   0: 15.306122%
+//   1: 10.204082%
+//   2: 2.0408163%
+//   3: 15.306122%
+//   4: -0.0%
+//   5: -0.0%
+//   6: 25.510204%
+//   7: 15.306122%
+//   8: -0.0%
+//   9: 2.0408163%
+//   10: 1.0204082%
+//   11: 13.265306%
+:Switch: #Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;launchFlags=0x10200000;component=com.evolucao.app/.MainActivity;end
+    // Allowing start of Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] cmp=com.evolucao.app/.MainActivity } in package com.evolucao.app
+:Sending Trackball (ACTION_MOVE): 0:(-1.0,4.0)
+:Sending Trackball (ACTION_MOVE): 0:(-2.0,-1.0)
+:Sending Flip keyboardOpen=false
+Got IOException performing flipjava.io.FileNotFoundException: /dev/input/event0: open failed: EACCES (Permission denied)
+    // Injection Failed
+:Sending Trackball (ACTION_MOVE): 0:(-5.0,-1.0)
+:Sending Touch (ACTION_DOWN): 0:(949.0,1122.0)
+:Sending Touch (ACTION_UP): 0:(937.63226,1136.9913)
+:Sending Touch (ACTION_DOWN): 0:(853.0,656.0)
+:Sending Touch (ACTION_UP): 0:(856.9456,656.542)
+:Sending Trackball (ACTION_MOVE): 0:(-2.0,0.0)
+:Sending Touch (ACTION_DOWN): 0:(484.0,1924.0)
+:Sending Touch (ACTION_UP): 0:(488.98776,1922.7767)
+:Sending Touch (ACTION_DOWN): 0:(777.0,929.0)
+:Sending Touch (ACTION_UP): 0:(777.6131,910.8836)
+:Sending Touch (ACTION_DOWN): 0:(802.0,247.0)
+:Sending Touch (ACTION_UP): 0:(807.20703,248.0164)
+:Sending Touch (ACTION_DOWN): 0:(725.0,848.0)
+:Sending Touch (ACTION_UP): 0:(743.02374,849.9234)
+:Sending Flip keyboardOpen=true
+Got IOException performing flipjava.io.FileNotFoundException: /dev/input/event0: open failed: EACCES (Permission denied)
+    // Injection Failed
+:Sending Touch (ACTION_DOWN): 0:(785.0,422.0)
+:Sending Touch (ACTION_UP): 0:(785.1797,415.12817)
+:Switch: #Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;launchFlags=0x10200000;component=com.evolucao.app/.MainActivity;end
+    // Allowing start of Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] cmp=com.evolucao.app/.MainActivity } in package com.evolucao.app
+:Sending Touch (ACTION_DOWN): 0:(856.0,464.0)
+:Sending Touch (ACTION_UP): 0:(854.2668,463.6264)
+:Sending Touch (ACTION_DOWN): 0:(1008.0,1111.0)
+:Sending Touch (ACTION_UP): 0:(1023.1539,1127.1824)
+:Sending Trackball (ACTION_MOVE): 0:(-4.0,-4.0)
+    //[calendar_time:2026-04-06 01:55:28.496  system_uptime:272898106]
+    // Sending event #100
+:Sending Touch (ACTION_DOWN): 0:(540.0,539.0)
+:Sending Touch (ACTION_UP): 0:(528.3742,569.2024)
+:Sending Flip keyboardOpen=false
+Got IOException performing flipjava.io.FileNotFoundException: /dev/input/event0: open failed: EACCES (Permission denied)
+    // Injection Failed
+:Sending Flip keyboardOpen=true
+Got IOException performing flipjava.io.FileNotFoundException: /dev/input/event0: open failed: EACCES (Permission denied)
+    // Injection Failed
+:Sending Trackball (ACTION_MOVE): 0:(-1.0,-2.0)
+:Sending Touch (ACTION_DOWN): 0:(179.0,1194.0)
+:Sending Touch (ACTION_UP): 0:(180.64578,1178.6597)
+:Sending Touch (ACTION_DOWN): 0:(708.0,1403.0)
+:Sending Touch (ACTION_UP): 0:(744.8544,1387.9828)
+:Sending Touch (ACTION_DOWN): 0:(778.0,88.0)
+:Sending Touch (ACTION_UP): 0:(774.0777,86.902695)
+:Sending Touch (ACTION_DOWN): 0:(636.0,1592.0)
+:Sending Touch (ACTION_UP): 0:(650.18915,1595.3131)
+:Sending Trackball (ACTION_MOVE): 0:(-1.0,-4.0)
+:Sending Touch (ACTION_DOWN): 0:(496.0,660.0)
+:Sending Touch (ACTION_UP): 0:(507.5487,667.76404)
+:Sending Touch (ACTION_DOWN): 0:(2.0,1691.0)
+:Sending Touch (ACTION_UP): 0:(7.4253707,1686.0771)
+:Sending Touch (ACTION_DOWN): 0:(559.0,593.0)
+:Sending Touch (ACTION_UP): 0:(574.4204,592.2741)
+:Sending Touch (ACTION_DOWN): 0:(171.0,1164.0)
+:Sending Touch (ACTION_UP): 0:(169.67871,1168.7062)
+:Sending Touch (ACTION_DOWN): 0:(532.0,2080.0)
+:Sending Touch (ACTION_UP): 0:(532.2429,2091.3752)
+:Sending Flip keyboardOpen=false
+Got IOException performing flipjava.io.FileNotFoundException: /dev/input/event0: open failed: EACCES (Permission denied)
+    // Injection Failed
+:Sending Touch (ACTION_DOWN): 0:(987.0,156.0)
+:Sending Touch (ACTION_UP): 0:(988.1233,148.61198)
+:Sending Touch (ACTION_DOWN): 0:(567.0,301.0)
+:Sending Touch (ACTION_UP): 0:(588.20404,305.27185)
+:Sending Touch (ACTION_DOWN): 0:(494.0,1350.0)
+:Sending Touch (ACTION_UP): 0:(494.0007,1359.7306)
+:Sending Trackball (ACTION_MOVE): 0:(-5.0,-3.0)
+    //[calendar_time:2026-04-06 01:55:31.708  system_uptime:272901308]
+    // Sending event #200
+:Sending Touch (ACTION_DOWN): 0:(312.0,976.0)
+:Sending Touch (ACTION_UP): 0:(305.67676,964.897)
+:Sending Touch (ACTION_DOWN): 0:(799.0,1454.0)
+Events injected: 220
+:Sending rotation degree=0, persist=false
+:Dropped: keys=0 pointers=0 trackballs=0 flips=5 rotations=0
+## Network stats: elapsed time=5935ms (0ms mobile, 0ms wifi, 5935ms not connected)
+// Monkey finished

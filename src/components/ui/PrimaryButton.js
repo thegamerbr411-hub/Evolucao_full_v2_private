@@ -2,9 +2,9 @@ import React from 'react';
 import { StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { colors, radius, spacing } from '../../theme';
 
-export function PrimaryButton({ title, onPress, style }) {
+export function PrimaryButton({ title, onPress, style, testID }) {
   return (
-    <TouchableOpacity onPress={onPress} style={[styles.button, style]}>
+    <TouchableOpacity testID={testID} onPress={onPress} style={[styles.button, style]}>
       <Text style={styles.text}>{title}</Text>
     </TouchableOpacity>
   );

@@ -1,0 +1,22 @@
+﻿{
+    "package":  "com.evolucao.app",
+    "startedAt":  "2026-04-06T01:48:52",
+    "finishedAt":  "2026-04-06T01:48:53",
+    "durationMinutesRequested":  1,
+    "iterationsRequested":  1,
+    "eventsPerIteration":  60,
+    "throttleMs":  60,
+    "totalIterations":  1,
+    "okIterations":  1,
+    "errorIterations":  0,
+    "iterations":  [
+                       {
+                           "iteration":  1,
+                           "startedAt":  "2026-04-06T01:48:52",
+                           "finishedAt":  "2026-04-06T01:48:53",
+                           "status":  "ok",
+                           "monkeyLog":  "iter-0001-monkey.txt",
+                           "logcatLog":  "iter-0001-logcat.txt"
+                       }
+                   ]
+}

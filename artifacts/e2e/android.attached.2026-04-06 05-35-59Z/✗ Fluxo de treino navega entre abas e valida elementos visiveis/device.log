@@ -1,0 +1,91 @@
+--------- beginning of main
+04-06 02:36:46.025 24958 24958 I ViewInteraction: Checking 'MatchesViewAssertion(Detox){viewMatcher=(view has effective visibility <VISIBLE> and view.getGlobalVisibleRect() covers at least <75> percent of the view's area)}' assertion on view (an instance of android.widget.TextView and view.getText() with or without transformation to match: is "Serie salva" and view has effective visibility <VISIBLE>)
+04-06 02:36:46.156 24958 24958 I ViewInteraction: Checking 'MatchesViewAssertion(Detox){viewMatcher=(view has effective visibility <VISIBLE> and view.getGlobalVisibleRect() covers at least <75> percent of the view's area)}' assertion on view (an instance of android.widget.TextView and view.getText() with or without transformation to match: is "Serie salva" and view has effective visibility <VISIBLE>)
+04-06 02:36:46.247 24958 24994 D DetoxWSClient: Received action 'currentStatus' (ID #23, params={})
+04-06 02:36:46.248 24958 24991 I DetoxDispatcher: Handling action 'currentStatus' (ID #23)...
+04-06 02:36:46.274 24958 24958 I ViewInteraction: Checking 'MatchesViewAssertion(Detox){viewMatcher=(view has effective visibility <VISIBLE> and view.getGlobalVisibleRect() covers at least <75> percent of the view's area)}' assertion on view (an instance of android.widget.TextView and view.getText() with or without transformation to match: is "Serie salva" and view has effective visibility <VISIBLE>)
+04-06 02:36:46.276 24958 24991 I DetoxWSClient: Sending out action 'currentStatusResult' (ID #23)
+04-06 02:36:46.277 24958 24991 I DetoxDispatcher: Done with action 'currentStatus'
+04-06 02:36:46.300 24958 24990 I DetoxActionHandlers: Test exception
+04-06 02:36:46.300 24958 24990 I DetoxActionHandlers: java.lang.reflect.InvocationTargetException
+04-06 02:36:46.300 24958 24990 I DetoxActionHandlers: 	at java.lang.reflect.Method.invoke(Native Method)
+04-06 02:36:46.300 24958 24990 I DetoxActionHandlers: 	at org.apache.commons.lang3.reflect.MethodUtils.invokeStaticMethod(MethodUtils.java:443)
+04-06 02:36:46.300 24958 24990 I DetoxActionHandlers: 	at org.apache.commons.lang3.reflect.MethodUtils.invokeStaticMethod(MethodUtils.java:405)
+04-06 02:36:46.300 24958 24990 I DetoxActionHandlers: 	at com.wix.invoke.types.ClassTarget.execute(ClassTarget.java:23)
+04-06 02:36:46.300 24958 24990 I DetoxActionHandlers: 	at com.wix.invoke.types.Target.invoke(Target.java:59)
+04-06 02:36:46.300 24958 24990 I DetoxActionHandlers: 	at com.wix.invoke.MethodInvocation.invoke(MethodInvocation.java:35)
+04-06 02:36:46.300 24958 24990 I DetoxActionHandlers: 	at com.wix.invoke.MethodInvocation.invoke(MethodInvocation.java:26)
+04-06 02:36:46.300 24958 24990 I DetoxActionHandlers: 	at com.wix.invoke.MethodInvocation.invoke(MethodInvocation.java:20)
+04-06 02:36:46.300 24958 24990 I DetoxActionHandlers: 	at com.wix.detox.adapters.server.InvokeActionHandler.handle(DetoxActionHandlers.kt:54)
+04-06 02:36:46.300 24958 24990 I DetoxActionHandlers: 	at com.wix.detox.adapters.server.ActionsExecutor.executeAction$lambda$2$lambda$1(DetoxActionsDispatcher.kt:76)
+04-06 02:36:46.300 24958 24990 I DetoxActionHandlers: 	at com.wix.detox.adapters.server.ActionsExecutor.$r8$lambda$GVbB7LHtBHxNHGbgYnHJ6YrwCqs(Unknown Source:0)
+04-06 02:36:46.300 24958 24990 I DetoxActionHandlers: 	at com.wix.detox.adapters.server.ActionsExecutor$$ExternalSyntheticLambda0.run(D8$$SyntheticClass:0)
+04-06 02:36:46.300 24958 24990 I DetoxActionHandlers: 	at android.os.Handler.handleCallback(Handler.java:942)
+04-06 02:36:46.300 24958 24990 I DetoxActionHandlers: 	at android.os.Handler.dispatchMessage(Handler.java:99)
+04-06 02:36:46.300 24958 24990 I DetoxActionHandlers: 	at android.os.Looper.loopOnce(Looper.java:226)
+04-06 02:36:46.300 24958 24990 I DetoxActionHandlers: 	at android.os.Looper.loop(Looper.java:313)
+04-06 02:36:46.300 24958 24990 I DetoxActionHandlers: 	at com.wix.detox.adapters.server.ActionsExecutor._init_$lambda$0(DetoxActionsDispatcher.kt:62)
+04-06 02:36:46.300 24958 24990 I DetoxActionHandlers: 	at com.wix.detox.adapters.server.ActionsExecutor.$r8$lambda$xlgL0CQim6vNM0wWEqM8JIDgZUE(Unknown Source:0)
+04-06 02:36:46.300 24958 24990 I DetoxActionHandlers: 	at com.wix.detox.adapters.server.ActionsExecutor$$ExternalSyntheticLambda1.run(D8$$SyntheticClass:0)
+04-06 02:36:46.300 24958 24990 I DetoxActionHandlers: 	at java.lang.Thread.run(Thread.java:1012)
+04-06 02:36:46.300 24958 24990 I DetoxActionHandlers: Caused by: com.wix.detox.common.DetoxErrors$DetoxRuntimeException: 10.0sec timeout expired without matching of given matcher: (view has effective visibility <VISIBLE> and view.getGlobalVisibleRect() covers at least <75> percent of the view's area)
+04-06 02:36:46.300 24958 24990 I DetoxActionHandlers: 	at com.wix.detox.espresso.DetoxAssertion.waitForAssertMatcher(DetoxAssertion.java:72)
+04-06 02:36:46.300 24958 24990 I DetoxActionHandlers: 	... 20 more
+04-06 02:36:46.300 24958 24990 I DetoxWSClient: Sending out action 'testFailed' (ID #22)
+04-06 02:36:46.301 24958 24990 I DetoxDispatcher: Done with action 'invoke'
+04-06 02:36:47.003 24958 24994 D DetoxWSClient: Received action 'invoke' (ID #24, params={"target":{"type":"Class","value":"com.wix.detox.espresso.EspressoDetox"},"method":"perform","args":[{"type":"Invocation","value":{"target":{"type":"Class","value":"com.wix.detox.espresso.DetoxMatcher"},"method":"matcherForAtIndex","args":[{"type":"Integer","value":0},{"type":"Invocation","value":{"target":{"type":"Class","value":"com.wix.detox.espresso.DetoxMatcher"},"method":"matcherForText","args":["Treinos",{"type":"boolean","value":false}]}}]}},{"type":"Invocation","value":{"target":{"type":"Class","value":"com.wix.detox.espresso.DetoxViewActions"},"method":"click","args":[]}}]})
+04-06 02:36:47.003 24958 24990 I DetoxDispatcher: Handling action 'invoke' (ID #24)...
+04-06 02:36:47.004 24958 24990 D Detox   : class com.wix.detox.espresso.DetoxMatcher, matcherForText, [Treinos, false]
+04-06 02:36:47.005 24958 24990 D Detox   : class com.wix.detox.espresso.DetoxMatcher, matcherForAtIndex, [0, (an instance of android.widget.TextView and view.getText() with or without transformation to match: is "Treinos" and view has effective visibility <VISIBLE>)]
+04-06 02:36:47.005 24958 24990 D Detox   : class com.wix.detox.espresso.DetoxViewActions, click, []
+04-06 02:36:47.006 24958 24990 D Detox   : class com.wix.detox.espresso.EspressoDetox, perform, [View at index #0, of those matching MATCHER(an instance of android.widget.TextView and view.getText() with or without transformation to match: is "Treinos" and view has effective visibility <VISIBLE>), com.wix.detox.espresso.action.RNClickAction@3f17358]
+04-06 02:36:47.148 24958 24990 I DetoxActionHandlers: Test exception
+04-06 02:36:47.148 24958 24990 I DetoxActionHandlers: java.lang.reflect.InvocationTargetException
+04-06 02:36:47.148 24958 24990 I DetoxActionHandlers: 	at java.lang.reflect.Method.invoke(Native Method)
+04-06 02:36:47.148 24958 24990 I DetoxActionHandlers: 	at org.apache.commons.lang3.reflect.MethodUtils.invokeStaticMethod(MethodUtils.java:443)
+04-06 02:36:47.148 24958 24990 I DetoxActionHandlers: 	at org.apache.commons.lang3.reflect.MethodUtils.invokeStaticMethod(MethodUtils.java:405)
+04-06 02:36:47.148 24958 24990 I DetoxActionHandlers: 	at com.wix.invoke.types.ClassTarget.execute(ClassTarget.java:23)
+04-06 02:36:47.148 24958 24990 I DetoxActionHandlers: 	at com.wix.invoke.types.Target.invoke(Target.java:59)
+04-06 02:36:47.148 24958 24990 I DetoxActionHandlers: 	at com.wix.invoke.MethodInvocation.invoke(MethodInvocation.java:35)
+04-06 02:36:47.148 24958 24990 I DetoxActionHandlers: 	at com.wix.invoke.MethodInvocation.invoke(MethodInvocation.java:26)
+04-06 02:36:47.148 24958 24990 I DetoxActionHandlers: 	at com.wix.invoke.MethodInvocation.invoke(MethodInvocation.java:20)
+04-06 02:36:47.148 24958 24990 I DetoxActionHandlers: 	at com.wix.detox.adapters.server.InvokeActionHandler.handle(DetoxActionHandlers.kt:54)
+04-06 02:36:47.148 24958 24990 I DetoxActionHandlers: 	at com.wix.detox.adapters.server.ActionsExecutor.executeAction$lambda$2$lambda$1(DetoxActionsDispatcher.kt:76)
+04-06 02:36:47.148 24958 24990 I DetoxActionHandlers: 	at com.wix.detox.adapters.server.ActionsExecutor.$r8$lambda$GVbB7LHtBHxNHGbgYnHJ6YrwCqs(Unknown Source:0)
+04-06 02:36:47.148 24958 24990 I DetoxActionHandlers: 	at com.wix.detox.adapters.server.ActionsExecutor$$ExternalSyntheticLambda0.run(D8$$SyntheticClass:0)
+04-06 02:36:47.148 24958 24990 I DetoxActionHandlers: 	at android.os.Handler.handleCallback(Handler.java:942)
+04-06 02:36:47.148 24958 24990 I DetoxActionHandlers: 	at android.os.Handler.dispatchMessage(Handler.java:99)
+04-06 02:36:47.148 24958 24990 I DetoxActionHandlers: 	at android.os.Looper.loopOnce(Looper.java:226)
+04-06 02:36:47.148 24958 24990 I DetoxActionHandlers: 	at android.os.Looper.loop(Looper.java:313)
+04-06 02:36:47.148 24958 24990 I DetoxActionHandlers: 	at com.wix.detox.adapters.server.ActionsExecutor._init_$lambda$0(DetoxActionsDispatcher.kt:62)
+04-06 02:36:47.148 24958 24990 I DetoxActionHandlers: 	at com.wix.detox.adapters.server.ActionsExecutor.$r8$lambda$xlgL0CQim6vNM0wWEqM8JIDgZUE(Unknown Source:0)
+04-06 02:36:47.148 24958 24990 I DetoxActionHandlers: 	at com.wix.detox.adapters.server.ActionsExecutor$$ExternalSyntheticLambda1.run(D8$$SyntheticClass:0)
+04-06 02:36:47.148 24958 24990 I DetoxActionHandlers: 	at java.lang.Thread.run(Thread.java:1012)
+04-06 02:36:47.148 24958 24990 I DetoxActionHandlers: Caused by: com.wix.detox.espresso.errors.DetoxNoMatchingViewException: No views in hierarchy found matching: View at index #0, of those matching MATCHER(an instance of android.widget.TextView and view.getText() with or without transformation to match: is "Treinos" and view has effective visibility <VISIBLE>)
+04-06 02:36:47.148 24958 24990 I DetoxActionHandlers: 	at com.wix.detox.espresso.DetoxFailureHandler.handle(DetoxFailureHandler.kt:26)
+04-06 02:36:47.148 24958 24990 I DetoxActionHandlers: 	at androidx.test.espresso.ViewInteraction.waitForAndHandleInteractionResults(ViewInteraction.java:385)
+04-06 02:36:47.148 24958 24990 I DetoxActionHandlers: 	at androidx.test.espresso.ViewInteraction.desugaredPerform(ViewInteraction.java:212)
+04-06 02:36:47.148 24958 24990 I DetoxActionHandlers: 	at androidx.test.espresso.ViewInteraction.perform(ViewInteraction.java:140)
+04-06 02:36:47.148 24958 24990 I DetoxActionHandlers: 	at com.wix.detox.espresso.performer.SingleViewActionPerformer.performOn(SingleViewActionPerformer.kt:15)
+04-06 02:36:47.148 24958 24990 I DetoxActionHandlers: 	at com.wix.detox.espresso.EspressoDetox.perform(EspressoDetox.java:42)
+04-06 02:36:47.148 24958 24990 I DetoxActionHandlers: 	... 20 more
+04-06 02:36:47.148 24958 24990 I DetoxWSClient: Sending out action 'testFailed' (ID #24)
+04-06 02:36:47.155 24958 24990 I DetoxDispatcher: Done with action 'invoke'
+04-06 02:36:47.704 24958 25008 D NativeCustomFrequencyManager: [NativeCFMS] BpCustomFrequencyManager::BpCustomFrequencyManager()
+04-06 02:36:47.709 24958 24958 D InsetsController: onStateChanged: InsetsState: {mDisplayFrame=Rect(0, 0 - 1080, 2400), mDisplayCutout=DisplayCutout{insets=Rect(0, 88 - 0, 0) waterfall=Insets{left=0, top=0, right=0, bottom=0} boundingRect={Bounds=[Rect(0, 0 - 0, 0), Rect(512, 0 - 568, 88), Rect(0, 0 - 0, 0), Rect(0, 0 - 0, 0)]} cutoutPathParserInfo={CutoutPathParserInfo{displayWidth=1080 displayHeight=2400 physicalDisplayWidth=1080 physicalDisplayHeight=2400 density={3.0} cutoutSpec={M 0,0 M 0,10.71963616907435 a 9.280363830925644,9.280363830925644 0 1,0 0,18.56072766185129 a 9.280363830925644,9.280363830925644 0 1,0 0,-18.56072766185129 Z @dp} rotation={0} scale={1.0} physicalPixelDisplaySizeRatio={1.0}}}}, mRoundedCorners=RoundedCorners{[RoundedCorner{position=TopLeft, radius=96, center=Point(96, 96)}, RoundedCorner{position=TopRight, radius=96, center=Point(984, 96)}, RoundedCorner{position=BottomRight, radius=96, center=Point(984, 2304)}, RoundedCorner{position=BottomLeft, radius=96, center=Point(96, 2304)}]}  mRoundedCornerFrame=Rect(0, 0 - 1080, 2400), mPrivacyIndicatorBounds=PrivacyIndicatorBounds {static bounds=Rect(948, 0 - 1080, 88) rotation=0}, mSources= { InsetsSource: {mType=ITYPE_STATUS_BAR, mFrame=[0,0][1080,88], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_NAVIGATION_BAR, mFrame=[0,2256][1080,2400], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_LEFT_GESTURES, mFrame=[0,0][0,2400], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_RIGHT_GESTURES, mFrame=[1080,0][1080,2400], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_TOP_MANDATORY_GESTURES, mFrame=[0,0][1080,124], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_BOTTOM_MANDATORY_GESTURES, mFrame=[0,2256][1080,2400], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_LEFT_DISPLAY_CUTOUT, mFrame=[0,0][-100000,2400], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_TOP_DISPLAY_CUTOUT, mFrame=[0,0][1080,88], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_RIGHT_DISPLAY_CUTOUT, mFrame=[100000,0][1080,2400], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_BOTTOM_DISPLAY_CUTOUT, mFrame=[0,100000][1080,2400], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_TOP_TAPPABLE_ELEMENT, mFrame=[0,0][1080,88], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_BOTTOM_TAPPABLE_ELEMENT, mFrame=[0,2256][1080,2400], mVisible=true, mInsetsRoundedCornerFrame=false} } host=PopupWindow:dcb3522 from=android.view.ViewRootImpl.setView:1732
+04-06 02:36:47.713 24958 24958 I ViewRootImpl@4022bb3[PopupWindow:dcb3522]: setView = android.widget.PopupWindow$PopupDecorView@e69d00f TM=false
+04-06 02:36:47.716 24958 24958 I ViewRootImpl@4022bb3[PopupWindow:dcb3522]: performTraversals params={(0,88)(fillxwrap) gr=TOP START CENTER sim={state=unchanged adjust=pan} ty=APPLICATION_PANEL fmt=TRANSLUCENT surfaceInsets=Rect(0, 0 - 0, 0) (manual)
+04-06 02:36:47.716 24958 24958 I ViewRootImpl@4022bb3[PopupWindow:dcb3522]:   fl=41800008
+04-06 02:36:47.716 24958 24958 I ViewRootImpl@4022bb3[PopupWindow:dcb3522]:   pfl=42018000
+04-06 02:36:47.716 24958 24958 I ViewRootImpl@4022bb3[PopupWindow:dcb3522]:   bhv=DEFAULT
+04-06 02:36:47.716 24958 24958 I ViewRootImpl@4022bb3[PopupWindow:dcb3522]:   fitTypes=STATUS_BARS NAVIGATION_BARS CAPTION_BAR naviIconColor=0
+04-06 02:36:47.716 24958 24958 I ViewRootImpl@4022bb3[PopupWindow:dcb3522]:   sfl=20000}
+04-06 02:36:47.717 24958 24958 I ViewRootImpl@4022bb3[PopupWindow:dcb3522]: performTraversals mFirst=true windowShouldResize=true viewVisibilityChanged=false mForceNextWindowRelayout=false params={(0,88)(fillxwrap) gr=TOP START CENTER sim={state=unchanged adjust=pan} ty=APPLICATION_PANEL fmt=TRANSLUCENT surfaceInsets=Rect(0, 0 - 0, 0) (manual)
+04-06 02:36:47.717 24958 24958 I ViewRootImpl@4022bb3[PopupWindow:dcb3522]:   fl=41800008
+04-06 02:36:47.717 24958 24958 I ViewRootImpl@4022bb3[PopupWindow:dcb3522]:   pfl=42018000
+04-06 02:36:47.717 24958 24958 I ViewRootImpl@4022bb3[PopupWindow:dcb3522]:   bhv=DEFAULT
+04-06 02:36:47.717 24958 24958 I ViewRootImpl@4022bb3[PopupWindow:dcb3522]:   fitTypes=STATUS_BARS NAVIGATION_BARS CAPTION_BAR naviIconColor=0
+04-06 02:36:47.717 24958 24958 I ViewRootImpl@4022bb3[PopupWindow:dcb3522]:   sfl=20000}
+04-06 02:36:47.721 24958 25038 I ViewRootImpl@4022bb3[PopupWindow:dcb3522]: Resizing android.view.ViewRootImpl@b0c589c: frame = [0,88][1080,167] reportDraw = true forceLayout = false syncSeqId = 0
+04-06 02:36:47.724 24958 24958 I ViewRootImpl@4022bb3[PopupWindow:dcb3522]: updateBlastSurfaceIfNeeded mBlastBufferQueue=null isSameSurfaceControl=false
+04-06 02:36:47.724 24958 24958 I BLASTBufferQueue: new BLASTBufferQueue, mName= ViewRootImpl@4022bb3[PopupWindow:dcb3522] mNativeObject= 0xb4000070a6ebf600 sc.mNativeObject= 0xb4000070a0ce3380 caller= android.view.ViewRootImpl.updateBlastSurfaceIfNeeded:2909 android.view.ViewRootImpl.relayoutWindow:9847 android.view.ViewRootImpl.performTraversals:3884 android.view.ViewRootImpl.doTraversal:3116 android.view.ViewRootImpl$TraversalRunnable.run:10885 android.view.Choreographer$CallbackRecord.run:1301 android.view.Choreographer$CallbackRecord.run:1309 a

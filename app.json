@@ -5,6 +5,12 @@
     "version": "1.0.0",
     "assetBundlePatterns": [
       "**/*"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "44b3afa4-ce98-4f1b-b139-0ed7fe2d053b"
+      }
+    },
+    "owner": "tipolt"
   }
 }

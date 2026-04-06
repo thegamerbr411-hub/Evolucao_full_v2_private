@@ -1,0 +1,92 @@
+﻿  bash arg: -p
+  bash arg: com.evolucao.app
+  bash arg: --pct-syskeys
+  bash arg: 0
+  bash arg: --throttle
+  bash arg: 80
+  bash arg: -v
+  bash arg: 220
+args: [-p, com.evolucao.app, --pct-syskeys, 0, --throttle, 80, -v, 220]
+ arg: "-p"
+ arg: "com.evolucao.app"
+ arg: "--pct-syskeys"
+ arg: "0"
+ arg: "--throttle"
+ arg: "80"
+ arg: "-v"
+ arg: "220"
+data="com.evolucao.app"
+arg="--pct-syskeys" mCurArgData="null" mNextArg=3 argwas="--pct-syskeys" nextarg="0"
+data="0"
+arg="--throttle" mCurArgData="null" mNextArg=5 argwas="--throttle" nextarg="80"
+data="80"
+:Monkey: seed=1775709671506 count=220
+:AllowPackage: com.evolucao.app
+:IncludeCategory: android.intent.category.LAUNCHER
+:IncludeCategory: android.intent.category.MONKEY
+// Event percentages:
+//   0: 15.306122%
+//   1: 10.204082%
+//   2: 2.0408163%
+//   3: 15.306122%
+//   4: -0.0%
+//   5: -0.0%
+//   6: 25.510204%
+//   7: 15.306122%
+//   8: -0.0%
+//   9: 2.0408163%
+//   10: 1.0204082%
+//   11: 13.265306%
+:Switch: #Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;launchFlags=0x10200000;component=com.evolucao.app/.MainActivity;end
+    // Allowing start of Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] cmp=com.evolucao.app/.MainActivity } in package com.evolucao.app
+:Sending Trackball (ACTION_MOVE): 0:(-2.0,-5.0)
+:Sending Touch (ACTION_DOWN): 0:(670.0,1158.0)
+:Sending Touch (ACTION_UP): 0:(569.0333,1217.7546)
+:Sending Trackball (ACTION_MOVE): 0:(-3.0,1.0)
+:Sending Touch (ACTION_DOWN): 0:(652.0,682.0)
+:Sending Touch (ACTION_UP): 0:(651.9488,685.2877)
+:Sending Trackball (ACTION_MOVE): 0:(-4.0,-5.0)
+:Switch: #Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;launchFlags=0x10200000;component=com.evolucao.app/.MainActivity;end
+    // Allowing start of Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] cmp=com.evolucao.app/.MainActivity } in package com.evolucao.app
+:Sending Touch (ACTION_DOWN): 0:(134.0,874.0)
+:Sending Touch (ACTION_UP): 0:(149.18195,872.88354)
+:Sending Touch (ACTION_DOWN): 0:(851.0,1598.0)
+:Sending Touch (ACTION_UP): 0:(848.64307,1583.6624)
+:Sending Trackball (ACTION_MOVE): 0:(0.0,0.0)
+:Sending Touch (ACTION_DOWN): 0:(473.0,933.0)
+:Sending Touch (ACTION_UP): 0:(476.5187,938.178)
+:Sending Trackball (ACTION_MOVE): 0:(-5.0,4.0)
+:Sending Touch (ACTION_DOWN): 0:(815.0,1236.0)
+:Sending Touch (ACTION_UP): 0:(852.33624,1216.3673)
+:Sending Touch (ACTION_DOWN): 0:(932.0,1812.0)
+    //[calendar_time:2026-04-06 02:15:36.962  system_uptime:274106577]
+    // Sending event #100
+:Sending Touch (ACTION_UP): 0:(1014.74347,1913.1393)
+:Sending Touch (ACTION_DOWN): 0:(1071.0,553.0)
+:Sending Touch (ACTION_UP): 0:(1071.1968,556.5736)
+:Sending Trackball (ACTION_MOVE): 0:(-1.0,2.0)
+:Sending Trackball (ACTION_MOVE): 0:(-5.0,-2.0)
+:Sending Touch (ACTION_DOWN): 0:(427.0,953.0)
+:Sending Touch (ACTION_UP): 0:(417.17136,954.1293)
+:Sending Touch (ACTION_DOWN): 0:(765.0,1736.0)
+:Sending Touch (ACTION_UP): 0:(768.8859,1725.4303)
+:Sending Trackball (ACTION_MOVE): 0:(-1.0,0.0)
+:Sending Trackball (ACTION_UP): 0:(0.0,0.0)
+:Sending Touch (ACTION_DOWN): 0:(584.0,255.0)
+:Sending Touch (ACTION_UP): 0:(584.3879,259.4165)
+:Sending Touch (ACTION_DOWN): 0:(836.0,1715.0)
+:Sending Touch (ACTION_UP): 0:(832.04694,1709.1117)
+:Sending Touch (ACTION_DOWN): 0:(558.0,1531.0)
+:Sending Touch (ACTION_UP): 0:(558.02704,1524.9299)
+    // Rejecting start of Intent { act=android.intent.action.ALL_APPS cmp=com.sec.android.app.launcher/.activities.LauncherActivity } in package com.sec.android.app.launcher
+:Sending Touch (ACTION_DOWN): 0:(187.0,1853.0)
+:Sending Touch (ACTION_UP): 0:(217.66989,1796.6774)
+:Sending Trackball (ACTION_MOVE): 0:(2.0,-4.0)
+:Sending Trackball (ACTION_MOVE): 0:(2.0,1.0)
+    //[calendar_time:2026-04-06 02:15:39.027  system_uptime:274108627]
+    // Sending event #200
+Events injected: 220
+:Sending rotation degree=0, persist=false
+:Dropped: keys=0 pointers=0 trackballs=0 flips=0 rotations=0
+## Network stats: elapsed time=4403ms (0ms mobile, 0ms wifi, 4403ms not connected)
+// Monkey finished

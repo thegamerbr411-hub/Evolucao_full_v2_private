@@ -1,0 +1,10 @@
+﻿soak-summary
+package=com.evolucao.app
+startedAt=2026-04-06T01:48:52
+finishedAt=2026-04-06T01:48:53
+totalIterations=1
+okIterations=1
+errorIterations=0
+eventsPerIteration=60
+throttleMs=60
+summaryJson=C:\Users\USER\Downloads\Evolucao_full_v2\soak-logs\20260406-014852\summary.json

@@ -1,0 +1,413 @@
+--------- beginning of main
+04-06 11:17:30.543 11516 11516 I om.evolucao.app: Late-enabling -Xcheck:jni
+04-06 11:17:30.567 11516 11516 I om.evolucao.app: Using CollectorTypeCC GC.
+04-06 11:17:30.597 11516 11516 D ActivityThread: setConscryptValidator
+04-06 11:17:30.598 11516 11516 D ActivityThread: setConscryptValidator - put
+04-06 11:17:30.617 11516 11516 D CompatibilityChangeReporter: Compat change id reported: 171979766; UID 10497; state: ENABLED
+--------- beginning of system
+04-06 11:17:30.623 11516 11516 W ActivityThread: Package uses different ABI(s) than its instrumentation: package[com.evolucao.app]: arm64-v8a, null instrumentation[com.evolucao.app.test]: null, null
+04-06 11:17:30.628 11516 11516 W om.evolucao.app: ClassLoaderContext classpath size mismatch. expected=0, found=1 (PCL[] | PCL[/system/framework/android.test.runner.jar*2256426886])
+04-06 11:17:30.629 11516 11516 W om.evolucao.app: ClassLoaderContext classpath size mismatch. expected=0, found=2 (PCL[] | PCL[/system/framework/android.test.runner.jar*2256426886:/system/framework/android.test.mock.jar*2695051129])
+04-06 11:17:30.630 11516 11516 W ziparchive: Unable to open '/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.dm': No such file or directory
+04-06 11:17:30.630 11516 11516 W ziparchive: Unable to open '/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.dm': No such file or directory
+04-06 11:17:30.699 11516 11516 W ziparchive: Unable to open '/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.dm': No such file or directory
+04-06 11:17:30.699 11516 11516 W ziparchive: Unable to open '/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.dm': No such file or directory
+04-06 11:17:30.969 11516 11516 D nativeloader: Configuring classloader-namespace for other apk /system/framework/android.test.runner.jar:/system/framework/android.test.mock.jar:/system/framework/android.test.base.jar:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.apk. target_sdk_version=36, uses_libraries=, library_path=/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/lib/arm64:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/lib/arm64:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!/lib/arm64-v8a:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.apk!/lib/arm64-v8a, permitted_path=/data:/mnt/expand:/data/user/0/com.evolucao.app
+04-06 11:17:30.983 11516 11516 V GraphicsEnvironment: ANGLE Developer option for 'com.evolucao.app' set to: 'default'
+04-06 11:17:30.983 11516 11516 V GraphicsEnvironment: ANGLE GameManagerService for com.evolucao.app: false
+04-06 11:17:30.983 11516 11516 V GraphicsEnvironment: App is not on the allowlist for updatable production driver.
+04-06 11:17:30.989 11516 11516 D ApplicationLoaders: Returning zygote-cached class loader: /system/framework/android.test.base.jar
+04-06 11:17:30.990 11516 11516 D nativeloader: Configuring classloader-namespace for other apk /system/framework/android.test.mock.jar. target_sdk_version=36, uses_libraries=ALL, library_path=/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/lib/arm64:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/lib/arm64, permitted_path=/data:/mnt/expand
+04-06 11:17:30.990 11516 11516 D nativeloader: Extending system_exposed_libraries: libhumantracking.arcsoft.so:libPortraitDistortionCorrection.arcsoft.so:libPortraitDistortionCorrectionCali.arcsoft.so:libface_landmark.arcsoft.so:libFacialStickerEngine.arcsoft.so:libveengine.arcsoft.so:lib_pet_detection.arcsoft.so:libhigh_res.arcsoft.so:libimage_enhancement.arcsoft.so:liblow_light_hdr.arcsoft.so:libhigh_dynamic_range.arcsoft.so:libsuperresolution.arcsoft.so:libobjectcapture_jni.arcsoft.so:libobjectcapture_jni.arcsoft.so:libobjectcapture.arcsoft.so:libFacialAttributeDetection.arcsoft.so:libBeauty_v4.camera.samsung.so:libexifa.camera.samsung.so:libjpega.camera.samsung.so:libOpenCv.camera.samsung.so:libVideoClassifier.camera.samsung.so:libtensorflowLite.dynamic_viewing.camera.samsung.so:libImageScreener.camera.samsung.so:libMyFilter.camera.samsung.so:libtflite2.myfilters.camera.samsung.so:libHIDTSnapJNI.camera.samsung.so:libSmartScan.camera.samsung.so:libRectify.camera.samsung.so:libDocRectifyWrapper.camera.samsung.so:libUltraWideDistortionCorrection.camera.
+04-06 11:17:30.993 11516 11516 D ApplicationLoaders: Returning zygote-cached class loader: /system/framework/android.test.base.jar
+04-06 11:17:30.994 11516 11516 W om.evolucao.app: ClassLoaderContext shared library size mismatch. Expected=0, found=2 (PCL[] | PCL[]{PCL[/system/framework/android.test.base.jar*1628045882]#PCL[/system/framework/android.test.mock.jar*2695051129]})
+04-06 11:17:30.994 11516 11516 D nativeloader: Configuring classloader-namespace for other apk /system/framework/android.test.runner.jar. target_sdk_version=36, uses_libraries=ALL, library_path=/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/lib/arm64:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/lib/arm64, permitted_path=/data:/mnt/expand
+04-06 11:17:30.994 11516 11516 D nativeloader: Extending system_exposed_libraries: libhumantracking.arcsoft.so:libPortraitDistortionCorrection.arcsoft.so:libPortraitDistortionCorrectionCali.arcsoft.so:libface_landmark.arcsoft.so:libFacialStickerEngine.arcsoft.so:libveengine.arcsoft.so:lib_pet_detection.arcsoft.so:libhigh_res.arcsoft.so:libimage_enhancement.arcsoft.so:liblow_light_hdr.arcsoft.so:libhigh_dynamic_range.arcsoft.so:libsuperresolution.arcsoft.so:libobjectcapture_jni.arcsoft.so:libobjectcapture_jni.arcsoft.so:libobjectcapture.arcsoft.so:libFacialAttributeDetection.arcsoft.so:libBeauty_v4.camera.samsung.so:libexifa.camera.samsung.so:libjpega.camera.samsung.so:libOpenCv.camera.samsung.so:libVideoClassifier.camera.samsung.so:libtensorflowLite.dynamic_viewing.camera.samsung.so:libImageScreener.camera.samsung.so:libMyFilter.camera.samsung.so:libtflite2.myfilters.camera.samsung.so:libHIDTSnapJNI.camera.samsung.so:libSmartScan.camera.samsung.so:libRectify.camera.samsung.so:libDocRectifyWrapper.camera.samsung.so:libUltraWideDistortionCorrection.camera.
+04-06 11:17:30.998 11516 11516 W om.evolucao.app: ClassLoaderContext shared library size mismatch. Expected=0, found=3 (PCL[] | PCL[]{PCL[/system/framework/android.test.base.jar*1628045882]#PCL[/system/framework/android.test.mock.jar*2695051129]#PCL[/system/framework/android.test.runner.jar*2256426886]{PCL[/system/framework/android.test.base.jar*1628045882]#PCL[/system/framework/android.test.mock.jar*2695051129]}};PCL[/system/framework/android.test.runner.jar*2256426886:/system/framework/android.test.mock.jar*2695051129:/system/framework/android.test.base.jar*1628045882:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk*2272993428:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes2.dex*714357168:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes3.dex*1380987315:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes4.dex*3771904477:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes5.dex*2127157885:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes6.dex*971414087:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes7.dex*742752503:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes8.dex*388434936:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes9.dex*209335023:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes10.dex*2871199926:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes11.dex*3957027005:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes12.dex*914099516:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes13.dex*4108993750:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes14.dex*1632137592:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes15.dex*1757943310:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes16.dex*931013159:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes17.dex*2782462504:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes18.dex*3468966139:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes19.dex*2267436335:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.apk*198750528:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.apk!classes2.dex*1675103030:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.apk!classes3.dex*1788775668:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.apk!classes4.dex*2572157285:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.apk!classes5.dex*3994030385:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.apk!classes6.dex*1028875939:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.apk!classes7.dex*2113616002:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.apk!classes8.dex*3287389796:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.apk!classes9.dex*2030025819:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.apk!classes10.dex*1917680387:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.apk!classes11.dex*152968521:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.apk!cla
+04-06 11:17:30.999 11516 11516 W om.evolucao.app: ClassLoaderContext classpath size mismatch. expected=0, found=1 (PCL[] | PCL[/system/framework/android.test.runner.jar*2256426886]{PCL[/system/framework/android.test.base.jar*1628045882]#PCL[/system/framework/android.test.mock.jar*2695051129]#PCL[/system/framework/android.test.runner.jar*2256426886]{PCL[/system/framework/android.test.base.jar*1628045882]#PCL[/system/framework/android.test.mock.jar*2695051129]}};PCL[/system/framework/android.test.runner.jar*2256426886:/system/framework/android.test.mock.jar*2695051129:/system/framework/android.test.base.jar*1628045882:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk*2272993428:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes2.dex*714357168:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes3.dex*1380987315:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes4.dex*3771904477:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes5.dex*2127157885:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes6.dex*971414087:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes7.dex*742752503:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes8.dex*388434936:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes9.dex*209335023:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes10.dex*2871199926:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes11.dex*3957027005:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes12.dex*914099516:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes13.dex*4108993750:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes14.dex*1632137592:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes15.dex*1757943310:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes16.dex*931013159:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes17.dex*2782462504:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes18.dex*3468966139:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes19.dex*2267436335:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.apk*198750528:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.apk!classes2.dex*1675103030:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.apk!classes3.dex*1788775668:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.apk!classes4.dex*2572157285:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.apk!classes5.dex*3994030385:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.apk!classes6.dex*1028875939:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.apk!classes7.dex*2113616002:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.apk!classes8.dex*3287389796:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.apk!classes9.dex*2030025819:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.apk!classes10.dex*1917680387:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.apk!classes11.dex*152968521:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evo
+04-06 11:17:31.000 11516 11516 W om.evolucao.app: ClassLoaderContext classpath size mismatch. expected=0, found=2 (PCL[] | PCL[/system/framework/android.test.runner.jar*2256426886:/system/framework/android.test.mock.jar*2695051129]{PCL[/system/framework/android.test.base.jar*1628045882]#PCL[/system/framework/android.test.mock.jar*2695051129]#PCL[/system/framework/android.test.runner.jar*2256426886]{PCL[/system/framework/android.test.base.jar*1628045882]#PCL[/system/framework/android.test.mock.jar*2695051129]}};PCL[/system/framework/android.test.runner.jar*2256426886:/system/framework/android.test.mock.jar*2695051129:/system/framework/android.test.base.jar*1628045882:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk*2272993428:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes2.dex*714357168:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes3.dex*1380987315:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes4.dex*3771904477:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes5.dex*2127157885:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes6.dex*971414087:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes7.dex*742752503:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes8.dex*388434936:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes9.dex*209335023:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes10.dex*2871199926:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes11.dex*3957027005:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes12.dex*914099516:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes13.dex*4108993750:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes14.dex*1632137592:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes15.dex*1757943310:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes16.dex*931013159:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes17.dex*2782462504:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes18.dex*3468966139:/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk!classes19.dex*2267436335:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.apk*198750528:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.apk!classes2.dex*1675103030:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.apk!classes3.dex*1788775668:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.apk!classes4.dex*2572157285:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.apk!classes5.dex*3994030385:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.apk!classes6.dex*1028875939:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.apk!classes7.dex*2113616002:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.apk!classes8.dex*3287389796:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.apk!classes9.dex*2030025819:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.apk!classes10.dex*1917680387:/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.apk!classes11.dex*152
+04-06 11:17:31.000 11516 11516 W ziparchive: Unable to open '/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.dm': No such file or directory
+04-06 11:17:31.000 11516 11516 W ziparchive: Unable to open '/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.dm': No such file or directory
+04-06 11:17:31.069 11516 11516 W ziparchive: Unable to open '/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.dm': No such file or directory
+04-06 11:17:31.069 11516 11516 W ziparchive: Unable to open '/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.dm': No such file or directory
+04-06 11:17:31.346 11516 11516 D NetworkSecurityConfig: No Network Security Config specified, using platform default
+04-06 11:17:31.355 11516 11516 D NetworkSecurityConfig: No Network Security Config specified, using platform default
+04-06 11:17:31.355 11516 11516 I AndroidJUnitRunner: newApplication com.evolucao.app.MainApplication
+04-06 11:17:31.364 11516 11516 W FirebaseApp: Default FirebaseApp failed to initialize because no default options were found. This usually means that com.google.gms:google-services was not applied to your gradle project.
+04-06 11:17:31.364 11516 11516 I FirebaseInitProvider: FirebaseApp initialization unsuccessful
+04-06 11:17:31.383 11516 11516 I AndroidJUnitRunner: onCreate Bundle[mParcelledData.dataSize=240]
+04-06 11:17:31.384 11516 11516 D AndroidJUnitRunner: Use the raw file system for managing file I/O.
+04-06 11:17:31.390 11516 11516 V TestEventClient: No service name argument was given (testDiscoveryService, testRunEventService or orchestratorService)
+04-06 11:17:31.391 11516 11545 D AndroidJUnitRunner: onStart is called.
+04-06 11:17:31.395 11516 11516 W SoLoader: Initializing SoLoader: 0
+04-06 11:17:31.396 11516 11516 W SoLoader: Recording new base apk path: /data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.apk
+04-06 11:17:31.396 11516 11516 W SoLoader: Previously recorded 0 base apk paths.
+04-06 11:17:31.398 11516 11516 I SoLoader: Preparing SO source: DirectorySoSource[root = /vendor/lib64 flags = 2]
+04-06 11:17:31.398 11516 11516 I SoLoader: Preparing SO source: DirectorySoSource[root = /system/lib64 flags = 2]
+04-06 11:17:31.398 11516 11516 I SoLoader: Preparing SO source: DirectApkSoSource[root = [/data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/base.apk!/lib/arm64-v8a]]
+04-06 11:17:31.414 11516 11516 I SoLoader: Preparing SO source: ApplicationSoSource[DirectorySoSource[root = /data/app/~~qK2X8DXX7B3mTXXhPTsA6g==/com.evolucao.app-e2ZOdSluBHVZjU_KcrrBZA==/lib/arm64 flags = 0]]
+04-06 11:17:31.414 11516 11516 I SoLoader: init finish: 4 SO sources prepared
+04-06 11:17:31.415 11516 11516 W SoLoader: SoLoader initialized: 8
+04-06 11:17:31.435 11516 11516 D jni_lib_merge: Entering merged library JNI_OnLoad.
+04-06 11:17:31.435 11516 11516 D jni_lib_merge: Preparing 12 pre-merged libs (including stub)
+04-06 11:17:31.435 11516 11516 D jni_lib_merge: Preparing to register libfabricjni_so.  onload_func: 0x703f1e0f38
+04-06 11:17:31.435 11516 11516 D jni_lib_merge: Preparing to register libreact_devsupportjni_so.  onload_func: 0x703f3e981c
+04-06 11:17:31.435 11516 11516 D jni_lib_merge: Preparing to register libreact_featureflagsjni_so.  onload_func: 0x703f3fbb7c
+04-06 11:17:31.435 11516 11516 D jni_lib_merge: Preparing to register libreact_newarchdefaults_so.  onload_func: 0x703f4a0f24
+04-06 11:17:31.435 11516 11516 D jni_lib_merge: Preparing to register libreactnativeblob_so.  onload_func: 0x703f6b3088
+04-06 11:17:31.435 11516 11516 D jni_lib_merge: Preparing to register libreactnativejni_so.  onload_func: 0x703f6f5ffc
+04-06 11:17:31.435 11516 11516 D jni_lib_merge: Preparing to register libreactnativejni_common_so.  onload_func: 0x703f7069f0
+04-06 11:17:31.435 11516 11516 D jni_lib_merge: Preparing to register librninstance_so.  onload_func: 0x703f74562c
+04-06 11:17:31.435 11516 11516 D jni_lib_merge: Preparing to register libturbomodulejsijni_so.  onload_func: 0x703f8a2734
+04-06 11:17:31.435 11516 11516 D jni_lib_merge: Preparing to register libuimanagerjni_so.  onload_func: 0x703f8bb6e8
+04-06 11:17:31.435 11516 11516 D jni_lib_merge: Preparing to register libyoga_so.  onload_func: 0x703f8cb16c
+04-06 11:17:31.435 11516 11516 D jni_lib_merge: About to register 11 actual methods.
+04-06 11:17:31.442 11516 11516 D jni_lib_merge: Entering merged library JNI_OnLoad.
+04-06 11:17:31.442 11516 11516 D jni_lib_merge: Preparing 12 pre-merged libs (including stub)
+04-06 11:17:31.442 11516 11516 D jni_lib_merge: Preparing to register libfabricjni_so.  onload_func: 0x703f1e0f38
+04-06 11:17:31.442 11516 11516 D jni_lib_merge: Preparing to register libreact_devsupportjni_so.  onload_func: 0x703f3e981c
+04-06 11:17:31.442 11516 11516 D jni_lib_merge: Preparing to register libreact_featureflagsjni_so.  onload_func: 0x703f3fbb7c
+04-06 11:17:31.442 11516 11516 D jni_lib_merge: Preparing to register libreact_newarchdefaults_so.  onload_func: 0x703f4a0f24
+04-06 11:17:31.442 11516 11516 D jni_lib_merge: Preparing to register libreactnativeblob_so.  onload_func: 0x703f6b3088
+04-06 11:17:31.442 11516 11516 D jni_lib_merge: Preparing to register libreactnativejni_so.  onload_func: 0x703f6f5ffc
+04-06 11:17:31.442 11516 11516 D jni_lib_merge: Preparing to register libreactnativejni_common_so.  onload_func: 0x703f7069f0
+04-06 11:17:31.442 11516 11516 D jni_lib_merge: Preparing to register librninstance_so.  onload_func: 0x703f74562c
+04-06 11:17:31.442 11516 11516 D jni_lib_merge: Preparing to register libturbomodulejsijni_so.  onload_func: 0x703f8a2734
+04-06 11:17:31.442 11516 11516 D jni_lib_merge: Preparing to register libuimanagerjni_so.  onload_func: 0x703f8bb6e8
+04-06 11:17:31.442 11516 11516 D jni_lib_merge: Preparing to register libyoga_so.  onload_func: 0x703f8cb16c
+04-06 11:17:31.442 11516 11516 D jni_lib_merge: About to register 11 actual methods.
+04-06 11:17:31.518 11516 11545 D TestRequestBuilder: Using class path scanning to discover tests
+04-06 11:17:31.519 11516 11545 I TestRequestBuilder: Scanning classpath to find tests in paths [/data/app/~~MOL7qFgO511diZKP24ByJw==/com.evolucao.app.test-WLkQUyvmgzaRGPpbljdviA==/base.apk]
+04-06 11:17:31.519 11516 11545 W om.evolucao.app: Opening an oat file without a class loader. Are you using the deprecated DexFile APIs?
+04-06 11:17:31.886 11516 11545 I TestRunner: run started: 1 tests
+04-06 11:17:31.887 11516 11545 I TestRunner: started: runDetoxTests(com.evolucao.app.DetoxTest)
+04-06 11:17:31.893 11516 11545 I Detox   : Detox server connection details: url=ws://localhost:51872, sessionId=cb2faa05-3f0c-2b46-4fd7-30b6c6dc27d7
+04-06 11:17:31.899 11516 11545 I Tracing : Tracer added: class androidx.test.platform.tracing.AndroidXTracer
+04-06 11:17:31.911 11516 11545 W om.evolucao.app: Accessing hidden field Ljava/lang/reflect/Field;->accessFlags:I (unsupported, reflection, allowed)
+04-06 11:17:31.913 11516 11545 I Detox   : Connecting to server...
+04-06 11:17:31.913 11516 11545 I DetoxWSClient: At connectToServer
+04-06 11:17:32.005 11516 11554 D TrafficStats: tagSocket(95) with statsTag=0xffffffff, statsUid=-1
+04-06 11:17:32.025 11516 11554 D DetoxWSClient: At onOpen
+04-06 11:17:32.025 11516 11554 I DetoxWSClient: Sending out action 'login' (ID #0)
+04-06 11:17:32.025 11516 11554 I Detox   : Connected to server!
+04-06 11:17:32.029 11516 11554 D DetoxWSClient: Received action 'loginSuccess' (ID #0, params={"testerConnected":true,"appConnected":true})
+04-06 11:17:32.029 11516 11550 I DetoxDispatcher: Handling action 'loginSuccess' (ID #0)...
+04-06 11:17:32.030 11516 11545 I Detox   : Launching the tested activity!
+04-06 11:17:32.030 11516 11550 I DetoxDispatcher: Done with action 'loginSuccess'
+04-06 11:17:32.061 11516 11568 D OpenGLRenderer: RenderThread::requireGlContext()
+04-06 11:17:32.063 11516 11568 I AdrenoGLES-0: QUALCOMM build                   : db7e7066a2, I1fad33e957
+04-06 11:17:32.063 11516 11568 I AdrenoGLES-0: Build Date                       : 05/11/25
+04-06 11:17:32.063 11516 11568 I AdrenoGLES-0: OpenGL ES Shader Compiler Version: EV031.32.02.10
+04-06 11:17:32.063 11516 11568 I AdrenoGLES-0: Local Branch                     : 
+04-06 11:17:32.063 11516 11568 I AdrenoGLES-0: Remote Branch                    : refs/tags/AU_LINUX_ANDROID_LA.UM.9.12.11.00.00.582.697
+04-06 11:17:32.063 11516 11568 I AdrenoGLES-0: Remote Branch                    : NONE
+04-06 11:17:32.063 11516 11568 I AdrenoGLES-0: Reconstruct Branch               : NOTHING
+04-06 11:17:32.063 11516 11568 I AdrenoGLES-0: Build Config                     : S P 10.0.7 AArch64
+04-06 11:17:32.063 11516 11568 I AdrenoGLES-0: Driver Path                      : /vendor/lib64/egl/libGLESv2_adreno.so
+04-06 11:17:32.067 11516 11554 D DetoxWSClient: Received action 'isReady' (ID #-1000, params={})
+04-06 11:17:32.068 11516 11550 I DetoxDispatcher: Handling action 'isReady' (ID #-1000)...
+04-06 11:17:32.069 11516 11568 I AdrenoGLES-0: PFP: 0x016dd093, ME: 0x00000000
+04-06 11:17:32.077 11516 11568 D OpenGLRenderer: RenderThread::setGrContext()
+04-06 11:17:32.110 11516 11516 D AppCompatDelegate: Checking for metadata for AppLocalesMetadataHolderService : Service not found
+04-06 11:17:32.116 11516 11516 D LifecycleMonitor: Lifecycle status change: com.evolucao.app.MainActivity@64e06eb in: PRE_ON_CREATE
+04-06 11:17:32.166 11516 11516 D SensorManager: registerListener :: 11, LSM6DSO Accelerometer, 66667, 0, 
+04-06 11:17:32.183 11516 11587 D TrafficStats: tagSocket(107) with statsTag=0xffffffff, statsUid=-1
+04-06 11:17:32.193 11516 11516 W unknown:BridgelessReact: ReactHost{0}.startSurface(surfaceId = 0): Schedule
+04-06 11:17:32.194 11516 11516 W unknown:BridgelessReact: ReactHost{0}.attachSurface(surfaceId = 0)
+04-06 11:17:32.194 11516 11588 W unknown:BridgelessReact: ReactHost{0}.getOrCreateReactInstanceTask()
+04-06 11:17:32.194 11516 11588 W unknown:BridgelessReact: ReactHost{0}.getOrCreateReactInstanceTask(): Start
+04-06 11:17:32.194 11516 11588 D Detox.RNMarker: REACT_BRIDGELESS_LOADING_START (null)
+04-06 11:17:32.194 11516 11588 W unknown:BridgelessReact: ReactHost{0}.getJSBundleLoader()
+04-06 11:17:32.194 11516 11588 W unknown:BridgelessReact: ReactHost{0}.isMetroRunning()
+04-06 11:17:32.196 11516 11589 D TrafficStats: tagSocket(109) with statsTag=0xffffffff, statsUid=-1
+04-06 11:17:32.197 11516 11516 I DecorView: [INFO] isPopOver=false config=true
+04-06 11:17:32.197 11516 11516 I DecorView: updateCaptionType: isFloating=false isApplication=true hasWindowDecorCaption=false this=DecorView@afffac0[]
+04-06 11:17:32.197 11516 11516 D DecorView: setCaptionType = 0, this = DecorView@afffac0[]
+04-06 11:17:32.203 11516 11516 I DecorView: getCurrentDensityDpi: from real metrics. densityDpi=480 msg=resources_loaded
+04-06 11:17:32.203 11516 11516 I DecorView: setWindowBackground: isPopOver=false color=ff303030 d=android.graphics.drawable.ColorDrawable@1316f3e
+04-06 11:17:32.207 11516 11516 W om.evolucao.app: Accessing hidden method Landroid/view/ViewGroup;->makeOptionalFitsSystemWindows()V (unsupported, reflection, allowed)
+04-06 11:17:32.211 11516 11516 D LifecycleMonitor: Lifecycle status change: com.evolucao.app.MainActivity@64e06eb in: CREATED
+04-06 11:17:32.212 11516 11516 D LifecycleMonitor: Lifecycle status change: com.evolucao.app.MainActivity@64e06eb in: STARTED
+04-06 11:17:32.214 11516 11516 W unknown:BridgelessReact: ReactHost{0}.onHostResume(activity)
+04-06 11:17:32.214 11516 11516 W unknown:ReactNative: Packager connection already open, nooping.
+04-06 11:17:32.214 11516 11516 D LifecycleMonitor: Lifecycle status change: com.evolucao.app.MainActivity@64e06eb in: RESUMED
+04-06 11:17:32.215 11516 11516 I MSHandlerLifeCycle: check: return. pkg=com.evolucao.app parent=null callers=com.android.internal.policy.DecorView.setVisibility:4412 android.app.ActivityThread.handleResumeActivity:5476 android.app.servertransaction.ResumeActivityItem.execute:54 android.app.servertransaction.ActivityTransactionItem.execute:45 android.app.servertransaction.TransactionExecutor.executeLifecycleState:176 
+04-06 11:17:32.215 11516 11516 I MSHandlerLifeCycle: removeMultiSplitHandler: no exist. decor=DecorView@afffac0[]
+04-06 11:17:32.221 11516 11568 D NativeCustomFrequencyManager: [NativeCFMS] BpCustomFrequencyManager::BpCustomFrequencyManager()
+04-06 11:17:32.223 11516 11516 I DecorView: notifyKeepScreenOnChanged: keepScreenOn=false
+04-06 11:17:32.226 11516 11516 D InsetsController: onStateChanged: InsetsState: {mDisplayFrame=Rect(0, 0 - 1080, 2400), mDisplayCutout=DisplayCutout{insets=Rect(0, 88 - 0, 0) waterfall=Insets{left=0, top=0, right=0, bottom=0} boundingRect={Bounds=[Rect(0, 0 - 0, 0), Rect(512, 0 - 568, 88), Rect(0, 0 - 0, 0), Rect(0, 0 - 0, 0)]} cutoutPathParserInfo={CutoutPathParserInfo{displayWidth=1080 displayHeight=2400 physicalDisplayWidth=1080 physicalDisplayHeight=2400 density={3.0} cutoutSpec={M 0,0 M 0,10.71963616907435 a 9.280363830925644,9.280363830925644 0 1,0 0,18.56072766185129 a 9.280363830925644,9.280363830925644 0 1,0 0,-18.56072766185129 Z @dp} rotation={0} scale={1.0} physicalPixelDisplaySizeRatio={1.0}}}}, mRoundedCorners=RoundedCorners{[RoundedCorner{position=TopLeft, radius=96, center=Point(96, 96)}, RoundedCorner{position=TopRight, radius=96, center=Point(984, 96)}, RoundedCorner{position=BottomRight, radius=96, center=Point(984, 2304)}, RoundedCorner{position=BottomLeft, radius=96, center=Point(96, 2304)}]}  mRoundedCornerFrame=Rect(0, 0 - 1080, 2400), mPrivacyIndicatorBounds=PrivacyIndicatorBounds {static bounds=Rect(948, 0 - 1080, 88) rotation=0}, mSources= { InsetsSource: {mType=ITYPE_STATUS_BAR, mFrame=[0,0][1080,88], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_NAVIGATION_BAR, mFrame=[0,2256][1080,2400], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_LEFT_GESTURES, mFrame=[0,0][0,2400], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_RIGHT_GESTURES, mFrame=[1080,0][1080,2400], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_TOP_MANDATORY_GESTURES, mFrame=[0,0][1080,124], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_BOTTOM_MANDATORY_GESTURES, mFrame=[0,2256][1080,2400], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_LEFT_DISPLAY_CUTOUT, mFrame=[0,0][-100000,2400], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_TOP_DISPLAY_CUTOUT, mFrame=[0,0][1080,88], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_RIGHT_DISPLAY_CUTOUT, mFrame=[100000,0][1080,2400], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_BOTTOM_DISPLAY_CUTOUT, mFrame=[0,100000][1080,2400], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_TOP_TAPPABLE_ELEMENT, mFrame=[0,0][1080,88], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_BOTTOM_TAPPABLE_ELEMENT, mFrame=[0,2256][1080,2400], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_IME, mFrame=[0,0][0,0], mVisibleFrame=[0,1374][1080,2400], mVisible=false, mInsetsRoundedCornerFrame=false} } host=com.evolucao.app/com.evolucao.app.MainActivity from=android.view.ViewRootImpl.setView:1732
+04-06 11:17:32.228 11516 11516 I ViewRootImpl@914008f[MainActivity]: setView = com.android.internal.policy.DecorView@afffac0 TM=false
+04-06 11:17:32.229 11516 11516 I MSHandlerLifeCycle: removeMultiSplitHandler: no exist. decor=DecorView@afffac0[MainActivity]
+04-06 11:17:32.236 11516 11516 I ViewRootImpl@914008f[MainActivity]: performTraversals params={(0,0)(fillxfill) sim={adjust=resize forwardNavigation} layoutInDisplayCutoutMode=always ty=BASE_APPLICATION wanim=0x1030309
+04-06 11:17:32.236 11516 11516 I ViewRootImpl@914008f[MainActivity]:   fl=81810100
+04-06 11:17:32.236 11516 11516 I ViewRootImpl@914008f[MainActivity]:   pfl=16020040
+04-06 11:17:32.236 11516 11516 I ViewRootImpl@914008f[MainActivity]:   vsysui=100
+04-06 11:17:32.236 11516 11516 I ViewRootImpl@914008f[MainActivity]:   bhv=DEFAULT
+04-06 11:17:32.236 11516 11516 I ViewRootImpl@914008f[MainActivity]:   fitSides= naviIconColor=0}
+04-06 11:17:32.236 11516 11516 I ViewRootImpl@914008f[MainActivity]: performTraversals mFirst=true windowShouldResize=true viewVisibilityChanged=false mForceNextWindowRelayout=false params={(0,0)(fillxfill) sim={adjust=resize forwardNavigation} layoutInDisplayCutoutMode=always ty=BASE_APPLICATION wanim=0x1030309
+04-06 11:17:32.236 11516 11516 I ViewRootImpl@914008f[MainActivity]:   fl=81810100
+04-06 11:17:32.236 11516 11516 I ViewRootImpl@914008f[MainActivity]:   pfl=16020040
+04-06 11:17:32.236 11516 11516 I ViewRootImpl@914008f[MainActivity]:   vsysui=100
+04-06 11:17:32.236 11516 11516 I ViewRootImpl@914008f[MainActivity]:   bhv=DEFAULT
+04-06 11:17:32.236 11516 11516 I ViewRootImpl@914008f[MainActivity]:   fitSides= naviIconColor=0}
+04-06 11:17:32.242 11516 11516 I ViewRootImpl@914008f[MainActivity]: updateBlastSurfaceIfNeeded mBlastBufferQueue=null isSameSurfaceControl=false
+04-06 11:17:32.242 11516 11516 E BufferQueueProducer: Unable to open libpenguin.so: dlopen failed: library "libpenguin.so" not found.
+04-06 11:17:32.243 11516 11516 I BLASTBufferQueue: new BLASTBufferQueue, mName= ViewRootImpl@914008f[MainActivity] mNativeObject= 0xb4000070c2c34c00 sc.mNativeObject= 0xb4000070a0c700c0 caller= android.view.ViewRootImpl.updateBlastSurfaceIfNeeded:2909 android.view.ViewRootImpl.relayoutWindow:9847 android.view.ViewRootImpl.performTraversals:3884 android.view.ViewRootImpl.doTraversal:3116 android.view.ViewRootImpl$TraversalRunnable.run:10885 android.view.Choreographer$CallbackRecord.run:1301 android.view.Choreographer$CallbackRecord.run:1309 android.view.Choreographer.doCallbacks:923 android.view.Choreographer.doFrame:852 android.view.Choreographer$FrameDisplayEventReceiver.run:1283 
+04-06 11:17:32.243 11516 11516 I BLASTBufferQueue: update, w= 1080 h= 2400 mName = ViewRootImpl@914008f[MainActivity] mNativeObject= 0xb4000070c2c34c00 sc.mNativeObject= 0xb4000070a0c700c0 format= -1 caller= android.graphics.BLASTBufferQueue.<init>:84 android.view.ViewRootImpl.updateBlastSurfaceIfNeeded:2909 android.view.ViewRootImpl.relayoutWindow:9847 android.view.ViewRootImpl.performTraversals:3884 android.view.ViewRootImpl.doTraversal:3116 android.view.ViewRootImpl$TraversalRunnable.run:10885 
+04-06 11:17:32.243 11516 11516 I ViewRootImpl@914008f[MainActivity]: Relayout returned: old=(0,0,1080,2400) new=(0,0,1080,2400) req=(1080,2400)0 dur=6 res=0x3 s={true 0xb4000070a0dc4000} ch=true seqId=0
+04-06 11:17:32.244 11516 11516 I ViewRootImpl@914008f[MainActivity]: mThreadedRenderer.initialize() mSurface={isValid=true 0xb4000070a0dc4000} hwInitialized=true
+04-06 11:17:32.247 11516 11516 I ViewRootImpl@914008f[MainActivity]: reportNextDraw android.view.ViewRootImpl.performTraversals:4438 android.view.ViewRootImpl.doTraversal:3116 android.view.ViewRootImpl$TraversalRunnable.run:10885 android.view.Choreographer$CallbackRecord.run:1301 android.view.Choreographer$CallbackRecord.run:1309 
+04-06 11:17:32.247 11516 11516 I ViewRootImpl@914008f[MainActivity]: Setup new sync id=0
+04-06 11:17:32.247 11516 11516 I ViewRootImpl@914008f[MainActivity]: Setting syncFrameCallback
+04-06 11:17:32.247 11516 11516 I ViewRootImpl@914008f[MainActivity]: registerCallbacksForSync syncBuffer=false
+04-06 11:17:32.249 11516 11568 D OpenGLRenderer: eglCreateWindowSurface
+04-06 11:17:32.250 11516 11591 I ViewRootImpl@914008f[MainActivity]: Received frameDrawingCallback syncResult=0 frameNum=1.
+04-06 11:17:32.250 11516 11591 I ViewRootImpl@914008f[MainActivity]: Setting up sync and frameCommitCallback
+04-06 11:17:32.260 11516 11589 W unknown:BridgelessReact: ReactHost{0}.isMetroRunning(): Async result = true
+04-06 11:17:32.262 11516 11588 W unknown:BridgelessReact: ReactHost{0}.loadJSBundleFromMetro()
+04-06 11:17:32.265 11516 11588 D Detox.RNMarker: DOWNLOAD_START (null)
+04-06 11:17:32.266 11516 11568 I BLASTBufferQueue: [ViewRootImpl@914008f[MainActivity]#0](f:0,a:0) onFrameAvailable the first frame is available
+04-06 11:17:32.266 11516 11568 I ViewRootImpl@914008f[MainActivity]: Received frameCommittedCallback lastAttemptedDrawFrameNum=1 didProduceBuffer=true
+04-06 11:17:32.267 11516 11568 D OpenGLRenderer: CFMS:: SetUp Pid : 11516    Tid : 11568
+04-06 11:17:32.269 11516 11568 W Parcel  : Expecting binder but got null!
+04-06 11:17:32.269 11516 11516 I ViewRootImpl@914008f[MainActivity]: onSyncComplete
+04-06 11:17:32.269 11516 11516 I ViewRootImpl@914008f[MainActivity]: setupSync seqId=0 mSyncId=0 fn=1 caller=android.view.ViewRootImpl$$ExternalSyntheticLambda11.accept:6 android.window.SurfaceSyncer.lambda$setupSync$1$android-window-SurfaceSyncer:128 android.window.SurfaceSyncer$$ExternalSyntheticLambda1.accept:8 android.window.SurfaceSyncer$SyncSet.checkIfSyncIsComplete:382 android.window.SurfaceSyncer$SyncSet.markSyncReady:359 android.window.SurfaceSyncer.markSyncReady:151 android.view.ViewRootImpl.performTraversals:4503 
+04-06 11:17:32.269 11516 11516 I ViewRootImpl@914008f[MainActivity]: reportDrawFinished seqId=0 mSyncId=-1 fn=1 mSurfaceChangedTransaction=0xb4000070b12dec00
+04-06 11:17:32.273 11516 11516 D CompatibilityChangeReporter: Compat change id reported: 210923482; UID 10497; state: ENABLED
+04-06 11:17:32.278 11516 11568 D NativeCustomFrequencyManager: [NativeCFMS] BpCustomFrequencyManager::BpCustomFrequencyManager()
+04-06 11:17:32.280 11516 11516 D InsetsController: onStateChanged: InsetsState: {mDisplayFrame=Rect(0, 0 - 1080, 2400), mDisplayCutout=DisplayCutout{insets=Rect(0, 88 - 0, 0) waterfall=Insets{left=0, top=0, right=0, bottom=0} boundingRect={Bounds=[Rect(0, 0 - 0, 0), Rect(512, 0 - 568, 88), Rect(0, 0 - 0, 0), Rect(0, 0 - 0, 0)]} cutoutPathParserInfo={CutoutPathParserInfo{displayWidth=1080 displayHeight=2400 physicalDisplayWidth=1080 physicalDisplayHeight=2400 density={3.0} cutoutSpec={M 0,0 M 0,10.71963616907435 a 9.280363830925644,9.280363830925644 0 1,0 0,18.56072766185129 a 9.280363830925644,9.280363830925644 0 1,0 0,-18.56072766185129 Z @dp} rotation={0} scale={1.0} physicalPixelDisplaySizeRatio={1.0}}}}, mRoundedCorners=RoundedCorners{[RoundedCorner{position=TopLeft, radius=96, center=Point(96, 96)}, RoundedCorner{position=TopRight, radius=96, center=Point(984, 96)}, RoundedCorner{position=BottomRight, radius=96, center=Point(984, 2304)}, RoundedCorner{position=BottomLeft, radius=96, center=Point(96, 2304)}]}  mRoundedCornerFrame=Rect(0, 0 - 1080, 2400), mPrivacyIndicatorBounds=PrivacyIndicatorBounds {static bounds=Rect(948, 0 - 1080, 88) rotation=0}, mSources= { InsetsSource: {mType=ITYPE_STATUS_BAR, mFrame=[0,0][1080,88], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_NAVIGATION_BAR, mFrame=[0,2256][1080,2400], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_LEFT_GESTURES, mFrame=[0,0][0,2400], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_RIGHT_GESTURES, mFrame=[1080,0][1080,2400], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_TOP_MANDATORY_GESTURES, mFrame=[0,0][1080,124], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_BOTTOM_MANDATORY_GESTURES, mFrame=[0,2256][1080,2400], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_LEFT_DISPLAY_CUTOUT, mFrame=[0,0][-100000,2400], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_TOP_DISPLAY_CUTOUT, mFrame=[0,0][1080,88], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_RIGHT_DISPLAY_CUTOUT, mFrame=[100000,0][1080,2400], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_BOTTOM_DISPLAY_CUTOUT, mFrame=[0,100000][1080,2400], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_TOP_TAPPABLE_ELEMENT, mFrame=[0,0][1080,88], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_BOTTOM_TAPPABLE_ELEMENT, mFrame=[0,2256][1080,2400], mVisible=true, mInsetsRoundedCornerFrame=false}, InsetsSource: {mType=ITYPE_IME, mFrame=[0,0][0,0], mVisibleFrame=[0,1374][1080,2400], mVisible=false, mInsetsRoundedCornerFrame=false} } host=PopupWindow:f832caa from=android.view.ViewRootImpl.setView:1732
+04-06 11:17:32.281 11516 11516 I ViewRootImpl@7f2009b[PopupWindow:f832caa]: setView = android.widget.PopupWindow$PopupDecorView@9660b77 TM=false
+04-06 11:17:32.285 11516 11516 I ViewRootImpl@7f2009b[PopupWindow:f832caa]: performTraversals params={(0,88)(fillxwrap) gr=TOP START CENTER sim={state=unchanged adjust=pan} ty=APPLICATION_PANEL fmt=TRANSLUCENT surfaceInsets=Rect(0, 0 - 0, 0) (manual)
+04-06 11:17:32.285 11516 11516 I ViewRootImpl@7f2009b[PopupWindow:f832caa]:   fl=41800008
+04-06 11:17:32.285 11516 11516 I ViewRootImpl@7f2009b[PopupWindow:f832caa]:   pfl=42018000
+04-06 11:17:32.285 11516 11516 I ViewRootImpl@7f2009b[PopupWindow:f832caa]:   bhv=DEFAULT
+04-06 11:17:32.285 11516 11516 I ViewRootImpl@7f2009b[PopupWindow:f832caa]:   fitTypes=STATUS_BARS NAVIGATION_BARS CAPTION_BAR naviIconColor=0
+04-06 11:17:32.285 11516 11516 I ViewRootImpl@7f2009b[PopupWindow:f832caa]:   sfl=20000}
+04-06 11:17:32.285 11516 11516 I ViewRootImpl@7f2009b[PopupWindow:f832caa]: performTraversals mFirst=true windowShouldResize=true viewVisibilityChanged=false mForceNextWindowRelayout=false params={(0,88)(fillxwrap) gr=TOP START CENTER sim={state=unchanged adjust=pan} ty=APPLICATION_PANEL fmt=TRANSLUCENT surfaceInsets=Rect(0, 0 - 0, 0) (manual)
+04-06 11:17:32.285 11516 11516 I ViewRootImpl@7f2009b[PopupWindow:f832caa]:   fl=41800008
+04-06 11:17:32.285 11516 11516 I ViewRootImpl@7f2009b[PopupWindow:f832caa]:   pfl=42018000
+04-06 11:17:32.285 11516 11516 I ViewRootImpl@7f2009b[PopupWindow:f832caa]:   bhv=DEFAULT
+04-06 11:17:32.285 11516 11516 I ViewRootImpl@7f2009b[PopupWindow:f832caa]:   fitTypes=STATUS_BARS NAVIGATION_BARS CAPTION_BAR naviIconColor=0
+04-06 11:17:32.285 11516 11516 I ViewRootImpl@7f2009b[PopupWindow:f832caa]:   sfl=20000}
+04-06 11:17:32.288 11516 11534 I ViewRootImpl@7f2009b[PopupWindow:f832caa]: Resizing android.view.ViewRootImpl@cfb53e4: frame = [0,88][1080,167] reportDraw = true forceLayout = false syncSeqId = 0
+04-06 11:17:32.289 11516 11516 I ViewRootImpl@7f2009b[PopupWindow:f832caa]: updateBlastSurfaceIfNeeded mBlastBufferQueue=null isSameSurfaceControl=false
+04-06 11:17:32.289 11516 11516 I BLASTBufferQueue: new BLASTBufferQueue, mName= ViewRootImpl@7f2009b[PopupWindow:f832caa] mNativeObject= 0xb4000070a0cae880 sc.mNativeObject= 0xb4000070a0c70d40 caller= android.view.ViewRootImpl.updateBlastSurfaceIfNeeded:2909 android.view.ViewRootImpl.relayoutWindow:9847 android.view.ViewRootImpl.performTraversals:3884 android.view.ViewRootImpl.doTraversal:3116 android.view.ViewRootImpl$TraversalRunnable.run:10885 android.view.Choreographer$CallbackRecord.run:1301 android.view.Choreographer$CallbackRecord.run:1309 android.view.Choreographer.doCallbacks:923 android.view.Choreographer.doFrame:852 android.view.Choreographer$FrameDisplayEventReceiver.run:1283 
+04-06 11:17:32.289 11516 11516 I BLASTBufferQueue: update, w= 1080 h= 79 mName = ViewRootImpl@7f2009b[PopupWindow:f832caa] mNativeObject= 0xb4000070a0cae880 sc.mNativeObject= 0xb4000070a0c70d40 format= -3 caller= android.graphics.BLASTBufferQueue.<init>:84 android.view.ViewRootImpl.updateBlastSurfaceIfNeeded:2909 android.view.ViewRootImpl.relayoutWindow:9847 android.view.ViewRootImpl.performTraversals:3884 android.view.ViewRootImpl.doTraversal:3116 android.view.ViewRootImpl$TraversalRunnable.run:10885 
+04-06 11:17:32.289 11516 11516 I ViewRootImpl@7f2009b[PopupWindow:f832caa]: Relayout returned: old=(0,88,1080,2256) new=(0,88,1080,167) req=(1080,79)0 dur=4 res=0x3 s={true 0xb4000070a0dc6800} ch=true seqId=0
+04-06 11:17:32.290 11516 11516 I ViewRootImpl@7f2009b[PopupWindow:f832caa]: mThreadedRenderer.initialize() mSurface={isValid=true 0xb4000070a0dc6800} hwInitialized=true
+04-06 11:17:32.290 11516 11568 D OpenGLRenderer: eglCreateWindowSurface
+04-06 11:17:32.290 11516 11516 I ViewRootImpl@7f2009b[PopupWindow:f832caa]: reportNextDraw android.view.ViewRootImpl.performTraversals:4438 android.view.ViewRootImpl.doTraversal:3116 android.view.ViewRootImpl$TraversalRunnable.run:10885 android.view.Choreographer$CallbackRecord.run:1301 android.view.Choreographer$CallbackRecord.run:1309 
+04-06 11:17:32.290 11516 11516 I ViewRootImpl@7f2009b[PopupWindow:f832caa]: Setup new sync id=0
+04-06 11:17:32.291 11516 11516 I ViewRootImpl@7f2009b[PopupWindow:f832caa]: Setting syncFrameCallback
+04-06 11:17:32.291 11516 11516 I ViewRootImpl@7f2009b[PopupWindow:f832caa]: registerCallbacksForSync syncBuffer=false
+04-06 11:17:32.292 11516 11592 I ViewRootImpl@7f2009b[PopupWindow:f832caa]: Received frameDrawingCallback syncResult=0 frameNum=1.
+04-06 11:17:32.292 11516 11592 I ViewRootImpl@7f2009b[PopupWindow:f832caa]: Setting up sync and frameCommitCallback
+04-06 11:17:32.298 11516 11568 I BLASTBufferQueue: [ViewRootImpl@7f2009b[PopupWindow:f832caa]#1](f:0,a:0) onFrameAvailable the first frame is available
+04-06 11:17:32.298 11516 11568 I ViewRootImpl@7f2009b[PopupWindow:f832caa]: Received frameCommittedCallback lastAttemptedDrawFrameNum=1 didProduceBuffer=true
+04-06 11:17:32.299 11516 11568 D OpenGLRenderer: CFMS:: SetUp Pid : 11516    Tid : 11568
+04-06 11:17:32.299 11516 11568 W Parcel  : Expecting binder but got null!
+04-06 11:17:32.299 11516 11516 I ViewRootImpl@7f2009b[PopupWindow:f832caa]: onSyncComplete
+04-06 11:17:32.299 11516 11516 I ViewRootImpl@7f2009b[PopupWindow:f832caa]: setupSync seqId=0 mSyncId=0 fn=1 caller=android.view.ViewRootImpl$$ExternalSyntheticLambda11.accept:6 android.window.SurfaceSyncer.lambda$setupSync$1$android-window-SurfaceSyncer:128 android.window.SurfaceSyncer$$ExternalSyntheticLambda1.accept:8 android.window.SurfaceSyncer$SyncSet.checkIfSyncIsComplete:382 android.window.SurfaceSyncer$SyncSet.markSyncReady:359 android.window.SurfaceSyncer.markSyncReady:151 android.view.ViewRootImpl.performTraversals:4503 
+04-06 11:17:32.299 11516 11516 I ViewRootImpl@7f2009b[PopupWindow:f832caa]: reportDrawFinished seqId=0 mSyncId=-1 fn=1 mSurfaceChangedTransaction=0xb4000070d4164b00
+04-06 11:17:32.300 11516 11516 I ViewRootImpl@914008f[MainActivity]: MSG_WINDOW_FOCUS_CHANGED 1 0
+04-06 11:17:32.300 11516 11516 I ViewRootImpl@914008f[MainActivity]: mThreadedRenderer.initializeIfNeeded()#2 mSurface={isValid=true 0xb4000070a0dc4000}
+04-06 11:17:32.300 11516 11516 W unknown:BridgelessReact: ReactHost{0}.raiseSoftException(onWindowFocusChange(hasFocus = "true")): Tried to access onWindowFocusChange while context is not ready
+04-06 11:17:32.301 11516 11516 E unknown:ReactHost: Unhandled SoftException
+04-06 11:17:32.301 11516 11516 E unknown:ReactHost: com.facebook.react.bridge.ReactNoCrashSoftException: raiseSoftException(onWindowFocusChange(hasFocus = "true")): Tried to access onWindowFocusChange while context is not ready
+04-06 11:17:32.301 11516 11516 E unknown:ReactHost: 	at com.facebook.react.runtime.ReactHostImpl.raiseSoftException(ReactHostImpl.kt:861)
+04-06 11:17:32.301 11516 11516 E unknown:ReactHost: 	at com.facebook.react.runtime.ReactHostImpl.raiseSoftException$default(ReactHostImpl.kt:852)
+04-06 11:17:32.301 11516 11516 E unknown:ReactHost: 	at com.facebook.react.runtime.ReactHostImpl.onWindowFocusChange(ReactHostImpl.kt:625)
+04-06 11:17:32.301 11516 11516 E unknown:ReactHost: 	at com.facebook.react.ReactDelegate.onWindowFocusChanged(ReactDelegate.kt:232)
+04-06 11:17:32.301 11516 11516 E unknown:ReactHost: 	at com.facebook.react.ReactActivityDelegate.onWindowFocusChanged(ReactActivityDelegate.java:237)
+04-06 11:17:32.301 11516 11516 E unknown:ReactHost: 	at expo.modules.ReactActivityDelegateWrapper$onWindowFocusChanged$1.invokeSuspend(ReactActivityDelegateWrapper.kt:320)
+04-06 11:17:32.301 11516 11516 E unknown:ReactHost: 	at expo.modules.ReactActivityDelegateWrapper$onWindowFocusChanged$1.invoke(Unknown Source:8)
+04-06 11:17:32.301 11516 11516 E unknown:ReactHost: 	at expo.modules.ReactActivityDelegateWrapper$onWindowFocusChanged$1.invoke(Unknown Source:4)
+04-06 11:17:32.301 11516 11516 E unknown:ReactHost: 	at expo.modules.ReactActivityDelegateWrapper$launchLifecycleScopeWithLock$1.invokeSuspend(ReactActivityDelegateWrapper.kt:452)
+04-06 11:17:32.301 11516 11516 E unknown:ReactHost: 	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:33)
+04-06 11:17:32.301 11516 11516 E unknown:ReactHost: 	at kotlinx.coroutines.internal.DispatchedContinuationKt.resumeCancellableWith(DispatchedContinuation.kt:375)
+04-06 11:17:32.301 11516 11516 E unknown:ReactHost: 	at kotlinx.coroutines.intrinsics.CancellableKt.startCoroutineCancellable(Cancellable.kt:26)
+04-06 11:17:32.301 11516 11516 E unknown:ReactHost: 	at kotlinx.coroutines.CoroutineStart.invoke(CoroutineStart.kt:358)
+04-06 11:17:32.301 11516 11516 E unknown:ReactHost: 	at kotlinx.coroutines.AbstractCoroutine.start(AbstractCoroutine.kt:134)
+04-06 11:17:32.301 11516 11516 E unknown:ReactHost: 	at kotlinx.coroutines.BuildersKt__Builders_commonKt.launch(Builders.common.kt:53)
+04-06 11:17:32.301 11516 11516 E unknown:ReactHost: 	at kotlinx.coroutines.BuildersKt.launch(Unknown Source:1)
+04-06 11:17:32.301 11516 11516 E unknown:ReactHost: 	at kotlinx.coroutines.BuildersKt__Builders_commonKt.launch$default(Builders.common.kt:44)
+04-06 11:17:32.301 11516 11516 E unknown:ReactHost: 	at kotlinx.coroutines.BuildersKt.launch$default(Unknown Source:1)
+04-06 11:17:32.301 11516 11516 E unknown:ReactHost: 	at expo.modules.ReactActivityDelegateWrapper.launchLifecycleScopeWithLock(ReactActivityDelegateWrapper.kt:450)
+04-06 11:17:32.301 11516 11516 E unknown:ReactHost: 	at expo.modules.ReactActivityDelegateWrapper.launchLifecycleScopeWithLock$default(ReactActivityDelegateWrapper.kt:446)
+04-06 11:17:32.301 11516 11516 E unknown:ReactHost: 	at expo.modules.ReactActivityDelegateWrapper.onWindowFocusChanged(ReactActivityDelegateWrapper.kt:318)
+04-06 11:17:32.301 11516 11516 E unknown:ReactHost: 	at com.facebook.react.ReactActivity.onWindowFocusChanged(ReactActivity.java:158)
+04-06 11:17:32.301 11516 11516 E unknown:ReactHost: 	at androidx.appcompat.view.WindowCallbackWrapper.onWindowFocusChanged(WindowCallbackWrapper.java:124)
+04-06 11:17:32.301 11516 11516 E unknown:ReactHost: 	at com.android.internal.policy.DecorView.onWindowFocusChanged(DecorView.java:2710)
+04-06 11:17:32.301 11516 11516 E unknown:ReactHost: 	at android.view.View.dispatchWindowFocusChanged(View.java:15817)
+04-06 11:17:32.301 11516 11516 E unknown:ReactHost: 	at android.view.ViewGroup.dispatchWindowFocusChanged(ViewGroup.java:1512)
+04-06 11:17:32.301 11516 11516 E unknown:ReactHost: 	at android.view.ViewRootImpl.handleWindowFocusChanged(ViewRootImpl.java:4678)
+04-06 11:17:32.301 11516 11516 E unknown:ReactHost: 	at android.view.ViewRootImpl.-$$Nest$mhandleWindowFocusChanged(Unknown Source:0)
+04-06 11:17:32.301 11516 11516 E unknown:ReactHost: 	at android.view.ViewRootImpl$ViewRootHandler.handleMessageImpl(ViewRootImpl.java:6788)
+04-06 11:17:32.301 11516 11516 E unknown:ReactHost: 	at android.view.ViewRootImpl$ViewRootHandler.handleMessage(ViewRootImpl.java:6697)
+04-06 11:17:32.301 11516 11516 E unknown:ReactHost: 	at android.os.Handler.dispatchMessage(Handler.java:106)
+04-06 11:17:32.301 11516 11516 E unknown:ReactHost: 	at android.os.Looper.loopOnce(Looper.java:226)
+04-06 11:17:32.301 11516 11516 E unknown:ReactHost: 	at android.os.Looper.loop(Looper.java:313)
+04-06 11:17:32.301 11516 11516 E unknown:ReactHost: 	at android.app.ActivityThread.main(ActivityThread.java:8762)
+04-06 11:17:32.301 11516 11516 E unknown:ReactHost: 	at java.lang.reflect.Method.invoke(Native Method)
+04-06 11:17:32.301 11516 11516 E unknown:ReactHost: 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:604)
+04-06 11:17:32.301 11516 11516 E unknown:ReactHost: 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1067)
+04-06 11:17:32.301 11516 11516 D InputMethodManager: startInputInner - Id : 0
+04-06 11:17:32.301 11516 11516 I InputMethodManager: startInputInner - mService.startInputOrWindowGainedFocus
+04-06 11:17:32.304 11516 11516 I ViewRootImpl@7f2009b[PopupWindow:f832caa]: handleResized, msg = 5 frames=ClientWindowFrames{frame=[0,88][1080,167] display=[0,88][1080,2256] parentFrame=[0,0][0,0] parentClippedByDisplayCutout=false} forceNextWindowRelayout=false displayId=0 resizeMode=-1 frameChanged=false displayFrameChanged=false configChanged=false displayChanged=false
+04-06 11:17:32.304 11516 11516 I ViewRootImpl@7f2009b[PopupWindow:f832caa]: handleResized mSyncSeqId = 0
+04-06 11:17:32.304 11516 11516 I ViewRootImpl@7f2009b[PopupWindow:f832caa]: reportNextDraw android.view.ViewRootImpl.handleResized:2450 android.view.ViewRootImpl.-$$Nest$mhandleResized:0 android.view.ViewRootImpl$ViewRootHandler.handleMessageImpl:6728 android.view.ViewRootImpl$ViewRootHandler.handleMessage:6697 android.os.Handler.dispatchMessage:106 
+04-06 11:17:32.305 11516 11516 D InputMethodManager: startInputInner - Id : 0
+04-06 11:17:32.312 11516 11516 I ViewRootImpl@7f2009b[PopupWindow:f832caa]: Setup new sync id=1
+04-06 11:17:32.312 11516 11516 I ViewRootImpl@7f2009b[PopupWindow:f832caa]: Setting syncFrameCallback
+04-06 11:17:32.312 11516 11516 I ViewRootImpl@7f2009b[PopupWindow:f832caa]: registerCallbacksForSync syncBuffer=false
+04-06 11:17:32.313 11516 11591 I ViewRootImpl@7f2009b[PopupWindow:f832caa]: Received frameDrawingCallback syncResult=0 frameNum=3.
+04-06 11:17:32.313 11516 11591 I ViewRootImpl@7f2009b[PopupWindow:f832caa]: Setting up sync and frameCommitCallback
+04-06 11:17:32.318 11516 11568 I ViewRootImpl@7f2009b[PopupWindow:f832caa]: Received frameCommittedCallback lastAttemptedDrawFrameNum=3 didProduceBuffer=true
+04-06 11:17:32.318 11516 11516 I ViewRootImpl@7f2009b[PopupWindow:f832caa]: onSyncComplete
+04-06 11:17:32.319 11516 11516 I ViewRootImpl@7f2009b[PopupWindow:f832caa]: setupSync seqId=0 mSyncId=1 fn=3 caller=android.view.ViewRootImpl$$ExternalSyntheticLambda11.accept:6 android.window.SurfaceSyncer.lambda$setupSync$1$android-window-SurfaceSyncer:128 android.window.SurfaceSyncer$$ExternalSyntheticLambda1.accept:8 android.window.SurfaceSyncer$SyncSet.checkIfSyncIsComplete:382 android.window.SurfaceSyncer$SyncSet.markSyncReady:359 android.window.SurfaceSyncer.markSyncReady:151 android.view.ViewRootImpl.performTraversals:4503 
+04-06 11:17:32.319 11516 11516 I ViewRootImpl@7f2009b[PopupWindow:f832caa]: reportDrawFinished seqId=0 mSyncId=-1 fn=3 mSurfaceChangedTransaction=0xb4000070d4164b00
+04-06 11:17:32.589 11516 11595 D Detox.RNMarker: DOWNLOAD_END ({"url":"http:\/\/localhost:8081\/.expo\/.virtual-metro-entry.bundle?platform=android&dev=true&lazy=true&minify=false&app=com.evolucao.app&modulesOnly=false&runModule=true&excludeSource=true&sourcePaths=url-server","filesChangedCount":0})
+04-06 11:17:32.589 11516 11595 W unknown:BridgelessReact: ReactHost{0}.loadJSBundleFromMetro(): Creating BundleLoader
+04-06 11:17:32.590 11516 11568 D OpenGLRenderer: setSurface called with nullptr
+04-06 11:17:32.590 11516 11568 D OpenGLRenderer: setSurface() destroyed EGLSurface
+04-06 11:17:32.590 11516 11588 W unknown:BridgelessReact: ReactHost{0}.getOrCreateReactInstanceTask(): Creating BridgelessReactContext
+04-06 11:17:32.590 11516 11568 D OpenGLRenderer: destroyEglSurface
+04-06 11:17:32.590 11516 11516 I ViewRootImpl@7f2009b[PopupWindow:f832caa]: dispatchDetachedFromWindow
+04-06 11:17:32.591 11516 11588 W unknown:BridgelessReact: ReactHost{0}.getOrCreateReactInstanceTask(): Creating ReactInstance
+04-06 11:17:32.593 11516 11516 D InputTransport: Input channel destroyed: 'e08e681', fd=123
+04-06 11:17:32.601 11516 11595 D TrafficStats: tagSocket(129) with statsTag=0xffffffff, statsUid=-1
+04-06 11:17:32.603 11516 11588 D jni_lib_merge: Entering merged library JNI_OnLoad.
+04-06 11:17:32.603 11516 11588 D jni_lib_merge: Preparing 4 pre-merged libs (including stub)
+04-06 11:17:32.603 11516 11588 D jni_lib_merge: Preparing to register libhermes_executor_so.  onload_func: 0x701a1adfa4
+04-06 11:17:32.603 11516 11588 D jni_lib_merge: Preparing to register libhermesinstancejni_so.  onload_func: 0x701a1e78b4
+04-06 11:17:32.603 11516 11588 D jni_lib_merge: Preparing to register libjsijniprofiler_so.  onload_func: 0x701a1e98f8
+04-06 11:17:32.603 11516 11588 D jni_lib_merge: About to register 3 actual methods.
+04-06 11:17:32.695 11516 11588 I ExpoModulesCore: ✅ AppContext was initialized
+04-06 11:17:32.723 11516 11588 W unknown:BridgelessReact: ReactHost{0}.getOrCreateReactInstanceTask(): Loading JS Bundle
+04-06 11:17:32.724 11516 11588 W unknown:BridgelessReact: ReactHost{0}.getOrCreateReactInstanceTask(): DevSupportManager.onNewReactContextCreated()
+04-06 11:17:32.724 11516 11606 D Detox.RNMarker: RUN_JS_BUNDLE_START (/.virtual-metro-entry.bundle?platform=android&dev=true&lazy=true&minify=false&app=com.evolucao.app&modulesOnly=false&runModule=true&excludeSource=true&sourcePaths=url-server)
+04-06 11:17:32.727 11516 11516 W unknown:ReactNative: Packager connection already open, nooping.
+04-06 11:17:32.730 11516 11516 W unknown:BridgelessReact: ReactHost{0}.ReactContext.onHostResume()
+04-06 11:17:32.731 11516 11588 W unknown:BridgelessReact: ReactHost{0}.startSurface(surfaceId = 0): Execute
+04-06 11:17:32.734 11516 11516 W unknown:BridgelessReact: ReactHost{0}.getOrCreateReactInstanceTask(): Executing ReactInstanceEventListeners
+04-06 11:17:32.734 11516 11516 I DetoxRNLoading: Got new RN-context through listener
+04-06 11:17:32.743 11516 11545 I DetoxRNIdleRes: Setting up Espresso Idling Resources for React Native
+04-06 11:17:32.751 11516 11516 D DetoxRNHelpers: Native RN module resolution (class com.reactnativecommunity.asyncstorage.AsyncStorageModule): no registered module found
+04-06 11:17:32.751 11516 11545 D IdlingRegistry: Registering idling resources: [com.wix.detox.reactnative.idlingresources.uimodule.fabric.FabricUIManagerIdlingResources@556958a]
+04-06 11:17:32.751 11516 11545 D IdlingRegistry: Registering idling resources: [com.wix.detox.reactnative.idlingresources.animations.AnimatedModuleIdlingResource@a29e7fb]
+04-06 11:17:32.751 11516 11545 D IdlingRegistry: Registering idling resources: [com.wix.detox.reactnative.idlingresources.timers.FabricTimersIdlingResource@fa87018]
+04-06 11:17:32.751 11516 11545 D IdlingRegistry: Registering idling resources: [com.wix.detox.reactnative.idlingresources.network.NetworkIdlingResource@76f3a71]
+04-06 11:17:32.751 11516 11545 D IdlingRegistry: Registering idling resources: [com.wix.detox.reactnative.idlingresources.StabilizedIdlingResource@2908056]
+04-06 11:17:32.757 11516 11607 W om.evolucao.app: Accessing hidden method Landroid/os/MessageQueue;->next()Landroid/os/Message; (unsupported, reflection, allowed)
+04-06 11:17:32.757 11516 11607 W om.evolucao.app: Accessing hidden field Landroid/os/MessageQueue;->mMessages:Landroid/os/Message; (unsupported, reflection, allowed)
+04-06 11:17:32.757 11516 11607 W om.evolucao.app: Accessing hidden method Landroid/os/Message;->recycleUnchecked()V (unsupported, reflection, allowed)
+04-06 11:17:32.909 11516 11516 D DetoxRNHelpers: Native RN module resolution (class com.reactnativecommunity.asyncstorage.AsyncStorageModule): no registered module found
+04-06 11:17:32.909 11516 11550 W om.evolucao.app: Long monitor contention with owner Instr: androidx.test.runner.AndroidJUnitRunner (11545) at void com.wix.detox.DetoxMain.launchActivityOnCue(android.content.Context, com.wix.detox.ActivityLaunchHelper)(DetoxMain.kt:53) waiters=0 in void com.wix.detox.DetoxMain$setupActionHandlers$SynchronizedActionHandler.handle(java.lang.String, long) for 840ms
+04-06 11:17:32.968 11516 11607 I WebViewFactory: Loading com.google.android.webview version 146.0.7680.164 (code 768016403)
+04-06 11:17:32.970 11516 11607 D ApplicationLoaders: Returning zygote-cached class loader: /system/framework/android.test.base.jar
+04-06 11:17:32.975 11516 11607 D nativeloader: Configuring classloader-namespace for other apk /data/app/~~23ppwVuk64Fm9vdWCRWMMw==/com.google.android.webview-FPIphznatdLDx2VBYoD68A==/base.apk. target_sdk_version=36, uses_libraries=, library_path=/data/app/~~23ppwVuk64Fm9vdWCRWMMw==/com.google.android.webview-FPIphznatdLDx2VBYoD68A==/lib/arm64:/data/app/~~23ppwVuk64Fm9vdWCRWMMw==/com.google.android.webview-FPIphznatdLDx2VBYoD68A==/base.apk!/lib/arm64-v8a, permitted_path=/data:/mnt/expand
+04-06 11:17:32.988 11516 11607 I cr_WVCFactoryProvider: version=146.0.7680.164 (768016403) minSdkVersion=29 multiprocess=true packageId=127 splits=<none>
+04-06 11:17:32.993 11516 11629 I chromium: [0406/111732.993404:INFO:android_webview/browser/variations/variations_seed_loader.cc:67] Failed to open file for reading.: No such file or directory (2)
+04-06 11:17:32.993 11516 11629 I chromium: [0406/111732.993546:INFO:android_webview/browser/variations/variations_seed_loader.cc:67] Failed to open file for reading.: No such file or directory (2)
+04-06 11:17:32.998 11516 11607 I cr_LibraryLoader: Successfully loaded native library
+04-06 11:17:32.998 11516 11607 I cr_CachingUmaRecorder: Flushed 16 samples from 16 histograms, 0 samples were dropped.
+04-06 11:17:33.010 11516 11589 D TrafficStats: tagSocket(143) with statsTag=0xffffffff, statsUid=-1
+04-06 11:17:33.011 11516 11589 D TrafficStats: tagSocket(143) with statsTag=0xffffffff, statsUid=-1
+04-06 11:17:33.017 11516 11606 W BridgelessReactContext: [WARNING] Bridgeless doesn't support CatalystInstance. Accessing an API that's not part of the new architecture is not encouraged usage.
+04-06 11:17:33.023 11516 11606 I ExpoModulesCore: ✅ JSI interop was installed
+04-06 11:17:33.028 11516 11606 I ExpoModulesCore: ✅ Constants were exported
+04-06 11:17:33.068 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.th3rdwave.safeareacontext.SafeAreaProviderManager
+04-06 11:17:33.070 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.uimanager.LayoutShadowNode
+04-06 11:17:33.072 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.SearchBarManager
+04-06 11:17:33.073 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.ScreenFooterManager
+04-06 11:17:33.073 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.gamma.tabs.TabScreenViewManager
+04-06 11:17:33.075 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class expo.modules.kotlin.views.GroupViewManagerWrapper
+04-06 11:17:33.076 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.ScreenContainerViewManager
+04-06 11:17:33.076 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.gamma.tabs.TabsHostViewManager
+04-06 11:17:33.077 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.ModalScreenViewManager
+04-06 11:17:33.078 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.ScreenStackHeaderConfigViewManager
+04-06 11:17:33.079 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.ScreenContentWrapperManager
+04-06 11:17:33.079 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.th3rdwave.safeareacontext.SafeAreaViewManager
+04-06 11:17:33.081 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.th3rdwave.safeareacontext.SafeAreaViewShadowNode
+04-06 11:17:33.081 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.safearea.SafeAreaViewManager
+04-06 11:17:33.081 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.safearea.paper.SafeAreaViewShadowNode
+04-06 11:17:33.082 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.ScreenViewManager
+04-06 11:17:33.082 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.gamma.stack.host.StackHostViewManager
+04-06 11:17:33.082 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.ScreenStackHeaderSubviewManager
+04-06 11:17:33.083 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.gamma.stack.screen.StackScreenViewManager
+04-06 11:17:33.083 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.ScreenStackViewManager
+04-06 11:17:33.159 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.debuggingoverlay.DebuggingOverlayManager
+04-06 11:17:33.164 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.gesturehandler.react.RNGestureHandlerButtonViewManager
+04-06 11:17:33.170 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.safeareaview.ReactSafeAreaViewManager
+04-06 11:17:33.175 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.modal.ReactModalHostManager
+04-06 11:17:33.180 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.text.frescosupport.FrescoBasedReactTextInlineImageViewManager
+04-06 11:17:33.181 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.text.frescosupport.FrescoBasedReactTextInlineImageShadowNode
+04-06 11:17:33.186 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.progressbar.ReactProgressBarViewManager
+04-06 11:17:33.186 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.progressbar.ProgressBarShadowNode
+04-06 11:17:33.192 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.scroll.ReactHorizontalScrollViewManager
+04-06 11:17:33.198 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.image.ReactImageManager
+04-06 11:17:33.207 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.text.ReactTextViewManager
+04-06 11:17:33.208 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.text.ReactTextShadowNode
+04-06 11:17:33.214 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.scroll.ReactHorizontalScrollContainerViewManager
+04-06 11:17:33.219 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.unimplementedview.ReactUnimplementedViewManager
+04-06 11:17:33.224 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.scroll.ReactScrollViewManager
+04-06 11:17:33.230 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.view.ReactViewManager
+04-06 11:17:33.235 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.drawer.ReactDrawerLayoutManager
+04-06 11:17:33.241 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.switchview.ReactSwitchManager
+04-06 11:17:33.242 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.switchview.ReactSwitchShadowNode
+04-06 11:17:33.246 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.swiperefresh.SwipeRefreshLayoutManager
+04-06 11:17:33.252 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.textinput.ReactTextInputManager
+04-06 11:17:33.254 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.textinput.ReactTextInputShadowNode
+04-06 11:17:33.260 11516 11606 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.gesturehandler.react.RNGestureHandlerRootViewManager
+04-06 11:17:33.292 11516 11589 D TrafficStats: tagSocket(145) with statsTag=0xffffffff, statsUid=-1
+04-06 11:17:33.458 11516 11606 V AsyncStorageExpoMigration: No scoped database found
+04-06 11:17:33.631 11516 11606 D Detox.RNMarker: RUN_JS_BUNDLE_END (/.virtual-metro-entry.bundle?platform=android&dev=true&lazy=true&minify=false&app=com.evolucao.app&modulesOnly=false&runModule=true&excludeSource=true&sourcePaths=url-server)
+04-06 11:17:33.633 11516 11606 I ReactNativeJS: Running "main" with {"rootTag":1,"initialProps":{},"fabric":true}
+04-06 11:17:33.709 11516 11638 D TrafficStats: tagSocket(133) with statsTag=0xffffffff, statsUid=-1
+04-06 11:17:33.832 11516 11516 I DecorView: notifyKeepScreenOnChanged: keepScreenOn=true
+04-06 11:17:33.838 11516 11516 I ViewRootImpl@914008f[MainActivity]: performTraversals params={(0,0)(fillxfill) sim={adjust=resize} layoutInDisplayCutoutMode=always ty=BASE_APPLICATION wanim=0x1030309
+04-06 11:17:33.838 11516 11516 I ViewRootImpl@914008f[MainActivity]:   fl=81810180
+04-06 11:17:33.838 11516 11516 I ViewRootImpl@914008f[MainActivity]:   pfl=16020040
+04-06 11:17:33.838 11516 11516 I ViewRootImpl@914008f[MainActivity]:   vsysui=100
+04-06 11:17:33.838 11516 11516 I ViewRootImpl@914008f[MainActivity]:   bhv=DEFAULT
+04-06 11:17:33.838 11516 11516 I ViewRootImpl@914008f[MainActivity]:   fitSides= naviIconColor=0}
+04-06 11:17:33.840 11516 11516 I ViewRootImpl@914008f[MainActivity]: performTraversals mFirst=false windowShouldResize=false viewVisibilityChanged=false mForceNextWindowRelayout=false params={(0,0)(fillxfill) sim={adjust=resize} layoutInDisplayCutoutMode=always ty=BASE_APPLICATION wanim=0x1030309
+04-06 11:17:33.840 11516 11516 I ViewRootImpl@914008f[MainActivity]:   fl=81810180
+04-06 11:17:33.840 11516 11516 I ViewRootImpl@914008f[MainActivity]:   pfl=16020040
+04-06 11:17:33.840 11516 11516 I ViewRootImpl@914008f[MainActivity]:   vsysui=100
+04-06 11:17:33.840 11516 11516 I ViewRootImpl@914008f[MainActivity]:   bhv=DEFAULT
+04-06 11:17:33.840 11516 11516 I ViewRootImpl@914008f[MainActivity]:   fitSides= naviIconColor=0}
+04-06 11:17:33.849 11516 11516 I ViewRootImpl@914008f[MainActivity]: updateBlastSurfaceIfNeeded mBlastBufferQueue=0xb4000070c2c34c00 isSameSurfaceControl=true
+04-06 11:17:33.849 11516 11516 I BLASTBufferQueue: update, w= 1080 h= 2400 mName = ViewRootImpl@914008f[MainActivity] mNativeObject= 0xb4000070c2c34c00 sc.mNativeObject= 0xb400007011442a00 format= -1 caller= android.view.ViewRootImpl.updateBlastSurfaceIfNeeded:2898 android.view.ViewRootImpl.relayoutWindow:9847 android.view.ViewRootImpl.performTraversals:3884 android.view.ViewRootImpl.doTraversal:3116 android.view.ViewRootImpl$TraversalRunnable.run:10885 android.view.Choreographer$CallbackRecord.run:1301 
+04-06 11:17:33.850 11516 11516 I ViewRootImpl@914008f[MainActivity]: Relayout returned: old=(0,0,1080,2400) new=(0,0,1080,2400) req=(1080,2400)0 dur=9 res=0x0 s={true 0xb4000070a0dc4000} ch=false seqId=0
+04-06 11:17:33.855 11516 11516 D Detox.RNMarker: CONTENT_APPEARED (main)
+04-06 11:17:33.858 11516 11606 D Detox.RNMarker: REACT_BRIDGELESS_LOADING_END (null)
+04-06 11:17:33.866 11516 11606 I ReactNativeJS: '[ANALYTICS]', 'app_opened', { event: 'app_opened',
+04-06 11:17:33.866 11516 11606 I ReactNativeJS:   eventId: '1775485053862_f4a2cec8fa8fd',
+04-06 11:17:33.866 11516 11606 I ReactNativeJS:   appVersion: '1.0.0',
+04-06 11:17:33.866 11516 11606 I ReactNativeJS:   category: 'engagement',
+04-06 11:17:33.866 11516 11606 I ReactNativeJS:   userId: 'anonymous',
+04-06 11:17:33.866 11516 11606 I ReactNativeJS:   timestamp: 1775485053862,
+04-06 11:17:33.866 11516 11606 I ReactNativeJS:   timestampIso: '2026-04-06T14:17:33.862Z',
+04-06 11:17:33.866 11516 11606 I ReactNativeJS:   screen: 'App',
+04-06 11:17:33.866 11516 11606 I ReactNativeJS:   sessionId: 'session-1775485053846-a8ef8dadc15b78',
+04-06 11:17:33.866 11516 11606 I ReactNativeJS:   flowId: 'session-1775485053846-a8ef8dadc15b78',
+04-06 11:17:33.866 11516 11606 I ReactNativeJS:   meta: 
+04-06 11:17:33.866 11516 11606 I ReactNativeJS:    { domain: 'engagement',
+04-06 11:17:33.866 11516 11606 I ReactNativeJS:      version: 1,
+04-06 11:17:33.866 11516 11606 I ReactNativeJS:      dayKey: '2026-04-06',
+04-06 11:17:33.866 11516 11606 I ReactNativeJS:      isFirstOpenOfDay: true,
+04-06 11:17:33.866 11516 11606 I ReactNativeJS:      category: 'engagement' } }
+04-06 11:17:34.089 11516 11527 I om.evolucao.app: Compiler allocated 4177KB to compile void android.widget.TextView.<init>(android.content.Context, android.util.AttributeSet, int, int)
+04-06 11:17:34.103 11516 11516 D CompatibilityChangeReporter: Compat change id reported: 171228096; UID 10497; state: ENABLED
+04-06 11:17:34.105 11516 11516 D ScrollView: initGoToTop
+04-06 11:17:34.105 11516 11516 W om.evolucao.app: Accessing hidden field Landroid/widget/ScrollView;->mScroller:Landroid/widget/OverScroller; (unsupported, reflection, allowed)
+04-06 11:17:34.118 11516 11516 W [RNScreens]: backTitleFontFamily prop is not available on Android
+04-06 11:17:34.118 11516 11516 W [RNScreens]: disableBackButtonMenu prop is not available on Android
+04-06 11:17:34.118 11516 11516 W [RNScreens]: backTitleVisible prop is not available on Android
+04-06 11:17:34.118 11516 11516 W [RNScreens]: topInsetEnabled prop is not available on Android
+04-06 11:17:34.118 11516 11516 W [RNScreens]: largeTitleHideShadow prop is not available on Android
+04-06 11:17:34.118 11516 11516 W [RNScreens]: largeTitleFontWeight prop is not available on Android
+04-06 11:17:34.118 11516 11516 W [RNScreens]: userInterfaceStyle prop is not available on Android
+04-06 11:17:34.118 11516 11516 W [RNScreens]: largeTitleFontFamily prop is not available on Android
+04-06 11:17:34.126 11516 11568 D OpenGLRenderer: setSurface called with 

@@ -8,7 +8,11 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "test": "node --test __tests__/*.test.mjs"
+    "test": "node --test __tests__/*.test.mjs",
+    "test:e2e": "detox test --configuration android.attached",
+    "test:stress": "npm run test:e2e && npm run test:e2e && npm run test:e2e",
+    "build:e2e": "detox build --configuration android.attached",
+    "soak:android": "powershell -ExecutionPolicy Bypass -File scripts/soak-android.ps1 -DurationMinutes 120 -EventsPerIteration 220 -ThrottleMs 80"
   },
   "dependencies": {
     "@expo/ngrok": "^4.1.0",
@@ -27,5 +31,10 @@
     "react-native-safe-area-context": "~5.6.2",
     "react-native-screens": "~4.23.0",
     "react-native-web": "^0.21.2"
+  },
+  "devDependencies": {
+    "detox": "^20.50.1",
+    "jest": "^30.3.0",
+    "jest-circus": "^30.3.0"
   }
 }

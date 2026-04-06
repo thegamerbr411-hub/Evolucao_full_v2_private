@@ -65,10 +65,14 @@ export async function initializeNotifications() {
   }
 
   if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'default',
-      importance: Notifications.AndroidImportance.DEFAULT,
-    });
+    try {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'default',
+        importance: Notifications.AndroidImportance.DEFAULT,
+      });
+    } catch (_error) {
+      // Evita quebra de boot em inconsistencias de canal no Android.
+    }
   }
 
   return { granted };
@@ -103,19 +107,23 @@ export async function sendIntelligentNotification({
     return { ok: false, reason: 'no_permission' };
   }
 
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title,
-      body,
-      data,
-      sound: Platform.OS === 'ios' ? 'default' : undefined,
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-      seconds: Math.max(1, Number(delaySeconds || 1)),
-      repeats: false,
-    },
-  });
+  try {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title,
+        body,
+        data,
+        sound: Platform.OS === 'ios' ? 'default' : undefined,
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+        seconds: Math.max(1, Number(delaySeconds || 1)),
+        repeats: false,
+      },
+    });
+  } catch (_error) {
+    return { ok: false, reason: 'schedule_failed' };
+  }
 
   const nextState = {
     ...state,

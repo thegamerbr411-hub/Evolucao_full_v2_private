@@ -1,0 +1,533 @@
+02:22:11.376 detox[28988] [90mB[39m node_modules\detox\local-cli\cli.js test --configuration android.attached
+  data: {
+    "id": "e3851e69-f6b8-cd97-4ce2-d46970a93d11",
+    "detoxConfig": {
+      "configurationName": "android.attached",
+      "apps": {
+        "default": {
+          "type": "android.apk",
+          "binaryPath": "android/app/build/outputs/apk/debug/app-debug.apk",
+          "testBinaryPath": "android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk",
+          "build": "powershell -ExecutionPolicy Bypass -Command \"Set-Location android; .\\gradlew.bat assembleDebug assembleAndroidTest -DtestBuildType=debug\"",
+          "reversePorts": [
+            8081
+          ]
+        }
+      },
+      "artifacts": {
+        "rootDir": "artifacts\\e2e\\android.attached.2026-04-06 05-22-11Z",
+        "plugins": {
+          "log": {
+            "enabled": true,
+            "keepOnlyFailedTestsArtifacts": false
+          },
+          "screenshot": {
+            "shouldTakeAutomaticSnapshots": true,
+            "takeWhen": {
+              "testStart": false,
+              "testDone": false,
+              "appNotReady": true,
+              "testFailure": true
+            },
+            "enabled": true,
+            "keepOnlyFailedTestsArtifacts": false
+          },
+          "video": {
+            "enabled": false,
+            "keepOnlyFailedTestsArtifacts": false
+          },
+          "instruments": {
+            "enabled": false,
+            "keepOnlyFailedTestsArtifacts": false
+          },
+          "uiHierarchy": {
+            "enabled": true,
+            "keepOnlyFailedTestsArtifacts": false
+          }
+        }
+      },
+      "behavior": {
+        "init": {
+          "keepLockFile": false,
+          "reinstallApp": true,
+          "exposeGlobals": true
+        },
+        "cleanup": {
+          "shutdownDevice": false
+        },
+        "launchApp": "auto"
+      },
+      "cli": {
+        "configuration": "android.attached",
+        "start": true
+      },
+      "commands": [
+        {
+          "appName": "default",
+          "build": "powershell -ExecutionPolicy Bypass -Command \"Set-Location android; .\\gradlew.bat assembleDebug assembleAndroidTest -DtestBuildType=debug\""
+        }
+      ],
+      "device": {
+        "type": "android.attached",
+        "device": {
+          "adbName": ".*"
+        }
+      },
+      "logger": {
+        "level": "info",
+        "overrideConsole": true,
+        "options": {
+          "showLoggerName": true,
+          "showPid": true,
+          "showLevel": false,
+          "showMetadata": false,
+          "basepath": "C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src",
+          "prefixers": {},
+          "stringifiers": {}
+        }
+      },
+      "testRunner": {
+        "retries": 0,
+        "forwardEnv": false,
+        "detached": false,
+        "bail": false,
+        "noRetryArgs": [
+          "shard"
+        ],
+        "jest": {
+          "setupTimeout": 120000,
+          "teardownTimeout": 30000,
+          "retryAfterCircusRetries": false,
+          "reportWorkerAssign": true
+        },
+        "args": {
+          "$0": "jest",
+          "_": [],
+          "config": "e2e/jest.config.js",
+          "--": []
+        }
+      },
+      "session": {
+        "autoStart": true,
+        "debugSynchronization": 10000
+      }
+    },
+    "detoxIPCServer": "primary-28988",
+    "testResults": [],
+    "testSessionIndex": 0,
+    "workersCount": 0
+  }
+02:22:11.398 detox[28988] [90mi[39m Server path not specified, so defaulting to ipc.config.socketRoot + ipc.config.appspace + ipc.config.id /tmp/detox.primary-28988
+02:22:11.400 detox[28988] [90mi[39m starting server on  /tmp/detox.primary-28988 
+02:22:11.400 detox[28988] [90mi[39m starting TLS server false
+02:22:11.401 detox[28988] [90mi[39m starting server as Unix || Windows Socket
+02:22:11.403 detox[28988] [90mi[39m Detox server listening on localhost:63145...
+02:22:11.406 detox[28988] [90mi[39m Serialized the session state at: C:\Users\USER\AppData\Local\Temp\e3851e69-f6b8-cd97-4ce2-d46970a93d11.detox.json
+02:22:11.408 detox[28988] [90mB[39m jest --config e2e/jest.config.js
+02:22:11.417 detox[28988] [90mi[39m (node:28988) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+02:22:11.852 detox[35220] [90mi[39m Service path not specified, so defaulting to ipc.config.socketRoot + ipc.config.appspace + id 
+02:22:11.853 detox[35220] [90mi[39m requested connection to  primary-28988 /tmp/detox.primary-28988
+02:22:11.853 detox[35220] [90mi[39m Connecting client on Unix Socket : /tmp/detox.primary-28988
+02:22:11.854 detox[28988] [90mi[39m ## socket connection to server detected ##
+02:22:11.854 detox[35220] [90mi[39m retrying reset
+02:22:11.854 detox[35220] [90mi[39m dispatching event to  primary-28988 /tmp/detox.primary-28988  :  registerContext , { id: 'secondary-35220' }
+02:22:11.855 detox[28988] [90mi[39m received event of :  registerContext { id: 'secondary-35220' }
+02:22:11.855 detox[28988] [90mi[39m dispatching event to socket  :  registerContextDone {
+  testResults: [],
+  testSessionIndex: 0,
+  unsafe_earlyTeardown: undefined
+}
+02:22:11.856 detox[35220] [90mi[39m ## received events ##
+02:22:11.856 detox[35220] [90mi[39m detected event registerContextDone { testResults: [], testSessionIndex: 0 }
+02:22:11.952 detox[35220] [90mB[39m e2e\questionnaire.test.js
+02:22:11.975 detox[35220] [90mB[39m set up environment
+02:22:11.977 detox[28988] [90mi[39m received event of :  registerWorker { workerId: 'w1' }
+02:22:11.977 detox[28988] [90mi[39m dispatching event to socket  :  registerWorkerDone { workersCount: 1 }
+02:22:11.977 detox[35220] [90mi[39m dispatching event to  primary-28988 /tmp/detox.primary-28988  :  registerWorker , { workerId: 'w1' }
+02:22:11.978 detox[28988] [90mi[39m broadcasting event to all known sockets listening to  \\.\pipe\tmp-detox.primary-28988  :   sessionStateUpdate { workersCount: 1 }
+02:22:11.978 detox[35220] [90mi[39m ## received events ##
+02:22:11.978 detox[35220] [90mi[39m detected event registerWorkerDone { workersCount: 1 }
+02:22:12.158 detox[35220] [90mi[39m ## received events ##
+02:22:12.158 detox[35220] [90mi[39m detected event sessionStateUpdate { workersCount: 1 }
+02:22:12.162 detox[28988] [90mB[39m connection :63145<->:63153
+02:22:12.163 detox[35220] [90mi[39m opened web socket to: ws://localhost:63145
+02:22:12.164 detox[35220] [90mi[39m send message
+  data: {"type":"login","params":{"sessionId":"9bc3705b-7b7f-d7d9-5d8d-7fda8f999d2f","role":"tester"},"messageId":0}
+02:22:12.165 detox[28988] [90mi[39m get
+  data: {"type":"login","params":{"sessionId":"9bc3705b-7b7f-d7d9-5d8d-7fda8f999d2f","role":"tester"},"messageId":0}
+02:22:12.165 detox[28988] [90mi[39m created session 9bc3705b-7b7f-d7d9-5d8d-7fda8f999d2f
+02:22:12.165 detox[28988] [90mi[39m send
+  data: {
+    "type": "loginSuccess",
+    "params": {
+      "testerConnected": true,
+      "appConnected": false
+    },
+    "messageId": 0
+  }
+02:22:12.166 detox[28988] [90mi[39m tester joined session 9bc3705b-7b7f-d7d9-5d8d-7fda8f999d2f
+02:22:12.166 detox[35220] [90mi[39m get message
+  data: {"type":"loginSuccess","params":{"testerConnected":true,"appConnected":false},"messageId":0}
+   
+02:22:12.207 detox[35220] [90mE[39m set up environment
+  error: $ANDROID_SDK_ROOT is not defined, set the path to the SDK installation directory into $ANDROID_SDK_ROOT,
+  Go to https://developer.android.com/studio/command-line/variables.html for more details
+02:22:12.208 detox[35220] [90mB[39m tear down environment
+02:22:12.209 detox[28988] [90mi[39m tester exited session 9bc3705b-7b7f-d7d9-5d8d-7fda8f999d2f
+02:22:12.209 detox[28988] [90mE[39m connection :63145<->:63153
+02:22:12.210 detox[35220] [90mE[39m tear down environment
+02:22:12.210 detox[35220] [90mE[39m e2e\questionnaire.test.js
+02:22:12.226 detox[35220] [90mB[39m e2e\workout.test.js
+02:22:12.228 detox[35220] [90mB[39m set up environment
+02:22:12.229 detox[28988] [90mi[39m received event of :  registerWorker { workerId: 'w1' }
+02:22:12.229 detox[28988] [90mi[39m dispatching event to socket  :  registerWorkerDone { workersCount: 1 }
+02:22:12.229 detox[35220] [90mi[39m dispatching event to  primary-28988 /tmp/detox.primary-28988  :  registerWorker , { workerId: 'w1' }
+02:22:12.229 detox[35220] [90mi[39m ## received events ##
+02:22:12.229 detox[35220] [90mi[39m detected event registerWorkerDone { workersCount: 1 }
+02:22:12.231 detox[28988] [90mB[39m connection :63145<->:63154
+02:22:12.231 detox[28988] [90mi[39m get
+  data: {"type":"login","params":{"sessionId":"9bc3705b-7b7f-d7d9-5d8d-7fda8f999d2f","role":"tester"},"messageId":0}
+02:22:12.231 detox[28988] [90mi[39m created session 9bc3705b-7b7f-d7d9-5d8d-7fda8f999d2f
+02:22:12.231 detox[28988] [90mi[39m send
+  data: {
+    "type": "loginSuccess",
+    "params": {
+      "testerConnected": true,
+      "appConnected": false
+    },
+    "messageId": 0
+  }
+02:22:12.231 detox[28988] [90mi[39m tester joined session 9bc3705b-7b7f-d7d9-5d8d-7fda8f999d2f
+02:22:12.231 detox[35220] [90mi[39m opened web socket to: ws://localhost:63145
+02:22:12.231 detox[35220] [90mi[39m send message
+  data: {"type":"login","params":{"sessionId":"9bc3705b-7b7f-d7d9-5d8d-7fda8f999d2f","role":"tester"},"messageId":0}
+02:22:12.232 detox[35220] [90mi[39m get message
+  data: {"type":"loginSuccess","params":{"testerConnected":true,"appConnected":false},"messageId":0}
+   
+02:22:12.243 detox[35220] [90mE[39m set up environment
+  error: $ANDROID_SDK_ROOT is not defined, set the path to the SDK installation directory into $ANDROID_SDK_ROOT,
+  Go to https://developer.android.com/studio/command-line/variables.html for more details
+02:22:12.244 detox[28988] [90mi[39m tester exited session 9bc3705b-7b7f-d7d9-5d8d-7fda8f999d2f
+02:22:12.244 detox[28988] [90mE[39m connection :63145<->:63154
+02:22:12.244 detox[35220] [90mB[39m tear down environment
+02:22:12.245 detox[35220] [90mE[39m tear down environment
+02:22:12.245 detox[35220] [90mE[39m e2e\workout.test.js
+02:22:12.249 detox[35220] [90mi[39m dispatching event to  primary-28988 /tmp/detox.primary-28988  :  reportTestResults , {
+  testResults: [
+    {
+      success: false,
+      testFilePath: 'C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\e2e\\questionnaire.test.js',
+      testExecError: {
+        name: 'DetoxRuntimeError',
+        message: '$ANDROID_SDK_ROOT is not defined, set the path to the SDK installation directory into $ANDROID_SDK_ROOT,\n' +
+          'Go to https://developer.android.com/studio/command-line/variables.html for more details',
+        stack: 'DetoxRuntimeError: $ANDROID_SDK_ROOT is not defined, set the path to the SDK installation directory into $ANDROID_SDK_ROOT,\n' +
+          'Go to https://developer.android.com/studio/command-line/variables.html for more details\n' +
+          '    at throwMissingSdkError (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\utils\\environment.js:142:9)\n' +
+          '    at getAdbPath (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\utils\\environment.js:126:28)\n' +
+          '    at new ADB (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\devices\\common\\drivers\\android\\exec\\ADB.js:27:19)\n' +
+          '    at Object.<anonymous> (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\devices\\servicelocator\\android\\index.js:17:29)\n' +
+          '    at Module._compile (node:internal/modules/cjs/loader:1812:14)\n' +
+          '    at Object..js (node:internal/modules/cjs/loader:1943:10)\n' +
+          '    at Module.load (node:internal/modules/cjs/loader:1533:32)\n' +
+          '    at Module._load (node:internal/modules/cjs/loader:1335:12)\n' +
+          '    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n' +
+          '    at Module.require (node:internal/modules/cjs/loader:1556:12)\n' +
+          '    at require (node:internal/modules/helpers:152:16)\n' +
+          '    at AndroidArtifactPluginsProvider.declareArtifactPlugins (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\artifacts\\providers\\index.js:7:28)\n' +
+          '    at Android.createArtifactsManager (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\artifacts\\factories\\index.js:21:61)\n' +
+          '    at DetoxWorker.init (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\DetoxWorker.js:150:54)\n' +
+          '    at init.next (<anonymous>)\n' +
+          '    at getNextResult (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\caf\\src\\caf.js:253:25)\n' +
+          '    at processTicksAndRejections (node:internal/process/task_queues:104:5)'
+      },
+      isPermanentFailure: false
+    },
+    {
+      success: false,
+      testFilePath: 'C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\e2e\\workout.test.js',
+      testExecError: {
+        name: 'DetoxRuntimeError',
+        message: '$ANDROID_SDK_ROOT is not defined, set the path to the SDK installation directory into $ANDROID_SDK_ROOT,\n' +
+          'Go to https://developer.android.com/studio/command-line/variables.html for more details',
+        stack: 'DetoxRuntimeError: $ANDROID_SDK_ROOT is not defined, set the path to the SDK installation directory into $ANDROID_SDK_ROOT,\n' +
+          'Go to https://developer.android.com/studio/command-line/variables.html for more details\n' +
+          '    at throwMissingSdkError (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\utils\\environment.js:142:9)\n' +
+          '    at getAdbPath (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\utils\\environment.js:126:28)\n' +
+          '    at new ADB (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\devices\\common\\drivers\\android\\exec\\ADB.js:27:19)\n' +
+          '    at Object.<anonymous> (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\devices\\servicelocator\\android\\index.js:17:29)\n' +
+          '    at Module._compile (node:internal/modules/cjs/loader:1812:14)\n' +
+          '    at Object..js (node:internal/modules/cjs/loader:1943:10)\n' +
+          '    at Module.load (node:internal/modules/cjs/loader:1533:32)\n' +
+          '    at Module._load (node:internal/modules/cjs/loader:1335:12)\n' +
+          '    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n' +
+          '    at Module.require (node:internal/modules/cjs/loader:1556:12)\n' +
+          '    at require (node:internal/modules/helpers:152:16)\n' +
+          '    at AndroidArtifactPluginsProvider.declareArtifactPlugins (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\artifacts\\providers\\index.js:7:28)\n' +
+          '    at Android.createArtifactsManager (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\artifacts\\factories\\index.js:21:61)\n' +
+          '    at DetoxWorker.init (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\DetoxWorker.js:150:54)\n' +
+          '    at init.next (<anonymous>)\n' +
+          '    at getNextResult (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\caf\\src\\caf.js:253:25)\n' +
+          '    at processTicksAndRejections (node:internal/process/task_queues:104:5)'
+      },
+      isPermanentFailure: false
+    }
+  ]
+}
+02:22:12.250 detox[28988] [90mi[39m received event of :  reportTestResults {
+  testResults: [
+    {
+      success: false,
+      testFilePath: 'C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\e2e\\questionnaire.test.js',
+      testExecError: {
+        name: 'DetoxRuntimeError',
+        message: '$ANDROID_SDK_ROOT is not defined, set the path to the SDK installation directory into $ANDROID_SDK_ROOT,\n' +
+          'Go to https://developer.android.com/studio/command-line/variables.html for more details',
+        stack: 'DetoxRuntimeError: $ANDROID_SDK_ROOT is not defined, set the path to the SDK installation directory into $ANDROID_SDK_ROOT,\n' +
+          'Go to https://developer.android.com/studio/command-line/variables.html for more details\n' +
+          '    at throwMissingSdkError (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\utils\\environment.js:142:9)\n' +
+          '    at getAdbPath (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\utils\\environment.js:126:28)\n' +
+          '    at new ADB (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\devices\\common\\drivers\\android\\exec\\ADB.js:27:19)\n' +
+          '    at Object.<anonymous> (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\devices\\servicelocator\\android\\index.js:17:29)\n' +
+          '    at Module._compile (node:internal/modules/cjs/loader:1812:14)\n' +
+          '    at Object..js (node:internal/modules/cjs/loader:1943:10)\n' +
+          '    at Module.load (node:internal/modules/cjs/loader:1533:32)\n' +
+          '    at Module._load (node:internal/modules/cjs/loader:1335:12)\n' +
+          '    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n' +
+          '    at Module.require (node:internal/modules/cjs/loader:1556:12)\n' +
+          '    at require (node:internal/modules/helpers:152:16)\n' +
+          '    at AndroidArtifactPluginsProvider.declareArtifactPlugins (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\artifacts\\providers\\index.js:7:28)\n' +
+          '    at Android.createArtifactsManager (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\artifacts\\factories\\index.js:21:61)\n' +
+          '    at DetoxWorker.init (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\DetoxWorker.js:150:54)\n' +
+          '    at init.next (<anonymous>)\n' +
+          '    at getNextResult (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\caf\\src\\caf.js:253:25)\n' +
+          '    at processTicksAndRejections (node:internal/process/task_queues:104:5)'
+      },
+      isPermanentFailure: false
+    },
+    {
+      success: false,
+      testFilePath: 'C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\e2e\\workout.test.js',
+      testExecError: {
+        name: 'DetoxRuntimeError',
+        message: '$ANDROID_SDK_ROOT is not defined, set the path to the SDK installation directory into $ANDROID_SDK_ROOT,\n' +
+          'Go to https://developer.android.com/studio/command-line/variables.html for more details',
+        stack: 'DetoxRuntimeError: $ANDROID_SDK_ROOT is not defined, set the path to the SDK installation directory into $ANDROID_SDK_ROOT,\n' +
+          'Go to https://developer.android.com/studio/command-line/variables.html for more details\n' +
+          '    at throwMissingSdkError (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\utils\\environment.js:142:9)\n' +
+          '    at getAdbPath (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\utils\\environment.js:126:28)\n' +
+          '    at new ADB (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\devices\\common\\drivers\\android\\exec\\ADB.js:27:19)\n' +
+          '    at Object.<anonymous> (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\devices\\servicelocator\\android\\index.js:17:29)\n' +
+          '    at Module._compile (node:internal/modules/cjs/loader:1812:14)\n' +
+          '    at Object..js (node:internal/modules/cjs/loader:1943:10)\n' +
+          '    at Module.load (node:internal/modules/cjs/loader:1533:32)\n' +
+          '    at Module._load (node:internal/modules/cjs/loader:1335:12)\n' +
+          '    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n' +
+          '    at Module.require (node:internal/modules/cjs/loader:1556:12)\n' +
+          '    at require (node:internal/modules/helpers:152:16)\n' +
+          '    at AndroidArtifactPluginsProvider.declareArtifactPlugins (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\artifacts\\providers\\index.js:7:28)\n' +
+          '    at Android.createArtifactsManager (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\artifacts\\factories\\index.js:21:61)\n' +
+          '    at DetoxWorker.init (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\DetoxWorker.js:150:54)\n' +
+          '    at init.next (<anonymous>)\n' +
+          '    at getNextResult (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\caf\\src\\caf.js:253:25)\n' +
+          '    at processTicksAndRejections (node:internal/process/task_queues:104:5)'
+      },
+      isPermanentFailure: false
+    }
+  ]
+}
+02:22:12.250 detox[28988] [90mi[39m dispatching event to socket  :  reportTestResultsDone {
+  testResults: [
+    {
+      success: false,
+      testFilePath: 'C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\e2e\\questionnaire.test.js',
+      testExecError: {
+        name: 'DetoxRuntimeError',
+        message: '$ANDROID_SDK_ROOT is not defined, set the path to the SDK installation directory into $ANDROID_SDK_ROOT,\n' +
+          'Go to https://developer.android.com/studio/command-line/variables.html for more details',
+        stack: 'DetoxRuntimeError: $ANDROID_SDK_ROOT is not defined, set the path to the SDK installation directory into $ANDROID_SDK_ROOT,\n' +
+          'Go to https://developer.android.com/studio/command-line/variables.html for more details\n' +
+          '    at throwMissingSdkError (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\utils\\environment.js:142:9)\n' +
+          '    at getAdbPath (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\utils\\environment.js:126:28)\n' +
+          '    at new ADB (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\devices\\common\\drivers\\android\\exec\\ADB.js:27:19)\n' +
+          '    at Object.<anonymous> (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\devices\\servicelocator\\android\\index.js:17:29)\n' +
+          '    at Module._compile (node:internal/modules/cjs/loader:1812:14)\n' +
+          '    at Object..js (node:internal/modules/cjs/loader:1943:10)\n' +
+          '    at Module.load (node:internal/modules/cjs/loader:1533:32)\n' +
+          '    at Module._load (node:internal/modules/cjs/loader:1335:12)\n' +
+          '    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n' +
+          '    at Module.require (node:internal/modules/cjs/loader:1556:12)\n' +
+          '    at require (node:internal/modules/helpers:152:16)\n' +
+          '    at AndroidArtifactPluginsProvider.declareArtifactPlugins (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\artifacts\\providers\\index.js:7:28)\n' +
+          '    at Android.createArtifactsManager (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\artifacts\\factories\\index.js:21:61)\n' +
+          '    at DetoxWorker.init (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\DetoxWorker.js:150:54)\n' +
+          '    at init.next (<anonymous>)\n' +
+          '    at getNextResult (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\caf\\src\\caf.js:253:25)\n' +
+          '    at processTicksAndRejections (node:internal/process/task_queues:104:5)'
+      },
+      isPermanentFailure: false
+    },
+    {
+      success: false,
+      testFilePath: 'C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\e2e\\workout.test.js',
+      testExecError: {
+        name: 'DetoxRuntimeError',
+        message: '$ANDROID_SDK_ROOT is not defined, set the path to the SDK installation directory into $ANDROID_SDK_ROOT,\n' +
+          'Go to https://developer.android.com/studio/command-line/variables.html for more details',
+        stack: 'DetoxRuntimeError: $ANDROID_SDK_ROOT is not defined, set the path to the SDK installation directory into $ANDROID_SDK_ROOT,\n' +
+          'Go to https://developer.android.com/studio/command-line/variables.html for more details\n' +
+          '    at throwMissingSdkError (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\utils\\environment.js:142:9)\n' +
+          '    at getAdbPath (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\utils\\environment.js:126:28)\n' +
+          '    at new ADB (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\devices\\common\\drivers\\android\\exec\\ADB.js:27:19)\n' +
+          '    at Object.<anonymous> (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\devices\\servicelocator\\android\\index.js:17:29)\n' +
+          '    at Module._compile (node:internal/modules/cjs/loader:1812:14)\n' +
+          '    at Object..js (node:internal/modules/cjs/loader:1943:10)\n' +
+          '    at Module.load (node:internal/modules/cjs/loader:1533:32)\n' +
+          '    at Module._load (node:internal/modules/cjs/loader:1335:12)\n' +
+          '    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n' +
+          '    at Module.require (node:internal/modules/cjs/loader:1556:12)\n' +
+          '    at require (node:internal/modules/helpers:152:16)\n' +
+          '    at AndroidArtifactPluginsProvider.declareArtifactPlugins (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\artifacts\\providers\\index.js:7:28)\n' +
+          '    at Android.createArtifactsManager (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\artifacts\\factories\\index.js:21:61)\n' +
+          '    at DetoxWorker.init (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\DetoxWorker.js:150:54)\n' +
+          '    at init.next (<anonymous>)\n' +
+          '    at getNextResult (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\caf\\src\\caf.js:253:25)\n' +
+          '    at processTicksAndRejections (node:internal/process/task_queues:104:5)'
+      },
+      isPermanentFailure: false
+    }
+  ]
+}
+02:22:12.250 detox[28988] [90mi[39m broadcasting event to all known sockets listening to  \\.\pipe\tmp-detox.primary-28988  :   sessionStateUpdate {
+  testResults: [
+    {
+      success: false,
+      testFilePath: 'C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\e2e\\questionnaire.test.js',
+      testExecError: {
+        name: 'DetoxRuntimeError',
+        message: '$ANDROID_SDK_ROOT is not defined, set the path to the SDK installation directory into $ANDROID_SDK_ROOT,\n' +
+          'Go to https://developer.android.com/studio/command-line/variables.html for more details',
+        stack: 'DetoxRuntimeError: $ANDROID_SDK_ROOT is not defined, set the path to the SDK installation directory into $ANDROID_SDK_ROOT,\n' +
+          'Go to https://developer.android.com/studio/command-line/variables.html for more details\n' +
+          '    at throwMissingSdkError (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\utils\\environment.js:142:9)\n' +
+          '    at getAdbPath (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\utils\\environment.js:126:28)\n' +
+          '    at new ADB (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\devices\\common\\drivers\\android\\exec\\ADB.js:27:19)\n' +
+          '    at Object.<anonymous> (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\devices\\servicelocator\\android\\index.js:17:29)\n' +
+          '    at Module._compile (node:internal/modules/cjs/loader:1812:14)\n' +
+          '    at Object..js (node:internal/modules/cjs/loader:1943:10)\n' +
+          '    at Module.load (node:internal/modules/cjs/loader:1533:32)\n' +
+          '    at Module._load (node:internal/modules/cjs/loader:1335:12)\n' +
+          '    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n' +
+          '    at Module.require (node:internal/modules/cjs/loader:1556:12)\n' +
+          '    at require (node:internal/modules/helpers:152:16)\n' +
+          '    at AndroidArtifactPluginsProvider.declareArtifactPlugins (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\artifacts\\providers\\index.js:7:28)\n' +
+          '    at Android.createArtifactsManager (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\artifacts\\factories\\index.js:21:61)\n' +
+          '    at DetoxWorker.init (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\DetoxWorker.js:150:54)\n' +
+          '    at init.next (<anonymous>)\n' +
+          '    at getNextResult (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\caf\\src\\caf.js:253:25)\n' +
+          '    at processTicksAndRejections (node:internal/process/task_queues:104:5)'
+      },
+      isPermanentFailure: false
+    },
+    {
+      success: false,
+      testFilePath: 'C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\e2e\\workout.test.js',
+      testExecError: {
+        name: 'DetoxRuntimeError',
+        message: '$ANDROID_SDK_ROOT is not defined, set the path to the SDK installation directory into $ANDROID_SDK_ROOT,\n' +
+          'Go to https://developer.android.com/studio/command-line/variables.html for more details',
+        stack: 'DetoxRuntimeError: $ANDROID_SDK_ROOT is not defined, set the path to the SDK installation directory into $ANDROID_SDK_ROOT,\n' +
+          'Go to https://developer.android.com/studio/command-line/variables.html for more details\n' +
+          '    at throwMissingSdkError (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\utils\\environment.js:142:9)\n' +
+          '    at getAdbPath (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\utils\\environment.js:126:28)\n' +
+          '    at new ADB (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\devices\\common\\drivers\\android\\exec\\ADB.js:27:19)\n' +
+          '    at Object.<anonymous> (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\devices\\servicelocator\\android\\index.js:17:29)\n' +
+          '    at Module._compile (node:internal/modules/cjs/loader:1812:14)\n' +
+          '    at Object..js (node:internal/modules/cjs/loader:1943:10)\n' +
+          '    at Module.load (node:internal/modules/cjs/loader:1533:32)\n' +
+          '    at Module._load (node:internal/modules/cjs/loader:1335:12)\n' +
+          '    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n' +
+          '    at Module.require (node:internal/modules/cjs/loader:1556:12)\n' +
+          '    at require (node:internal/modules/helpers:152:16)\n' +
+          '    at AndroidArtifactPluginsProvider.declareArtifactPlugins (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\artifacts\\providers\\index.js:7:28)\n' +
+          '    at Android.createArtifactsManager (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\artifacts\\factories\\index.js:21:61)\n' +
+          '    at DetoxWorker.init (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\DetoxWorker.js:150:54)\n' +
+          '    at init.next (<anonymous>)\n' +
+          '    at getNextResult (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\caf\\src\\caf.js:253:25)\n' +
+          '    at processTicksAndRejections (node:internal/process/task_queues:104:5)'
+      },
+      isPermanentFailure: false
+    }
+  ]
+}
+02:22:12.250 detox[35220] [90mi[39m ## received events ##
+02:22:12.251 detox[35220] [90mi[39m detected event reportTestResultsDone {
+  testResults: [
+    {
+      success: false,
+      testFilePath: 'C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\e2e\\questionnaire.test.js',
+      testExecError: {
+        name: 'DetoxRuntimeError',
+        message: '$ANDROID_SDK_ROOT is not defined, set the path to the SDK installation directory into $ANDROID_SDK_ROOT,\n' +
+          'Go to https://developer.android.com/studio/command-line/variables.html for more details',
+        stack: 'DetoxRuntimeError: $ANDROID_SDK_ROOT is not defined, set the path to the SDK installation directory into $ANDROID_SDK_ROOT,\n' +
+          'Go to https://developer.android.com/studio/command-line/variables.html for more details\n' +
+          '    at throwMissingSdkError (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\utils\\environment.js:142:9)\n' +
+          '    at getAdbPath (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\utils\\environment.js:126:28)\n' +
+          '    at new ADB (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\devices\\common\\drivers\\android\\exec\\ADB.js:27:19)\n' +
+          '    at Object.<anonymous> (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\devices\\servicelocator\\android\\index.js:17:29)\n' +
+          '    at Module._compile (node:internal/modules/cjs/loader:1812:14)\n' +
+          '    at Object..js (node:internal/modules/cjs/loader:1943:10)\n' +
+          '    at Module.load (node:internal/modules/cjs/loader:1533:32)\n' +
+          '    at Module._load (node:internal/modules/cjs/loader:1335:12)\n' +
+          '    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n' +
+          '    at Module.require (node:internal/modules/cjs/loader:1556:12)\n' +
+          '    at require (node:internal/modules/helpers:152:16)\n' +
+          '    at AndroidArtifactPluginsProvider.declareArtifactPlugins (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\artifacts\\providers\\index.js:7:28)\n' +
+          '    at Android.createArtifactsManager (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\artifacts\\factories\\index.js:21:61)\n' +
+          '    at DetoxWorker.init (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\DetoxWorker.js:150:54)\n' +
+          '    at init.next (<anonymous>)\n' +
+          '    at getNextResult (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\caf\\src\\caf.js:253:25)\n' +
+          '    at processTicksAndRejections (node:internal/process/task_queues:104:5)'
+      },
+      isPermanentFailure: false
+    },
+    {
+      success: false,
+      testFilePath: 'C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\e2e\\workout.test.js',
+      testExecError: {
+        name: 'DetoxRuntimeError',
+        message: '$ANDROID_SDK_ROOT is not defined, set the path to the SDK installation directory into $ANDROID_SDK_ROOT,\n' +
+          'Go to https://developer.android.com/studio/command-line/variables.html for more details',
+        stack: 'DetoxRuntimeError: $ANDROID_SDK_ROOT is not defined, set the path to the SDK installation directory into $ANDROID_SDK_ROOT,\n' +
+          'Go to https://developer.android.com/studio/command-line/variables.html for more details\n' +
+          '    at throwMissingSdkError (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\utils\\environment.js:142:9)\n' +
+          '    at getAdbPath (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\utils\\environment.js:126:28)\n' +
+          '    at new ADB (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\devices\\common\\drivers\\android\\exec\\ADB.js:27:19)\n' +
+          '    at Object.<anonymous> (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\devices\\servicelocator\\android\\index.js:17:29)\n' +
+          '    at Module._compile (node:internal/modules/cjs/loader:1812:14)\n' +
+          '    at Object..js (node:internal/modules/cjs/loader:1943:10)\n' +
+          '    at Module.load (node:internal/modules/cjs/loader:1533:32)\n' +
+          '    at Module._load (node:internal/modules/cjs/loader:1335:12)\n' +
+          '    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\n' +
+          '    at Module.require (node:internal/modules/cjs/loader:1556:12)\n' +
+          '    at require (node:internal/modules/helpers:152:16)\n' +
+          '    at AndroidArtifactPluginsProvider.declareArtifactPlugins (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\artifacts\\providers\\index.js:7:28)\n' +
+          '    at Android.createArtifactsManager (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\artifacts\\factories\\index.js:21:61)\n' +
+          '    at DetoxWorker.init (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\detox\\src\\DetoxWorker.js:150:54)\n' +
+          '    at init.next (<anonymous>)\n' +
+          '    at getNextResult (C:\\Users\\USER\\Downloads\\Evolucao_full_v2\\node_modules\\caf\\src\\caf.js:253:25)\n' +
+          '    at processTicksAndRejections (node:internal/process/task_queues:104:5)'
+      },
+      isPermanentFailure: false
+    }
+  ]
+}
+02:22:12.252 detox[28988] [90mi[39m socket disconnected secondary-35220
+02:22:12.252 detox[35220] [90mi[39m connection closed primary-28988 /tmp/detox.primary-28988 0 tries remaining of 0
+02:22:12.252 detox[35220] [90mi[39m secondary-35220 exceeded connection rety amount of  or stopRetrying flag set.
+02:22:12.350 detox[28988] [90mE[39m Command failed with exit code = 1:
+jest --config e2e/jest.config.js
+02:22:12.352 detox[28988] [90mi[39m Detox server has been closed gracefully
+02:22:12.353 detox[28988] [90mE[39m node_modules\detox\local-cli\cli.js test --configuration android.attached

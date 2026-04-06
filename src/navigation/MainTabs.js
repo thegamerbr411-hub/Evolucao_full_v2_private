@@ -2,6 +2,7 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { TouchableOpacity } from 'react-native';
 import HomeScreen from '../screens/HomeScreen';
 import NutritionScanner from '../screens/NutritionScanner';
 import WorkoutsHubScreen from '../screens/WorkoutsHubScreen';
@@ -14,6 +15,12 @@ const Tab = createBottomTabNavigator();
 
 export default function MainTabs() {
   const insets = useSafeAreaInsets();
+
+  const createTabButton = (testID) => {
+    return function TabButton(props) {
+      return <TouchableOpacity {...props} testID={testID} />;
+    };
+  };
 
   const getTabIcon = (routeName, focused) => {
     const iconMap = {
@@ -43,12 +50,12 @@ export default function MainTabs() {
         },
       }}
     >
-      <Tab.Screen name="HomeHoje" component={HomeScreen} options={{ title: 'Home', tabBarIcon: ({ color, size, focused }) => <Ionicons name={getTabIcon('HomeHoje', focused)} color={color} size={size} /> }} />
-      <Tab.Screen name="Nutricao" component={NutritionScanner} options={{ title: 'Nutricao', tabBarIcon: ({ color, size, focused }) => <Ionicons name={getTabIcon('Nutricao', focused)} color={color} size={size} /> }} />
-      <Tab.Screen name="Treinos" component={WorkoutsHubScreen} options={{ title: 'Treinos', tabBarIcon: ({ color, size, focused }) => <Ionicons name={getTabIcon('Treinos', focused)} color={color} size={size} /> }} />
-      <Tab.Screen name="Conversa" component={CoachChatScreen} options={{ title: 'Conversa', tabBarIcon: ({ color, size, focused }) => <Ionicons name={getTabIcon('Conversa', focused)} color={color} size={size} /> }} />
-      <Tab.Screen name="Rotinas" component={RoutinesScreen} options={{ title: 'Rotinas', tabBarIcon: ({ color, size, focused }) => <Ionicons name={getTabIcon('Rotinas', focused)} color={color} size={size} /> }} />
-      <Tab.Screen name="Perfil" component={ProfileScreen} options={{ title: 'Perfil', tabBarIcon: ({ color, size, focused }) => <Ionicons name={getTabIcon('Perfil', focused)} color={color} size={size} /> }} />
+      <Tab.Screen name="HomeHoje" component={HomeScreen} options={{ title: 'Home', tabBarButton: createTabButton('tab-home'), tabBarIcon: ({ color, size, focused }) => <Ionicons name={getTabIcon('HomeHoje', focused)} color={color} size={size} /> }} />
+      <Tab.Screen name="Nutricao" component={NutritionScanner} options={{ title: 'Nutricao', tabBarButton: createTabButton('tab-nutricao'), tabBarIcon: ({ color, size, focused }) => <Ionicons name={getTabIcon('Nutricao', focused)} color={color} size={size} /> }} />
+      <Tab.Screen name="Treinos" component={WorkoutsHubScreen} options={{ title: 'Treinos', tabBarButton: createTabButton('tab-treino'), tabBarIcon: ({ color, size, focused }) => <Ionicons name={getTabIcon('Treinos', focused)} color={color} size={size} /> }} />
+      <Tab.Screen name="Conversa" component={CoachChatScreen} options={{ title: 'Conversa', tabBarButton: createTabButton('tab-conversa'), tabBarIcon: ({ color, size, focused }) => <Ionicons name={getTabIcon('Conversa', focused)} color={color} size={size} /> }} />
+      <Tab.Screen name="Rotinas" component={RoutinesScreen} options={{ title: 'Rotinas', tabBarButton: createTabButton('tab-rotinas'), tabBarIcon: ({ color, size, focused }) => <Ionicons name={getTabIcon('Rotinas', focused)} color={color} size={size} /> }} />
+      <Tab.Screen name="Perfil" component={ProfileScreen} options={{ title: 'Perfil', tabBarButton: createTabButton('tab-perfil'), tabBarIcon: ({ color, size, focused }) => <Ionicons name={getTabIcon('Perfil', focused)} color={color} size={size} /> }} />
     </Tab.Navigator>
   );
 }

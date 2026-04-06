@@ -1,0 +1,109 @@
+﻿  bash arg: -p
+  bash arg: com.evolucao.app
+  bash arg: --pct-syskeys
+  bash arg: 0
+  bash arg: --throttle
+  bash arg: 80
+  bash arg: -v
+  bash arg: 220
+args: [-p, com.evolucao.app, --pct-syskeys, 0, --throttle, 80, -v, 220]
+ arg: "-p"
+ arg: "com.evolucao.app"
+ arg: "--pct-syskeys"
+ arg: "0"
+ arg: "--throttle"
+ arg: "80"
+ arg: "-v"
+ arg: "220"
+data="com.evolucao.app"
+arg="--pct-syskeys" mCurArgData="null" mNextArg=3 argwas="--pct-syskeys" nextarg="0"
+data="0"
+arg="--throttle" mCurArgData="null" mNextArg=5 argwas="--throttle" nextarg="80"
+data="80"
+:Monkey: seed=1775467537673 count=220
+:AllowPackage: com.evolucao.app
+:IncludeCategory: android.intent.category.LAUNCHER
+:IncludeCategory: android.intent.category.MONKEY
+// Event percentages:
+//   0: 15.306122%
+//   1: 10.204082%
+//   2: 2.0408163%
+//   3: 15.306122%
+//   4: -0.0%
+//   5: -0.0%
+//   6: 25.510204%
+//   7: 15.306122%
+//   8: -0.0%
+//   9: 2.0408163%
+//   10: 1.0204082%
+//   11: 13.265306%
+:Switch: #Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;launchFlags=0x10200000;component=com.evolucao.app/.MainActivity;end
+    // Allowing start of Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] cmp=com.evolucao.app/.MainActivity } in package com.evolucao.app
+:Sending Trackball (ACTION_MOVE): 0:(4.0,0.0)
+:Sending Touch (ACTION_DOWN): 0:(242.0,1053.0)
+:Sending Touch (ACTION_UP): 0:(230.3226,1051.6224)
+:Sending Touch (ACTION_DOWN): 0:(983.0,712.0)
+:Sending Touch (ACTION_UP): 0:(970.33594,711.416)
+:Sending Touch (ACTION_DOWN): 0:(452.0,798.0)
+:Sending Touch (ACTION_UP): 0:(448.87268,789.72595)
+:Sending Touch (ACTION_DOWN): 0:(510.0,1366.0)
+:Sending Touch (ACTION_UP): 0:(510.04468,1347.9783)
+    // Rejecting start of Intent { act=android.settings.WIFI_SETTINGS pkg=com.android.settings cmp=com.android.settings/.Settings$WifiSettingsActivity } in package com.android.settings
+:Sending Touch (ACTION_DOWN): 0:(329.0,791.0)
+:Sending Touch (ACTION_UP): 0:(322.3043,784.71185)
+:Sending Touch (ACTION_DOWN): 0:(558.0,195.0)
+:Sending Touch (ACTION_UP): 0:(622.6921,239.0333)
+    // Rejecting start of Intent { cmp=com.samsung.android.app.galaxyfinder/.GalaxyFinderActivity } in package com.samsung.android.app.galaxyfinder
+:Sending Trackball (ACTION_MOVE): 0:(4.0,3.0)
+:Sending Touch (ACTION_DOWN): 0:(850.0,1078.0)
+:Sending Touch (ACTION_UP): 0:(861.59094,1086.3005)
+:Sending Touch (ACTION_DOWN): 0:(66.0,1349.0)
+:Sending Touch (ACTION_UP): 0:(68.73746,1363.9807)
+:Sending Touch (ACTION_DOWN): 0:(202.0,1965.0)
+:Sending Touch (ACTION_UP): 0:(211.50252,1955.1699)
+:Sending Touch (ACTION_DOWN): 0:(804.0,1809.0)
+:Sending Touch (ACTION_UP): 0:(861.8334,1810.4453)
+:Sending Touch (ACTION_DOWN): 0:(1031.0,293.0)
+:Sending Touch (ACTION_UP): 0:(982.0948,301.54016)
+    //[calendar_time:2026-04-06 01:57:38.022  system_uptime:273027631]
+    // Sending event #100
+    //[calendar_time:2026-04-06 01:57:38.111  system_uptime:273027712]
+    // Sending event #100
+:Sending Trackball (ACTION_MOVE): 0:(4.0,-5.0)
+:Sending Touch (ACTION_DOWN): 0:(515.0,2120.0)
+:Sending Touch (ACTION_UP): 0:(515.2359,2135.7405)
+:Sending Trackball (ACTION_MOVE): 0:(2.0,-3.0)
+:Switch: #Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;launchFlags=0x10200000;component=com.evolucao.app/.MainActivity;end
+    // Allowing start of Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] cmp=com.evolucao.app/.MainActivity } in package com.evolucao.app
+:Sending Trackball (ACTION_MOVE): 0:(-3.0,2.0)
+:Sending Trackball (ACTION_UP): 0:(0.0,0.0)
+:Sending Trackball (ACTION_MOVE): 0:(-2.0,-5.0)
+:Sending Touch (ACTION_DOWN): 0:(291.0,1064.0)
+:Sending Touch (ACTION_UP): 0:(280.72888,1050.0042)
+:Switch: #Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;launchFlags=0x10200000;component=com.evolucao.app/.MainActivity;end
+    // Allowing start of Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] cmp=com.evolucao.app/.MainActivity } in package com.evolucao.app
+:Sending Touch (ACTION_DOWN): 0:(163.0,248.0)
+:Sending Touch (ACTION_UP): 0:(171.993,122.650955)
+:Sending Touch (ACTION_DOWN): 0:(867.0,438.0)
+:Sending Touch (ACTION_UP): 0:(863.96936,451.3564)
+:Sending Touch (ACTION_DOWN): 0:(188.0,1087.0)
+:Sending Touch (ACTION_UP): 0:(195.30934,1084.494)
+:Sending Touch (ACTION_DOWN): 0:(928.0,1515.0)
+:Sending Touch (ACTION_UP): 0:(920.2856,1514.2684)
+:Switch: #Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;launchFlags=0x10200000;component=com.evolucao.app/.MainActivity;end
+    // Allowing start of Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] cmp=com.evolucao.app/.MainActivity } in package com.evolucao.app
+:Sending Trackball (ACTION_MOVE): 0:(4.0,-1.0)
+    //[calendar_time:2026-04-06 01:57:40.514  system_uptime:273030114]
+    // Sending event #200
+:Sending Touch (ACTION_DOWN): 0:(75.0,1919.0)
+:Sending Touch (ACTION_UP): 0:(70.760445,1917.1334)
+:Sending Touch (ACTION_DOWN): 0:(805.0,1776.0)
+:Sending Touch (ACTION_UP): 0:(812.69806,1789.4117)
+:Sending Touch (ACTION_DOWN): 0:(105.0,12.0)
+:Sending Touch (ACTION_UP): 0:(112.08454,12.454376)
+:Sending Touch (ACTION_DOWN): 0:(989.0,1025.0)
+Events injected: 220
+:Sending rotation degree=0, persist=false
+:Dropped: keys=0 pointers=0 trackballs=0 flips=0 rotations=0
+## Network stats: elapsed time=5601ms (0ms mobile, 0ms wifi, 5601ms not connected)
+// Monkey finished

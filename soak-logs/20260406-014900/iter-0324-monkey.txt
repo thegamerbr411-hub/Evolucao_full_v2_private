@@ -1,0 +1,112 @@
+﻿  bash arg: -p
+  bash arg: com.evolucao.app
+  bash arg: --pct-syskeys
+  bash arg: 0
+  bash arg: --throttle
+  bash arg: 80
+  bash arg: -v
+  bash arg: 220
+args: [-p, com.evolucao.app, --pct-syskeys, 0, --throttle, 80, -v, 220]
+ arg: "-p"
+ arg: "com.evolucao.app"
+ arg: "--pct-syskeys"
+ arg: "0"
+ arg: "--throttle"
+ arg: "80"
+ arg: "-v"
+ arg: "220"
+data="com.evolucao.app"
+arg="--pct-syskeys" mCurArgData="null" mNextArg=3 argwas="--pct-syskeys" nextarg="0"
+data="0"
+arg="--throttle" mCurArgData="null" mNextArg=5 argwas="--throttle" nextarg="80"
+data="80"
+:Monkey: seed=1775688541186 count=220
+:AllowPackage: com.evolucao.app
+:IncludeCategory: android.intent.category.LAUNCHER
+:IncludeCategory: android.intent.category.MONKEY
+// Event percentages:
+//   0: 15.306122%
+//   1: 10.204082%
+//   2: 2.0408163%
+//   3: 15.306122%
+//   4: -0.0%
+//   5: -0.0%
+//   6: 25.510204%
+//   7: 15.306122%
+//   8: -0.0%
+//   9: 2.0408163%
+//   10: 1.0204082%
+//   11: 13.265306%
+:Switch: #Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;launchFlags=0x10200000;component=com.evolucao.app/.MainActivity;end
+    // Allowing start of Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] cmp=com.evolucao.app/.MainActivity } in package com.evolucao.app
+:Sending Touch (ACTION_DOWN): 0:(593.0,646.0)
+:Sending Touch (ACTION_UP): 0:(586.3108,645.22675)
+:Sending Touch (ACTION_DOWN): 0:(564.0,1155.0)
+:Sending Touch (ACTION_UP): 0:(559.81976,1154.6863)
+:Sending Touch (ACTION_DOWN): 0:(493.0,657.0)
+:Sending Touch (ACTION_UP): 0:(497.20236,657.36707)
+:Sending Touch (ACTION_DOWN): 0:(358.0,514.0)
+:Sending Touch (ACTION_UP): 0:(342.52853,516.3065)
+:Sending Touch (ACTION_DOWN): 0:(373.0,943.0)
+:Sending Touch (ACTION_UP): 0:(481.67914,855.63684)
+:Sending Trackball (ACTION_MOVE): 0:(-4.0,-1.0)
+:Sending Touch (ACTION_DOWN): 0:(983.0,1941.0)
+:Sending Touch (ACTION_UP): 0:(951.1214,1873.1334)
+:Sending Touch (ACTION_DOWN): 0:(669.0,1798.0)
+:Sending Touch (ACTION_UP): 0:(660.791,1804.3892)
+:Sending Touch (ACTION_DOWN): 0:(711.0,1705.0)
+:Sending Touch (ACTION_UP): 0:(714.8029,1708.5735)
+:Sending Touch (ACTION_DOWN): 0:(375.0,2150.0)
+:Sending Touch (ACTION_UP): 0:(380.38452,2154.432)
+:Sending Touch (ACTION_DOWN): 0:(239.0,1244.0)
+:Sending Touch (ACTION_UP): 0:(240.55841,1265.5802)
+:Sending Trackball (ACTION_MOVE): 0:(0.0,1.0)
+:Sending Touch (ACTION_DOWN): 0:(1074.0,1714.0)
+:Sending Touch (ACTION_UP): 0:(1073.1571,1722.9078)
+:Sending Touch (ACTION_DOWN): 0:(594.0,2068.0)
+:Sending Touch (ACTION_UP): 0:(594.141,2053.709)
+:Sending Trackball (ACTION_MOVE): 0:(3.0,1.0)
+:Sending Touch (ACTION_DOWN): 0:(1043.0,218.0)
+    //[calendar_time:2026-04-06 02:17:09.673  system_uptime:274199291]
+    // Sending event #100
+:Sending Touch (ACTION_UP): 0:(1010.94385,230.5219)
+:Sending Touch (ACTION_DOWN): 0:(704.0,994.0)
+:Sending Touch (ACTION_UP): 0:(703.5895,996.89026)
+:Sending Touch (ACTION_DOWN): 0:(160.0,23.0)
+:Sending Touch (ACTION_UP): 0:(118.80136,0.0)
+:Sending Touch (ACTION_DOWN): 0:(565.0,752.0)
+:Sending Touch (ACTION_UP): 0:(566.2606,746.9616)
+:Sending Touch (ACTION_DOWN): 0:(928.0,753.0)
+:Sending Touch (ACTION_UP): 0:(929.75977,754.3151)
+:Sending Touch (ACTION_DOWN): 0:(1052.0,1424.0)
+:Sending Touch (ACTION_UP): 0:(1051.3384,1429.1177)
+:Sending Touch (ACTION_DOWN): 0:(210.0,281.0)
+:Sending Touch (ACTION_UP): 0:(217.53351,287.09174)
+:Sending Touch (ACTION_DOWN): 0:(494.0,713.0)
+:Sending Touch (ACTION_UP): 0:(542.1079,705.1277)
+:Sending Touch (ACTION_DOWN): 0:(215.0,1831.0)
+:Sending Touch (ACTION_UP): 0:(227.87523,1832.0035)
+:Sending Trackball (ACTION_MOVE): 0:(1.0,-1.0)
+:Sending Trackball (ACTION_MOVE): 0:(2.0,-4.0)
+:Sending Trackball (ACTION_MOVE): 0:(0.0,1.0)
+:Sending Touch (ACTION_DOWN): 0:(700.0,1228.0)
+:Sending Touch (ACTION_UP): 0:(680.90894,1228.1254)
+:Sending Touch (ACTION_DOWN): 0:(999.0,488.0)
+:Sending Touch (ACTION_UP): 0:(988.9229,485.91895)
+:Sending Touch (ACTION_DOWN): 0:(496.0,1135.0)
+:Sending Touch (ACTION_UP): 0:(496.37927,1138.2461)
+:Sending Touch (ACTION_DOWN): 0:(944.0,1160.0)
+    //[calendar_time:2026-04-06 02:17:12.271  system_uptime:274201872]
+    // Sending event #200
+:Sending Touch (ACTION_UP): 0:(953.787,1160.2797)
+:Sending Touch (ACTION_DOWN): 0:(229.0,1348.0)
+:Sending Touch (ACTION_UP): 0:(146.22527,1276.5383)
+:Sending Touch (ACTION_DOWN): 0:(495.0,2116.0)
+:Sending Touch (ACTION_UP): 0:(506.6419,2123.3352)
+:Sending Touch (ACTION_DOWN): 0:(858.0,960.0)
+:Sending Touch (ACTION_UP): 0:(913.28735,1009.6672)
+Events injected: 220
+:Sending rotation degree=0, persist=false
+:Dropped: keys=0 pointers=0 trackballs=0 flips=0 rotations=0
+## Network stats: elapsed time=5459ms (0ms mobile, 0ms wifi, 5459ms not connected)
+// Monkey finished

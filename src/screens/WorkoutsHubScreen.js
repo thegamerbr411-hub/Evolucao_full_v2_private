@@ -10,7 +10,7 @@ export function WorkoutsHubView({ navigation, summary, todayWorkout, recommended
   const safeRecommended = recommended || { title: 'Sem recomendacao', source: 'fallback', confidenceScore: 0, decisionReasons: [], replacements: [] };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView testID="screen-treinos" contentContainerStyle={styles.container}>
       <ScreenHeader title="Treinos" subtitle="Planeje, execute e ajuste o treino do dia." />
 
       <AppCard>
@@ -31,7 +31,7 @@ export function WorkoutsHubView({ navigation, summary, todayWorkout, recommended
         ))}
       </AppCard>
 
-      <PrimaryButton title="Iniciar treino recomendado" onPress={() => navigation.navigate('TreinoHoje')} style={styles.primaryButton} />
+      <PrimaryButton testID="btn-iniciar-treino" title="Iniciar treino recomendado" onPress={() => navigation.navigate('TreinoHoje')} style={styles.primaryButton} />
       <SecondaryButton title="Treino livre" onPress={() => navigation.navigate('TreinoLivre')} />
     </ScrollView>
   );

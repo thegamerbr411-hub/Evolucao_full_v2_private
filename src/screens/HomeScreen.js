@@ -6,11 +6,14 @@ import { AppCard, MetricText, PrimaryButton, ScreenHeader, SecondaryButton } fro
 import { colors, radius, spacing } from '../theme';
 
 export default function HomeScreen({ navigation }) {
-  const { getDailyMacroTargets, getNutritionFeedback, history, plan, workoutLogs } = useNutrition();
-  const { gamification, getSmartWorkoutRecommendation } = useWorkout();
+  const { getDailyMacroTargets, getNutritionFeedback, history, plan } = useNutrition();
+  const { gamification, getSmartWorkoutRecommendation, workoutLogs } = useWorkout();
   const { getPerformanceRecoveryInsight } = useInsights();
   const { addWaterIntake } = useNotifications();
   const [quickActionFeedback, setQuickActionFeedback] = useState('');
+
+  const safeHistory = Array.isArray(history) ? history : [];
+  const safeWorkoutLogs = Array.isArray(workoutLogs) ? workoutLogs : [];
 
   const today = useMemo(() => {
     const date = new Date();
@@ -32,14 +35,14 @@ export default function HomeScreen({ navigation }) {
   }, [getSmartWorkoutRecommendation]);
   const macroTargets = useMemo(() => getDailyMacroTargets(), [getDailyMacroTargets]);
 
-  const todayHistory = history.find((item) => item.date === today) || null;
+  const todayHistory = safeHistory.find((item) => item.date === today) || null;
   const proteinToday = Number(todayHistory?.protein || 0);
   const proteinTarget = Number(macroTargets?.protein || 0);
   const waterToday = Number(todayHistory?.waterMl || 0);
   const waterTarget = Number((plan?.waterLitersPerDay || 0) * 1000);
   const waterPercent = waterTarget > 0 ? Math.min(1, waterToday / waterTarget) : 0;
   const proteinRemaining = Math.max(0, proteinTarget - proteinToday);
-  const trainedToday = workoutLogs.some((item) => item.date === today);
+  const trainedToday = safeWorkoutLogs.some((item) => item.date === today);
   const nutritionFeedback = useMemo(
     () => getNutritionFeedback({ proteinConsumed: proteinToday, caloriesConsumed: Number(todayHistory?.calories || 0), trainedToday }),
     [getNutritionFeedback, proteinToday, todayHistory?.calories, trainedToday]
@@ -59,10 +62,10 @@ export default function HomeScreen({ navigation }) {
   };
 
   const getScoreByDate = (dateKey) => {
-    const dayHistory = history.find((item) => item.date === dateKey) || null;
+    const dayHistory = safeHistory.find((item) => item.date === dateKey) || null;
     const dayProtein = Number(dayHistory?.protein || 0);
     const dayWater = Number(dayHistory?.waterMl || 0);
-    const dayTrained = workoutLogs.some((item) => String(item.date || '') === String(dateKey));
+    const dayTrained = safeWorkoutLogs.some((item) => String(item.date || '') === String(dateKey));
     const dayProteinRatio = proteinTarget > 0 ? Math.min(1, dayProtein / proteinTarget) : 0;
     const dayWaterRatio = waterTarget > 0 ? Math.min(1, dayWater / waterTarget) : 0;
     const dayTrainingRatio = dayTrained ? 1 : 0;
@@ -71,7 +74,7 @@ export default function HomeScreen({ navigation }) {
   };
 
   const scoreTrendRows = useMemo(() => {
-    const dateSet = new Set(history.map((item) => String(item.date || '')).filter(Boolean));
+    const dateSet = new Set(safeHistory.map((item) => String(item.date || '')).filter(Boolean));
     dateSet.add(today);
 
     const sorted = Array.from(dateSet)
@@ -92,7 +95,7 @@ export default function HomeScreen({ navigation }) {
       ...item,
       scorePct: Math.max(5, Math.round((item.score / maxScore) * 100)),
     }));
-  }, [history, today, workoutLogs, proteinTarget, waterTarget]);
+  }, [safeHistory, today, safeWorkoutLogs, proteinTarget, waterTarget]);
 
   const scoreStats = useMemo(() => {
     if (!scoreTrendRows.length) {
@@ -141,16 +144,16 @@ export default function HomeScreen({ navigation }) {
   };
   const monthPrefix = today.slice(0, 7);
   const monthlyWorkoutDays = new Set(
-    workoutLogs
+    safeWorkoutLogs
       .filter((item) => String(item.date || '').startsWith(monthPrefix))
       .map((item) => item.date)
   ).size;
   const streakDays = Number(gamification?.streakDays || 0);
 
   const weekDates = useMemo(
-    () => Array.from(new Set(history.slice(0, 7).map((item) => String(item.date || '')).filter(Boolean)))
+    () => Array.from(new Set(safeHistory.slice(0, 7).map((item) => String(item.date || '')).filter(Boolean)))
       .sort((a, b) => String(a).localeCompare(String(b))),
-    [history]
+    [safeHistory]
   );
 
   const weeklyTrendRows = useMemo(() => {
@@ -159,9 +162,9 @@ export default function HomeScreen({ navigation }) {
     }
 
     const rows = weekDates.map((date) => {
-      const dayHistory = history.find((item) => item.date === date) || {};
+      const dayHistory = safeHistory.find((item) => item.date === date) || {};
       const protein = Number(dayHistory.protein || 0);
-      const trainingLoad = workoutLogs
+      const trainingLoad = safeWorkoutLogs
         .filter((item) => String(item.date || '') === date)
         .reduce((acc, item) => acc + Number(item.weight || 0) * Number(item.reps || 0), 0);
 
@@ -180,7 +183,7 @@ export default function HomeScreen({ navigation }) {
       proteinPct: Math.max(4, Math.round((item.protein / maxProtein) * 100)),
       loadPct: Math.max(4, Math.round((item.trainingLoad / maxLoad) * 100)),
     }));
-  }, [weekDates, history, workoutLogs]);
+  }, [weekDates, safeHistory, safeWorkoutLogs]);
 
   const intelligentShortcut = useMemo(() => {
     if (recoveryInsight?.tone === 'warning' || nutritionFeedback?.urgency === 'alta') {
@@ -199,7 +202,7 @@ export default function HomeScreen({ navigation }) {
   }, [recoveryInsight?.tone, nutritionFeedback?.urgency, nutritionFeedback?.missingProtein, proteinRemaining, navigation]);
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView testID="screen-home" contentContainerStyle={styles.container}>
       <ScreenHeader title="Hoje" subtitle="Prioridades do dia em um so lugar." />
 
       <AppCard style={styles.heroCard}>
@@ -217,7 +220,7 @@ export default function HomeScreen({ navigation }) {
         <Text style={styles.cardSub}>{recoveryInsight?.message || 'Continue registrando para liberar recomendações mais precisas.'}</Text>
       </AppCard>
 
-      <AppCard>
+      <AppCard testID="home-ready">
         <Text style={styles.cardLabel}>Score do dia</Text>
         <View style={styles.scoreHeaderRow}>
           <Text style={styles.scoreValue}>{dayScore}/100</Text>
@@ -274,7 +277,7 @@ export default function HomeScreen({ navigation }) {
         <Text style={styles.cardLabel}>Treino do dia</Text>
         <Text style={styles.cardMain}>{smartWorkout?.title}</Text>
         <Text style={styles.cardSub}>{smartWorkout?.justification}</Text>
-        <PrimaryButton title="Iniciar treino" onPress={() => navigation.navigate('TreinoHoje')} style={styles.primaryButton} />
+        <PrimaryButton testID="btn-home-iniciar-treino" title="Iniciar treino" onPress={() => navigation.navigate('TreinoHoje')} style={styles.primaryButton} />
       </AppCard>
 
       <AppCard>

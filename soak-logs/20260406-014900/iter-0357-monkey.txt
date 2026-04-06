@@ -1,0 +1,104 @@
+﻿  bash arg: -p
+  bash arg: com.evolucao.app
+  bash arg: --pct-syskeys
+  bash arg: 0
+  bash arg: --throttle
+  bash arg: 80
+  bash arg: -v
+  bash arg: 220
+args: [-p, com.evolucao.app, --pct-syskeys, 0, --throttle, 80, -v, 220]
+ arg: "-p"
+ arg: "com.evolucao.app"
+ arg: "--pct-syskeys"
+ arg: "0"
+ arg: "--throttle"
+ arg: "80"
+ arg: "-v"
+ arg: "220"
+data="com.evolucao.app"
+arg="--pct-syskeys" mCurArgData="null" mNextArg=3 argwas="--pct-syskeys" nextarg="0"
+data="0"
+arg="--throttle" mCurArgData="null" mNextArg=5 argwas="--throttle" nextarg="80"
+data="80"
+:Monkey: seed=1775605245060 count=220
+:AllowPackage: com.evolucao.app
+:IncludeCategory: android.intent.category.LAUNCHER
+:IncludeCategory: android.intent.category.MONKEY
+// Event percentages:
+//   0: 15.306122%
+//   1: 10.204082%
+//   2: 2.0408163%
+//   3: 15.306122%
+//   4: -0.0%
+//   5: -0.0%
+//   6: 25.510204%
+//   7: 15.306122%
+//   8: -0.0%
+//   9: 2.0408163%
+//   10: 1.0204082%
+//   11: 13.265306%
+:Switch: #Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;launchFlags=0x10200000;component=com.evolucao.app/.MainActivity;end
+    // Allowing start of Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] cmp=com.evolucao.app/.MainActivity } in package com.evolucao.app
+:Sending Flip keyboardOpen=false
+Got IOException performing flipjava.io.FileNotFoundException: /dev/input/event0: open failed: EACCES (Permission denied)
+    // Injection Failed
+:Sending Trackball (ACTION_MOVE): 0:(-2.0,4.0)
+:Sending Trackball (ACTION_MOVE): 0:(4.0,4.0)
+:Sending Trackball (ACTION_UP): 0:(0.0,0.0)
+:Sending Trackball (ACTION_MOVE): 0:(0.0,-5.0)
+:Sending Touch (ACTION_DOWN): 0:(39.0,1986.0)
+:Sending Touch (ACTION_UP): 0:(128.52234,1909.5345)
+:Sending Trackball (ACTION_MOVE): 0:(1.0,0.0)
+:Sending Touch (ACTION_DOWN): 0:(509.0,2021.0)
+:Sending Touch (ACTION_UP): 0:(584.01074,2064.7793)
+:Sending Touch (ACTION_DOWN): 0:(226.0,1380.0)
+:Sending Touch (ACTION_UP): 0:(218.93372,1362.2595)
+:Sending Touch (ACTION_DOWN): 0:(398.0,1086.0)
+:Sending Touch (ACTION_UP): 0:(394.94073,1096.4679)
+:Sending Trackball (ACTION_MOVE): 0:(4.0,3.0)
+:Sending Touch (ACTION_DOWN): 0:(210.0,1898.0)
+    //[calendar_time:2026-04-06 02:19:23.332  system_uptime:274332943]
+    // Sending event #100
+:Sending Touch (ACTION_UP): 0:(204.33144,1900.9609)
+:Sending Touch (ACTION_DOWN): 0:(457.0,2125.0)
+:Sending Touch (ACTION_UP): 0:(461.84494,2123.0488)
+:Sending Touch (ACTION_DOWN): 0:(123.0,1382.0)
+:Sending Touch (ACTION_UP): 0:(137.88173,1415.4331)
+:Sending Touch (ACTION_DOWN): 0:(174.0,1598.0)
+:Sending Touch (ACTION_UP): 0:(121.20865,1559.1216)
+:Sending Trackball (ACTION_MOVE): 0:(0.0,4.0)
+:Sending Touch (ACTION_DOWN): 0:(546.0,922.0)
+:Sending Touch (ACTION_UP): 0:(543.5939,915.4298)
+:Sending Touch (ACTION_DOWN): 0:(1028.0,1920.0)
+:Sending Touch (ACTION_UP): 0:(1015.28564,1933.0511)
+:Sending Touch (ACTION_DOWN): 0:(831.0,995.0)
+:Sending Touch (ACTION_UP): 0:(829.0849,984.84625)
+:Sending Touch (ACTION_DOWN): 0:(651.0,98.0)
+:Sending Touch (ACTION_UP): 0:(644.29614,97.54105)
+:Sending Trackball (ACTION_MOVE): 0:(2.0,-2.0)
+:Sending Trackball (ACTION_MOVE): 0:(-3.0,0.0)
+:Sending Touch (ACTION_DOWN): 0:(319.0,170.0)
+:Sending Touch (ACTION_UP): 0:(315.0495,165.04875)
+:Sending Touch (ACTION_DOWN): 0:(472.0,894.0)
+:Sending Touch (ACTION_UP): 0:(468.92618,894.04297)
+:Sending Touch (ACTION_DOWN): 0:(889.0,2158.0)
+:Sending Touch (ACTION_UP): 0:(884.3857,2159.2747)
+:Sending Trackball (ACTION_MOVE): 0:(-1.0,2.0)
+    //[calendar_time:2026-04-06 02:19:26.049  system_uptime:274335650]
+    // Sending event #200
+:Sending Touch (ACTION_DOWN): 0:(518.0,452.0)
+:Sending Touch (ACTION_UP): 0:(492.7176,449.1418)
+:Sending Touch (ACTION_DOWN): 0:(161.0,1301.0)
+:Sending Touch (ACTION_UP): 0:(137.00337,1332.2509)
+:Sending Touch (ACTION_DOWN): 0:(448.0,1744.0)
+:Sending Touch (ACTION_UP): 0:(460.66016,1725.1624)
+    // Rejecting start of Intent { act=android.settings.ALL_APPS_NOTIFICATION_SETTINGS cmp=com.android.settings/.Settings$NotificationAppListActivity } in package com.android.settings
+:Sending Touch (ACTION_DOWN): 0:(294.0,2014.0)
+:Sending Touch (ACTION_UP): 0:(285.59732,2029.1904)
+:Sending Touch (ACTION_DOWN): 0:(926.0,72.0)
+:Sending Touch (ACTION_UP): 0:(923.06665,73.36517)
+Events injected: 220
+:Sending rotation degree=0, persist=false
+:Dropped: keys=0 pointers=0 trackballs=0 flips=1 rotations=0
+## Network stats: elapsed time=4609ms (0ms mobile, 0ms wifi, 4609ms not connected)
+// Monkey finished

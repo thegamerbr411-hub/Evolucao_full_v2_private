@@ -1,0 +1,3 @@
+﻿--------- beginning of main
+04-06 02:21:17.593 E/ReactNativeJS(12370): [Error: Uncaught (in promise, id: 0): "Error: Call to function 'ExpoKeepAwake.activate' has been rejected.
+04-06 02:21:17.593 E/ReactNativeJS(12370): ÔåÆ Caused by: The current activity is no longer available"]
