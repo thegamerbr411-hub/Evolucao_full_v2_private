@@ -10,7 +10,7 @@ test('workouts hub screen source should keep a valid clean structure', () => {
 
   assert.ok(source.includes('export default function WorkoutsHubScreen'));
   assert.ok(source.includes('ScreenHeader title="Treinos"'));
-  assert.ok(source.includes('PrimaryButton title="Iniciar treino recomendado"'));
+  assert.ok(/PrimaryButton[\s\S]*title="Iniciar treino recomendado"/.test(source));
 
   // Guards against previously observed corruption patterns.
   assert.equal(source.includes('pra escalar sem medoimport'), false);

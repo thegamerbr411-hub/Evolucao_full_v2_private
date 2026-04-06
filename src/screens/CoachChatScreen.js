@@ -193,9 +193,9 @@ function getCoachReply(message, context, turnIndex, memory) {
   }
 
   return getMessageVariant([
-    `Posso te ajudar agora em treino, proteina ou rotina da semana. Hoje voce esta com ${context.proteinToday}/${context.proteinTarget}g de proteina.`,
-    `Me chama para decidir o proximo passo: treino, nutricao ou hidratacao. Agua atual: ${context.waterToday}/${context.waterTarget}ml.`,
-    `Vamos por prioridade: primeiro treino do dia, depois fechar proteina. Estado da semana: ${context.smart.trainedThisWeek}/${context.smart.weeklyTarget}.`
+    `Voce ainda pode melhorar seu dia agora: treino, proteina ou rotina. Status de proteina: ${context.proteinToday}/${context.proteinTarget}g.`,
+    `Hora de agir no proximo passo: treino, nutricao ou hidratacao. Agua atual: ${context.waterToday}/${context.waterTarget}ml.`,
+    `Prioridade agora: treino do dia e depois fechar proteina. Semana em ${context.smart.trainedThisWeek}/${context.smart.weeklyTarget}.`
   ], seed);
 }
 
@@ -225,7 +225,7 @@ function getUrgencyStyles(level) {
     return {
       borderColor: '#EF4444',
       backgroundColor: '#2B1717',
-      badge: 'Urgencia alta',
+      badge: 'Alta urgencia',
     };
   }
 
@@ -233,7 +233,7 @@ function getUrgencyStyles(level) {
     return {
       borderColor: '#F59E0B',
       backgroundColor: '#2D2415',
-      badge: 'Urgencia media',
+      badge: 'Urgencia moderada',
     };
   }
 
@@ -265,10 +265,10 @@ export default function CoachChatScreen({ navigation }) {
     action: '',
     urgencyLevel: 'baixa',
     quickActions: {
-      trainingTitle: 'Treinar',
-      nutritionTitle: 'Comer',
-      waterTitle: '+300ml',
-      routineTitle: 'Rotina',
+      trainingTitle: 'Iniciar treino',
+      nutritionTitle: 'Registrar refeicao',
+      waterTitle: '+300ml agua',
+      routineTitle: 'Ver rotina',
       waterQuickMl: 300,
     },
     completedGoals: 0,
@@ -288,7 +288,7 @@ export default function CoachChatScreen({ navigation }) {
     {
       id: 'welcome',
       role: 'coach',
-      text: 'Sou seu coach. Me conte como foi seu dia e eu ajusto treino e nutricao em tempo real.',
+      text: 'Seu coach aqui. Vamos agir no que falta hoje: treino, agua e proteina.',
     },
   ]);
 
@@ -576,10 +576,10 @@ export default function CoachChatScreen({ navigation }) {
         {actionFeedback ? <Text style={styles.feedbackLine}>{actionFeedback}</Text> : null}
 
         <View style={styles.quickActionRow}>
-          <PrimaryButton title={coachCard.quickActions?.trainingTitle || 'Treinar'} onPress={openWorkout} style={styles.quickMainBtn} />
-          <SecondaryButton title={coachCard.quickActions?.nutritionTitle || 'Comer'} onPress={openNutrition} style={styles.quickBtn} />
-          <SecondaryButton title={coachCard.quickActions?.waterTitle || '+300ml'} onPress={addWaterQuick} style={styles.quickBtn} />
-          <SecondaryButton title={coachCard.quickActions?.routineTitle || 'Rotina'} onPress={openRoutines} style={styles.quickBtn} />
+          <PrimaryButton testID="btn-chat-train" title={coachCard.quickActions?.trainingTitle || 'Iniciar treino'} onPress={openWorkout} style={styles.quickMainBtn} />
+          <SecondaryButton testID="btn-chat-eat" title={coachCard.quickActions?.nutritionTitle || 'Registrar refeicao'} onPress={openNutrition} style={styles.quickBtn} />
+          <SecondaryButton testID="btn-add-water-chat" title={coachCard.quickActions?.waterTitle || '+300ml agua'} onPress={addWaterQuick} style={styles.quickBtn} />
+          <SecondaryButton testID="btn-chat-routine" title={coachCard.quickActions?.routineTitle || 'Ver rotina'} onPress={openRoutines} style={styles.quickBtn} />
         </View>
       </AppCard>
 
@@ -593,16 +593,17 @@ export default function CoachChatScreen({ navigation }) {
 
       <View style={styles.inputRow}>
         <TextInput
+          testID="chat-input"
           value={input}
           onChangeText={setInput}
           onSubmitEditing={sendMessage}
           returnKeyType="send"
           blurOnSubmit={false}
-          placeholder="Ex: nao consegui treinar hoje"
+          placeholder="Ex: Nao consegui treinar hoje"
           placeholderTextColor="#7A8B99"
           style={styles.input}
         />
-        <TouchableOpacity style={styles.sendButton} onPress={sendMessage}>
+        <TouchableOpacity testID="btn-chat-send" style={styles.sendButton} onPress={sendMessage}>
           <Text style={styles.sendText}>Enviar</Text>
         </TouchableOpacity>
       </View>

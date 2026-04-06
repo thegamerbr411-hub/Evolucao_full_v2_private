@@ -21,11 +21,11 @@ export function buildCoachMessage(state) {
 
   let action = 'Manter consistencia';
   if (missing.needsWorkoutToday) {
-    action = 'Iniciar treino agora';
+    action = 'Voce ainda nao treinou hoje. Inicie agora.';
   } else if (Number(missing.proteinLeft || 0) > 0) {
-    action = 'Fazer refeicao proteica';
+    action = 'Faltam proteinas. Registre uma refeicao agora.';
   } else if (Number(missing.waterLeft || 0) > 0) {
-    action = 'Beber agua agora';
+    action = 'Hidratacao abaixo da meta. Beba agua agora.';
   }
 
   let urgencyLevel = 'baixa';
@@ -46,10 +46,10 @@ export function buildCoachMessage(state) {
   const waterQuickMl = waterLeft <= 0 ? 0 : waterLeft <= 120 ? 100 : 300;
 
   const quickActions = {
-    trainingTitle: missing.needsWorkoutToday ? 'Treinar' : 'Treino OK',
-    nutritionTitle: Number(missing.proteinLeft || 0) > 0 ? 'Comer' : 'Proteina OK',
-    waterTitle: waterQuickMl ? `+${waterQuickMl}ml` : 'Agua OK',
-    routineTitle: Number(missing.workoutsLeft || 0) > 0 ? 'Rotina' : 'Rotina OK',
+    trainingTitle: missing.needsWorkoutToday ? 'Iniciar treino' : 'Treino OK',
+    nutritionTitle: Number(missing.proteinLeft || 0) > 0 ? 'Registrar refeicao' : 'Proteina OK',
+    waterTitle: waterQuickMl ? `+${waterQuickMl}ml agua` : 'Agua OK',
+    routineTitle: Number(missing.workoutsLeft || 0) > 0 ? 'Ver rotina' : 'Rotina OK',
     waterQuickMl,
   };
 

@@ -1,12 +1,34 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { Animated, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { colors, radius, spacing } from '../../theme';
 
 export function PrimaryButton({ title, onPress, style, testID }) {
+  const scaleAnim = React.useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = React.useCallback(() => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.98,
+      speed: 40,
+      bounciness: 8,
+      useNativeDriver: true,
+    }).start();
+  }, [scaleAnim]);
+
+  const handlePressOut = React.useCallback(() => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      speed: 30,
+      bounciness: 6,
+      useNativeDriver: true,
+    }).start();
+  }, [scaleAnim]);
+
   return (
-    <TouchableOpacity testID={testID} onPress={onPress} style={[styles.button, style]}>
-      <Text style={styles.text}>{title}</Text>
-    </TouchableOpacity>
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      <TouchableOpacity testID={testID} onPress={onPress} onPressIn={handlePressIn} onPressOut={handlePressOut} style={[styles.button, style]}>
+        <Text style={styles.text}>{title}</Text>
+      </TouchableOpacity>
+    </Animated.View>
   );
 }
 

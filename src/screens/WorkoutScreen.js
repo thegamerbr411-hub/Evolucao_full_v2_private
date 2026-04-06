@@ -1136,6 +1136,7 @@ export default function WorkoutScreen({ navigation }) {
               ) : null}
 
               {isActive ? <Text style={styles.controlHint}>Controles: + serie, - serie e 🗑️ por serie.</Text> : null}
+              {isActive ? <Text testID="series-salvas-total" style={styles.controlHint}>Series salvas: {todaySets.length}</Text> : null}
 
               {Array.from({ length: plannedSets }).map((_, setIndex) => {
                 const saved = todaySets[setIndex];
@@ -1161,10 +1162,18 @@ export default function WorkoutScreen({ navigation }) {
                             <Text style={styles.savedSetHint}>Serie salva</Text>
                           </View>
                           <View style={styles.savedActionsWrap}>
-                            <TouchableOpacity style={styles.editSetBtn} onPress={() => editSavedSet(exercise.name, setIndex)}>
+                            <TouchableOpacity
+                              testID={isActive && setIndex === 0 ? 'btn-editar-serie' : `btn-editar-serie-${exercise.id}-${setIndex}`}
+                              style={styles.editSetBtn}
+                              onPress={() => editSavedSet(exercise.name, setIndex)}
+                            >
                               <Text style={styles.removeSetBtnText}>Editar</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.removeSetBtn} onPress={() => removeSavedSet(exercise.name, setIndex)}>
+                            <TouchableOpacity
+                              testID={isActive && setIndex === 0 ? 'btn-remover-serie' : `btn-remover-serie-${exercise.id}-${setIndex}`}
+                              style={styles.removeSetBtn}
+                              onPress={() => removeSavedSet(exercise.name, setIndex)}
+                            >
                               <Text style={styles.removeSetBtnText}>🗑️</Text>
                             </TouchableOpacity>
                           </View>
@@ -1315,7 +1324,7 @@ export default function WorkoutScreen({ navigation }) {
 
         <View style={styles.finishCard}>
           <PrimaryButton title="Finalizar treino" onPress={finishWorkout} style={styles.finishButton} />
-          <SecondaryButton title="Salvar parcial e sair" onPress={savePartialAndExit} style={styles.partialButton} />
+          <SecondaryButton testID="btn-salvar-parcial" title="Salvar parcial e sair" onPress={savePartialAndExit} style={styles.partialButton} />
         </View>
 
         {showWorkoutSummary ? (
