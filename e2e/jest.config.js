@@ -1,3 +1,5 @@
+const isCI = process.env.CI === 'true';
+
 module.exports = {
   testRunner: 'jest-circus/runner',
   testTimeout: 180000,
@@ -8,5 +10,5 @@ module.exports = {
   testEnvironment: 'detox/runners/jest/testEnvironment',
   reporters: ['detox/runners/jest/reporter'],
   setupFilesAfterEnv: ['./init.js'],
-  testMatch: ['**/flow.test.js'],
+  testMatch: isCI ? ['**/flow.test.js'] : ['**/*.test.js'],
 };

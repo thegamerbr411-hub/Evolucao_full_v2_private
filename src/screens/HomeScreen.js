@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Easing, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useInsights, useWorkout, useNutrition } from '../hooks';
 import { useNotifications } from '../hooks';
-import { AppCard, MetricText, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
+import { AnimatedToast, AppCard, MetricText, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { colors, radius, spacing } from '../theme';
 
 export default function HomeScreen({ navigation }) {
@@ -11,6 +11,19 @@ export default function HomeScreen({ navigation }) {
   const { getPerformanceRecoveryInsight } = useInsights();
   const { addWaterIntake } = useNotifications();
   const [quickActionFeedback, setQuickActionFeedback] = useState('');
+  const [toastMessage, setToastMessage] = useState('');
+  const scoreProgressAnim = useRef(new Animated.Value(0)).current;
+  const proteinProgressAnim = useRef(new Animated.Value(0)).current;
+  const waterProgressAnim = useRef(new Animated.Value(0)).current;
+  const trainingProgressAnim = useRef(new Animated.Value(0)).current;
+
+  const showSuccessToast = (message) => {
+    if (!message) {
+      return;
+    }
+
+    setToastMessage(message);
+  };
 
   const safeHistory = Array.isArray(history) ? history : [];
   const safeWorkoutLogs = Array.isArray(workoutLogs) ? workoutLogs : [];
@@ -123,6 +136,7 @@ export default function HomeScreen({ navigation }) {
 
   const handleChecklistPress = (type) => {
     if (type === 'training') {
+      showSuccessToast('Treino iniciado 🏋️');
       navigation.navigate('TreinoHoje');
       return;
     }
@@ -139,7 +153,28 @@ export default function HomeScreen({ navigation }) {
       const result = addWaterIntake(300);
       if (result?.ok) {
         setQuickActionFeedback('+300ml de agua adicionados');
+        showSuccessToast('+300ml adicionados 💧');
       }
+    }
+  };
+
+  const openWorkoutFromHome = () => {
+    showSuccessToast('Treino iniciado 🏋️');
+    navigation.navigate('TreinoHoje');
+  };
+
+  const openNutritionFromHome = () => {
+    navigation.navigate('Scanner', {
+      prefillQuickMealText: '150g frango + 1 whey',
+      source: 'home_focus_nutrition',
+    });
+  };
+
+  const addWaterFromHome = () => {
+    const result = addWaterIntake(300);
+    if (result?.ok) {
+      setQuickActionFeedback('+300ml de agua adicionados');
+      showSuccessToast('+300ml adicionados 💧');
     }
   };
   const monthPrefix = today.slice(0, 7);
@@ -201,27 +236,113 @@ export default function HomeScreen({ navigation }) {
     };
   }, [recoveryInsight?.tone, nutritionFeedback?.urgency, nutritionFeedback?.missingProtein, proteinRemaining, navigation]);
 
+  const focusCard = useMemo(() => {
+    if (!trainedToday) {
+      return {
+        label: 'Prioridade de hoje',
+        title: smartWorkout?.title || 'Treino do dia',
+        subtitle: 'Voce ainda nao treinou hoje. Comece agora para manter o ritmo.',
+        buttonTitle: 'Iniciar treino',
+        onPress: openWorkoutFromHome,
+        testID: 'btn-start-workout',
+      };
+    }
+
+    if (proteinRemaining > 0) {
+      return {
+        label: 'Prioridade de hoje',
+        title: 'Fechar proteína do dia',
+        subtitle: `Faltam ${proteinRemaining}g para bater sua meta.`,
+        buttonTitle: 'Registrar refeicao',
+        onPress: openNutritionFromHome,
+        testID: 'btn-focus-nutrition',
+      };
+    }
+
+    if (waterRemaining > 0) {
+      return {
+        label: 'Prioridade de hoje',
+        title: 'Hidratacao pendente',
+        subtitle: `Faltam ${waterRemaining}ml para fechar a meta de agua.`,
+        buttonTitle: 'Adicionar 300ml',
+        onPress: addWaterFromHome,
+        testID: 'btn-focus-water',
+      };
+    }
+
+    return {
+      label: 'Prioridade de hoje',
+      title: 'Dia sob controle',
+      subtitle: 'Tudo em dia. Aproveite para revisar seus insights e manter consistencia.',
+      buttonTitle: 'Ver insights',
+      onPress: () => navigation.navigate('Insights'),
+      testID: 'btn-focus-insights',
+    };
+  }, [trainedToday, smartWorkout?.title, proteinRemaining, waterRemaining, navigation]);
+
+  useEffect(() => {
+    const run = Animated.parallel([
+      Animated.timing(scoreProgressAnim, {
+        toValue: Math.max(0.04, Math.min(1, dayScore / 100)),
+        duration: 500,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
+      }),
+      Animated.timing(proteinProgressAnim, {
+        toValue: proteinRatio,
+        duration: 450,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
+      }),
+      Animated.timing(waterProgressAnim, {
+        toValue: waterPercent,
+        duration: 450,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
+      }),
+      Animated.timing(trainingProgressAnim, {
+        toValue: trainingProgress,
+        duration: 350,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
+      }),
+    ]);
+
+    run.start();
+  }, [dayScore, proteinRatio, waterPercent, trainingProgress, scoreProgressAnim, proteinProgressAnim, waterProgressAnim, trainingProgressAnim]);
+
+  const scoreFillWidth = scoreProgressAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0%', '100%'],
+  });
+  const proteinFillWidth = proteinProgressAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0%', '100%'],
+  });
+  const waterFillWidth = waterProgressAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0%', '100%'],
+  });
+  const trainingFillWidth = trainingProgressAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0%', '100%'],
+  });
+
   return (
-    <ScrollView testID="screen-home" contentContainerStyle={styles.container}>
+    <View style={styles.screen}>
+      <AnimatedToast message={toastMessage} onHide={() => setToastMessage('')} />
+      <ScrollView testID="screen-home" contentContainerStyle={styles.container}>
       <ScreenHeader title="Hoje" subtitle="Prioridades do dia em um so lugar." />
 
-      <AppCard style={styles.heroCard}>
-        <Text style={styles.cardLabel}>Insight de performance</Text>
-        <Text style={[
-          styles.heroTitle,
-          recoveryInsight?.tone === 'warning'
-            ? styles.heroTitleWarning
-            : recoveryInsight?.tone === 'success'
-            ? styles.heroTitleSuccess
-            : null,
-        ]}>
-          {recoveryInsight?.title || 'Sem insight no momento'}
-        </Text>
-        <Text style={styles.cardSub}>{recoveryInsight?.message || 'Continue registrando para liberar recomendações mais precisas.'}</Text>
+      <AppCard>
+        <Text style={styles.cardLabel}>{focusCard.label}</Text>
+        <Text style={styles.cardMain}>{focusCard.title}</Text>
+        <Text style={styles.cardSub}>{focusCard.subtitle}</Text>
+        <PrimaryButton testID={focusCard.testID} title={focusCard.buttonTitle} onPress={focusCard.onPress} style={styles.primaryButton} />
       </AppCard>
 
       <AppCard testID="home-ready">
-        <Text style={styles.cardLabel}>Score do dia</Text>
+        <Text style={styles.cardLabel}>Progresso diario</Text>
         <View style={styles.scoreHeaderRow}>
           <Text style={styles.scoreValue}>{dayScore}/100</Text>
           <Text style={styles.scoreHint}>
@@ -229,33 +350,55 @@ export default function HomeScreen({ navigation }) {
               ? 'Dia forte. Mantenha consistência.'
               : dayScore >= 65
               ? 'Bom ritmo. Falta pouco para fechar.'
-              : 'Hoje ainda dá para virar o jogo.'}
+              : 'Voce ainda pode fechar bem o dia.'}
           </Text>
         </View>
         <View style={styles.scoreTrack}>
-          <View style={[styles.scoreFill, { width: `${Math.max(4, dayScore)}%` }]} />
+          <Animated.View style={[styles.scoreFill, { width: scoreFillWidth }]} />
         </View>
         <View style={styles.scoreChecklist}>
           <TouchableOpacity style={styles.scoreChecklistRow} activeOpacity={0.9} onPress={() => handleChecklistPress('training')}>
-            <Text style={styles.scoreChecklistLabel}>Treino</Text>
-            <Text style={dayScoreStatus.training === 'ok' ? styles.scoreOk : styles.scorePending}>
-              {dayScoreStatus.training === 'ok' ? '✔' : '✖'}
-            </Text>
+            <View style={styles.scoreChecklistContent}>
+              <View style={styles.scoreChecklistTopRow}>
+                <Text style={styles.scoreChecklistLabel}>Treino</Text>
+                <Text testID="status-training" style={dayScoreStatus.training === 'ok' ? styles.scoreOk : styles.scorePending}>
+                  {dayScoreStatus.training === 'ok' ? 'OK' : 'Pendente'}
+                </Text>
+              </View>
+              <View style={styles.scoreMiniTrack}>
+                <Animated.View style={[styles.scoreMiniFillTraining, { width: trainingFillWidth }]} />
+              </View>
+            </View>
           </TouchableOpacity>
           <TouchableOpacity style={styles.scoreChecklistRow} activeOpacity={0.9} onPress={() => handleChecklistPress('protein')}>
-            <Text style={styles.scoreChecklistLabel}>Proteína</Text>
-            <Text style={dayScoreStatus.protein === 'ok' ? styles.scoreOk : styles.scorePending}>
-              {dayScoreStatus.protein === 'ok' ? '✔' : '✖'}
-            </Text>
+            <View style={styles.scoreChecklistContent}>
+              <View style={styles.scoreChecklistTopRow}>
+                <Text style={styles.scoreChecklistLabel}>Proteína</Text>
+                <Text testID="status-protein" style={dayScoreStatus.protein === 'ok' ? styles.scoreOk : styles.scorePending}>
+                  {proteinToday}g / {proteinTarget}g • {dayScoreStatus.protein === 'ok' ? 'OK' : 'Pendente'}
+                </Text>
+              </View>
+              <View style={styles.scoreMiniTrack}>
+                <Animated.View style={[styles.scoreMiniFillProtein, { width: proteinFillWidth }]} />
+              </View>
+            </View>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.scoreChecklistRow} activeOpacity={0.9} onPress={() => handleChecklistPress('water')}>
-            <Text style={styles.scoreChecklistLabel}>Água</Text>
-            <Text style={dayScoreStatus.water === 'ok' ? styles.scoreOk : styles.scorePending}>
-              {dayScoreStatus.water === 'ok' ? '✔' : '✖'}
-            </Text>
+          <TouchableOpacity testID="btn-add-agua" style={styles.scoreChecklistRow} activeOpacity={0.9} onPress={() => handleChecklistPress('water')}>
+            <View style={styles.scoreChecklistContent}>
+              <View style={styles.scoreChecklistTopRow}>
+                <Text style={styles.scoreChecklistLabel}>Água</Text>
+                <Text testID="status-water" style={dayScoreStatus.water === 'ok' ? styles.scoreOk : styles.scorePending}>
+                  {waterToday}ml / {waterTarget || 0}ml • {dayScoreStatus.water === 'ok' ? 'OK' : 'Pendente'}
+                </Text>
+              </View>
+              <View style={styles.scoreMiniTrack}>
+                <Animated.View style={[styles.scoreMiniFillWater, { width: waterFillWidth }]} />
+              </View>
+            </View>
           </TouchableOpacity>
         </View>
-        {quickActionFeedback ? <Text style={styles.quickActionFeedback}>{quickActionFeedback}</Text> : null}
+        {quickActionFeedback ? <Text testID="feedback-add-agua" style={styles.quickActionFeedback}>{quickActionFeedback}</Text> : null}
+        {scoreTrendRows.length > 1 ? (
         <View style={styles.scoreTrendWrap}>
           <Text style={styles.scoreTrendTitle}>Tendência 7 dias</Text>
           <Text style={styles.scoreTrendMeta}>Média {scoreStats.avg} • Melhor {scoreStats.best}</Text>
@@ -271,96 +414,88 @@ export default function HomeScreen({ navigation }) {
             ))}
           </View>
         </View>
+        ) : null}
       </AppCard>
 
-      <AppCard>
-        <Text style={styles.cardLabel}>Treino do dia</Text>
-        <Text style={styles.cardMain}>{smartWorkout?.title}</Text>
-        <Text style={styles.cardSub}>{smartWorkout?.justification}</Text>
-        <PrimaryButton testID="btn-home-iniciar-treino" title="Iniciar treino" onPress={() => navigation.navigate('TreinoHoje')} style={styles.primaryButton} />
-      </AppCard>
-
-      <AppCard>
-        <Text style={styles.cardLabel}>Proteina</Text>
-        <MetricText value={`${proteinToday} / ${proteinTarget}g`} label="Meta diaria" />
-        <Text style={[styles.cardSub, nutritionFeedback?.urgency === 'alta' ? styles.proteinHighUrgency : nutritionFeedback?.urgency === 'media' ? styles.proteinMediumUrgency : null]}>
-          {nutritionFeedback?.title || (proteinRemaining > 0
-            ? `Faltam ${proteinRemaining}g de proteina - bora fechar isso hoje.`
-            : 'Meta de proteina fechada hoje. Excelente consistencia.')}
+      {recoveryInsight?.title && recoveryInsight?.message ? (
+      <AppCard style={styles.heroCard}>
+        <Text style={styles.cardLabel}>Insight de performance</Text>
+        <Text style={[
+          styles.heroTitle,
+          recoveryInsight?.tone === 'warning'
+            ? styles.heroTitleWarning
+            : recoveryInsight?.tone === 'success'
+            ? styles.heroTitleSuccess
+            : null,
+        ]}>
+          {recoveryInsight.title}
         </Text>
-        <Text style={styles.cardSub}>{nutritionFeedback?.suggestion || ''}</Text>
+        <Text style={styles.cardSub}>{recoveryInsight.message}</Text>
       </AppCard>
-
-      <AppCard>
-        <Text style={styles.cardLabel}>Agua</Text>
-        <MetricText value={`${waterToday} / ${waterTarget || 0}ml`} label="Meta diaria" />
-        <View style={styles.progressTrack}>
-          <View style={[styles.progressFill, { width: `${Math.round(waterPercent * 100)}%` }]} />
-        </View>
-        <Text style={styles.cardSub}>
-          {waterRemaining > 0
-            ? `Faltam ${waterRemaining}ml de agua - mais um copo e voce avanca.`
-            : 'Meta de hidratacao batida. Mantenha o ritmo.'}
-        </Text>
-      </AppCard>
+      ) : null}
 
       <AppCard>
         <Text style={styles.cardLabel}>Progresso</Text>
         <MetricText value={`🔥 ${streakDays} dias`} label="Streak atual" />
         <Text style={styles.streakCopy}>
-          {streakDays > 0 && !trainedToday
-            ? 'Se nao fizer hoje, zera.'
-            : 'Continue amanha para nao quebrar.'}
+          {streakDays <= 0
+            ? 'Comece hoje: 1 treino ja inicia seu streak. 🔥'
+            : trainedToday
+            ? `🔥 ${streakDays} dias seguidos. Mantenha amanha para subir.`
+            : `💪 ${streakDays} dias seguidos. Treine hoje para nao quebrar.`}
         </Text>
         <Text style={styles.cardSub}>📈 {monthlyWorkoutDays} dias treinados no mes</Text>
       </AppCard>
 
+      {weeklyTrendRows.length > 1 ? (
       <AppCard>
         <Text style={styles.cardLabel}>Trend proteína x treino</Text>
         <Text style={styles.cardSub}>Comparativo dos ultimos {weeklyTrendRows.length || 0} dias</Text>
-        {!weeklyTrendRows.length ? (
-          <Text style={styles.cardSub}>Sem dados suficientes para visualizar tendência semanal.</Text>
-        ) : (
-          <View style={styles.trendWrap}>
-            {weeklyTrendRows.map((row) => (
-              <View key={`trend-${row.date}`} style={styles.trendRow}>
-                <Text style={styles.trendDate}>{row.date.slice(5)}</Text>
-                <View style={styles.trendBars}>
-                  <View style={styles.trendTrack}>
-                    <View style={[styles.trendProtein, { width: `${row.proteinPct}%` }]} />
-                  </View>
-                  <View style={styles.trendTrack}>
-                    <View style={[styles.trendLoad, { width: `${row.loadPct}%` }]} />
-                  </View>
+        <View style={styles.trendWrap}>
+          {weeklyTrendRows.map((row) => (
+            <View key={`trend-${row.date}`} style={styles.trendRow}>
+              <Text style={styles.trendDate}>{row.date.slice(5)}</Text>
+              <View style={styles.trendBars}>
+                <View style={styles.trendTrack}>
+                  <View style={[styles.trendProtein, { width: `${row.proteinPct}%` }]} />
                 </View>
-                <View style={styles.trendMetaWrap}>
-                  <Text style={styles.trendMeta}>{Math.round(row.protein)}g</Text>
-                  <Text style={styles.trendMeta}>{Math.round(row.trainingLoad)}kg</Text>
+                <View style={styles.trendTrack}>
+                  <View style={[styles.trendLoad, { width: `${row.loadPct}%` }]} />
                 </View>
               </View>
-            ))}
-            <View style={styles.trendLegend}>
-              <Text style={styles.legendProtein}>Proteína</Text>
-              <Text style={styles.legendLoad}>Volume treino</Text>
+              <View style={styles.trendMetaWrap}>
+                <Text style={styles.trendMeta}>{Math.round(row.protein)}g</Text>
+                <Text style={styles.trendMeta}>{Math.round(row.trainingLoad)}kg</Text>
+              </View>
             </View>
+          ))}
+          <View style={styles.trendLegend}>
+            <Text style={styles.legendProtein}>Proteína</Text>
+            <Text style={styles.legendLoad}>Volume treino</Text>
           </View>
-        )}
+        </View>
       </AppCard>
+      ) : null}
 
       <PrimaryButton title={intelligentShortcut.title} onPress={intelligentShortcut.onPress} />
       <Text style={styles.shortcutHint}>{intelligentShortcut.subtitle}</Text>
       <SecondaryButton title="Ver insights completos" onPress={() => navigation.navigate('Insights')} />
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   container: {
     flexGrow: 1,
-    backgroundColor: colors.background,
     paddingTop: 56,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xl,
+    gap: spacing.md,
   },
   cardLabel: {
     color: colors.textSecondary,
@@ -371,7 +506,7 @@ const styles = StyleSheet.create({
   },
   cardMain: {
     color: colors.textPrimary,
-    fontSize: 19,
+    fontSize: 21,
     fontWeight: '800',
   },
   cardSub: {
@@ -499,7 +634,7 @@ const styles = StyleSheet.create({
   },
   scoreValue: {
     color: '#F8FAFC',
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '900',
   },
   scoreHint: {
@@ -536,6 +671,37 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     backgroundColor: '#141922',
   },
+  scoreChecklistContent: {
+    flex: 1,
+    gap: 6,
+  },
+  scoreChecklistTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  scoreMiniTrack: {
+    height: 5,
+    borderRadius: radius.pill,
+    backgroundColor: '#223047',
+    overflow: 'hidden',
+  },
+  scoreMiniFillTraining: {
+    height: '100%',
+    backgroundColor: '#60A5FA',
+    borderRadius: radius.pill,
+  },
+  scoreMiniFillProtein: {
+    height: '100%',
+    backgroundColor: '#4ADE80',
+    borderRadius: radius.pill,
+  },
+  scoreMiniFillWater: {
+    height: '100%',
+    backgroundColor: '#22D3EE',
+    borderRadius: radius.pill,
+  },
   scoreChecklistLabel: {
     color: colors.textPrimary,
     fontSize: 13,
@@ -543,13 +709,13 @@ const styles = StyleSheet.create({
   },
   scoreOk: {
     color: '#86EFAC',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '900',
   },
   scorePending: {
-    color: '#FCA5A5',
-    fontSize: 14,
-    fontWeight: '900',
+    color: '#FCD34D',
+    fontSize: 12,
+    fontWeight: '800',
   },
   quickActionFeedback: {
     marginTop: 8,

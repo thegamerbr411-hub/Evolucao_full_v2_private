@@ -11,6 +11,9 @@
         "projectId": "44b3afa4-ce98-4f1b-b139-0ed7fe2d053b"
       }
     },
-    "owner": "tipolt"
+    "owner": "tipolt",
+    "android": {
+      "package": "com.tipolt.evolucaofullv2"
+    }
   }
 }

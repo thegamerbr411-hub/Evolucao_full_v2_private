@@ -1,4 +1,4 @@
-package com.evolucao.app
+package com.tipolt.evolucaofullv2
 
 import android.os.Build
 import android.os.Bundle
