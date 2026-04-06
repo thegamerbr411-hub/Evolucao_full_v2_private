@@ -1,0 +1,115 @@
+﻿  bash arg: -p
+  bash arg: com.evolucao.app
+  bash arg: --pct-syskeys
+  bash arg: 0
+  bash arg: --throttle
+  bash arg: 80
+  bash arg: -v
+  bash arg: 220
+args: [-p, com.evolucao.app, --pct-syskeys, 0, --throttle, 80, -v, 220]
+ arg: "-p"
+ arg: "com.evolucao.app"
+ arg: "--pct-syskeys"
+ arg: "0"
+ arg: "--throttle"
+ arg: "80"
+ arg: "-v"
+ arg: "220"
+data="com.evolucao.app"
+arg="--pct-syskeys" mCurArgData="null" mNextArg=3 argwas="--pct-syskeys" nextarg="0"
+data="0"
+arg="--throttle" mCurArgData="null" mNextArg=5 argwas="--throttle" nextarg="80"
+data="80"
+:Monkey: seed=1775517437742 count=220
+:AllowPackage: com.evolucao.app
+:IncludeCategory: android.intent.category.LAUNCHER
+:IncludeCategory: android.intent.category.MONKEY
+// Event percentages:
+//   0: 15.306122%
+//   1: 10.204082%
+//   2: 2.0408163%
+//   3: 15.306122%
+//   4: -0.0%
+//   5: -0.0%
+//   6: 25.510204%
+//   7: 15.306122%
+//   8: -0.0%
+//   9: 2.0408163%
+//   10: 1.0204082%
+//   11: 13.265306%
+:Switch: #Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;launchFlags=0x10200000;component=com.evolucao.app/.MainActivity;end
+    // Allowing start of Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] cmp=com.evolucao.app/.MainActivity } in package com.evolucao.app
+:Sending Touch (ACTION_DOWN): 0:(873.0,629.0)
+:Sending Touch (ACTION_UP): 0:(873.51874,636.1983)
+    // Rejecting start of Intent { cmp=com.samsung.android.app.spage/.ui.MainActivity } in package com.samsung.android.app.spage
+    // Rejecting start of Intent { cmp=com.samsung.android.app.spage/.ui.MainActivity } in package com.samsung.android.app.spage
+:Sending Touch (ACTION_DOWN): 0:(258.0,718.0)
+    // Rejecting start of Intent { cmp=com.samsung.android.app.spage/.ui.MainActivity } in package com.samsung.android.app.spage
+:Sending Touch (ACTION_UP): 0:(258.68048,730.634)
+:Sending Touch (ACTION_DOWN): 0:(935.0,1084.0)
+:Sending Touch (ACTION_UP): 0:(920.67206,1093.5251)
+    // Rejecting start of Intent { cmp=com.samsung.android.app.spage/.ui.MainActivity } in package com.samsung.android.app.spage
+:Sending Touch (ACTION_DOWN): 0:(368.0,1504.0)
+:Sending Touch (ACTION_UP): 0:(368.95358,1513.0603)
+    // Rejecting start of Intent { cmp=com.samsung.android.app.spage/.ui.MainActivity } in package com.samsung.android.app.spage
+:Sending Trackball (ACTION_MOVE): 0:(4.0,2.0)
+:Sending Trackball (ACTION_MOVE): 0:(-5.0,2.0)
+:Sending Touch (ACTION_DOWN): 0:(830.0,2084.0)
+    // Rejecting start of Intent { cmp=com.samsung.android.app.spage/.ui.MainActivity } in package com.samsung.android.app.spage
+:Sending Touch (ACTION_UP): 0:(897.9221,2148.9634)
+:Sending Touch (ACTION_DOWN): 0:(587.0,1885.0)
+    // Rejecting start of Intent { cmp=com.samsung.android.app.spage/.ui.MainActivity } in package com.samsung.android.app.spage
+:Sending Touch (ACTION_UP): 0:(518.887,1821.2769)
+    // Rejecting start of Intent { act=com.android.intent.action.SHOW_BRIGHTNESS_DIALOG cmp=com.android.systemui/.settings.brightness.BrightnessDialog } in package com.android.systemui
+:Sending Touch (ACTION_DOWN): 0:(645.0,385.0)
+:Sending Touch (ACTION_UP): 0:(645.38135,392.6534)
+    // Rejecting start of Intent { cmp=com.samsung.android.app.spage/.ui.MainActivity } in package com.samsung.android.app.spage
+:Sending Trackball (ACTION_MOVE): 0:(1.0,-3.0)
+:Sending Touch (ACTION_DOWN): 0:(457.0,320.0)
+    // Rejecting start of Intent { cmp=com.samsung.android.app.spage/.ui.MainActivity } in package com.samsung.android.app.spage
+:Sending Touch (ACTION_UP): 0:(478.44373,308.68002)
+:Sending Touch (ACTION_DOWN): 0:(485.0,1627.0)
+:Sending Touch (ACTION_UP): 0:(486.43344,1627.8927)
+    // Rejecting start of Intent { cmp=com.samsung.android.app.spage/.ui.MainActivity } in package com.samsung.android.app.spage
+    //[calendar_time:2026-04-06 02:03:06.711  system_uptime:273356318]
+    // Sending event #100
+:Sending Touch (ACTION_DOWN): 0:(768.0,2088.0)
+:Sending Touch (ACTION_UP): 0:(773.2447,2081.0596)
+    // Rejecting start of Intent { cmp=com.samsung.android.app.spage/.ui.MainActivity } in package com.samsung.android.app.spage
+:Sending Touch (ACTION_DOWN): 0:(704.0,730.0)
+:Sending Touch (ACTION_UP): 0:(702.44006,735.3491)
+    // Rejecting start of Intent { cmp=com.samsung.android.app.spage/.ui.MainActivity } in package com.samsung.android.app.spage
+:Sending Touch (ACTION_DOWN): 0:(377.0,1005.0)
+:Sending Touch (ACTION_UP): 0:(372.75064,1005.50806)
+    // Rejecting start of Intent { cmp=com.samsung.android.app.spage/.ui.MainActivity } in package com.samsung.android.app.spage
+:Sending Trackball (ACTION_MOVE): 0:(4.0,-5.0)
+:Sending Trackball (ACTION_UP): 0:(0.0,0.0)
+:Sending Touch (ACTION_DOWN): 0:(304.0,1526.0)
+    // Rejecting start of Intent { cmp=com.samsung.android.app.spage/.ui.MainActivity } in package com.samsung.android.app.spage
+:Sending Touch (ACTION_UP): 0:(321.21368,1498.7714)
+:Sending Touch (ACTION_DOWN): 0:(452.0,2034.0)
+:Sending Touch (ACTION_UP): 0:(473.88812,2041.269)
+    // Rejecting start of Intent { cmp=com.samsung.android.app.spage/.ui.MainActivity } in package com.samsung.android.app.spage
+:Sending Touch (ACTION_DOWN): 0:(336.0,1172.0)
+:Sending Touch (ACTION_UP): 0:(329.13687,1162.3431)
+    // Rejecting start of Intent { cmp=com.samsung.android.app.spage/.ui.MainActivity } in package com.samsung.android.app.spage
+:Sending Touch (ACTION_DOWN): 0:(92.0,2076.0)
+:Sending Touch (ACTION_UP): 0:(93.383446,2075.1794)
+    // Rejecting start of Intent { cmp=com.samsung.android.app.spage/.ui.MainActivity } in package com.samsung.android.app.spage
+:Sending Trackball (ACTION_MOVE): 0:(4.0,-2.0)
+:Sending Trackball (ACTION_MOVE): 0:(-1.0,-1.0)
+:Sending Trackball (ACTION_MOVE): 0:(-3.0,-1.0)
+:Sending Trackball (ACTION_MOVE): 0:(3.0,1.0)
+    //[calendar_time:2026-04-06 02:03:08.757  system_uptime:273358358]
+    // Sending event #200
+:Sending Touch (ACTION_DOWN): 0:(913.0,1858.0)
+    // Rejecting start of Intent { cmp=com.samsung.android.app.spage/.ui.MainActivity } in package com.samsung.android.app.spage
+:Sending Touch (ACTION_UP): 0:(1014.4855,1813.2949)
+:Sending Touch (ACTION_DOWN): 0:(1054.0,2008.0)
+    // Rejecting start of Intent { cmp=com.samsung.android.app.spage/.ui.MainActivity } in package com.samsung.android.app.spage
+:Sending Touch (ACTION_UP): 0:(1065.0479,2006.7595)
+Events injected: 220
+:Sending rotation degree=0, persist=false
+:Dropped: keys=0 pointers=0 trackballs=0 flips=0 rotations=0
+## Network stats: elapsed time=4911ms (0ms mobile, 0ms wifi, 4911ms not connected)
+// Monkey finished

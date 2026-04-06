@@ -1,0 +1,40 @@
+﻿monkey_exit_code=252
+monkey_output=
+  bash arg: -p
+  bash arg: com.evolucao.app
+  bash arg: --pct-syskeys
+  bash arg: 0
+  bash arg: --throttle
+  bash arg: 80
+  bash arg: -v
+  bash arg: 220
+adb.exe : args: [-p, com.evolucao.app, --pct-syskeys, 0, --throttle, 80, -v, 
+220]
+No C:\Users\USER\Downloads\Evolucao_full_v2\scripts\soak-android.ps1:59 
+caractere:19
++ ... keyOutput = & $adb shell monkey -p $PackageName --pct-syskeys 0 --thr ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (args: [-p, com....e, 80, -v, 220] 
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+ arg: "-p"
+ arg: "com.evolucao.app"
+ arg: "--pct-syskeys"
+ arg: "0"
+ arg: "--throttle"
+ arg: "80"
+ arg: "-v"
+ arg: "220"
+data="com.evolucao.app"
+arg="--pct-syskeys" mCurArgData="null" mNextArg=3 argwas="--pct-syskeys" 
+nextarg="0"
+data="0"
+arg="--throttle" mCurArgData="null" mNextArg=5 argwas="--throttle" nextarg="80"
+data="80"
+:Monkey: seed=1775494674616 count=220
+:AllowPackage: com.evolucao.app
+:IncludeCategory: android.intent.category.LAUNCHER
+:IncludeCategory: android.intent.category.MONKEY
+** No activities found to run, monkey aborted.
+

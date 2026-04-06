@@ -1,0 +1,94 @@
+﻿  bash arg: -p
+  bash arg: com.evolucao.app
+  bash arg: --pct-syskeys
+  bash arg: 0
+  bash arg: --throttle
+  bash arg: 80
+  bash arg: -v
+  bash arg: 220
+args: [-p, com.evolucao.app, --pct-syskeys, 0, --throttle, 80, -v, 220]
+ arg: "-p"
+ arg: "com.evolucao.app"
+ arg: "--pct-syskeys"
+ arg: "0"
+ arg: "--throttle"
+ arg: "80"
+ arg: "-v"
+ arg: "220"
+data="com.evolucao.app"
+arg="--pct-syskeys" mCurArgData="null" mNextArg=3 argwas="--pct-syskeys" nextarg="0"
+data="0"
+arg="--throttle" mCurArgData="null" mNextArg=5 argwas="--throttle" nextarg="80"
+data="80"
+:Monkey: seed=1775556160945 count=220
+:AllowPackage: com.evolucao.app
+:IncludeCategory: android.intent.category.LAUNCHER
+:IncludeCategory: android.intent.category.MONKEY
+// Event percentages:
+//   0: 15.306122%
+//   1: 10.204082%
+//   2: 2.0408163%
+//   3: 15.306122%
+//   4: -0.0%
+//   5: -0.0%
+//   6: 25.510204%
+//   7: 15.306122%
+//   8: -0.0%
+//   9: 2.0408163%
+//   10: 1.0204082%
+//   11: 13.265306%
+:Switch: #Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;launchFlags=0x10200000;component=com.evolucao.app/.MainActivity;end
+    // Allowing start of Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] cmp=com.evolucao.app/.MainActivity } in package com.evolucao.app
+:Sending Touch (ACTION_DOWN): 0:(757.0,1506.0)
+:Sending Touch (ACTION_UP): 0:(750.21173,1512.1157)
+:Sending Touch (ACTION_DOWN): 0:(623.0,139.0)
+:Sending Touch (ACTION_UP): 0:(630.5105,139.34912)
+:Sending Touch (ACTION_DOWN): 0:(480.0,18.0)
+:Sending Touch (ACTION_UP): 0:(435.0828,19.33591)
+:Sending Trackball (ACTION_MOVE): 0:(0.0,-4.0)
+:Sending Touch (ACTION_DOWN): 0:(711.0,672.0)
+:Sending Touch (ACTION_UP): 0:(704.95557,661.8948)
+:Sending Touch (ACTION_DOWN): 0:(765.0,935.0)
+:Sending Touch (ACTION_UP): 0:(765.72,926.18427)
+:Sending Touch (ACTION_DOWN): 0:(364.0,1966.0)
+:Sending Touch (ACTION_UP): 0:(350.41525,1958.3148)
+    // Rejecting start of Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] cmp=com.sec.android.app.camera/.Camera } in package com.sec.android.app.camera
+:Sending Touch (ACTION_DOWN): 0:(1033.0,203.0)
+:Sending Touch (ACTION_UP): 0:(1022.5581,121.10352)
+:Sending Touch (ACTION_DOWN): 0:(776.0,271.0)
+:Sending Touch (ACTION_UP): 0:(827.19525,191.62119)
+    //[calendar_time:2026-04-06 02:11:19.544  system_uptime:273849156]
+    // Sending event #100
+    //[calendar_time:2026-04-06 02:11:19.636  system_uptime:273849237]
+    // Sending event #100
+:Sending Touch (ACTION_DOWN): 0:(885.0,1190.0)
+:Sending Touch (ACTION_UP): 0:(880.7893,1203.3933)
+:Sending Touch (ACTION_DOWN): 0:(951.0,2164.0)
+:Sending Touch (ACTION_UP): 0:(950.9229,2165.1099)
+:Sending Touch (ACTION_DOWN): 0:(577.0,1865.0)
+:Sending Touch (ACTION_UP): 0:(571.26196,1863.2885)
+:Sending Touch (ACTION_DOWN): 0:(157.0,775.0)
+:Sending Touch (ACTION_UP): 0:(156.79231,779.9976)
+:Sending Trackball (ACTION_MOVE): 0:(4.0,-3.0)
+:Sending Trackball (ACTION_MOVE): 0:(-4.0,-5.0)
+:Sending Touch (ACTION_DOWN): 0:(938.0,875.0)
+:Sending Touch (ACTION_UP): 0:(936.7339,879.83826)
+:Sending Trackball (ACTION_MOVE): 0:(-2.0,0.0)
+:Sending Trackball (ACTION_UP): 0:(0.0,0.0)
+:Sending Trackball (ACTION_MOVE): 0:(3.0,3.0)
+:Sending Touch (ACTION_DOWN): 0:(349.0,661.0)
+:Sending Touch (ACTION_UP): 0:(330.97983,663.71533)
+:Sending Touch (ACTION_DOWN): 0:(748.0,1177.0)
+:Sending Touch (ACTION_UP): 0:(766.3122,1152.1443)
+:Sending Touch (ACTION_DOWN): 0:(639.0,1272.0)
+:Sending Touch (ACTION_UP): 0:(651.60895,1222.147)
+:Sending Trackball (ACTION_MOVE): 0:(-3.0,0.0)
+    //[calendar_time:2026-04-06 02:11:21.791  system_uptime:273851392]
+    // Sending event #200
+:Sending Trackball (ACTION_MOVE): 0:(-4.0,-3.0)
+:Sending Touch (ACTION_DOWN): 0:(671.0,1074.0)
+Events injected: 220
+:Sending rotation degree=0, persist=false
+:Dropped: keys=0 pointers=0 trackballs=0 flips=0 rotations=0
+## Network stats: elapsed time=5409ms (0ms mobile, 0ms wifi, 5409ms not connected)
+// Monkey finished

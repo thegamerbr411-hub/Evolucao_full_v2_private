@@ -34,10 +34,11 @@ function getTodayKeyLocal() {
   return `${year}-${month}-${day}`;
 }
 
-function SetField({ value, onChangeText, placeholder, inputRef }) {
+function SetField({ value, onChangeText, placeholder, inputRef, testID }) {
   return (
     <TextInput
       ref={inputRef}
+      testID={testID}
       keyboardType="numeric"
       value={value}
       onChangeText={onChangeText}
@@ -121,6 +122,7 @@ export default function WorkoutScreen({ navigation }) {
   const [workoutSummary, setWorkoutSummary] = useState(null);
   const [showSubstitutePicker, setShowSubstitutePicker] = useState(false);
   const [actionFeedback, setActionFeedback] = useState('');
+  const [saveSuccessVisible, setSaveSuccessVisible] = useState(false);
 
   const postWorkoutNutritionFeedback = getNutritionFeedback({ trainedToday: true });
 
@@ -544,6 +546,9 @@ export default function WorkoutScreen({ navigation }) {
       return;
     }
 
+    setSaveSuccessVisible(true);
+    setTimeout(() => setSaveSuccessVisible(false), 1800);
+
     if (result.xpEvents?.length) {
       setXpFeedback(result.xpEvents.join(' | '));
     } else {
@@ -866,9 +871,22 @@ export default function WorkoutScreen({ navigation }) {
   return (
     <KeyboardAvoidingView
       style={styles.keyboardContainer}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 16 : 0}
     >
-      <ScrollView ref={scrollRef} contentContainerStyle={styles.container}>
+      {saveSuccessVisible ? (
+        <View testID="serie-salva-indicator" style={styles.savedFixedIndicator}>
+          <Text style={styles.savedBannerText}>Serie salva</Text>
+        </View>
+      ) : null}
+
+      <ScrollView
+        testID="screen-workout"
+        ref={scrollRef}
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+      >
         <ScreenHeader title="Treino de hoje" subtitle="Fluxo rapido: preencher e salvar serie." />
 
         <View style={styles.topRow}>
@@ -1135,85 +1153,93 @@ export default function WorkoutScreen({ navigation }) {
                   >
                     <Text style={styles.setLabel}>{setIndex + 1}S</Text>
 
-                    {saved ? (
-                      <View style={styles.savedSetBox}>
-                        <View>
+                    <View style={styles.setBody}>
+                      {saved ? (
+                        <View style={styles.savedSetBox}>
+                          <View style={styles.savedSetCopy}>
                             <Text style={styles.savedSetText}>{saved.weight}kg x {saved.reps} {saved.rpe ? `@RPE ${saved.rpe}` : ''}</Text>
-                          <Text style={styles.savedSetHint}>Serie salva</Text>
+                            <Text style={styles.savedSetHint}>Serie salva</Text>
+                          </View>
+                          <View style={styles.savedActionsWrap}>
+                            <TouchableOpacity style={styles.editSetBtn} onPress={() => editSavedSet(exercise.name, setIndex)}>
+                              <Text style={styles.removeSetBtnText}>Editar</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.removeSetBtn} onPress={() => removeSavedSet(exercise.name, setIndex)}>
+                              <Text style={styles.removeSetBtnText}>🗑️</Text>
+                            </TouchableOpacity>
+                          </View>
                         </View>
-                        <View style={styles.savedActionsWrap}>
-                          <TouchableOpacity style={styles.editSetBtn} onPress={() => editSavedSet(exercise.name, setIndex)}>
-                            <Text style={styles.removeSetBtnText}>Editar</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity style={styles.removeSetBtn} onPress={() => removeSavedSet(exercise.name, setIndex)}>
-                            <Text style={styles.removeSetBtnText}>🗑️</Text>
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    ) : (
-                      <>
-                        <SetField
-                          value={draft.weight}
-                          onChangeText={(text) => setDraftField(exercise.name, setIndex, 'weight', text)}
-                          placeholder={suggestedWeight ? `${suggestedWeight}kg` : 'kg'}
-                          inputRef={(ref) => {
-                            setFieldRefs.current[getSetFieldKey(exercise.name, setIndex, 'weight')] = ref;
-                          }}
-                        />
-                        <SetField
-                          value={draft.reps}
-                          onChangeText={(text) => setDraftField(exercise.name, setIndex, 'reps', text)}
-                          placeholder="reps"
-                          inputRef={(ref) => {
-                            setFieldRefs.current[getSetFieldKey(exercise.name, setIndex, 'reps')] = ref;
-                          }}
-                        />
+                      ) : (
+                        <>
+                          <View style={styles.setInputRow}>
+                            <SetField
+                              value={draft.weight}
+                              onChangeText={(text) => setDraftField(exercise.name, setIndex, 'weight', text)}
+                              placeholder={suggestedWeight ? `${suggestedWeight}kg` : 'kg'}
+                              testID={isActive && setIndex === 0 ? 'input-peso' : `input-peso-${exercise.id}-${setIndex}`}
+                              inputRef={(ref) => {
+                                setFieldRefs.current[getSetFieldKey(exercise.name, setIndex, 'weight')] = ref;
+                              }}
+                            />
+                            <SetField
+                              value={draft.reps}
+                              onChangeText={(text) => setDraftField(exercise.name, setIndex, 'reps', text)}
+                              placeholder="reps"
+                              testID={isActive && setIndex === 0 ? 'input-reps' : `input-reps-${exercise.id}-${setIndex}`}
+                              inputRef={(ref) => {
+                                setFieldRefs.current[getSetFieldKey(exercise.name, setIndex, 'reps')] = ref;
+                              }}
+                            />
+                          </View>
+                          <View style={styles.setMetaRow}>
+                            <View style={styles.rpeWrap}>
+                              <Text style={styles.rpeLabel}>RPE</Text>
+                              <View style={styles.rpeChipsRow}>
+                                {RPE_CHIPS.map((chip) => (
+                                  <TouchableOpacity
+                                    key={`${exercise.id}-${setIndex}-rpe-${chip}`}
+                                    style={[
+                                      styles.rpeChip,
+                                      String(draft.rpe || '8') === chip ? styles.rpeChipActive : null,
+                                    ]}
+                                    onPress={() => setDraftField(exercise.name, setIndex, 'rpe', chip)}
+                                  >
+                                    <Text style={styles.rpeChipText}>{chip}</Text>
+                                  </TouchableOpacity>
+                                ))}
+                              </View>
+                            </View>
 
-                        <View style={styles.rpeWrap}>
-                          <Text style={styles.rpeLabel}>RPE</Text>
-                          <View style={styles.rpeChipsRow}>
-                            {RPE_CHIPS.map((chip) => (
+                            {isActive && canSave && suggestedWeight ? (
                               <TouchableOpacity
-                                key={`${exercise.id}-${setIndex}-rpe-${chip}`}
-                                style={[
-                                  styles.rpeChip,
-                                  String(draft.rpe || '8') === chip ? styles.rpeChipActive : null,
-                                ]}
-                                onPress={() => setDraftField(exercise.name, setIndex, 'rpe', chip)}
+                                style={styles.suggestButton}
+                                onPress={() => setDraftField(exercise.name, setIndex, 'weight', suggestedWeight)}
                               >
-                                <Text style={styles.rpeChipText}>{chip}</Text>
+                                <Text style={styles.suggestButtonText}>usar {suggestedWeight}kg</Text>
                               </TouchableOpacity>
-                            ))}
+                            ) : null}
                           </View>
-                        </View>
 
-                        {isActive && canSave && suggestedWeight ? (
-                          <TouchableOpacity
-                            style={styles.suggestButton}
-                            onPress={() => setDraftField(exercise.name, setIndex, 'weight', suggestedWeight)}
-                          >
-                            <Text style={styles.suggestButtonText}>usar {suggestedWeight}kg</Text>
-                          </TouchableOpacity>
-                        ) : null}
-
-                        {isActive ? (
-                          <View style={[styles.rowActionsInline, canSave ? styles.rowActionsInlineCurrent : null]}>
-                            <TouchableOpacity
-                              style={[styles.inlineBtn, styles.inlineBtnGood, !canSave ? styles.inlineBtnDisabled : null]}
-                              onPress={() => canSave && saveSetLine(exercise, exerciseIndex, setIndex)}
-                            >
-                              <Text style={styles.inlineBtnText}>Salvar serie</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              style={styles.inlineBtnRemove}
-                              onPress={() => removeDraftSet(exercise.name, setIndex)}
-                            >
-                              <Text style={styles.inlineBtnText}>🗑️</Text>
-                            </TouchableOpacity>
-                          </View>
-                        ) : null}
-                      </>
-                    )}
+                          {isActive ? (
+                            <View style={[styles.rowActionsInline, canSave ? styles.rowActionsInlineCurrent : null]}>
+                              <TouchableOpacity
+                                style={[styles.inlineBtn, styles.inlineBtnGood, !canSave ? styles.inlineBtnDisabled : null]}
+                                testID={isActive && setIndex === 0 ? 'btn-salvar-serie' : `btn-salvar-serie-${exercise.id}-${setIndex}`}
+                                onPress={() => canSave && saveSetLine(exercise, exerciseIndex, setIndex)}
+                              >
+                                <Text style={styles.inlineBtnText}>Salvar serie</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                style={styles.inlineBtnRemove}
+                                onPress={() => removeDraftSet(exercise.name, setIndex)}
+                              >
+                                <Text style={styles.inlineBtnText}>🗑️</Text>
+                              </TouchableOpacity>
+                            </View>
+                          ) : null}
+                        </>
+                      )}
+                    </View>
                   </View>
                 );
               })}
@@ -1327,7 +1353,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     paddingTop: 56,
     paddingHorizontal: spacing.lg,
-    paddingBottom: 34,
+    paddingBottom: 84,
   },
   emptyContainer: {
     flex: 1,
@@ -1690,9 +1716,25 @@ const styles = StyleSheet.create({
   },
   setRow: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginBottom: 10,
+  },
+  setBody: {
+    flex: 1,
+    minWidth: 0,
+    gap: 8,
+  },
+  setInputRow: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  setMetaRow: {
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 8,
+    flexWrap: 'wrap',
   },
   setRowSavedPulse: {
     backgroundColor: '#123429',
@@ -1704,9 +1746,11 @@ const styles = StyleSheet.create({
     width: 26,
     color: '#D5E6FF',
     fontWeight: '800',
+    paddingTop: 12,
   },
   setField: {
     flex: 1,
+    minWidth: 84,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 10,
@@ -1723,6 +1767,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 6,
     backgroundColor: '#111C2B',
+    minWidth: 132,
   },
   rpeLabel: {
     color: '#9CC4F7',
@@ -1758,6 +1803,7 @@ const styles = StyleSheet.create({
   rowActionsInline: {
     flexDirection: 'row',
     gap: 6,
+    marginTop: 2,
   },
   rowActionsInlineCurrent: {
     borderWidth: 1,
@@ -1775,6 +1821,7 @@ const styles = StyleSheet.create({
   },
   inlineBtnGood: {
     backgroundColor: '#28A765',
+    flex: 1,
   },
   inlineBtnDisabled: {
     opacity: 0.45,
@@ -1786,6 +1833,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
+    minWidth: 44,
   },
   inlineBtnText: {
     color: '#FFFFFF',
@@ -1810,12 +1858,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 8,
     backgroundColor: '#141922',
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 11,
+  },
+  savedSetCopy: {
+    flex: 1,
+    minWidth: 0,
   },
   savedActionsWrap: {
     flexDirection: 'row',
@@ -1983,6 +2036,33 @@ const styles = StyleSheet.create({
   actionRow: {
     flexDirection: 'row',
     gap: 8,
+  },
+  savedBanner: {
+    alignSelf: 'flex-start',
+    marginBottom: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: '#DCFCE7',
+  },
+  savedBannerText: {
+    color: '#166534',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  savedFixedIndicator: {
+    position: 'absolute',
+    top: 140,
+    left: 20,
+    right: 20,
+    zIndex: 30,
+    minHeight: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 14,
+    backgroundColor: '#DCFCE7',
   },
   addExerciseTitle: {
     color: colors.textPrimary,

@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -146,7 +148,16 @@ export default function FreeWorkoutScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.keyboardContainer}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 16 : 0}
+    >
+      <ScrollView
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+      >
       <Text style={styles.title}>Treino livre</Text>
       <Text style={styles.subtitle}>Escolha exercicios por categoria e registre rapido.</Text>
 
@@ -261,17 +272,22 @@ export default function FreeWorkoutScreen() {
           </View>
         );
       })}
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  keyboardContainer: {
+    flex: 1,
+    backgroundColor: '#0F172A',
+  },
   container: {
     flexGrow: 1,
     backgroundColor: '#0F172A',
     paddingTop: 56,
     paddingHorizontal: 16,
-    paddingBottom: 34,
+    paddingBottom: 84,
   },
   title: {
     fontSize: 30,
@@ -438,25 +454,29 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
     marginTop: 8,
   },
   successButton: {
-    flex: 1,
+    flexGrow: 1,
+    minWidth: 88,
     backgroundColor: '#28A765',
     borderRadius: 10,
     alignItems: 'center',
     paddingVertical: 12,
   },
   failButton: {
-    flex: 1,
+    flexGrow: 1,
+    minWidth: 88,
     backgroundColor: '#B63A3A',
     borderRadius: 10,
     alignItems: 'center',
     paddingVertical: 12,
   },
   restButton: {
-    flex: 1,
+    flexGrow: 1,
+    minWidth: 88,
     backgroundColor: '#274870',
     borderWidth: 1,
     borderColor: '#4F78AA',

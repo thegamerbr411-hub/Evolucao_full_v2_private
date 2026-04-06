@@ -1,0 +1,100 @@
+﻿  bash arg: -p
+  bash arg: com.evolucao.app
+  bash arg: --pct-syskeys
+  bash arg: 0
+  bash arg: --throttle
+  bash arg: 80
+  bash arg: -v
+  bash arg: 220
+args: [-p, com.evolucao.app, --pct-syskeys, 0, --throttle, 80, -v, 220]
+ arg: "-p"
+ arg: "com.evolucao.app"
+ arg: "--pct-syskeys"
+ arg: "0"
+ arg: "--throttle"
+ arg: "80"
+ arg: "-v"
+ arg: "220"
+data="com.evolucao.app"
+arg="--pct-syskeys" mCurArgData="null" mNextArg=3 argwas="--pct-syskeys" nextarg="0"
+data="0"
+arg="--throttle" mCurArgData="null" mNextArg=5 argwas="--throttle" nextarg="80"
+data="80"
+:Monkey: seed=1775648866209 count=220
+:AllowPackage: com.evolucao.app
+:IncludeCategory: android.intent.category.LAUNCHER
+:IncludeCategory: android.intent.category.MONKEY
+// Event percentages:
+//   0: 15.306122%
+//   1: 10.204082%
+//   2: 2.0408163%
+//   3: 15.306122%
+//   4: -0.0%
+//   5: -0.0%
+//   6: 25.510204%
+//   7: 15.306122%
+//   8: -0.0%
+//   9: 2.0408163%
+//   10: 1.0204082%
+//   11: 13.265306%
+:Switch: #Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;launchFlags=0x10200000;component=com.evolucao.app/.MainActivity;end
+    // Allowing start of Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] cmp=com.evolucao.app/.MainActivity } in package com.evolucao.app
+:Sending Touch (ACTION_DOWN): 0:(16.0,1734.0)
+:Sending Touch (ACTION_UP): 0:(26.320013,1733.7634)
+:Sending Touch (ACTION_DOWN): 0:(525.0,1021.0)
+:Sending Touch (ACTION_UP): 0:(527.1332,1011.92676)
+:Sending Trackball (ACTION_MOVE): 0:(4.0,-5.0)
+:Sending Trackball (ACTION_MOVE): 0:(0.0,0.0)
+:Sending Touch (ACTION_DOWN): 0:(963.0,2017.0)
+:Sending Touch (ACTION_UP): 0:(977.2223,2008.9778)
+:Sending Touch (ACTION_DOWN): 0:(879.0,441.0)
+:Sending Touch (ACTION_UP): 0:(884.0302,450.35934)
+:Sending Trackball (ACTION_MOVE): 0:(-4.0,-1.0)
+:Sending Trackball (ACTION_UP): 0:(0.0,0.0)
+:Sending Touch (ACTION_DOWN): 0:(686.0,822.0)
+:Sending Touch (ACTION_UP): 0:(722.3991,864.0931)
+:Sending Trackball (ACTION_MOVE): 0:(-4.0,-3.0)
+:Sending Touch (ACTION_DOWN): 0:(862.0,420.0)
+:Sending Touch (ACTION_UP): 0:(882.47675,333.20172)
+:Sending Touch (ACTION_DOWN): 0:(448.0,1989.0)
+:Sending Touch (ACTION_UP): 0:(447.51932,2006.1646)
+    //[calendar_time:2026-04-06 02:11:59.483  system_uptime:273889096]
+    // Sending event #100
+    //[calendar_time:2026-04-06 02:11:59.576  system_uptime:273889177]
+    // Sending event #100
+:Sending Touch (ACTION_DOWN): 0:(436.0,958.0)
+:Sending Touch (ACTION_UP): 0:(437.42813,957.48553)
+:Sending Touch (ACTION_DOWN): 0:(125.0,2106.0)
+:Sending Touch (ACTION_UP): 0:(121.2217,2108.8894)
+:Sending Touch (ACTION_DOWN): 0:(472.0,1051.0)
+:Sending Touch (ACTION_UP): 0:(474.33792,1055.767)
+:Sending Touch (ACTION_DOWN): 0:(424.0,1924.0)
+:Sending Touch (ACTION_UP): 0:(382.11044,1922.7676)
+:Sending Trackball (ACTION_MOVE): 0:(-3.0,4.0)
+:Sending Trackball (ACTION_UP): 0:(0.0,0.0)
+:Sending Touch (ACTION_DOWN): 0:(989.0,1878.0)
+:Sending Touch (ACTION_UP): 0:(968.13477,1919.5186)
+:Sending Trackball (ACTION_MOVE): 0:(-4.0,-4.0)
+:Sending Touch (ACTION_DOWN): 0:(100.0,871.0)
+:Sending Touch (ACTION_UP): 0:(94.622055,876.0031)
+:Sending Trackball (ACTION_MOVE): 0:(-1.0,-4.0)
+:Sending Trackball (ACTION_UP): 0:(0.0,0.0)
+:Sending Touch (ACTION_DOWN): 0:(518.0,1256.0)
+:Sending Touch (ACTION_UP): 0:(494.56296,1257.7786)
+:Sending Touch (ACTION_DOWN): 0:(122.0,1587.0)
+:Sending Touch (ACTION_UP): 0:(165.67459,1647.995)
+:Sending Touch (ACTION_DOWN): 0:(452.0,1008.0)
+:Sending Touch (ACTION_UP): 0:(443.32257,1014.8494)
+    //[calendar_time:2026-04-06 02:12:01.859  system_uptime:273891460]
+    // Sending event #200
+    //[calendar_time:2026-04-06 02:12:01.940  system_uptime:273891541]
+    // Sending event #200
+:Sending Touch (ACTION_DOWN): 0:(250.0,946.0)
+:Sending Touch (ACTION_UP): 0:(289.69485,927.34326)
+:Sending Touch (ACTION_DOWN): 0:(602.0,453.0)
+:Sending Touch (ACTION_UP): 0:(619.5954,454.28946)
+Events injected: 220
+:Sending rotation degree=0, persist=false
+:Dropped: keys=0 pointers=0 trackballs=0 flips=0 rotations=0
+## Network stats: elapsed time=5078ms (0ms mobile, 0ms wifi, 5078ms not connected)
+// Monkey finished

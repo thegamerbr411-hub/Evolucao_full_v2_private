@@ -50,11 +50,12 @@ function OptionGroup({ title, options, selected, onSelect }) {
   );
 }
 
-function NumberField({ label, value, onChangeText, placeholder }) {
+function NumberField({ label, value, onChangeText, placeholder, testID }) {
   return (
     <View style={styles.group}>
       <Text style={styles.label}>{label}</Text>
       <TextInput
+        testID={testID}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
@@ -118,7 +119,13 @@ export default function QuestionnaireScreen({ navigation }) {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView
+      testID="scroll-container"
+      contentContainerStyle={styles.container}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+    >
+      <View testID="questionnaire-screen">
       <Text style={styles.title}>Questionario Inteligente</Text>
       <Text style={styles.subtitle}>Monte seu plano inicial em menos de 1 minuto.</Text>
 
@@ -130,6 +137,7 @@ export default function QuestionnaireScreen({ navigation }) {
         value={currentWeight}
         onChangeText={setCurrentWeight}
         placeholder="Ex: 78"
+        testID="input-peso-atual"
       />
 
       <NumberField
@@ -137,6 +145,7 @@ export default function QuestionnaireScreen({ navigation }) {
         value={targetWeight}
         onChangeText={setTargetWeight}
         placeholder="Ex: 72"
+        testID="input-peso-meta"
       />
 
       <NumberField
@@ -144,6 +153,7 @@ export default function QuestionnaireScreen({ navigation }) {
         value={height}
         onChangeText={setHeight}
         placeholder="Ex: 175"
+        testID="input-altura"
       />
 
       <View style={styles.group}>
@@ -173,9 +183,10 @@ export default function QuestionnaireScreen({ navigation }) {
         ) : null}
       </View>
 
-      <TouchableOpacity style={styles.button} onPress={handleSubmit}>
+      <TouchableOpacity testID="btn-continuar" style={styles.button} onPress={handleSubmit}>
         <Text style={styles.buttonText}>Gerar plano automatico</Text>
       </TouchableOpacity>
+      </View>
     </ScrollView>
   );
 }
@@ -184,7 +195,7 @@ const styles = StyleSheet.create({
   container: {
     paddingTop: 56,
     paddingHorizontal: 20,
-    paddingBottom: 32,
+    paddingBottom: 120,
     backgroundColor: '#F7F8FA',
     flexGrow: 1,
   },

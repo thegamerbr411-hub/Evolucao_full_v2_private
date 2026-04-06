@@ -1,0 +1,89 @@
+﻿  bash arg: -p
+  bash arg: com.evolucao.app
+  bash arg: --pct-syskeys
+  bash arg: 0
+  bash arg: --throttle
+  bash arg: 80
+  bash arg: -v
+  bash arg: 220
+args: [-p, com.evolucao.app, --pct-syskeys, 0, --throttle, 80, -v, 220]
+ arg: "-p"
+ arg: "com.evolucao.app"
+ arg: "--pct-syskeys"
+ arg: "0"
+ arg: "--throttle"
+ arg: "80"
+ arg: "-v"
+ arg: "220"
+data="com.evolucao.app"
+arg="--pct-syskeys" mCurArgData="null" mNextArg=3 argwas="--pct-syskeys" nextarg="0"
+data="0"
+arg="--throttle" mCurArgData="null" mNextArg=5 argwas="--throttle" nextarg="80"
+data="80"
+:Monkey: seed=1775492905413 count=220
+:AllowPackage: com.evolucao.app
+:IncludeCategory: android.intent.category.LAUNCHER
+:IncludeCategory: android.intent.category.MONKEY
+// Event percentages:
+//   0: 15.306122%
+//   1: 10.204082%
+//   2: 2.0408163%
+//   3: 15.306122%
+//   4: -0.0%
+//   5: -0.0%
+//   6: 25.510204%
+//   7: 15.306122%
+//   8: -0.0%
+//   9: 2.0408163%
+//   10: 1.0204082%
+//   11: 13.265306%
+:Switch: #Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;launchFlags=0x10200000;component=com.evolucao.app/.MainActivity;end
+    // Allowing start of Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] cmp=com.evolucao.app/.MainActivity } in package com.evolucao.app
+:Sending Trackball (ACTION_MOVE): 0:(-1.0,4.0)
+:Sending Trackball (ACTION_UP): 0:(0.0,0.0)
+:Sending Trackball (ACTION_MOVE): 0:(3.0,-1.0)
+:Sending Touch (ACTION_DOWN): 0:(980.0,1392.0)
+:Sending Touch (ACTION_UP): 0:(982.27155,1392.7413)
+:Sending Touch (ACTION_DOWN): 0:(801.0,1498.0)
+:Sending Touch (ACTION_UP): 0:(797.0495,1502.6168)
+:Sending Trackball (ACTION_MOVE): 0:(-4.0,3.0)
+:Sending Trackball (ACTION_MOVE): 0:(1.0,-4.0)
+:Sending Touch (ACTION_DOWN): 0:(586.0,1227.0)
+:Sending Touch (ACTION_UP): 0:(535.2453,1216.3398)
+:Sending Touch (ACTION_DOWN): 0:(280.0,2158.0)
+:Sending Touch (ACTION_UP): 0:(394.2345,2028.8169)
+:Sending Touch (ACTION_DOWN): 0:(331.0,1366.0)
+:Sending Touch (ACTION_UP): 0:(354.0456,1398.7615)
+:Sending Touch (ACTION_DOWN): 0:(559.0,1543.0)
+:Sending Touch (ACTION_UP): 0:(521.93665,1468.331)
+    //[calendar_time:2026-04-06 02:15:27.586  system_uptime:274097194]
+    // Sending event #100
+    //[calendar_time:2026-04-06 02:15:27.675  system_uptime:274097276]
+    // Sending event #100
+:Sending Trackball (ACTION_MOVE): 0:(4.0,0.0)
+:Sending Trackball (ACTION_MOVE): 0:(-1.0,4.0)
+:Sending Touch (ACTION_DOWN): 0:(679.0,2138.0)
+:Sending Touch (ACTION_UP): 0:(677.317,2127.2295)
+:Sending Trackball (ACTION_MOVE): 0:(-4.0,-5.0)
+:Sending Trackball (ACTION_MOVE): 0:(2.0,-5.0)
+:Sending Touch (ACTION_DOWN): 0:(151.0,67.0)
+:Sending Touch (ACTION_UP): 0:(165.96043,46.689972)
+:Sending Trackball (ACTION_MOVE): 0:(-5.0,-3.0)
+:Sending Touch (ACTION_DOWN): 0:(622.0,1769.0)
+:Sending Touch (ACTION_UP): 0:(641.6208,1726.5476)
+:Sending Trackball (ACTION_MOVE): 0:(-4.0,-3.0)
+:Switch: #Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;launchFlags=0x10200000;component=com.evolucao.app/.MainActivity;end
+    // Allowing start of Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] cmp=com.evolucao.app/.MainActivity } in package com.evolucao.app
+:Sending Trackball (ACTION_MOVE): 0:(-4.0,-4.0)
+:Sending Touch (ACTION_DOWN): 0:(811.0,847.0)
+    //[calendar_time:2026-04-06 02:15:28.830  system_uptime:274098431]
+    // Sending event #200
+:Sending Touch (ACTION_UP): 0:(808.0584,844.2618)
+:Sending Touch (ACTION_DOWN): 0:(9.0,1120.0)
+:Sending Touch (ACTION_UP): 0:(5.5908456,1100.6184)
+:Sending Trackball (ACTION_MOVE): 0:(-5.0,0.0)
+Events injected: 220
+:Sending rotation degree=0, persist=false
+:Dropped: keys=0 pointers=0 trackballs=0 flips=0 rotations=0
+## Network stats: elapsed time=3132ms (0ms mobile, 0ms wifi, 3132ms not connected)
+// Monkey finished

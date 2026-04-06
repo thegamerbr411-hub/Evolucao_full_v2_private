@@ -1,0 +1,111 @@
+﻿  bash arg: -p
+  bash arg: com.evolucao.app
+  bash arg: --pct-syskeys
+  bash arg: 0
+  bash arg: --throttle
+  bash arg: 80
+  bash arg: -v
+  bash arg: 220
+args: [-p, com.evolucao.app, --pct-syskeys, 0, --throttle, 80, -v, 220]
+ arg: "-p"
+ arg: "com.evolucao.app"
+ arg: "--pct-syskeys"
+ arg: "0"
+ arg: "--throttle"
+ arg: "80"
+ arg: "-v"
+ arg: "220"
+data="com.evolucao.app"
+arg="--pct-syskeys" mCurArgData="null" mNextArg=3 argwas="--pct-syskeys" nextarg="0"
+data="0"
+arg="--throttle" mCurArgData="null" mNextArg=5 argwas="--throttle" nextarg="80"
+data="80"
+:Monkey: seed=1775624178443 count=220
+:AllowPackage: com.evolucao.app
+:IncludeCategory: android.intent.category.LAUNCHER
+:IncludeCategory: android.intent.category.MONKEY
+// Event percentages:
+//   0: 15.306122%
+//   1: 10.204082%
+//   2: 2.0408163%
+//   3: 15.306122%
+//   4: -0.0%
+//   5: -0.0%
+//   6: 25.510204%
+//   7: 15.306122%
+//   8: -0.0%
+//   9: 2.0408163%
+//   10: 1.0204082%
+//   11: 13.265306%
+:Switch: #Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;launchFlags=0x10200000;component=com.evolucao.app/.MainActivity;end
+    // Allowing start of Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] cmp=com.evolucao.app/.MainActivity } in package com.evolucao.app
+:Sending Touch (ACTION_DOWN): 0:(969.0,875.0)
+:Sending Touch (ACTION_UP): 0:(968.2412,878.2572)
+:Sending Touch (ACTION_DOWN): 0:(854.0,767.0)
+:Sending Touch (ACTION_UP): 0:(862.74164,766.53076)
+:Sending Trackball (ACTION_MOVE): 0:(3.0,-2.0)
+:Sending Trackball (ACTION_MOVE): 0:(4.0,2.0)
+:Sending Touch (ACTION_DOWN): 0:(635.0,989.0)
+:Sending Touch (ACTION_UP): 0:(635.90564,988.5354)
+:Sending Trackball (ACTION_MOVE): 0:(-1.0,2.0)
+:Sending Trackball (ACTION_UP): 0:(0.0,0.0)
+:Sending Touch (ACTION_DOWN): 0:(301.0,1261.0)
+:Sending Touch (ACTION_UP): 0:(296.65604,1259.6719)
+:Sending Touch (ACTION_DOWN): 0:(544.0,1943.0)
+:Sending Touch (ACTION_UP): 0:(549.13226,1941.8932)
+:Sending Trackball (ACTION_MOVE): 0:(4.0,-2.0)
+:Switch: #Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;launchFlags=0x10200000;component=com.evolucao.app/.MainActivity;end
+    // Allowing start of Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] cmp=com.evolucao.app/.MainActivity } in package com.evolucao.app
+:Sending Trackball (ACTION_MOVE): 0:(-4.0,-3.0)
+:Sending Touch (ACTION_DOWN): 0:(561.0,1011.0)
+:Sending Touch (ACTION_UP): 0:(555.8158,1006.04016)
+:Sending Touch (ACTION_DOWN): 0:(837.0,802.0)
+:Sending Touch (ACTION_UP): 0:(843.89886,808.8274)
+    //[calendar_time:2026-04-06 01:51:58.528  system_uptime:272688165]
+    // Sending event #100
+    //[calendar_time:2026-04-06 01:51:58.645  system_uptime:272688247]
+    // Sending event #100
+:Sending Touch (ACTION_DOWN): 0:(508.0,1479.0)
+:Sending Touch (ACTION_UP): 0:(517.68243,1482.321)
+:Sending Trackball (ACTION_MOVE): 0:(1.0,2.0)
+:Sending Touch (ACTION_DOWN): 0:(237.0,1277.0)
+:Sending Touch (ACTION_UP): 0:(194.60825,1342.1582)
+:Sending Touch (ACTION_DOWN): 0:(994.0,1039.0)
+:Sending Touch (ACTION_UP): 0:(998.6429,1045.9539)
+:Sending Touch (ACTION_DOWN): 0:(584.0,214.0)
+:Sending Touch (ACTION_UP): 0:(581.5344,216.5905)
+:Sending Touch (ACTION_DOWN): 0:(780.0,2144.0)
+:Sending Touch (ACTION_UP): 0:(779.92053,2147.5908)
+:Sending Touch (ACTION_DOWN): 0:(1006.0,841.0)
+:Sending Touch (ACTION_UP): 0:(1000.7504,823.5208)
+:Sending Touch (ACTION_DOWN): 0:(195.0,1132.0)
+:Sending Touch (ACTION_UP): 0:(182.92259,1142.5204)
+:Sending Trackball (ACTION_MOVE): 0:(1.0,-4.0)
+:Sending Touch (ACTION_DOWN): 0:(906.0,1594.0)
+:Sending Touch (ACTION_UP): 0:(895.3363,1579.9562)
+:Sending Touch (ACTION_DOWN): 0:(764.0,1378.0)
+:Sending Touch (ACTION_UP): 0:(762.4563,1376.7206)
+:Sending Trackball (ACTION_MOVE): 0:(-1.0,0.0)
+:Sending Trackball (ACTION_MOVE): 0:(-3.0,0.0)
+:Sending Touch (ACTION_DOWN): 0:(106.0,1235.0)
+:Sending Touch (ACTION_UP): 0:(101.75176,1332.2252)
+:Sending Flip keyboardOpen=false
+Got IOException performing flipjava.io.FileNotFoundException: /dev/input/event0: open failed: EACCES (Permission denied)
+    // Injection Failed
+:Switch: #Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;launchFlags=0x10200000;component=com.evolucao.app/.MainActivity;end
+    // Allowing start of Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] cmp=com.evolucao.app/.MainActivity } in package com.evolucao.app
+:Sending Touch (ACTION_DOWN): 0:(388.0,1435.0)
+:Sending Touch (ACTION_UP): 0:(401.81158,1446.9365)
+    //[calendar_time:2026-04-06 01:52:00.531  system_uptime:272690132]
+    // Sending event #200
+    //[calendar_time:2026-04-06 01:52:00.612  system_uptime:272690212]
+    // Sending event #200
+:Sending Touch (ACTION_DOWN): 0:(1079.0,750.0)
+:Sending Touch (ACTION_UP): 0:(1080.0,749.497)
+:Sending Touch (ACTION_DOWN): 0:(802.0,1116.0)
+:Sending Touch (ACTION_UP): 0:(804.1895,1112.037)
+Events injected: 220
+:Sending rotation degree=0, persist=false
+:Dropped: keys=0 pointers=0 trackballs=0 flips=1 rotations=0
+## Network stats: elapsed time=5118ms (0ms mobile, 0ms wifi, 5118ms not connected)
+// Monkey finished

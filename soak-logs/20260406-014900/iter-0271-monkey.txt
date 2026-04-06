@@ -1,0 +1,100 @@
+﻿  bash arg: -p
+  bash arg: com.evolucao.app
+  bash arg: --pct-syskeys
+  bash arg: 0
+  bash arg: --throttle
+  bash arg: 80
+  bash arg: -v
+  bash arg: 220
+args: [-p, com.evolucao.app, --pct-syskeys, 0, --throttle, 80, -v, 220]
+ arg: "-p"
+ arg: "com.evolucao.app"
+ arg: "--pct-syskeys"
+ arg: "0"
+ arg: "--throttle"
+ arg: "80"
+ arg: "-v"
+ arg: "220"
+data="com.evolucao.app"
+arg="--pct-syskeys" mCurArgData="null" mNextArg=3 argwas="--pct-syskeys" nextarg="0"
+data="0"
+arg="--throttle" mCurArgData="null" mNextArg=5 argwas="--throttle" nextarg="80"
+data="80"
+:Monkey: seed=1775524669223 count=220
+:AllowPackage: com.evolucao.app
+:IncludeCategory: android.intent.category.LAUNCHER
+:IncludeCategory: android.intent.category.MONKEY
+// Event percentages:
+//   0: 15.306122%
+//   1: 10.204082%
+//   2: 2.0408163%
+//   3: 15.306122%
+//   4: -0.0%
+//   5: -0.0%
+//   6: 25.510204%
+//   7: 15.306122%
+//   8: -0.0%
+//   9: 2.0408163%
+//   10: 1.0204082%
+//   11: 13.265306%
+:Switch: #Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;launchFlags=0x10200000;component=com.evolucao.app/.MainActivity;end
+    // Allowing start of Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] cmp=com.evolucao.app/.MainActivity } in package com.evolucao.app
+    // Rejecting start of Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] cmp=com.sec.android.app.samsungapps/.SamsungAppsMainActivity } in package com.sec.android.app.samsungapps
+:Sending Touch (ACTION_DOWN): 0:(579.0,641.0)
+:Sending Touch (ACTION_UP): 0:(586.6475,634.90295)
+    // Rejecting start of Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] cmp=com.sec.android.app.samsungapps/.SamsungAppsMainActivity } in package com.sec.android.app.samsungapps
+:Sending Touch (ACTION_DOWN): 0:(482.0,115.0)
+:Sending Touch (ACTION_UP): 0:(475.81726,109.02161)
+:Sending Touch (ACTION_DOWN): 0:(1075.0,1831.0)
+:Sending Touch (ACTION_UP): 0:(1074.6644,1830.8181)
+    // Rejecting start of Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] cmp=com.sec.android.app.samsungapps/.SamsungAppsMainActivity } in package com.sec.android.app.samsungapps
+:Sending Touch (ACTION_DOWN): 0:(543.0,2031.0)
+:Sending Touch (ACTION_UP): 0:(543.56146,2026.3547)
+    // Rejecting start of Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] cmp=com.samsung.android.messaging/com.android.mms.ui.ConversationComposer } in package com.samsung.android.messaging
+:Sending Touch (ACTION_DOWN): 0:(49.0,478.0)
+:Sending Touch (ACTION_UP): 0:(57.66503,481.77005)
+:Sending Trackball (ACTION_MOVE): 0:(4.0,4.0)
+:Sending Trackball (ACTION_MOVE): 0:(-1.0,4.0)
+:Sending Touch (ACTION_DOWN): 0:(896.0,2088.0)
+:Sending Touch (ACTION_UP): 0:(963.7971,1969.8837)
+:Sending Trackball (ACTION_MOVE): 0:(-1.0,-1.0)
+    //[calendar_time:2026-04-06 02:13:00.096  system_uptime:273949722]
+    // Sending event #100
+:Sending Touch (ACTION_DOWN): 0:(882.0,1446.0)
+:Sending Touch (ACTION_UP): 0:(863.52,1449.9681)
+:Sending Touch (ACTION_DOWN): 0:(739.0,1680.0)
+:Sending Touch (ACTION_UP): 0:(738.9823,1676.9047)
+:Sending Touch (ACTION_DOWN): 0:(268.0,1826.0)
+:Sending Touch (ACTION_UP): 0:(250.89203,1830.3674)
+:Sending Touch (ACTION_DOWN): 0:(667.0,193.0)
+:Sending Touch (ACTION_UP): 0:(672.3522,192.2443)
+    // Rejecting start of Intent { cmp=com.samsung.android.app.galaxyfinder/.GalaxyFinderActivity } in package com.samsung.android.app.galaxyfinder
+:Sending Touch (ACTION_DOWN): 0:(643.0,0.0)
+:Sending Touch (ACTION_UP): 0:(636.3367,0.0)
+:Sending Trackball (ACTION_MOVE): 0:(-2.0,-1.0)
+:Sending Trackball (ACTION_MOVE): 0:(3.0,-2.0)
+:Sending Touch (ACTION_DOWN): 0:(101.0,637.0)
+:Sending Touch (ACTION_UP): 0:(102.8776,635.5814)
+:Sending Touch (ACTION_DOWN): 0:(802.0,227.0)
+:Sending Touch (ACTION_UP): 0:(710.28906,256.40152)
+    // Rejecting start of Intent { cmp=com.samsung.android.app.galaxyfinder/.GalaxyFinderActivity } in package com.samsung.android.app.galaxyfinder
+:Sending Touch (ACTION_DOWN): 0:(628.0,1353.0)
+:Sending Touch (ACTION_UP): 0:(613.5442,1355.9962)
+:Sending Flip keyboardOpen=false
+Got IOException performing flipjava.io.FileNotFoundException: /dev/input/event0: open failed: EACCES (Permission denied)
+    // Injection Failed
+:Sending Touch (ACTION_DOWN): 0:(615.0,1219.0)
+:Sending Touch (ACTION_UP): 0:(637.85724,1214.374)
+:Sending Trackball (ACTION_MOVE): 0:(-3.0,-1.0)
+    // Rejecting start of Intent { cmp=com.samsung.android.app.galaxyfinder/.GalaxyFinderActivity } in package com.samsung.android.app.galaxyfinder
+:Sending Trackball (ACTION_MOVE): 0:(4.0,2.0)
+    //[calendar_time:2026-04-06 02:13:02.227  system_uptime:273951828]
+    // Sending event #200
+:Sending Trackball (ACTION_MOVE): 0:(-2.0,0.0)
+:Sending Touch (ACTION_DOWN): 0:(1.0,1506.0)
+:Sending Touch (ACTION_UP): 0:(0.0,1504.829)
+Events injected: 220
+:Sending rotation degree=0, persist=false
+:Dropped: keys=0 pointers=0 trackballs=0 flips=1 rotations=0
+## Network stats: elapsed time=7250ms (0ms mobile, 0ms wifi, 7250ms not connected)
+// Monkey finished

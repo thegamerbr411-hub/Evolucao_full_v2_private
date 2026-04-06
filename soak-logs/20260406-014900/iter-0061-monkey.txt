@@ -1,0 +1,91 @@
+﻿  bash arg: -p
+  bash arg: com.evolucao.app
+  bash arg: --pct-syskeys
+  bash arg: 0
+  bash arg: --throttle
+  bash arg: 80
+  bash arg: -v
+  bash arg: 220
+args: [-p, com.evolucao.app, --pct-syskeys, 0, --throttle, 80, -v, 220]
+ arg: "-p"
+ arg: "com.evolucao.app"
+ arg: "--pct-syskeys"
+ arg: "0"
+ arg: "--throttle"
+ arg: "80"
+ arg: "-v"
+ arg: "220"
+data="com.evolucao.app"
+arg="--pct-syskeys" mCurArgData="null" mNextArg=3 argwas="--pct-syskeys" nextarg="0"
+data="0"
+arg="--throttle" mCurArgData="null" mNextArg=5 argwas="--throttle" nextarg="80"
+data="80"
+:Monkey: seed=1775654445102 count=220
+:AllowPackage: com.evolucao.app
+:IncludeCategory: android.intent.category.LAUNCHER
+:IncludeCategory: android.intent.category.MONKEY
+// Event percentages:
+//   0: 15.306122%
+//   1: 10.204082%
+//   2: 2.0408163%
+//   3: 15.306122%
+//   4: -0.0%
+//   5: -0.0%
+//   6: 25.510204%
+//   7: 15.306122%
+//   8: -0.0%
+//   9: 2.0408163%
+//   10: 1.0204082%
+//   11: 13.265306%
+:Switch: #Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;launchFlags=0x10200000;component=com.evolucao.app/.MainActivity;end
+    // Allowing start of Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] cmp=com.evolucao.app/.MainActivity } in package com.evolucao.app
+:Switch: #Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;launchFlags=0x10200000;component=com.evolucao.app/.MainActivity;end
+    // Allowing start of Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] cmp=com.evolucao.app/.MainActivity } in package com.evolucao.app
+:Sending Touch (ACTION_DOWN): 0:(584.0,2059.0)
+:Sending Touch (ACTION_UP): 0:(617.56744,2073.7322)
+:Sending Touch (ACTION_DOWN): 0:(265.0,243.0)
+:Sending Touch (ACTION_UP): 0:(280.25888,248.65308)
+:Sending Trackball (ACTION_MOVE): 0:(0.0,2.0)
+:Sending Touch (ACTION_DOWN): 0:(661.0,907.0)
+:Sending Touch (ACTION_UP): 0:(671.79376,900.46686)
+:Sending Touch (ACTION_DOWN): 0:(78.0,1509.0)
+:Sending Touch (ACTION_UP): 0:(83.56553,1515.04)
+:Sending Touch (ACTION_DOWN): 0:(554.0,249.0)
+:Sending Touch (ACTION_UP): 0:(559.24243,292.32175)
+:Sending Trackball (ACTION_MOVE): 0:(-4.0,-1.0)
+:Sending Trackball (ACTION_MOVE): 0:(-5.0,-1.0)
+:Sending Touch (ACTION_DOWN): 0:(496.0,723.0)
+:Sending Touch (ACTION_UP): 0:(422.90616,835.6232)
+:Sending Touch (ACTION_DOWN): 0:(397.0,1530.0)
+:Sending Touch (ACTION_UP): 0:(407.2793,1544.5885)
+:Sending Trackball (ACTION_MOVE): 0:(-4.0,0.0)
+    //[calendar_time:2026-04-06 01:54:13.463  system_uptime:272823077]
+    // Sending event #100
+:Sending Trackball (ACTION_UP): 0:(0.0,0.0)
+:Sending Touch (ACTION_DOWN): 0:(192.0,1234.0)
+:Sending Touch (ACTION_UP): 0:(180.5291,1238.4243)
+:Sending Trackball (ACTION_MOVE): 0:(-2.0,-2.0)
+:Sending Touch (ACTION_DOWN): 0:(89.0,1116.0)
+:Sending Touch (ACTION_UP): 0:(90.7714,1108.6995)
+:Sending Trackball (ACTION_MOVE): 0:(2.0,-1.0)
+:Sending Touch (ACTION_DOWN): 0:(492.0,1721.0)
+:Sending Touch (ACTION_UP): 0:(492.54117,1729.4412)
+:Switch: #Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;launchFlags=0x10200000;component=com.evolucao.app/.MainActivity;end
+    // Allowing start of Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] cmp=com.evolucao.app/.MainActivity } in package com.evolucao.app
+:Sending Trackball (ACTION_MOVE): 0:(0.0,1.0)
+:Sending Touch (ACTION_DOWN): 0:(820.0,1440.0)
+:Sending Touch (ACTION_UP): 0:(826.6019,1435.3336)
+    // Rejecting start of Intent { cmp=com.samsung.android.honeyboard/.settings.common.HoneyBoardSettingsActivity } in package com.samsung.android.honeyboard
+:Sending Trackball (ACTION_MOVE): 0:(-4.0,-2.0)
+:Sending Trackball (ACTION_MOVE): 0:(-1.0,2.0)
+    //[calendar_time:2026-04-06 01:54:15.445  system_uptime:272825046]
+    // Sending event #200
+:Sending Trackball (ACTION_MOVE): 0:(4.0,1.0)
+:Sending Flip keyboardOpen=false
+Got IOException performing flipjava.io.FileNotFoundException: /dev/input/event0: open failed: EACCES (Permission denied)
+    // Injection Failed
+Events injected: 220
+:Sending rotation degree=0, persist=false
+:Dropped: keys=0 pointers=0 trackballs=0 flips=1 rotations=0
+## Network stats: elapsed time=4626ms (0ms mobile, 0ms wifi, 4626ms not connected)
+// Monkey finished
