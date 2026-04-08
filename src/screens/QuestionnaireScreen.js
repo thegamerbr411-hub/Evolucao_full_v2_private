@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   Alert,
+  FlatList,
   ScrollView,
   StyleSheet,
   Text,
@@ -9,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { useApp } from '../context/AppContext';
+import { colors, radius, spacing, typography } from '../theme';
 
 const goals = [
   { key: 'emagrecer', label: 'Emagrecer' },
@@ -26,6 +28,24 @@ const trainingDays = [
   { key: '5', label: '5x' },
   { key: '6', label: '6x' },
   { key: 'custom', label: 'Personalizado' },
+];
+
+const onboardingSlides = [
+  {
+    key: 'slide-1',
+    title: 'Seu treino. Sua evolução.',
+    subtitle: 'Acompanhe tudo em um so lugar.',
+  },
+  {
+    key: 'slide-2',
+    title: 'Controle sua alimentacao',
+    subtitle: 'Proteina, agua e calorias sem complicacao.',
+  },
+  {
+    key: 'slide-3',
+    title: 'Seu coach diario',
+    subtitle: 'O app te diz exatamente o que fazer.',
+  },
 ];
 
 function OptionGroup({ title, options, selected, onSelect }) {
@@ -68,6 +88,7 @@ function NumberField({ label, value, onChangeText, placeholder, testID }) {
 
 export default function QuestionnaireScreen({ navigation }) {
   const { saveQuestionnaire } = useApp();
+  const [activeSlide, setActiveSlide] = useState(0);
 
   const [goal, setGoal] = useState('emagrecer');
   const [level, setLevel] = useState('iniciante');
@@ -76,6 +97,15 @@ export default function QuestionnaireScreen({ navigation }) {
   const [height, setHeight] = useState('');
   const [daysPerWeek, setDaysPerWeek] = useState('3');
   const [customDaysPerWeek, setCustomDaysPerWeek] = useState('');
+
+  const moveSlide = (direction) => {
+    if (direction === 'next') {
+      setActiveSlide((prev) => Math.min(prev + 1, onboardingSlides.length - 1));
+      return;
+    }
+
+    setActiveSlide((prev) => Math.max(prev - 1, 0));
+  };
 
   const handleSubmit = () => {
     const trainingDaysValue = Number(daysPerWeek === 'custom' ? customDaysPerWeek : daysPerWeek);
@@ -126,8 +156,8 @@ export default function QuestionnaireScreen({ navigation }) {
       keyboardDismissMode="on-drag"
     >
       <View testID="questionnaire-screen">
-      <Text style={styles.title}>Questionario Inteligente</Text>
-      <Text style={styles.subtitle}>Monte seu plano inicial em menos de 1 minuto.</Text>
+      <Text style={styles.title}>Monte seu plano inicial</Text>
+      <Text style={styles.subtitle}>Leva menos de 1 minuto para personalizar sua rotina.</Text>
 
       <OptionGroup title="Objetivo" options={goals} selected={goal} onSelect={setGoal} />
       <OptionGroup title="Nivel" options={levels} selected={level} onSelect={setLevel} />
@@ -183,8 +213,43 @@ export default function QuestionnaireScreen({ navigation }) {
         ) : null}
       </View>
 
+      <View style={styles.onboardingCard}>
+        <FlatList
+          data={onboardingSlides}
+          horizontal
+          pagingEnabled
+          scrollEnabled={false}
+          showsHorizontalScrollIndicator={false}
+          extraData={activeSlide}
+          keyExtractor={(item) => item.key}
+          renderItem={({ item, index }) => {
+            const visible = index === activeSlide;
+            return (
+              <View style={styles.slide}>
+                <Text style={styles.slideEyebrow}>Onboarding</Text>
+                <Text style={styles.slideTitle}>{visible ? item.title : ' '}</Text>
+                <Text style={styles.slideSubtitle}>{visible ? item.subtitle : ' '}</Text>
+              </View>
+            );
+          }}
+        />
+        <View style={styles.slideDots}>
+          {onboardingSlides.map((item, index) => (
+            <View key={item.key} style={[styles.dot, index === activeSlide && styles.dotActive]} />
+          ))}
+        </View>
+        <View style={styles.slideActions}>
+          <TouchableOpacity onPress={() => moveSlide('back')} disabled={activeSlide === 0} style={[styles.slideButton, activeSlide === 0 && styles.slideButtonDisabled]}>
+            <Text style={styles.slideButtonText}>Voltar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => moveSlide('next')} disabled={activeSlide === onboardingSlides.length - 1} style={[styles.slideButton, activeSlide === onboardingSlides.length - 1 && styles.slideButtonDisabled]}>
+            <Text style={styles.slideButtonText}>Avancar</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
       <TouchableOpacity testID="btn-continuar" style={styles.button} onPress={handleSubmit}>
-        <Text style={styles.buttonText}>Gerar plano automatico</Text>
+        <Text style={styles.buttonText}>COMEÇAR AGORA</Text>
       </TouchableOpacity>
       </View>
     </ScrollView>
@@ -194,28 +259,93 @@ export default function QuestionnaireScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     paddingTop: 56,
-    paddingHorizontal: 20,
+    paddingHorizontal: spacing.lg,
     paddingBottom: 120,
-    backgroundColor: '#F7F8FA',
+    backgroundColor: colors.background,
     flexGrow: 1,
   },
-  title: {
-    fontSize: 28,
+  onboardingCard: {
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  slide: {
+    width: 320,
+    minHeight: 120,
+    justifyContent: 'center',
+  },
+  slideEyebrow: {
+    color: '#93C5FD',
+    fontSize: 11,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  slideTitle: {
+    ...typography.subtitle,
+    color: colors.textPrimary,
+  },
+  slideSubtitle: {
+    ...typography.body,
+    marginTop: spacing.xs,
+    lineHeight: 20,
+  },
+  slideDots: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: spacing.sm,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: radius.pill,
+    backgroundColor: '#2B3341',
+  },
+  dotActive: {
+    backgroundColor: colors.primary,
+    width: 18,
+  },
+  slideActions: {
+    marginTop: spacing.md,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  slideButton: {
+    flex: 1,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#314058',
+    paddingVertical: 10,
+    alignItems: 'center',
+    backgroundColor: '#101826',
+  },
+  slideButtonDisabled: {
+    opacity: 0.4,
+  },
+  slideButtonText: {
+    color: '#D8E7FF',
+    fontSize: 13,
     fontWeight: '700',
-    color: '#1B1E28',
+  },
+  title: {
+    ...typography.title,
   },
   subtitle: {
-    fontSize: 15,
+    ...typography.body,
     marginTop: 8,
     marginBottom: 24,
-    color: '#4F5565',
+    color: colors.textSecondary,
   },
   group: {
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
   label: {
-    marginBottom: 8,
-    color: '#303545',
+    marginBottom: spacing.xs,
+    color: colors.textPrimary,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -227,42 +357,45 @@ const styles = StyleSheet.create({
   chip: {
     paddingVertical: 10,
     paddingHorizontal: 14,
-    borderRadius: 999,
+    borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: '#C6CDDB',
-    backgroundColor: '#FFFFFF',
+    borderColor: '#364155',
+    backgroundColor: '#0F1724',
   },
   chipSelected: {
-    borderColor: '#0A84FF',
-    backgroundColor: '#EAF3FF',
+    borderColor: colors.primary,
+    backgroundColor: '#0F2218',
   },
   chipText: {
-    color: '#2E3342',
+    color: '#D3D9E8',
     fontWeight: '500',
   },
   chipTextSelected: {
-    color: '#0A5EC0',
+    color: '#B7F7C9',
     fontWeight: '700',
   },
   input: {
     borderWidth: 1,
-    borderColor: '#C6CDDB',
+    borderColor: '#364155',
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#0F1724',
+    color: '#FFFFFF',
     fontSize: 15,
   },
   button: {
     marginTop: 16,
-    backgroundColor: '#141A2A',
+    backgroundColor: colors.primary,
     borderRadius: 14,
-    paddingVertical: 14,
+    paddingVertical: 16,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 52,
   },
   buttonText: {
-    color: '#FFFFFF',
+    color: '#000000',
     fontWeight: '700',
-    fontSize: 15,
+    fontSize: 16,
   },
 });

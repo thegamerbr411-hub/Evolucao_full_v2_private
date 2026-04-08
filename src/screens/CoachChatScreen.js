@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { colors, spacing } from '../theme';
@@ -545,21 +546,21 @@ export default function CoachChatScreen({ navigation }) {
 
   const openNutrition = () => {
     rememberAction('nutrition_open');
-    setActionFeedback('Boa. Registra a refeicao para reduzir o gap de proteina.');
+    setActionFeedback('Boa. Registre a refeição para reduzir o gap de proteína.');
     navigation.navigate('Scanner');
   };
 
   const openRoutines = () => {
     rememberAction('routines_open');
-    setActionFeedback('Perfeito. Ajuste a rotina para garantir consistencia na semana.');
-    navigation.navigate('MainTabs', { screen: 'Rotinas' });
+    setActionFeedback('Perfeito. Ajuste sua rotina direto no hub de treino.');
+    navigation.navigate('Treinos');
   };
 
   const urgencyUI = getUrgencyStyles(coachCard.urgencyLevel);
 
   return (
-    <View style={styles.container}>
-      <ScreenHeader title="Conversa com o Personal/Nutri" subtitle="Conversa orientada pelo seu treino, agua e macros do dia." />
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScreenHeader title="Conversa com o Personal/Nutri" subtitle="Conversa orientada pelo seu treino, água e macros do dia." />
 
       <AppCard style={[styles.coachCard, { borderColor: urgencyUI.borderColor, backgroundColor: urgencyUI.backgroundColor }]}> 
         <Text style={styles.urgencyBadge}>{urgencyUI.badge}</Text>
@@ -577,7 +578,7 @@ export default function CoachChatScreen({ navigation }) {
 
         <View style={styles.quickActionRow}>
           <PrimaryButton testID="btn-chat-train" title={coachCard.quickActions?.trainingTitle || 'Iniciar treino'} onPress={openWorkout} style={styles.quickMainBtn} />
-          <SecondaryButton testID="btn-chat-eat" title={coachCard.quickActions?.nutritionTitle || 'Registrar refeicao'} onPress={openNutrition} style={styles.quickBtn} />
+          <SecondaryButton testID="btn-chat-eat" title={coachCard.quickActions?.nutritionTitle || 'Registrar refeição'} onPress={openNutrition} style={styles.quickBtn} />
           <SecondaryButton testID="btn-add-water-chat" title={coachCard.quickActions?.waterTitle || '+300ml agua'} onPress={addWaterQuick} style={styles.quickBtn} />
           <SecondaryButton testID="btn-chat-routine" title={coachCard.quickActions?.routineTitle || 'Ver rotina'} onPress={openRoutines} style={styles.quickBtn} />
         </View>
@@ -599,7 +600,7 @@ export default function CoachChatScreen({ navigation }) {
           onSubmitEditing={sendMessage}
           returnKeyType="send"
           blurOnSubmit={false}
-          placeholder="Ex: Nao consegui treinar hoje"
+          placeholder="Ex: Não consegui treinar hoje"
           placeholderTextColor="#7A8B99"
           style={styles.input}
         />
@@ -607,7 +608,7 @@ export default function CoachChatScreen({ navigation }) {
           <Text style={styles.sendText}>Enviar</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -615,7 +616,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-    paddingTop: 56,
+    paddingTop: spacing.md,
     paddingHorizontal: spacing.lg,
   },
   chatBox: {
