@@ -20,6 +20,7 @@ import { getCanonicalExerciseId, getCanonicalMuscleGroup } from '../data/exercis
 import { SCREENS, trackAppError, trackEvent } from '../utils/analytics';
 import { calculate1RM, calculateSRPE, calculateVolume, getProgression } from '../services/performanceEngine';
 import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
+import { ExerciseCard } from '../components/workout/ExerciseCard';
 import { colors, spacing } from '../theme';
 
 function formatTimer(seconds) {
@@ -131,6 +132,7 @@ export default function WorkoutScreen({ navigation }) {
   const [actionFeedback, setActionFeedback] = useState('');
   const [saveSuccessVisible, setSaveSuccessVisible] = useState(false);
   const [setSpeedStats, setSetSpeedStats] = useState({ avgMs: 0, lastMs: 0, count: 0 });
+  const [simpleMode, setSimpleMode] = useState(true);
 
   const postWorkoutNutritionFeedback = getNutritionFeedback({ trainedToday: true });
 
@@ -647,6 +649,23 @@ export default function WorkoutScreen({ navigation }) {
     });
   };
 
+  const handleChangeSet = (exerciseName, setIndex, field, value) => {
+    setDraftField(exerciseName, setIndex, field, value);
+  };
+
+  const handleCompleteSet = (exerciseName, setIndex) => {
+    const exerciseIndex = allExercises.findIndex((item) => item.name === exerciseName);
+    const exercise = allExercises[exerciseIndex];
+    if (!exercise) {
+      return;
+    }
+    saveSetLine(exercise, exerciseIndex, setIndex);
+  };
+
+  const handleAddSet = (exerciseName) => {
+    addSetToExercise(exerciseName);
+  };
+
   const jumpToNextExercise = (currentIndex) => {
     for (let index = currentIndex + 1; index < allExercises.length; index += 1) {
       const item = allExercises[index];
@@ -743,19 +762,19 @@ export default function WorkoutScreen({ navigation }) {
       showActionToast(`🔥 Novo recorde! +${safeDelta}kg no ${exercise.name}`);
     }
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
     setSavedSetPulseKey(`${exercise.name}-${setIndex}`);
     rowPulseAnim.setValue(0);
     Animated.sequence([
       Animated.timing(rowPulseAnim, {
         toValue: 1,
-        duration: 180,
+        duration: 100,
         useNativeDriver: true,
       }),
       Animated.timing(rowPulseAnim, {
         toValue: 0,
-        duration: 220,
+        duration: 100,
         useNativeDriver: true,
       }),
     ]).start(() => setSavedSetPulseKey(''));
@@ -1135,6 +1154,12 @@ export default function WorkoutScreen({ navigation }) {
       >
         <ScreenHeader title="Treino de hoje" subtitle="Fluxo rapido: preencher e salvar serie." />
 
+        <SecondaryButton
+          title={simpleMode ? 'Modo simples ativo' : 'Modo avancado ativo'}
+          onPress={() => setSimpleMode((prev) => !prev)}
+          style={styles.modeToggleButton}
+        />
+
         <View style={styles.topRow}>
           <Text style={styles.metaText}>{summary.guidedSets}/{summary.plannedSets || 0} series</Text>
           <Text style={styles.metaText}>Nivel {gamification.level} · XP {gamification.xp}</Text>
@@ -1255,6 +1280,51 @@ export default function WorkoutScreen({ navigation }) {
           const weightDelta = suggestedWeightNumber > 0 && lastWeight > 0
             ? Number((suggestedWeightNumber - lastWeight).toFixed(1))
             : 0;
+
+          if (simpleMode) {
+            const mergedSets = Array.from({ length: plannedSets }).map((_, index) => {
+              const saved = todaySets[index];
+              const draft = draftRows[index] || { weight: '', reps: '', rpe: '8' };
+              if (saved) {
+                return {
+                  id: `${exercise.id}-saved-${index}`,
+                  weight: String(saved.weight || ''),
+                  reps: String(saved.reps || ''),
+                  rpe: String(saved.rpe || ''),
+                  done: true,
+                };
+              }
+
+              return {
+                id: `${exercise.id}-draft-${index}`,
+                weight: String(draft.weight || ''),
+                reps: String(draft.reps || ''),
+                rpe: String(draft.rpe || '8'),
+                done: false,
+              };
+            });
+
+            const lastSetLabel = lastSet
+              ? `${lastSet.weight || 0}kg x ${lastSet.reps || 0}`
+              : null;
+
+            return (
+              <ExerciseCard
+                key={exercise.id}
+                exercise={{ name: exercise.name, sets: mergedSets }}
+                lastSet={lastSetLabel}
+                simpleMode={simpleMode}
+                onChangeSet={handleChangeSet}
+                onCompleteSet={handleCompleteSet}
+                onAddSet={handleAddSet}
+                testIDs={(index) => ({
+                  weight: isActive && index === 0 ? 'input-peso' : `input-peso-${exercise.id}-${index}`,
+                  reps: isActive && index === 0 ? 'input-reps' : `input-reps-${exercise.id}-${index}`,
+                  done: isActive && index === 0 ? 'btn-salvar-serie' : `btn-salvar-serie-${exercise.id}-${index}`,
+                })}
+              />
+            );
+          }
 
           return (
             <TouchableOpacity
@@ -1387,7 +1457,7 @@ export default function WorkoutScreen({ navigation }) {
                             transform: [{
                               scale: rowPulseAnim.interpolate({
                                 inputRange: [0, 1],
-                                outputRange: [1, 1.02],
+                                outputRange: [1, 1.05],
                               }),
                             }],
                             opacity: rowPulseAnim.interpolate({
@@ -1603,11 +1673,11 @@ export default function WorkoutScreen({ navigation }) {
 
         {showWorkoutSummary ? (
           <AppCard style={styles.summaryCard}>
-            <Text style={styles.summaryTitle}>Treino concluido 🔥</Text>
+            <Text style={styles.summaryTitle}>🔥 Treino concluido!</Text>
             <Text style={styles.summaryLine}>Exercicios: {Number(workoutSummary?.exerciseCount || 0)}</Text>
             <Text style={styles.summaryLine}>Series: {Number(workoutSummary?.totalSets || 0)}</Text>
             <Text style={styles.summaryLine}>Volume: {Math.round(Number(workoutSummary?.totalVolume || 0))}kg</Text>
-            <Text style={styles.summaryLine}>Volume vs ultimo: {Number(workoutSummary?.volumeChangePct || 0)}%</Text>
+            <Text style={styles.summaryLine}>Hoje voce levantou {Math.round(Number(workoutSummary?.totalVolume || 0))}kg ({Number(workoutSummary?.volumeChangePct || 0) >= 0 ? '+' : ''}{Number(workoutSummary?.volumeChangePct || 0)}%)</Text>
             <Text style={styles.summaryLine}>1RM estimado: {Number(workoutSummary?.estimated1RM || 0)}kg</Text>
             <Text style={styles.summaryLine}>sRPE: {Number(workoutSummary?.sRpeLoad || 0)} ({Number(workoutSummary?.sessionDurationMinutes || 0)}min)</Text>
             <Text style={styles.summaryLine}>+{Number(workoutSummary?.sessionXp || 0)} XP</Text>
@@ -1655,6 +1725,9 @@ const styles = StyleSheet.create({
   topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  modeToggleButton: {
     marginBottom: 10,
   },
   uxSpeedWrap: {

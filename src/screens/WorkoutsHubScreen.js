@@ -33,6 +33,7 @@ export function WorkoutsHubView({ navigation, summary, todayWorkout, recommended
 
       <PrimaryButton testID="btn-iniciar-treino" title="Iniciar treino recomendado" onPress={() => navigation.navigate('TreinoHoje')} style={styles.primaryButton} />
       <SecondaryButton title="Treino livre" onPress={() => navigation.navigate('TreinoLivre')} />
+      <SecondaryButton title="Criar treino em rotina" onPress={() => navigation.navigate('Rotinas')} />
     </ScrollView>
   );
 }

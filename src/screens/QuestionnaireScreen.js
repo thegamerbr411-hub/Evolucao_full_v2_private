@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   Alert,
-  FlatList,
   ScrollView,
   StyleSheet,
   Text,
@@ -10,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { useApp } from '../context/AppContext';
+import { AppCard, PrimaryButton, ScreenHeader } from '../components/ui';
 import { colors, radius, spacing, typography } from '../theme';
 
 const goals = [
@@ -23,29 +23,12 @@ const levels = [
 ];
 
 const trainingDays = [
+  { key: '2', label: '2x' },
   { key: '3', label: '3x' },
   { key: '4', label: '4x' },
   { key: '5', label: '5x' },
   { key: '6', label: '6x' },
-  { key: 'custom', label: 'Personalizado' },
-];
-
-const onboardingSlides = [
-  {
-    key: 'slide-1',
-    title: 'Seu treino. Sua evolução.',
-    subtitle: 'Acompanhe tudo em um so lugar.',
-  },
-  {
-    key: 'slide-2',
-    title: 'Controle sua alimentacao',
-    subtitle: 'Proteina, agua e calorias sem complicacao.',
-  },
-  {
-    key: 'slide-3',
-    title: 'Seu coach diario',
-    subtitle: 'O app te diz exatamente o que fazer.',
-  },
+  { key: '7', label: '7x' },
 ];
 
 function OptionGroup({ title, options, selected, onSelect }) {
@@ -88,52 +71,41 @@ function NumberField({ label, value, onChangeText, placeholder, testID }) {
 
 export default function QuestionnaireScreen({ navigation }) {
   const { saveQuestionnaire } = useApp();
-  const [activeSlide, setActiveSlide] = useState(0);
-
   const [goal, setGoal] = useState('emagrecer');
   const [level, setLevel] = useState('iniciante');
-  const [currentWeight, setCurrentWeight] = useState('');
+  const [weight, setWeight] = useState('');
+  const [daysPerWeek, setDaysPerWeek] = useState('3');
   const [targetWeight, setTargetWeight] = useState('');
   const [height, setHeight] = useState('');
-  const [daysPerWeek, setDaysPerWeek] = useState('3');
-  const [customDaysPerWeek, setCustomDaysPerWeek] = useState('');
-
-  const moveSlide = (direction) => {
-    if (direction === 'next') {
-      setActiveSlide((prev) => Math.min(prev + 1, onboardingSlides.length - 1));
-      return;
-    }
-
-    setActiveSlide((prev) => Math.max(prev - 1, 0));
-  };
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const handleSubmit = () => {
-    const trainingDaysValue = Number(daysPerWeek === 'custom' ? customDaysPerWeek : daysPerWeek);
+    const currentWeight = Number(weight);
+    const trainingDaysValue = Number(daysPerWeek);
+    const safeTargetWeight = Number(targetWeight || weight);
+    const safeHeight = Number(height || 170);
+
     const payload = {
       goal,
       level,
-      currentWeight: Number(currentWeight),
-      targetWeight: Number(targetWeight),
-      height: Number(height),
+      currentWeight,
+      targetWeight: safeTargetWeight,
+      height: safeHeight,
       trainingDaysPerWeek: trainingDaysValue,
     };
 
-    const isInvalid =
-      !payload.currentWeight ||
-      !payload.targetWeight ||
-      !payload.height ||
-      payload.currentWeight < 30 ||
-      payload.currentWeight > 300 ||
-      payload.targetWeight < 30 ||
-      payload.targetWeight > 300 ||
-      payload.height < 120 ||
-      payload.height > 230 ||
-      !payload.trainingDaysPerWeek ||
-      payload.trainingDaysPerWeek < 2 ||
-      payload.trainingDaysPerWeek > 7;
+    if (!payload.currentWeight || payload.currentWeight < 30 || payload.currentWeight > 300) {
+      Alert.alert('Dados invalidos', 'Informe um peso atual valido.');
+      return;
+    }
 
-    if (isInvalid) {
-      Alert.alert('Dados invalidos', 'Preencha os campos com valores validos para continuar.');
+    if (!payload.trainingDaysPerWeek || payload.trainingDaysPerWeek < 2 || payload.trainingDaysPerWeek > 7) {
+      Alert.alert('Dados invalidos', 'Escolha de 2 a 7 dias por semana.');
+      return;
+    }
+
+    if (payload.targetWeight < 30 || payload.targetWeight > 300 || payload.height < 120 || payload.height > 230) {
+      Alert.alert('Dados invalidos', 'Ajuste peso meta e altura nas opcoes avancadas.');
       return;
     }
 
@@ -153,41 +125,23 @@ export default function QuestionnaireScreen({ navigation }) {
       testID="scroll-container"
       contentContainerStyle={styles.container}
       keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="on-drag"
     >
       <View testID="questionnaire-screen">
-      <Text style={styles.title}>Monte seu plano inicial</Text>
-      <Text style={styles.subtitle}>Leva menos de 1 minuto para personalizar sua rotina.</Text>
+      <ScreenHeader title="Comece em 30 segundos" subtitle="So o essencial para criar seu plano." />
 
-      <OptionGroup title="Objetivo" options={goals} selected={goal} onSelect={setGoal} />
-      <OptionGroup title="Nivel" options={levels} selected={level} onSelect={setLevel} />
+      <AppCard>
+        <OptionGroup title="Objetivo" options={goals} selected={goal} onSelect={setGoal} />
+        <OptionGroup title="Nivel" options={levels} selected={level} onSelect={setLevel} />
 
-      <NumberField
-        label="Peso atual (kg)"
-        value={currentWeight}
-        onChangeText={setCurrentWeight}
-        placeholder="Ex: 78"
-        testID="input-peso-atual"
-      />
+        <NumberField
+          label="Peso atual"
+          value={weight}
+          onChangeText={setWeight}
+          placeholder="Ex: 78"
+          testID="input-peso-atual"
+        />
 
-      <NumberField
-        label="Peso meta (kg)"
-        value={targetWeight}
-        onChangeText={setTargetWeight}
-        placeholder="Ex: 72"
-        testID="input-peso-meta"
-      />
-
-      <NumberField
-        label="Altura (cm)"
-        value={height}
-        onChangeText={setHeight}
-        placeholder="Ex: 175"
-        testID="input-altura"
-      />
-
-      <View style={styles.group}>
-        <Text style={styles.label}>Dias de treino por semana</Text>
+        <Text style={styles.label}>Dias por semana</Text>
         <View style={styles.rowWrap}>
           {trainingDays.map((day) => {
             const selected = daysPerWeek === day.key;
@@ -202,55 +156,37 @@ export default function QuestionnaireScreen({ navigation }) {
             );
           })}
         </View>
-        {daysPerWeek === 'custom' ? (
-          <TextInput
-            value={customDaysPerWeek}
-            onChangeText={setCustomDaysPerWeek}
-            placeholder="Quantos dias por semana? (2 a 7)"
-            keyboardType="numeric"
-            style={[styles.input, { marginTop: 10 }]}
-          />
+
+        <TouchableOpacity onPress={() => setAdvancedOpen((value) => !value)} style={styles.moreButton}>
+          <Text style={styles.moreText}>{advancedOpen ? 'Ocultar opcoes' : 'Mais opcoes'}</Text>
+        </TouchableOpacity>
+
+        {advancedOpen ? (
+          <View style={styles.advancedWrap}>
+            <NumberField
+              label="Peso meta (opcional)"
+              value={targetWeight}
+              onChangeText={setTargetWeight}
+              placeholder="Ex: 72"
+              testID="input-peso-meta"
+            />
+
+            <NumberField
+              label="Altura (opcional)"
+              value={height}
+              onChangeText={setHeight}
+              placeholder="Ex: 175"
+              testID="input-altura"
+            />
+
+            <Text style={styles.advancedNote}>
+              Se preferir, finalize agora. Voce pode ajustar isso depois nas configuracoes.
+            </Text>
+          </View>
         ) : null}
-      </View>
+      </AppCard>
 
-      <View style={styles.onboardingCard}>
-        <FlatList
-          data={onboardingSlides}
-          horizontal
-          pagingEnabled
-          scrollEnabled={false}
-          showsHorizontalScrollIndicator={false}
-          extraData={activeSlide}
-          keyExtractor={(item) => item.key}
-          renderItem={({ item, index }) => {
-            const visible = index === activeSlide;
-            return (
-              <View style={styles.slide}>
-                <Text style={styles.slideEyebrow}>Onboarding</Text>
-                <Text style={styles.slideTitle}>{visible ? item.title : ' '}</Text>
-                <Text style={styles.slideSubtitle}>{visible ? item.subtitle : ' '}</Text>
-              </View>
-            );
-          }}
-        />
-        <View style={styles.slideDots}>
-          {onboardingSlides.map((item, index) => (
-            <View key={item.key} style={[styles.dot, index === activeSlide && styles.dotActive]} />
-          ))}
-        </View>
-        <View style={styles.slideActions}>
-          <TouchableOpacity onPress={() => moveSlide('back')} disabled={activeSlide === 0} style={[styles.slideButton, activeSlide === 0 && styles.slideButtonDisabled]}>
-            <Text style={styles.slideButtonText}>Voltar</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => moveSlide('next')} disabled={activeSlide === onboardingSlides.length - 1} style={[styles.slideButton, activeSlide === onboardingSlides.length - 1 && styles.slideButtonDisabled]}>
-            <Text style={styles.slideButtonText}>Avancar</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <TouchableOpacity testID="btn-continuar" style={styles.button} onPress={handleSubmit}>
-        <Text style={styles.buttonText}>COMEÇAR AGORA</Text>
-      </TouchableOpacity>
+      <PrimaryButton testID="btn-continuar" title="Comecar agora" onPress={handleSubmit} />
       </View>
     </ScrollView>
   );
@@ -258,96 +194,20 @@ export default function QuestionnaireScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: {
-    paddingTop: 56,
+    paddingTop: spacing.md,
     paddingHorizontal: spacing.lg,
-    paddingBottom: 120,
+    paddingBottom: spacing.xl,
     backgroundColor: colors.background,
     flexGrow: 1,
   },
-  onboardingCard: {
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  slide: {
-    width: 320,
-    minHeight: 120,
-    justifyContent: 'center',
-  },
-  slideEyebrow: {
-    color: '#93C5FD',
-    fontSize: 11,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-    marginBottom: 6,
-  },
-  slideTitle: {
-    ...typography.subtitle,
-    color: colors.textPrimary,
-  },
-  slideSubtitle: {
-    ...typography.body,
-    marginTop: spacing.xs,
-    lineHeight: 20,
-  },
-  slideDots: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: spacing.sm,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: radius.pill,
-    backgroundColor: '#2B3341',
-  },
-  dotActive: {
-    backgroundColor: colors.primary,
-    width: 18,
-  },
-  slideActions: {
-    marginTop: spacing.md,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-  },
-  slideButton: {
-    flex: 1,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#314058',
-    paddingVertical: 10,
-    alignItems: 'center',
-    backgroundColor: '#101826',
-  },
-  slideButtonDisabled: {
-    opacity: 0.4,
-  },
-  slideButtonText: {
-    color: '#D8E7FF',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  title: {
-    ...typography.title,
-  },
-  subtitle: {
-    ...typography.body,
-    marginTop: 8,
-    marginBottom: 24,
-    color: colors.textSecondary,
-  },
   group: {
-    marginBottom: spacing.md,
+    marginTop: spacing.xs,
   },
   label: {
     marginBottom: spacing.xs,
-    color: colors.textPrimary,
+    color: colors.textSecondary,
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   rowWrap: {
     flexDirection: 'row',
@@ -376,26 +236,32 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: '#364155',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    backgroundColor: '#0F1724',
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.card,
     color: '#FFFFFF',
     fontSize: 15,
   },
-  button: {
-    marginTop: 16,
-    backgroundColor: colors.primary,
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 52,
+  moreButton: {
+    marginTop: spacing.md,
   },
-  buttonText: {
-    color: '#000000',
+  moreText: {
+    color: colors.primary,
     fontWeight: '700',
-    fontSize: 16,
+    fontSize: 13,
+  },
+  advancedWrap: {
+    marginTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.sm,
+  },
+  advancedNote: {
+    marginTop: spacing.sm,
+    color: colors.textSecondary,
+    fontSize: 12,
+    ...typography.body,
   },
 });
