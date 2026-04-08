@@ -3,6 +3,7 @@ import React, { useMemo, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNotifications, useNutrition } from '../hooks';
 import { SCREENS, trackAppError, trackEvent } from '../utils/analytics';
 import { AnimatedToast, AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
@@ -10,6 +11,7 @@ import { colors, spacing } from '../theme';
 
 const FAVORITES_STORAGE_KEY = 'nutrition.favorite.foods.v1';
 const SHOW_PHOTO_BETA = false;
+const SHOW_ADVANCED_NUTRITION = false;
 
 export default function NutritionScanner({ navigation, route }) {
   const {
@@ -74,7 +76,7 @@ export default function NutritionScanner({ navigation, route }) {
     }
   };
 
-  const COMMON_QUICK_ADDS = ['+2 ovos', '+150g frango', '+1 pao', '+1 whey'];
+  const COMMON_QUICK_ADDS = ['+2 ovos', '+150g frango', '+1 pão', '+1 whey'];
 
   React.useEffect(() => {
     const loadFavorites = async () => {
@@ -648,10 +650,64 @@ export default function NutritionScanner({ navigation, route }) {
   };
 
   return (
-    <View style={styles.screen}>
+    <SafeAreaView style={styles.screen} edges={['top']}>
       <AnimatedToast message={toastMessage} onHide={() => setToastMessage('')} />
       <ScrollView testID="screen-nutricao" contentContainerStyle={styles.container}>
-      <ScreenHeader title="Nutricao" subtitle="Registre refeicoes com horario. Texto e foto ficam como apoio." />
+      <ScreenHeader title="Nutricao" subtitle="Registre refeições com horario. Texto e foto ficam como apoio." />
+
+      <AppCard style={styles.card}>
+        <Text style={styles.cardTitle}>Registrar refeição em 5 segundos</Text>
+        <Text style={styles.feedbackText}>O que você comeu?</Text>
+        <TextInput
+          testID="input-alimento-nome"
+          value={quickMealText}
+          onChangeText={setQuickMealText}
+          placeholder="Ex: arroz + frango + feijão"
+          placeholderTextColor="#8AA2C7"
+          style={styles.searchInput}
+        />
+        <View style={styles.chipsWrap}>
+          {COMMON_QUICK_ADDS.map((entry) => (
+            <TouchableOpacity key={`quick-add-${entry}`} style={styles.chipAction} onPress={() => appendQuickFragment(entry.replace(/^\+/, ''))}>
+              <Text style={styles.chipActionText}>{entry}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <View style={styles.chipsWrap}>
+          {quickAutocomplete.map((food) => (
+            <TouchableOpacity key={`auto-${food.key}`} style={styles.chipAction} onPress={() => applyAutocompleteToQuickText(food.label)}>
+              <Text style={styles.chipActionText}>{food.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <PrimaryButton testID="btn-adicionar-alimento" title="Montar refeição" onPress={buildQuickMeal} style={styles.primaryButton} />
+        <Text style={styles.gapHint}>Proteína hoje: {Math.round(todayProtein)}g • faltam {proteinGapToday}g</Text>
+
+        {quickMealItems.length ? (
+          <View style={styles.quickPreviewWrap}>
+            {quickMealItems.map((item) => (
+              <View key={item.id} style={styles.quickItemRow}>
+                <View style={styles.quickItemLeft}>
+                  <Text style={styles.logTitle}>{item.label}</Text>
+                  <Text style={styles.logMeta}>{item.quantity}x • {item.calories} kcal | P {item.protein}g | C {item.carbs}g | G {item.fats}g</Text>
+                </View>
+                <Text style={[styles.categoryBadge, item.category === 'proteina' ? styles.categoryProtein : item.category === 'carbo' ? styles.categoryCarb : styles.categoryFat]}>
+                  {item.category}
+                </Text>
+              </View>
+            ))}
+
+            <Text style={styles.logMeta}>
+              Total: {Math.round(quickMealTotals.calories)} kcal | P {Math.round(quickMealTotals.protein)}g | C {Math.round(quickMealTotals.carbs)}g | G {Math.round(quickMealTotals.fats)}g
+            </Text>
+
+            <PrimaryButton testID="btn-salvar-alimento" title="Salvar refeição" onPress={saveQuickMeal} style={styles.primaryButton} />
+          </View>
+        ) : null}
+        {foodSavedIndicatorVisible ? (
+          <Text testID="alimento-salvo-indicator" style={styles.mealFeedback}>Alimento salvo</Text>
+        ) : null}
+      </AppCard>
 
       <AppCard style={styles.card}>
         <Text style={styles.cardTitle}>Coach nutricional do dia</Text>
@@ -663,6 +719,27 @@ export default function NutritionScanner({ navigation, route }) {
         <Text style={styles.feedbackSuggestion}>{nutritionFeedback?.suggestion || ''}</Text>
       </AppCard>
 
+      <AppCard style={styles.card}>
+        <Text style={styles.cardTitle}>Hoje</Text>
+        <Text testID="calorias-total" style={styles.logMeta}>{Math.round(todayCalories)} kcal</Text>
+        {mealFeedback ? <Text style={styles.mealFeedback}>{mealFeedback}</Text> : null}
+        {todayFoodLog.length === 0 ? <Text style={styles.emptyLine}>Nenhum registro ainda.</Text> : null}
+        {todayFoodLog.slice(0, 8).map((item) => (
+          <View key={item.id} style={styles.logRow}>
+            <View>
+              <Text style={styles.logTitle}>{item.loggedAt} · {item.label}</Text>
+              <Text style={styles.logMeta}>{item.calories} kcal | P {item.protein}g</Text>
+              <Text style={styles.mealBadge}>{item.quality?.emoji || '🟡'} {item.quality?.badge || 'Ok'}</Text>
+            </View>
+            <TouchableOpacity onPress={() => removeFoodLogEntry(item.id)}>
+              <Text style={styles.removeText}>Remover</Text>
+            </TouchableOpacity>
+          </View>
+        ))}
+      </AppCard>
+
+      {SHOW_ADVANCED_NUTRITION ? (
+      <>
       <AppCard style={styles.card}>
         <Text style={styles.cardTitle}>Top fuel da semana</Text>
         <Text style={styles.foodsSummaryMeta}>
@@ -710,59 +787,6 @@ export default function NutritionScanner({ navigation, route }) {
           {recoveryInsight?.title || 'Insight indisponível'}
         </Text>
         <Text style={styles.crossInsightText}>{recoveryInsight?.message || ''}</Text>
-      </AppCard>
-
-      <AppCard style={styles.card}>
-        <Text style={styles.cardTitle}>Registro rapido (chat-first)</Text>
-        <TextInput
-          testID="input-alimento-nome"
-          value={quickMealText}
-          onChangeText={setQuickMealText}
-          placeholder="Ex: 2 ovos + 150g frango + arroz"
-          placeholderTextColor="#8AA2C7"
-          style={styles.searchInput}
-        />
-        <View style={styles.chipsWrap}>
-          {COMMON_QUICK_ADDS.map((entry) => (
-            <TouchableOpacity key={`quick-add-${entry}`} style={styles.chipAction} onPress={() => appendQuickFragment(entry.replace(/^\+/, ''))}>
-              <Text style={styles.chipActionText}>{entry}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-        <View style={styles.chipsWrap}>
-          {quickAutocomplete.map((food) => (
-            <TouchableOpacity key={`auto-${food.key}`} style={styles.chipAction} onPress={() => applyAutocompleteToQuickText(food.label)}>
-              <Text style={styles.chipActionText}>{food.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-        <PrimaryButton testID="btn-adicionar-alimento" title="Montar refeicao" onPress={buildQuickMeal} style={styles.primaryButton} />
-        <Text style={styles.gapHint}>Proteina hoje: {Math.round(todayProtein)}g • faltam {proteinGapToday}g</Text>
-
-        {quickMealItems.length ? (
-          <View style={styles.quickPreviewWrap}>
-            {quickMealItems.map((item) => (
-              <View key={item.id} style={styles.quickItemRow}>
-                <View style={styles.quickItemLeft}>
-                  <Text style={styles.logTitle}>{item.label}</Text>
-                  <Text style={styles.logMeta}>{item.quantity}x • {item.calories} kcal | P {item.protein}g | C {item.carbs}g | G {item.fats}g</Text>
-                </View>
-                <Text style={[styles.categoryBadge, item.category === 'proteina' ? styles.categoryProtein : item.category === 'carbo' ? styles.categoryCarb : styles.categoryFat]}>
-                  {item.category}
-                </Text>
-              </View>
-            ))}
-
-            <Text style={styles.logMeta}>
-              Total: {Math.round(quickMealTotals.calories)} kcal | P {Math.round(quickMealTotals.protein)}g | C {Math.round(quickMealTotals.carbs)}g | G {Math.round(quickMealTotals.fats)}g
-            </Text>
-
-            <PrimaryButton testID="btn-salvar-alimento" title="Salvar refeicao" onPress={saveQuickMeal} style={styles.primaryButton} />
-          </View>
-        ) : null}
-        {foodSavedIndicatorVisible ? (
-          <Text testID="alimento-salvo-indicator" style={styles.mealFeedback}>Alimento salvo</Text>
-        ) : null}
       </AppCard>
 
       <AppCard style={styles.card}>
@@ -857,26 +881,7 @@ export default function NutritionScanner({ navigation, route }) {
           Totais: {Math.round(mealDraftTotals.calories)} kcal | P {Math.round(mealDraftTotals.protein)}g | C {Math.round(mealDraftTotals.carbs)}g | G {Math.round(mealDraftTotals.fats)}g
         </Text>
 
-        <PrimaryButton testID="btn-save-meal" title="Salvar refeicao" onPress={saveMealDraft} style={styles.primaryButton} />
-      </AppCard>
-
-      <AppCard style={styles.card}>
-        <Text style={styles.cardTitle}>Hoje</Text>
-        <Text testID="calorias-total" style={styles.logMeta}>{Math.round(todayCalories)} kcal</Text>
-        {mealFeedback ? <Text style={styles.mealFeedback}>{mealFeedback}</Text> : null}
-        {todayFoodLog.length === 0 ? <Text style={styles.emptyLine}>Nenhum registro ainda.</Text> : null}
-        {todayFoodLog.slice(0, 8).map((item) => (
-          <View key={item.id} style={styles.logRow}>
-            <View>
-              <Text style={styles.logTitle}>{item.loggedAt} · {item.label}</Text>
-              <Text style={styles.logMeta}>{item.calories} kcal | P {item.protein}g</Text>
-              <Text style={styles.mealBadge}>{item.quality?.emoji || '🟡'} {item.quality?.badge || 'Ok'}</Text>
-            </View>
-            <TouchableOpacity onPress={() => removeFoodLogEntry(item.id)}>
-              <Text style={styles.removeText}>Remover</Text>
-            </TouchableOpacity>
-          </View>
-        ))}
+        <PrimaryButton testID="btn-save-meal" title="Salvar refeição" onPress={saveMealDraft} style={styles.primaryButton} />
       </AppCard>
 
       <AppCard style={styles.card}>
@@ -885,7 +890,7 @@ export default function NutritionScanner({ navigation, route }) {
           testID="text-input-food"
           value={manualText}
           onChangeText={setManualText}
-          placeholder="Digite alimentos e quantidades (ex: 1 pao, 2 ovos, 100g frango)"
+          placeholder="Digite alimentos e quantidades (ex: 1 pão, 2 ovos, 100g frango)"
           placeholderTextColor="#8AA2C7"
           multiline
           style={styles.inputArea}
@@ -1010,8 +1015,10 @@ export default function NutritionScanner({ navigation, route }) {
           ) : null}
         </AppCard>
       ) : null}
+      </>
+      ) : null}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -1022,7 +1029,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flexGrow: 1,
-    paddingTop: 56,
+    paddingTop: spacing.md,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xl,
   },

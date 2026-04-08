@@ -1,13 +1,14 @@
 export const colors = {
-  background: '#0F1115',
-  card: '#1A1D23',
-  border: '#2A2F38',
+  background: '#0B0B0F',
+  card: '#15151C',
+  border: '#1F1F27',
 
-  primary: '#4ADE80',
+  primary: '#22C55E',
   secondary: '#3B82F6',
 
+  text: '#FFFFFF',
   textPrimary: '#FFFFFF',
-  textSecondary: '#A1A1AA',
+  textSecondary: '#9CA3AF',
 
   success: '#22C55E',
   warning: '#FACC15',

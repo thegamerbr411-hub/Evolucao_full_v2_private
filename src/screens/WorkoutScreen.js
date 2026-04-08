@@ -12,10 +12,13 @@ import {
   Vibration,
   View,
 } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNotifications, useNutrition, useWorkout } from '../hooks';
 import { getCanonicalExerciseId, getCanonicalMuscleGroup } from '../data/exerciseDatabase';
 import { SCREENS, trackAppError, trackEvent } from '../utils/analytics';
+import { calculate1RM, calculateSRPE, calculateVolume, getProgression } from '../services/performanceEngine';
 import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { colors, spacing } from '../theme';
 
@@ -52,6 +55,9 @@ function SetField({ value, onChangeText, placeholder, inputRef, testID }) {
 const RPE_CHIPS = ['7', '8', '9', '10'];
 const SPARKLINE_WIDTH = 230;
 const SPARKLINE_HEIGHT = 58;
+const WORKOUT_DRAFTS_STORAGE_KEY = '@workout:draft-sets-v1';
+const WORKOUT_SET_COUNT_STORAGE_KEY = '@workout:set-count-v1';
+const WORKOUT_REST_END_STORAGE_KEY = '@workout:rest-timer-end-v1';
 
 function buildSparklinePoints(values = [], width = SPARKLINE_WIDTH, height = SPARKLINE_HEIGHT) {
   const safeValues = Array.isArray(values) ? values.map((entry) => Number(entry || 0)) : [];
@@ -111,6 +117,7 @@ export default function WorkoutScreen({ navigation }) {
   const [restPreset, setRestPreset] = useState(60);
   const [restSeconds, setRestSeconds] = useState(0);
   const [restRunning, setRestRunning] = useState(false);
+  const [restEndAt, setRestEndAt] = useState(null);
   const [restDoneMessage, setRestDoneMessage] = useState('');
   const [xpFeedback, setXpFeedback] = useState('');
   const [newExerciseName, setNewExerciseName] = useState('');
@@ -123,6 +130,7 @@ export default function WorkoutScreen({ navigation }) {
   const [showSubstitutePicker, setShowSubstitutePicker] = useState(false);
   const [actionFeedback, setActionFeedback] = useState('');
   const [saveSuccessVisible, setSaveSuccessVisible] = useState(false);
+  const [setSpeedStats, setSetSpeedStats] = useState({ avgMs: 0, lastMs: 0, count: 0 });
 
   const postWorkoutNutritionFeedback = getNutritionFeedback({ trainedToday: true });
 
@@ -153,14 +161,145 @@ export default function WorkoutScreen({ navigation }) {
   const scrollRef = useRef(null);
   const exercisePositionsRef = useRef({});
   const setFieldRefs = useRef({});
+  const setInteractionStartRef = useRef({});
   const postWorkoutTriggeredRef = useRef(false);
   const lastCountdownTickRef = useRef(null);
   const sessionStartXpRef = useRef(null);
   const actionFeedbackAnim = useRef(new Animated.Value(0)).current;
+  const rowPulseAnim = useRef(new Animated.Value(0)).current;
+  const didHydrateWorkoutDraftsRef = useRef(false);
+  const sessionStartedAtRef = useRef(Date.now());
 
   useEffect(() => {
     prepareTodayWorkoutTargets();
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const hydrateWorkoutDrafts = async () => {
+      try {
+        const [draftRaw, setCountRaw] = await Promise.all([
+          AsyncStorage.getItem(WORKOUT_DRAFTS_STORAGE_KEY),
+          AsyncStorage.getItem(WORKOUT_SET_COUNT_STORAGE_KEY),
+        ]);
+
+        if (!isMounted) {
+          return;
+        }
+
+        if (draftRaw) {
+          const parsedDrafts = JSON.parse(draftRaw);
+          if (parsedDrafts && typeof parsedDrafts === 'object') {
+            setDraftSetsByExercise((prev) => ({ ...prev, ...parsedDrafts }));
+          }
+        }
+
+        if (setCountRaw) {
+          const parsedSetCount = JSON.parse(setCountRaw);
+          if (parsedSetCount && typeof parsedSetCount === 'object') {
+            setSetCountByExercise((prev) => ({ ...prev, ...parsedSetCount }));
+          }
+        }
+      } catch (error) {
+        trackAppError(error, {
+          screen: SCREENS.WORKOUT,
+          action: 'hydrateWorkoutDrafts',
+        });
+      } finally {
+        didHydrateWorkoutDraftsRef.current = true;
+      }
+    };
+
+    hydrateWorkoutDrafts();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const hydrateRestTimer = async () => {
+      try {
+        const endRaw = await AsyncStorage.getItem(WORKOUT_REST_END_STORAGE_KEY);
+        if (!isMounted || !endRaw) {
+          return;
+        }
+
+        const parsedEnd = Number(endRaw);
+        if (!Number.isFinite(parsedEnd)) {
+          return;
+        }
+
+        const remainingSeconds = Math.max(0, Math.ceil((parsedEnd - Date.now()) / 1000));
+        if (remainingSeconds > 0) {
+          setRestEndAt(parsedEnd);
+          setRestSeconds(remainingSeconds);
+          setRestRunning(true);
+        } else {
+          await AsyncStorage.removeItem(WORKOUT_REST_END_STORAGE_KEY);
+        }
+      } catch (error) {
+        trackAppError(error, {
+          screen: SCREENS.WORKOUT,
+          action: 'hydrateRestTimer',
+        });
+      }
+    };
+
+    hydrateRestTimer();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (restRunning && restEndAt) {
+      AsyncStorage.setItem(WORKOUT_REST_END_STORAGE_KEY, String(restEndAt)).catch((error) => {
+        trackAppError(error, {
+          screen: SCREENS.WORKOUT,
+          action: 'persistRestTimerEnd',
+        });
+      });
+      return;
+    }
+
+    AsyncStorage.removeItem(WORKOUT_REST_END_STORAGE_KEY).catch((error) => {
+      trackAppError(error, {
+        screen: SCREENS.WORKOUT,
+        action: 'clearRestTimerEnd',
+      });
+    });
+  }, [restRunning, restEndAt]);
+
+  useEffect(() => {
+    if (!didHydrateWorkoutDraftsRef.current) {
+      return;
+    }
+
+    AsyncStorage.setItem(WORKOUT_DRAFTS_STORAGE_KEY, JSON.stringify(draftSetsByExercise)).catch((error) => {
+      trackAppError(error, {
+        screen: SCREENS.WORKOUT,
+        action: 'persistDraftSetsByExercise',
+      });
+    });
+  }, [draftSetsByExercise]);
+
+  useEffect(() => {
+    if (!didHydrateWorkoutDraftsRef.current) {
+      return;
+    }
+
+    AsyncStorage.setItem(WORKOUT_SET_COUNT_STORAGE_KEY, JSON.stringify(setCountByExercise)).catch((error) => {
+      trackAppError(error, {
+        screen: SCREENS.WORKOUT,
+        action: 'persistSetCountByExercise',
+      });
+    });
+  }, [setCountByExercise]);
 
   useEffect(() => {
     setSessionBaseExercises(baseExercises.map((item) => ({ ...item })));
@@ -225,31 +364,34 @@ export default function WorkoutScreen({ navigation }) {
   };
 
   useEffect(() => {
-    if (!restRunning) {
+    if (!restRunning || !restEndAt) {
       lastCountdownTickRef.current = null;
       return;
     }
 
-    if (restSeconds <= 0) {
-      setRestRunning(false);
-      lastCountdownTickRef.current = null;
-      Vibration.vibrate(500);
-      setRestDoneMessage('Descanso concluido. Proxima serie liberada.');
-      return;
-    }
+    const updateCountdown = () => {
+      const remaining = Math.max(0, Math.ceil((restEndAt - Date.now()) / 1000));
+      setRestSeconds(remaining);
 
-    // Ultimos 5s com pulso haptico para reforcar retorno ao set.
-    if (restSeconds <= 5 && lastCountdownTickRef.current !== restSeconds) {
-      lastCountdownTickRef.current = restSeconds;
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
+      if (remaining <= 0) {
+        setRestRunning(false);
+        setRestEndAt(null);
+        lastCountdownTickRef.current = null;
+        Vibration.vibrate(500);
+        setRestDoneMessage('Descanso concluido. Proxima serie liberada.');
+        return;
+      }
 
-    const timeoutId = setTimeout(() => {
-      setRestSeconds((prev) => Math.max(0, prev - 1));
-    }, 1000);
+      if (remaining <= 5 && lastCountdownTickRef.current !== remaining) {
+        lastCountdownTickRef.current = remaining;
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+    };
 
-    return () => clearTimeout(timeoutId);
-  }, [restRunning, restSeconds]);
+    updateCountdown();
+    const intervalId = setInterval(updateCountdown, 1000);
+    return () => clearInterval(intervalId);
+  }, [restRunning, restEndAt]);
 
   useEffect(() => {
     if (!restDoneMessage) {
@@ -427,6 +569,7 @@ export default function WorkoutScreen({ navigation }) {
   }, [allExercises, suggestedWeightByExercise, lastSetByExercise]);
 
   const getSetFieldKey = (exerciseName, setIndex, field) => `${exerciseName}-${setIndex}-${field}`;
+  const getSetInteractionKey = (exerciseName, setIndex) => `${exerciseName}::${setIndex}`;
 
   const focusSetField = (exerciseName, setIndex, field = 'weight') => {
     const key = getSetFieldKey(exerciseName, setIndex, field);
@@ -465,22 +608,33 @@ export default function WorkoutScreen({ navigation }) {
   };
 
   const startRestTimer = (seconds = restPreset) => {
+    const safeSeconds = Math.max(1, Number(seconds || 0));
     Vibration.vibrate(80);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setRestSeconds(seconds);
+    setRestSeconds(safeSeconds);
+    setRestEndAt(Date.now() + safeSeconds * 1000);
     setRestRunning(true);
   };
 
   const skipRest = () => {
     setRestRunning(false);
     setRestSeconds(0);
+    setRestEndAt(null);
   };
 
   const extendRestByThirty = () => {
-    setRestSeconds((prev) => Math.max(0, Number(prev || 0)) + 30);
+    const baseEnd = Number(restEndAt || Date.now());
+    const nextEnd = baseEnd + 30000;
+    setRestEndAt(nextEnd);
+    setRestSeconds(Math.max(0, Math.ceil((nextEnd - Date.now()) / 1000)));
   };
 
   const setDraftField = (exerciseName, setIndex, field, value) => {
+    const interactionKey = getSetInteractionKey(exerciseName, setIndex);
+    if (!setInteractionStartRef.current[interactionKey]) {
+      setInteractionStartRef.current[interactionKey] = Date.now();
+    }
+
     setDraftSetsByExercise((prev) => {
       const currentRows = prev[exerciseName] || [];
       const rows = currentRows.map((row, idx) =>
@@ -516,6 +670,7 @@ export default function WorkoutScreen({ navigation }) {
   };
 
   const saveSetLine = (exercise, exerciseIndex, setIndex) => {
+    const saveStartAt = Date.now();
     const plannedSets = Number(setCountByExercise[exercise.name] || exercise.sets || 3);
     const todaySets = workoutLogs
       .filter((item) => item.date === todayKey && isSameExerciseLog(item, exercise.name) && (item.mode || 'guided') !== 'free');
@@ -546,6 +701,31 @@ export default function WorkoutScreen({ navigation }) {
       return;
     }
 
+    const interactionKey = getSetInteractionKey(exercise.name, setIndex);
+    const interactionStartedAt = Number(setInteractionStartRef.current[interactionKey] || saveStartAt);
+    const tapToSaveMs = Math.max(0, saveStartAt - interactionStartedAt);
+    const saveDurationMs = Math.max(0, Date.now() - saveStartAt);
+    delete setInteractionStartRef.current[interactionKey];
+
+    trackEvent('set_logged', {
+      time: saveDurationMs,
+      tapToSaveMs,
+      setIndex: setIndex + 1,
+      exerciseName: exercise.name,
+      mode: 'guided',
+    });
+
+    setSetSpeedStats((prev) => {
+      const prevCount = Number(prev.count || 0);
+      const nextCount = prevCount + 1;
+      const nextAvg = ((Number(prev.avgMs || 0) * prevCount) + tapToSaveMs) / nextCount;
+      return {
+        avgMs: Math.round(nextAvg),
+        lastMs: tapToSaveMs,
+        count: nextCount,
+      };
+    });
+
     setSaveSuccessVisible(true);
     setTimeout(() => setSaveSuccessVisible(false), 1800);
 
@@ -566,7 +746,19 @@ export default function WorkoutScreen({ navigation }) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     setSavedSetPulseKey(`${exercise.name}-${setIndex}`);
-    setTimeout(() => setSavedSetPulseKey(''), 500);
+    rowPulseAnim.setValue(0);
+    Animated.sequence([
+      Animated.timing(rowPulseAnim, {
+        toValue: 1,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+      Animated.timing(rowPulseAnim, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+    ]).start(() => setSavedSetPulseKey(''));
 
     startRestTimer();
 
@@ -627,12 +819,21 @@ export default function WorkoutScreen({ navigation }) {
       };
     });
 
+    setInteractionStartRef.current[getSetInteractionKey(exerciseName, setIndex)] = Date.now();
+
     setTimeout(() => {
       focusSetField(exerciseName, setIndex, 'weight');
     }, 60);
   };
 
   const addSetToExercise = (exerciseName) => {
+    const exercise = allExercises.find((item) => item.name === exerciseName);
+    const lastSet = getLastSetForExercise(exerciseName);
+    const suggestedWeight = String(suggestedWeightByExercise[exerciseName] || '');
+    const defaultReps = String(lastSet?.reps || inferRepTarget(exercise));
+    const defaultWeight = String(lastSet?.weight || suggestedWeight || '');
+    const defaultRpe = String(lastSet?.rpe || '8');
+
     setSetCountByExercise((prev) => ({
       ...prev,
       [exerciseName]: Number(prev[exerciseName] || 0) + 1,
@@ -642,7 +843,11 @@ export default function WorkoutScreen({ navigation }) {
       ...prev,
       [exerciseName]: [
         ...(prev[exerciseName] || []),
-        { weight: '', reps: '', rpe: '8' },
+        {
+          weight: defaultWeight,
+          reps: defaultReps,
+          rpe: defaultRpe,
+        },
       ],
     }));
   };
@@ -805,11 +1010,20 @@ export default function WorkoutScreen({ navigation }) {
     const todaySessionLogs = workoutLogs.filter((item) => item.date === todayKey && (item.mode || 'guided') !== 'free');
     const todaySets = todaySessionLogs.length;
     const exerciseCount = new Set(todaySessionLogs.map((item) => item.exerciseName)).size;
-    const totalVolume = todaySessionLogs.reduce((acc, item) => acc + (Number(item.weight || 0) * Number(item.reps || 0)), 0);
+    const totalVolume = calculateVolume(todaySessionLogs);
     const sessionXp = Math.max(0, Number(gamification.xp || 0) - Number(sessionStartXpRef.current || 0));
+    const sessionDurationMinutes = Math.max(1, Math.round((Date.now() - Number(sessionStartedAtRef.current || Date.now())) / 60000));
+    const avgRpe = todaySessionLogs.length
+      ? todaySessionLogs.reduce((acc, item) => acc + Number(item.rpe || 0), 0) / todaySessionLogs.length
+      : 0;
+    const sRpeLoad = Math.round(calculateSRPE(avgRpe, sessionDurationMinutes));
+    const topSet = todaySessionLogs
+      .slice()
+      .sort((a, b) => Number(b.weight || 0) - Number(a.weight || 0))[0] || null;
+    const estimated1RM = topSet ? Math.round(calculate1RM(topSet.weight, topSet.reps)) : 0;
     const currentWorkout = {
       totalSets: todaySets,
-      totalLoad: todaySessionLogs.reduce((acc, item) => acc + (Number(item.weight || 0) * Number(item.reps || 0)), 0),
+      totalLoad: totalVolume,
     };
 
     const previousDates = Array.from(new Set(
@@ -825,19 +1039,34 @@ export default function WorkoutScreen({ navigation }) {
     const previousWorkout = previousDate
       ? {
           totalSets: previousLogs.length,
-          totalLoad: previousLogs.reduce((acc, item) => acc + (Number(item.weight || 0) * Number(item.reps || 0)), 0),
+          totalLoad: calculateVolume(previousLogs),
         }
       : null;
+
+    const previousVolume = Number(previousWorkout?.totalLoad || 0);
+    const volumeChangePct = previousVolume > 0
+      ? Math.round(((totalVolume - previousVolume) / previousVolume) * 100)
+      : 0;
 
     const delta = getWorkoutDelta(currentWorkout, previousWorkout);
 
     trackEvent('workout_finish_manual', { guidedSets: todaySets, plannedSets: summary.plannedSets });
+    trackEvent('workout_completed', {
+      guidedSets: todaySets,
+      plannedSets: summary.plannedSets,
+      totalVolume,
+      exerciseCount,
+    });
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setWorkoutSummary({
       ...(delta || { setsDiff: 0, loadDiff: 0 }),
       totalSets: todaySets,
       exerciseCount,
       totalVolume,
+      estimated1RM,
+      sRpeLoad,
+      sessionDurationMinutes,
+      volumeChangePct,
       sessionXp,
     });
     setShowWorkoutSummary(true);
@@ -880,6 +1109,23 @@ export default function WorkoutScreen({ navigation }) {
         </View>
       ) : null}
 
+      {restRunning ? (
+        <View testID="rest-timer-floating" style={styles.restFloatingCard}>
+          <Text style={styles.restFloatingLabel}>Descanso</Text>
+          <Text style={[styles.restFloatingValue, restSeconds <= 15 ? styles.restFloatingValueDanger : null]}>
+            {formatTimer(restSeconds)}
+          </Text>
+          <View style={styles.restFloatingActions}>
+            <TouchableOpacity style={styles.restFloatingSecondary} onPress={extendRestByThirty}>
+              <Text style={styles.restFloatingSecondaryText}>+30s</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.restFloatingDanger} onPress={skipRest}>
+              <Text style={styles.restFloatingDangerText}>Pular</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : null}
+
       <ScrollView
         testID="screen-workout"
         ref={scrollRef}
@@ -893,6 +1139,15 @@ export default function WorkoutScreen({ navigation }) {
           <Text style={styles.metaText}>{summary.guidedSets}/{summary.plannedSets || 0} series</Text>
           <Text style={styles.metaText}>Nivel {gamification.level} · XP {gamification.xp}</Text>
         </View>
+
+        {setSpeedStats.count > 0 ? (
+          <View style={styles.uxSpeedWrap}>
+            <Text style={styles.uxSpeedLabel}>Tempo medio por serie: {setSpeedStats.avgMs}ms</Text>
+            <Text style={setSpeedStats.avgMs < 4000 ? styles.uxSpeedGood : styles.uxSpeedWarn}>
+              {setSpeedStats.avgMs < 4000 ? 'Rapido ⚡ meta <4s' : 'Lento • ajuste para <4s'}
+            </Text>
+          </View>
+        ) : null}
 
         <View style={styles.progressHeaderWrap}>
           <Text style={styles.progressHeaderText}>Treino: {Math.round(Number(summary.completionRate || 0) * 100)}% concluido</Text>
@@ -927,29 +1182,6 @@ export default function WorkoutScreen({ navigation }) {
           >
             <Text style={styles.actionToastText}>{actionFeedback}</Text>
           </Animated.View>
-        ) : null}
-
-        {restRunning ? (
-          <View style={styles.restBanner}>
-            <Text style={styles.restBannerLabel}>DESCANSO - {activeExercise?.name || 'TREINO'}</Text>
-            <Text
-              style={[
-                styles.restBannerTimer,
-                restSeconds <= 15 ? styles.restBannerTimerDanger : null,
-                restSeconds % 2 === 0 ? styles.restBannerTimerPulse : null,
-              ]}
-            >
-              {formatTimer(restSeconds)}
-            </Text>
-            <View style={styles.restActionsRow}>
-              <TouchableOpacity style={styles.extendRestButton} onPress={extendRestByThirty}>
-                <Text style={styles.extendRestText}>+30s</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.skipButton} onPress={skipRest}>
-                <Text style={styles.skipButtonText}>Pular descanso</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
         ) : null}
 
         {xpFeedback ? <Text style={styles.xpFeedback}>{xpFeedback}</Text> : null}
@@ -1145,39 +1377,59 @@ export default function WorkoutScreen({ navigation }) {
                 const suggestedWeight = suggestedWeightByExercise[exercise.name] || '';
 
                 return (
-                  <View
+                  <Animated.View
                     key={`${exercise.id}-set-${setIndex}`}
                     style={[
                       styles.setRow,
                       savedSetPulseKey === `${exercise.name}-${setIndex}` ? styles.setRowSavedPulse : null,
+                      savedSetPulseKey === `${exercise.name}-${setIndex}`
+                        ? {
+                            transform: [{
+                              scale: rowPulseAnim.interpolate({
+                                inputRange: [0, 1],
+                                outputRange: [1, 1.02],
+                              }),
+                            }],
+                            opacity: rowPulseAnim.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [1, 0.96],
+                            }),
+                          }
+                        : null,
                     ]}
                   >
                     <Text style={styles.setLabel}>{setIndex + 1}S</Text>
 
                     <View style={styles.setBody}>
                       {saved ? (
-                        <View style={styles.savedSetBox}>
-                          <View style={styles.savedSetCopy}>
-                            <Text style={styles.savedSetText}>{saved.weight}kg x {saved.reps} {saved.rpe ? `@RPE ${saved.rpe}` : ''}</Text>
-                            <Text style={styles.savedSetHint}>Serie salva</Text>
+                        <Swipeable
+                          overshootRight={false}
+                          renderRightActions={() => (
+                            <View style={styles.swipeActionsWrap}>
+                              <TouchableOpacity
+                                testID={isActive && setIndex === 0 ? 'btn-editar-serie' : `btn-editar-serie-${exercise.id}-${setIndex}`}
+                                style={styles.swipeEditBtn}
+                                onPress={() => editSavedSet(exercise.name, setIndex)}
+                              >
+                                <Text style={styles.removeSetBtnText}>Editar</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                testID={isActive && setIndex === 0 ? 'btn-remover-serie' : `btn-remover-serie-${exercise.id}-${setIndex}`}
+                                style={styles.swipeDeleteBtn}
+                                onPress={() => removeSavedSet(exercise.name, setIndex)}
+                              >
+                                <Text style={styles.removeSetBtnText}>Excluir</Text>
+                              </TouchableOpacity>
+                            </View>
+                          )}
+                        >
+                          <View style={styles.savedSetBox}>
+                            <View style={styles.savedSetCopy}>
+                              <Text style={styles.savedSetText}>{saved.weight}kg x {saved.reps} {saved.rpe ? `@RPE ${saved.rpe}` : ''}</Text>
+                              <Text style={styles.savedSetHint}>Serie salva • arraste para editar/remover</Text>
+                            </View>
                           </View>
-                          <View style={styles.savedActionsWrap}>
-                            <TouchableOpacity
-                              testID={isActive && setIndex === 0 ? 'btn-editar-serie' : `btn-editar-serie-${exercise.id}-${setIndex}`}
-                              style={styles.editSetBtn}
-                              onPress={() => editSavedSet(exercise.name, setIndex)}
-                            >
-                              <Text style={styles.removeSetBtnText}>Editar</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              testID={isActive && setIndex === 0 ? 'btn-remover-serie' : `btn-remover-serie-${exercise.id}-${setIndex}`}
-                              style={styles.removeSetBtn}
-                              onPress={() => removeSavedSet(exercise.name, setIndex)}
-                            >
-                              <Text style={styles.removeSetBtnText}>🗑️</Text>
-                            </TouchableOpacity>
-                          </View>
-                        </View>
+                        </Swipeable>
                       ) : (
                         <>
                           <View style={styles.setInputRow}>
@@ -1227,6 +1479,28 @@ export default function WorkoutScreen({ navigation }) {
                                 <Text style={styles.suggestButtonText}>usar {suggestedWeight}kg</Text>
                               </TouchableOpacity>
                             ) : null}
+
+                            {isActive && canSave && lastWeight > 0 ? (
+                              <TouchableOpacity
+                                style={styles.progressionButton}
+                                onPress={() => {
+                                  const targetReps = Number(inferRepTarget(exercise));
+                                  const progressionWeight = getProgression(Number(lastSet?.reps || 0), targetReps, lastWeight).toFixed(1);
+                                  setDraftField(exercise.name, setIndex, 'weight', progressionWeight);
+                                  trackEvent('progression_applied', {
+                                    exerciseName: exercise.name,
+                                    fromWeight: lastWeight,
+                                    toWeight: Number(progressionWeight),
+                                    lastReps: Number(lastSet?.reps || 0),
+                                    targetReps,
+                                  });
+                                }}
+                              >
+                                <Text style={styles.progressionButtonText}>
+                                  meta {getProgression(Number(lastSet?.reps || 0), Number(inferRepTarget(exercise)), lastWeight).toFixed(1)}kg
+                                </Text>
+                              </TouchableOpacity>
+                            ) : null}
                           </View>
 
                           {isActive ? (
@@ -1236,7 +1510,7 @@ export default function WorkoutScreen({ navigation }) {
                                 testID={isActive && setIndex === 0 ? 'btn-salvar-serie' : `btn-salvar-serie-${exercise.id}-${setIndex}`}
                                 onPress={() => canSave && saveSetLine(exercise, exerciseIndex, setIndex)}
                               >
-                                <Text style={styles.inlineBtnText}>Salvar serie</Text>
+                                <Text style={styles.inlineBtnText}>✔ Concluir</Text>
                               </TouchableOpacity>
                               <TouchableOpacity
                                 style={styles.inlineBtnRemove}
@@ -1249,7 +1523,7 @@ export default function WorkoutScreen({ navigation }) {
                         </>
                       )}
                     </View>
-                  </View>
+                  </Animated.View>
                 );
               })}
 
@@ -1333,6 +1607,9 @@ export default function WorkoutScreen({ navigation }) {
             <Text style={styles.summaryLine}>Exercicios: {Number(workoutSummary?.exerciseCount || 0)}</Text>
             <Text style={styles.summaryLine}>Series: {Number(workoutSummary?.totalSets || 0)}</Text>
             <Text style={styles.summaryLine}>Volume: {Math.round(Number(workoutSummary?.totalVolume || 0))}kg</Text>
+            <Text style={styles.summaryLine}>Volume vs ultimo: {Number(workoutSummary?.volumeChangePct || 0)}%</Text>
+            <Text style={styles.summaryLine}>1RM estimado: {Number(workoutSummary?.estimated1RM || 0)}kg</Text>
+            <Text style={styles.summaryLine}>sRPE: {Number(workoutSummary?.sRpeLoad || 0)} ({Number(workoutSummary?.sessionDurationMinutes || 0)}min)</Text>
             <Text style={styles.summaryLine}>+{Number(workoutSummary?.sessionXp || 0)} XP</Text>
             <Text style={styles.summaryLine}>+{Number(workoutSummary?.setsDiff || 0)} series vs ultimo treino</Text>
             <Text style={styles.summaryLine}>+{Number(workoutSummary?.loadDiff || 0)}kg vs ultimo treino</Text>
@@ -1379,6 +1656,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 10,
+  },
+  uxSpeedWrap: {
+    borderWidth: 1,
+    borderColor: '#2F4766',
+    borderRadius: 10,
+    backgroundColor: '#101826',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginBottom: 8,
+  },
+  uxSpeedLabel: {
+    color: '#D3E3FA',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  uxSpeedGood: {
+    color: '#86EFAC',
+    fontSize: 11,
+    fontWeight: '800',
+    marginTop: 2,
+  },
+  uxSpeedWarn: {
+    color: '#FCA5A5',
+    fontSize: 11,
+    fontWeight: '800',
+    marginTop: 2,
   },
   progressHeaderWrap: {
     flexDirection: 'row',
@@ -1862,6 +2165,19 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
   },
+  progressionButton: {
+    borderWidth: 1,
+    borderColor: '#1F7A57',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    backgroundColor: '#123429',
+  },
+  progressionButtonText: {
+    color: '#A7F3D0',
+    fontSize: 11,
+    fontWeight: '800',
+  },
   savedSetBox: {
     flex: 1,
     flexDirection: 'row',
@@ -1900,6 +2216,28 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '800',
+  },
+  swipeActionsWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginLeft: 8,
+  },
+  swipeEditBtn: {
+    borderRadius: 8,
+    backgroundColor: '#1F4D7A',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  swipeDeleteBtn: {
+    borderRadius: 8,
+    backgroundColor: '#7F1D1D',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   savedSetText: {
     color: '#EAF2FF',
@@ -2072,6 +2410,70 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 14,
     backgroundColor: '#DCFCE7',
+  },
+  restFloatingCard: {
+    position: 'absolute',
+    top: 210,
+    right: 16,
+    zIndex: 25,
+    borderWidth: 1,
+    borderColor: '#2F7A5B',
+    backgroundColor: '#123429',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    minWidth: 148,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  restFloatingLabel: {
+    color: '#9DE2C2',
+    fontSize: 10,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  restFloatingValue: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '900',
+    marginTop: 2,
+    marginBottom: 6,
+  },
+  restFloatingValueDanger: {
+    color: '#FCD34D',
+  },
+  restFloatingActions: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  restFloatingSecondary: {
+    flex: 1,
+    backgroundColor: '#1F5D45',
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+  },
+  restFloatingSecondaryText: {
+    color: '#E5F8EE',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  restFloatingDanger: {
+    flex: 1,
+    backgroundColor: '#7F1D1D',
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+  },
+  restFloatingDangerText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
   },
   addExerciseTitle: {
     color: colors.textPrimary,

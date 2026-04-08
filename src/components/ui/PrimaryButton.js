@@ -1,6 +1,6 @@
 import React from 'react';
 import { Animated, StyleSheet, Text, TouchableOpacity } from 'react-native';
-import { colors, radius, spacing } from '../../theme';
+import { colors, radius, spacing, typography } from '../../theme';
 
 export function PrimaryButton({ title, onPress, style, testID }) {
   const scaleAnim = React.useRef(new Animated.Value(1)).current;
@@ -39,10 +39,9 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 48,
+    minHeight: 52,
   },
   text: {
-    color: '#000000',
-    fontWeight: '700',
+    ...typography.cta,
   },
 });
