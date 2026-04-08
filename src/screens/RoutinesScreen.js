@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useApp } from '../context/AppContext';
+import { EXERCISE_NAMES_V2 } from '../data/exerciseLibraryV2';
+import { fuzzySearchExercises } from '../services/fuzzySearch';
 import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { colors, spacing } from '../theme';
 
@@ -24,7 +26,7 @@ function getConfidenceVisual(confidence) {
   return '🔴 baixa';
 }
 
-export default function RoutinesScreen() {
+export default function RoutinesScreen({ navigation }) {
   const {
     profile,
     getTodayWorkout,
@@ -50,28 +52,21 @@ export default function RoutinesScreen() {
   const todayRoutine = useMemo(() => getTodayWorkout(), [getTodayWorkout]);
   const smart = useMemo(() => getSmartWorkoutRecommendation(), [getSmartWorkoutRecommendation]);
   const userRoutines = useMemo(() => getUserRoutines(), [getUserRoutines]);
-  const exerciseCatalog = useMemo(() => getExerciseCatalog(), [getExerciseCatalog]);
+  const exerciseCatalog = useMemo(() => {
+    const base = Array.isArray(getExerciseCatalog()) ? getExerciseCatalog() : [];
+    return Array.from(new Set([...QUICK_EXERCISES, ...EXERCISE_NAMES_V2, ...base]));
+  }, [getExerciseCatalog]);
   const routineTemplates = useMemo(() => getWorkoutTemplates(), [getWorkoutTemplates]);
 
   const filteredCatalog = useMemo(() => {
     const query = normalizeText(exerciseQuery);
-    const mergedCatalog = Array.from(new Set([...QUICK_EXERCISES, ...exerciseCatalog]));
+    const mergedCatalog = exerciseCatalog;
 
     if (!query) {
       return mergedCatalog.slice(0, 12);
     }
 
-    const directMatches = mergedCatalog.filter((item) => {
-      const normalizedItem = normalizeText(item);
-      return normalizedItem.includes(query) || query.includes(normalizedItem);
-    });
-
-    if (query.includes('leg') || query.includes('press')) {
-      const legPressBoost = mergedCatalog.filter((item) => normalizeText(item).includes('leg press'));
-      return Array.from(new Set([...legPressBoost, ...directMatches])).slice(0, 12);
-    }
-
-    return directMatches.slice(0, 12);
+    return fuzzySearchExercises(query, mergedCatalog, 20).slice(0, 12);
   }, [exerciseCatalog, exerciseQuery]);
 
   const addExerciseToBuilder = (exerciseName) => {
@@ -168,8 +163,36 @@ export default function RoutinesScreen() {
     Alert.alert('Rotina salva', 'A recomendacao de hoje foi salva em Minhas Rotinas.');
   };
 
+  const startRoutineNow = (routine) => {
+    const routineExercises = (Array.isArray(routine?.exercises) ? routine.exercises : [])
+      .map((name, index) => ({
+        id: `routine-${String(routine?.id || 'custom')}-${index}`,
+        name: String(name || '').trim(),
+        sets: 3,
+        reps: '8-12',
+        targetWeight: 0,
+      }))
+      .filter((item) => item.name);
+
+    if (!routineExercises.length) {
+      Alert.alert('Rotina vazia', 'Essa rotina nao possui exercicios validos.');
+      return;
+    }
+
+    navigation.navigate('TreinoHoje', {
+      routineName: routine.name,
+      routineExercises,
+      routineSeed: `${routine.id}-${Date.now()}`,
+    });
+  };
+
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.keyboardContainer}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 16 : 0}
+    >
+    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}>
       <ScreenHeader title="Rotinas" subtitle="Controle total: recomendadas e criadas por voce no mesmo padrao." />
 
       <AppCard>
@@ -314,6 +337,9 @@ export default function RoutinesScreen() {
               </View>
             ))}
             <View style={styles.actionsRow}>
+              <TouchableOpacity style={styles.smallButton} onPress={() => startRoutineNow(routine)}>
+                <Text style={styles.smallButtonText}>Iniciar</Text>
+              </TouchableOpacity>
               <TouchableOpacity style={styles.smallButton} onPress={() => loadRoutineToEdit(routine)}>
                 <Text style={styles.smallButtonText}>Editar</Text>
               </TouchableOpacity>
@@ -336,10 +362,15 @@ export default function RoutinesScreen() {
         ))}
       </AppCard>
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  keyboardContainer: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   container: {
     flexGrow: 1,
     backgroundColor: colors.background,

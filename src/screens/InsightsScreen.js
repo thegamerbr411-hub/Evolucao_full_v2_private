@@ -3,10 +3,11 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { AppCard, ScreenHeader } from '../components/ui';
 import { calculateVolume, getDailyPriority } from '../services/performanceEngine';
+import { buildLocalRanking, calculateXpForWorkout, getLevelFromXp } from '../services/gamificationEngine';
 import { colors, spacing } from '../theme';
 
 export default function InsightsScreen() {
-  const { getWeeklyMacroSummary, getRecentHistory, workoutLogs } = useApp();
+  const { getWeeklyMacroSummary, getRecentHistory, workoutLogs, getWorkoutGamification } = useApp();
 
   const macros = useMemo(() => getWeeklyMacroSummary(), [getWeeklyMacroSummary]);
   const history = useMemo(() => getRecentHistory(), [getRecentHistory]);
@@ -80,6 +81,40 @@ export default function InsightsScreen() {
     };
   }, [safeHistory, macros?.macroTargets?.protein]);
 
+  const socialStats = useMemo(() => {
+    const safeLogs = Array.isArray(workoutLogs) ? workoutLogs : [];
+    const myVolume = calculateVolume(safeLogs);
+    const mySets = safeLogs.length;
+    const baseGamification = getWorkoutGamification();
+    const earnedXp = calculateXpForWorkout({
+      sets: mySets,
+      volume: myVolume,
+      hitPr: false,
+      streakDays: Number(baseGamification?.streakDays || 0),
+    });
+    const myXp = Math.max(Number(baseGamification?.xp || 0), earnedXp);
+    const me = {
+      id: 'me',
+      name: 'Voce',
+      xp: myXp,
+      streak: Number(baseGamification?.streakDays || 0),
+    };
+
+    const ranking = buildLocalRanking([
+      me,
+      { id: 'u1', name: 'Leo', xp: myXp + 140, streak: 7 },
+      { id: 'u2', name: 'Ana', xp: Math.max(0, myXp - 80), streak: 5 },
+      { id: 'u3', name: 'Bia', xp: Math.max(0, myXp - 160), streak: 3 },
+    ]);
+
+    return {
+      xp: myXp,
+      level: getLevelFromXp(myXp),
+      streak: Number(baseGamification?.streakDays || 0),
+      ranking,
+    };
+  }, [workoutLogs, getWorkoutGamification]);
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <ScreenHeader title="Insights" subtitle="So o que importa para decidir melhor." />
@@ -115,6 +150,14 @@ export default function InsightsScreen() {
         <Text style={styles.title}>Resumo nutricional rapido</Text>
         <Text style={styles.line}>Proteina media: {macros.avgProtein || 0}g</Text>
         <Text style={styles.line}>Calorias medias: {macros.avgCalories || 0} kcal</Text>
+      </AppCard>
+
+      <AppCard>
+        <Text style={styles.title}>Social + Gamificacao</Text>
+        <Text style={styles.lineStrong}>XP: {socialStats.xp} | Nivel: {socialStats.level} | Streak: {socialStats.streak} dias</Text>
+        {socialStats.ranking.map((user) => (
+          <Text key={user.id} style={styles.line}>#{user.rank} {user.name} • {user.xp} XP • {user.streak} dias</Text>
+        ))}
       </AppCard>
     </ScrollView>
   );

@@ -17,8 +17,10 @@ import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNotifications, useNutrition, useWorkout } from '../hooks';
 import { getCanonicalExerciseId, getCanonicalMuscleGroup } from '../data/exerciseDatabase';
+import { EXERCISE_NAMES_V2, getExerciseMetaByName } from '../data/exerciseLibraryV2';
 import { SCREENS, trackAppError, trackEvent } from '../utils/analytics';
 import { calculate1RM, calculateSRPE, calculateVolume, getProgression } from '../services/performanceEngine';
+import { findBestFuzzyMatch, fuzzySearchExercises } from '../services/fuzzySearch';
 import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { ExerciseCard } from '../components/workout/ExerciseCard';
 import { colors, spacing } from '../theme';
@@ -82,7 +84,42 @@ function buildSparklinePoints(values = [], width = SPARKLINE_WIDTH, height = SPA
   });
 }
 
-export default function WorkoutScreen({ navigation }) {
+function normalizeText(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+function findBestCatalogMatch(catalog = [], query = '') {
+  const normalizedQuery = normalizeText(query);
+  if (!normalizedQuery) {
+    return '';
+  }
+
+  const exact = catalog.find((item) => normalizeText(item) === normalizedQuery);
+  if (exact) {
+    return exact;
+  }
+
+  const includes = catalog.find((item) => normalizeText(item).includes(normalizedQuery) || normalizedQuery.includes(normalizeText(item)));
+  if (includes) {
+    return includes;
+  }
+
+  const tokens = normalizedQuery.split(/\s+/).filter(Boolean);
+  if (!tokens.length) {
+    return '';
+  }
+
+  return catalog.find((item) => {
+    const normalizedItem = normalizeText(item);
+    return tokens.every((token) => normalizedItem.includes(token));
+  }) || '';
+}
+
+export default function WorkoutScreen({ navigation, route }) {
   const {
     getTodayWorkout,
     prepareTodayWorkoutTargets,
@@ -108,7 +145,10 @@ export default function WorkoutScreen({ navigation }) {
   const [sessionBaseExercises, setSessionBaseExercises] = useState([]);
   const [customExercises, setCustomExercises] = useState([]);
   const allExercises = useMemo(() => [...sessionBaseExercises, ...customExercises], [sessionBaseExercises, customExercises]);
-  const exerciseCatalog = useMemo(() => getExerciseCatalog(), [getExerciseCatalog]);
+  const exerciseCatalog = useMemo(() => {
+    const baseCatalog = Array.isArray(getExerciseCatalog()) ? getExerciseCatalog() : [];
+    return Array.from(new Set([...baseCatalog, ...EXERCISE_NAMES_V2]));
+  }, [getExerciseCatalog]);
   const summary = useMemo(() => getTodayWorkoutSummary(), [getTodayWorkoutSummary]);
   const gamification = useMemo(() => getWorkoutGamification(), [getWorkoutGamification]);
 
@@ -308,6 +348,37 @@ export default function WorkoutScreen({ navigation }) {
   }, [baseExercises]);
 
   useEffect(() => {
+    const incomingRoutine = Array.isArray(route?.params?.routineExercises)
+      ? route.params.routineExercises
+      : [];
+
+    if (!incomingRoutine.length) {
+      return;
+    }
+
+    const safeRoutine = incomingRoutine
+      .map((item, index) => ({
+        id: String(item?.id || `route-routine-${Date.now()}-${index}`),
+        name: String(item?.name || '').trim(),
+        sets: Math.max(1, Number(item?.sets || 3)),
+        reps: String(item?.reps || '8-12'),
+        targetWeight: Number(item?.targetWeight || 0),
+      }))
+      .filter((item) => item.name);
+
+    if (!safeRoutine.length) {
+      return;
+    }
+
+    setSessionBaseExercises(safeRoutine);
+    setCustomExercises([]);
+    setActiveExerciseIndex(0);
+    setShowWorkoutSummary(false);
+    setShowSubstitutePicker(false);
+    setExerciseQuery('');
+  }, [route?.params?.routineSeed]);
+
+  useEffect(() => {
     setDraftSetsByExercise((prev) => {
       const next = { ...prev };
       let changed = false;
@@ -490,7 +561,7 @@ export default function WorkoutScreen({ navigation }) {
 
   const suggestedExercises = useMemo(() => {
     if (!activeExercise) {
-      return exerciseCatalog.slice(0, 8);
+      return fuzzySearchExercises(exerciseQuery, exerciseCatalog, 20);
     }
 
     const group = inferExerciseGroup(activeExercise.name);
@@ -498,11 +569,7 @@ export default function WorkoutScreen({ navigation }) {
     const related = getFreeWorkoutSuggestions([activeExercise.name]);
     const combined = [...sameGroup, ...related, ...exerciseCatalog];
     const unique = Array.from(new Set(combined));
-    const query = String(exerciseQuery || '').toLowerCase().trim();
-    const filtered = query
-      ? unique.filter((name) => name.toLowerCase().includes(query))
-      : unique;
-    return filtered.slice(0, 10);
+    return fuzzySearchExercises(exerciseQuery, unique, 20);
   }, [activeExercise, exerciseCatalog, getFreeWorkoutSuggestions, getExercisesByMuscleGroup, exerciseQuery]);
 
   const lastSetByExercise = useMemo(() => {
@@ -930,17 +997,18 @@ export default function WorkoutScreen({ navigation }) {
   };
 
   const addExerciseToWorkout = () => {
-    const safeName = String(newExerciseName || '').trim();
+    const typedName = String(newExerciseName || '').trim();
+    const safeName = findBestFuzzyMatch(typedName, exerciseCatalog);
     const sets = Number(newExerciseSets);
     const reps = String(newExerciseReps || '').trim() || '8-12';
 
-    if (!safeName || !sets || sets <= 0) {
+    if (!typedName || !sets || sets <= 0) {
       Alert.alert('Dados invalidos', 'Informe nome e quantidade de series validas para o exercicio.');
       return;
     }
 
     if (!exerciseCatalog.includes(safeName)) {
-      Alert.alert('Escolha da lista', 'Selecione um exercicio existente na lista de sugestoes.');
+      Alert.alert('Exercicio nao encontrado', 'Tente buscar pelo nome aproximado na lista de sugestoes.');
       return;
     }
 
@@ -966,7 +1034,8 @@ export default function WorkoutScreen({ navigation }) {
   };
 
   const replaceActiveExercise = () => {
-    const safeName = String(newExerciseName || '').trim();
+    const typedName = String(newExerciseName || '').trim();
+    const safeName = findBestFuzzyMatch(typedName, exerciseCatalog);
     if (!safeName) {
       Alert.alert('Escolha um exercicio', 'Selecione um exercicio da lista para substituir.');
       return;
@@ -1009,6 +1078,38 @@ export default function WorkoutScreen({ navigation }) {
     setTimeout(() => {
       replaceActiveExercise();
     }, 0);
+  };
+
+  const removeExerciseFromWorkout = (exerciseName) => {
+    const safeName = String(exerciseName || '').trim();
+    if (!safeName) {
+      return;
+    }
+
+    if (allExercises.length <= 1) {
+      Alert.alert('Minimo de exercicios', 'O treino precisa ter ao menos 1 exercicio.');
+      return;
+    }
+
+    if (activeExerciseIndex < sessionBaseExercises.length) {
+      setSessionBaseExercises((prev) => prev.filter((item) => item.name !== safeName));
+    } else {
+      setCustomExercises((prev) => prev.filter((item) => item.name !== safeName));
+    }
+
+    setDraftSetsByExercise((prev) => {
+      const next = { ...prev };
+      delete next[safeName];
+      return next;
+    });
+
+    setSetCountByExercise((prev) => {
+      const next = { ...prev };
+      delete next[safeName];
+      return next;
+    });
+
+    setActiveExerciseIndex((prev) => Math.max(0, prev - 1));
   };
 
   const substituteCandidates = useMemo(() => {
@@ -1311,12 +1412,13 @@ export default function WorkoutScreen({ navigation }) {
             return (
               <ExerciseCard
                 key={exercise.id}
-                exercise={{ name: exercise.name, sets: mergedSets }}
+                exercise={{ name: exercise.name, sets: mergedSets, gif: getExerciseMetaByName(exercise.name)?.gif }}
                 lastSet={lastSetLabel}
                 simpleMode={simpleMode}
                 onChangeSet={handleChangeSet}
                 onCompleteSet={handleCompleteSet}
                 onAddSet={handleAddSet}
+                onRemoveExercise={removeExerciseFromWorkout}
                 testIDs={(index) => ({
                   weight: isActive && index === 0 ? 'input-peso' : `input-peso-${exercise.id}-${index}`,
                   reps: isActive && index === 0 ? 'input-reps' : `input-reps-${exercise.id}-${index}`,
