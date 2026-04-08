@@ -4,6 +4,16 @@ import { useApp } from '../context/AppContext';
 import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { colors, spacing } from '../theme';
 
+const QUICK_EXERCISES = ['Leg Press 45', 'Agachamento Livre', 'Supino Reto', 'Remada Curvada', 'Stiff'];
+
+function normalizeText(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
 function getConfidenceVisual(confidence) {
   if (confidence === 'alta') {
     return '🟢 alta';
@@ -44,14 +54,24 @@ export default function RoutinesScreen() {
   const routineTemplates = useMemo(() => getWorkoutTemplates(), [getWorkoutTemplates]);
 
   const filteredCatalog = useMemo(() => {
-    const query = String(exerciseQuery || '').toLowerCase().trim();
+    const query = normalizeText(exerciseQuery);
+    const mergedCatalog = Array.from(new Set([...QUICK_EXERCISES, ...exerciseCatalog]));
+
     if (!query) {
-      return exerciseCatalog.slice(0, 10);
+      return mergedCatalog.slice(0, 12);
     }
 
-    return exerciseCatalog
-      .filter((item) => String(item || '').toLowerCase().includes(query))
-      .slice(0, 10);
+    const directMatches = mergedCatalog.filter((item) => {
+      const normalizedItem = normalizeText(item);
+      return normalizedItem.includes(query) || query.includes(normalizedItem);
+    });
+
+    if (query.includes('leg') || query.includes('press')) {
+      const legPressBoost = mergedCatalog.filter((item) => normalizeText(item).includes('leg press'));
+      return Array.from(new Set([...legPressBoost, ...directMatches])).slice(0, 12);
+    }
+
+    return directMatches.slice(0, 12);
   }, [exerciseCatalog, exerciseQuery]);
 
   const addExerciseToBuilder = (exerciseName) => {
@@ -190,13 +210,18 @@ export default function RoutinesScreen() {
       <AppCard>
         <Text style={styles.cardTitle}>{editingRoutineId ? 'Editar rotina' : 'Criar rotina manual'}</Text>
 
+        <Text style={styles.stepLabel}>1. Nome da rotina</Text>
+        <Text style={styles.helperText}>Escolha um nome curto: exemplo "Perna A" ou "Upper Forte".</Text>
+
         <TextInput
           value={routineName}
           onChangeText={setRoutineName}
-          placeholder="Nome da rotina"
+          placeholder="Ex: Perna A"
           placeholderTextColor="#8FA5CB"
           style={styles.input}
         />
+
+        <Text style={styles.stepLabel}>2. Frequencia</Text>
 
         <View style={styles.frequencyRow}>
           <TouchableOpacity style={styles.freqButton} onPress={() => setRoutineFrequency((prev) => Math.max(1, prev - 1))}>
@@ -208,14 +233,25 @@ export default function RoutinesScreen() {
           </TouchableOpacity>
         </View>
 
+        <Text style={styles.stepLabel}>3. Exercicios</Text>
+        <Text style={styles.helperText}>Atalhos populares (toque para adicionar rapido):</Text>
+        <View style={styles.chipsWrap}>
+          {QUICK_EXERCISES.map((item) => (
+            <TouchableOpacity key={`quick-${item}`} style={styles.quickChip} onPress={() => addExerciseToBuilder(item)}>
+              <Text style={styles.quickChipText}>{item}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
         <TextInput
           value={exerciseQuery}
           onChangeText={setExerciseQuery}
-          placeholder="Buscar exercicio para adicionar"
+          placeholder="Buscar exercicio (ex: leg press)"
           placeholderTextColor="#8FA5CB"
           style={styles.input}
         />
 
+        {filteredCatalog.length === 0 ? <Text style={styles.empty}>Nenhum exercicio encontrado. Tente "leg press" ou "agachamento".</Text> : null}
         <View style={styles.chipsWrap}>
           {filteredCatalog.map((item) => (
             <TouchableOpacity key={item} style={styles.chip} onPress={() => addExerciseToBuilder(item)}>
@@ -329,6 +365,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 6,
   },
+  stepLabel: {
+    color: colors.textPrimary,
+    fontSize: 12,
+    fontWeight: '800',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+  },
+  helperText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
   line: {
     color: colors.textPrimary,
     fontSize: 13,
@@ -393,6 +442,19 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: 12,
     fontWeight: '700',
+  },
+  quickChip: {
+    borderWidth: 1,
+    borderColor: '#3D8BFF',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: '#11243F',
+  },
+  quickChipText: {
+    color: '#D7E8FF',
+    fontSize: 12,
+    fontWeight: '800',
   },
   blockLabel: {
     color: colors.textSecondary,

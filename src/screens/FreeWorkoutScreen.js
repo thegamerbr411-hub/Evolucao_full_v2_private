@@ -43,12 +43,14 @@ function groupCatalogByCategory(catalog, categoryKey) {
   return list.slice(0, 8);
 }
 
-export default function FreeWorkoutScreen() {
+export default function FreeWorkoutScreen({ navigation }) {
   const {
     saveFreeWorkoutSet,
     getExerciseCatalog,
     getFreeWorkoutSuggestions,
     getExerciseSetProgress,
+    createUserRoutine,
+    profile,
   } = useApp();
 
   const catalog = useMemo(() => getExerciseCatalog(), [getExerciseCatalog]);
@@ -122,6 +124,27 @@ export default function FreeWorkoutScreen() {
     setRestSeconds(0);
   };
 
+  const saveSelectionAsRoutine = () => {
+    if (!selectedExercises.length) {
+      Alert.alert('Sem exercicios', 'Adicione ao menos 1 exercicio para salvar sua rotina.');
+      return;
+    }
+
+    const result = createUserRoutine({
+      name: `Treino livre ${new Date().toLocaleDateString('pt-BR')}`,
+      frequency: Number(profile?.trainingDaysPerWeek || 3),
+      exercises: selectedExercises,
+    });
+
+    if (!result.ok) {
+      Alert.alert('Nao foi possivel salvar', result.message);
+      return;
+    }
+
+    Alert.alert('Rotina criada', 'Seu treino livre foi salvo em Minhas Rotinas.');
+    navigation.navigate('Rotinas');
+  };
+
   const submitSet = (exerciseName, failed) => {
     const values = setData[exerciseName] || { weight: '', reps: '' };
     const result = saveFreeWorkoutSet({
@@ -160,6 +183,10 @@ export default function FreeWorkoutScreen() {
       >
       <Text style={styles.title}>Treino livre</Text>
       <Text style={styles.subtitle}>Escolha exercicios por categoria e registre rapido.</Text>
+
+      <TouchableOpacity style={styles.saveRoutineButton} onPress={saveSelectionAsRoutine}>
+        <Text style={styles.saveRoutineButtonText}>Salvar selecao como rotina</Text>
+      </TouchableOpacity>
 
       <View style={styles.timerBox}>
         <Text style={styles.timerLabel}>Descanso</Text>
@@ -380,6 +407,20 @@ const styles = StyleSheet.create({
   addButtonText: {
     color: '#FFFFFF',
     fontWeight: '800',
+  },
+  saveRoutineButton: {
+    backgroundColor: '#1F7A47',
+    borderWidth: 1,
+    borderColor: '#2D9B61',
+    borderRadius: 10,
+    alignItems: 'center',
+    paddingVertical: 11,
+    marginBottom: 10,
+  },
+  saveRoutineButtonText: {
+    color: '#E7FFF1',
+    fontWeight: '900',
+    fontSize: 13,
   },
   chipsWrap: {
     flexDirection: 'row',

@@ -6,20 +6,11 @@ import { calculateVolume, getDailyPriority } from '../services/performanceEngine
 import { colors, spacing } from '../theme';
 
 export default function InsightsScreen() {
-  const { getWeeklySummary, getWeeklyInsight, getWeeklyMacroSummary, getRecentHistory, workoutLogs } = useApp();
+  const { getWeeklyMacroSummary, getRecentHistory, workoutLogs } = useApp();
 
-  const weekly = useMemo(() => getWeeklySummary(), [getWeeklySummary]);
-  const insight = useMemo(() => getWeeklyInsight(), [getWeeklyInsight]);
   const macros = useMemo(() => getWeeklyMacroSummary(), [getWeeklyMacroSummary]);
   const history = useMemo(() => getRecentHistory(), [getRecentHistory]);
-
-  const todayKey = useMemo(() => {
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = String(now.getMonth() + 1).padStart(2, '0');
-    const d = String(now.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-  }, []);
+  const safeHistory = Array.isArray(history) ? history : [];
 
   const dashboardStats = useMemo(() => {
     const safeLogs = Array.isArray(workoutLogs) ? workoutLogs : [];
@@ -61,7 +52,7 @@ export default function InsightsScreen() {
   }, [workoutLogs]);
 
   const coachLoop = useMemo(() => {
-    const latest = Array.isArray(history) ? history[0] : null;
+    const latest = safeHistory[0] || null;
     const latestTrained = Boolean(latest?.trained);
     const latestProtein = Number(latest?.protein || 0);
     const latestWater = Number(latest?.waterMl || 0);
@@ -87,26 +78,29 @@ export default function InsightsScreen() {
       resultLine,
       priority,
     };
-  }, [history, macros?.macroTargets?.protein]);
+  }, [safeHistory, macros?.macroTargets?.protein]);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <ScreenHeader title="Seu progresso" subtitle="Resumo consolidado da sua semana." />
+      <ScreenHeader title="Insights" subtitle="So o que importa para decidir melhor." />
 
       <AppCard testID="insights-dashboard">
         <Text style={styles.title}>Dashboard da semana</Text>
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
-            <Text style={styles.statLabel}>Volume</Text>
-            <Text style={styles.statValue}>{dashboardStats.weeklyVolume}kg</Text>
+            <Text style={styles.statLabel}>Volume semanal</Text>
+            <Text style={styles.statValue}>{dashboardStats.weeklyVolume.toLocaleString('pt-BR')} kg</Text>
+            <Text style={styles.statHint}>Carga total da semana</Text>
           </View>
           <View style={styles.statItem}>
             <Text style={styles.statLabel}>Forca</Text>
             <Text style={styles.statValue}>{dashboardStats.strengthPct > 0 ? '+' : ''}{dashboardStats.strengthPct}%</Text>
+            <Text style={styles.statHint}>Vs semana anterior</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={styles.statLabel}>Treinos</Text>
-            <Text style={styles.statValue}>{dashboardStats.frequency}x</Text>
+            <Text style={styles.statLabel}>Frequencia</Text>
+            <Text style={styles.statValue}>{dashboardStats.frequency} treinos</Text>
+            <Text style={styles.statHint}>Nesta semana</Text>
           </View>
         </View>
       </AppCard>
@@ -118,34 +112,9 @@ export default function InsightsScreen() {
       </AppCard>
 
       <AppCard>
-        <Text style={styles.title}>Resumo semanal</Text>
-        <Text style={styles.line}>Media calorica: {weekly.averageCalories || 0} kcal</Text>
-        <Text style={styles.line}>Dias treinados: {weekly.trainedDays || 0}</Text>
-        <Text style={styles.line}>Dias fora da meta: {weekly.outOfTargetDays || 0}</Text>
-      </AppCard>
-
-      <AppCard>
-        <Text style={styles.title}>Historico recente</Text>
-        {history.length ? history.slice(0, 5).map((item) => (
-          <View key={item.date} style={styles.row}>
-            <Text style={styles.lineStrong}>{item.date}</Text>
-            <Text style={styles.line}>{item.calories || 0} kcal | P {item.protein || 0}g</Text>
-          </View>
-        )) : <Text style={styles.line}>Nenhum dado recente.</Text>}
-      </AppCard>
-
-      <AppCard>
-        <Text style={styles.title}>Macros</Text>
-        <Text style={styles.line}>Calorias medias: {macros.avgCalories || 0} kcal</Text>
+        <Text style={styles.title}>Resumo nutricional rapido</Text>
         <Text style={styles.line}>Proteina media: {macros.avgProtein || 0}g</Text>
-        <Text style={styles.line}>Carbo medio: {macros.avgCarbs || 0}g</Text>
-        <Text style={styles.line}>Gordura media: {macros.avgFats || 0}g</Text>
-      </AppCard>
-
-      <AppCard>
-        <Text style={styles.title}>Insights IA</Text>
-        <Text style={styles.line}>{insight.diagnosis}</Text>
-        <Text style={styles.line}>{insight.recommendation}</Text>
+        <Text style={styles.line}>Calorias medias: {macros.avgCalories || 0} kcal</Text>
       </AppCard>
     </ScrollView>
   );
@@ -175,9 +144,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
   },
-  row: {
-    marginBottom: spacing.sm,
-  },
   statsRow: {
     flexDirection: 'row',
     gap: spacing.sm,
@@ -202,5 +168,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '900',
     marginTop: 4,
+  },
+  statHint: {
+    marginTop: 4,
+    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '700',
   },
 });

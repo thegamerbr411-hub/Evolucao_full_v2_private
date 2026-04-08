@@ -420,6 +420,9 @@ export default function HomeScreen({ navigation }) {
       </AppCard>
       </Animated.View>
 
+      <View style={styles.secondarySection}>
+      <Text style={styles.secondarySectionTitle}>Resumo do dia</Text>
+
       <Animated.View style={getEntryStyle(1)}>
       <AppCard testID="home-ready">
         <Text style={styles.cardLabel}>Progresso diario</Text>
@@ -551,6 +554,8 @@ export default function HomeScreen({ navigation }) {
       </AppCard>
       </Animated.View>
       ) : null}
+
+      </View>
 
       </ScrollView>
     </SafeAreaView>
@@ -789,5 +794,15 @@ const styles = StyleSheet.create({
     color: '#F8FAFC',
     fontSize: 10,
     fontWeight: '900',
+  },
+  secondarySection: {
+    marginTop: spacing.md,
+  },
+  secondarySectionTitle: {
+    marginBottom: spacing.xs,
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '800',
+    textTransform: 'uppercase',
   },
 });
