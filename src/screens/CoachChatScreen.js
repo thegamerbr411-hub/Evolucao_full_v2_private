@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { colors, spacing } from '../theme';
+import { generateCoachInsight } from '../services/coachInsight';
 
 const COACH_MEMORY_KEY = 'coach.memory.v1';
 const TRIGGER_COOLDOWN_MS = 2 * 60 * 60 * 1000;
@@ -319,6 +320,15 @@ export default function CoachChatScreen({ navigation }) {
   const weakMeals = todayMeals.filter((meal) => meal.quality?.level === 'weak_protein').length;
   const dayPeriod = getDayPeriod();
   const currentPain = String(profile?.currentPain || profile?.pain || 'nenhuma dor informada');
+  const smartInsight = useMemo(() => generateCoachInsight({
+    trainedToday,
+    protein: effectiveContext.proteinToday,
+    proteinTarget: effectiveContext.proteinTarget,
+    water: effectiveContext.waterToday,
+    waterTarget: effectiveContext.waterTarget,
+    weeklyDone: smart.trainedThisWeek,
+    weeklyTarget: smart.weeklyTarget,
+  }), [trainedToday, effectiveContext.proteinToday, effectiveContext.proteinTarget, effectiveContext.waterToday, effectiveContext.waterTarget, smart.trainedThisWeek, smart.weeklyTarget]);
 
   const refreshCoachCard = () => {
     const state = buildDailyCoachState({
@@ -479,6 +489,7 @@ export default function CoachChatScreen({ navigation }) {
       weakMeals,
     };
     const baseReply = getCoachReply(trimmed, liveContext, messages.length, memory);
+    const contextInsight = smartInsight?.summary ? `Insight: ${smartInsight.summary}` : '';
     const painSafety = (intent === 'training' || intent === 'routine' || intent === 'late_workout')
       ? buildPainSafetyLine(currentPain)
       : '';
@@ -492,7 +503,7 @@ export default function CoachChatScreen({ navigation }) {
     const coachMessage = {
       id: `c-${Date.now()}`,
       role: 'coach',
-      text: [tunedReply, painSafety].filter(Boolean).join(' '),
+      text: [tunedReply, contextInsight, painSafety].filter(Boolean).join(' '),
     };
 
     if (coachMessage.text === memory.lastCoachMessage) {
@@ -572,6 +583,7 @@ export default function CoachChatScreen({ navigation }) {
 
         <Text style={styles.coachTitle}>Agora</Text>
         <Text style={styles.coachAction}>{coachCard.action}</Text>
+        <Text style={styles.smartInsightLine}>Prioridade IA: {smartInsight.priority} | {smartInsight.summary}</Text>
         <Text style={styles.progressLine}>Progresso do dia: {coachCard.completedGoals || 0}/{coachCard.totalGoals || 3} metas</Text>
         {coachCard.isPerfectDay ? <Text style={styles.perfectDayLine}>Dia perfeito 🔥</Text> : null}
         {actionFeedback ? <Text style={styles.feedbackLine}>{actionFeedback}</Text> : null}
@@ -661,6 +673,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     marginTop: 4,
+  },
+  smartInsightLine: {
+    color: '#C4F1D3',
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 6,
   },
   perfectDayLine: {
     color: '#22C55E',

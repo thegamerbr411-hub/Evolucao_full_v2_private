@@ -8,9 +8,10 @@ import { useNotifications, useNutrition } from '../hooks';
 import { SCREENS, trackAppError, trackEvent } from '../utils/analytics';
 import { AnimatedToast, AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { colors, spacing } from '../theme';
+import { createFoodFromText, parseNutritionLabel } from '../services/nutritionIntelligence';
 
 const FAVORITES_STORAGE_KEY = 'nutrition.favorite.foods.v1';
-const SHOW_PHOTO_BETA = false;
+const SHOW_PHOTO_BETA = true;
 const SHOW_ADVANCED_NUTRITION = false;
 
 export default function NutritionScanner({ navigation, route }) {
@@ -451,6 +452,8 @@ export default function NutritionScanner({ navigation, route }) {
       return;
     }
 
+    let selectedAsset = null;
+
     if (source === 'camera') {
       const permission = await ImagePicker.requestCameraPermissionsAsync();
       if (!permission.granted) {
@@ -462,6 +465,7 @@ export default function NutritionScanner({ navigation, route }) {
       if (cameraResult.canceled) {
         return;
       }
+      selectedAsset = cameraResult.assets?.[0] || null;
     } else {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
@@ -473,26 +477,39 @@ export default function NutritionScanner({ navigation, route }) {
       if (libraryResult.canceled) {
         return;
       }
+      selectedAsset = libraryResult.assets?.[0] || null;
     }
 
     const normalizedHint = String(photoHintText || '').trim();
-    if (!normalizedHint) {
-      const factor = Number(portionFactor || 1);
-      setResult({
-        ok: true,
-        source: 'foto_estimada',
-        totals: {
-          calories: Math.round(350 * factor),
-          protein: Math.round(25 * factor),
-          carbs: Math.round(40 * factor),
-          fats: Math.round(10 * factor),
-        },
-        message: 'Estimativa rapida aplicada a partir da foto (beta).',
-      });
-      return;
-    }
+    const parsedLabel = parseNutritionLabel({
+      uri: selectedAsset?.uri,
+      ocrText: normalizedHint,
+    });
 
-    setResult(estimateNutritionFromPhotoHint({ description: normalizedHint, portionFactor }));
+    const factor = Number(portionFactor || 1);
+    const totals = {
+      calories: Math.round(Number(parsedLabel.calories || 0) * factor),
+      protein: Math.round(Number(parsedLabel.protein || 0) * factor),
+      carbs: Math.round(Number(parsedLabel.carbs || 0) * factor),
+      fats: Math.round(Number(parsedLabel.fat || 0) * factor),
+    };
+
+    const message = parsedLabel.fallback
+      ? 'OCR parcial: aplicamos fallback inteligente para salvar sem bloquear.'
+      : 'Tabela nutricional lida com sucesso.';
+
+    setResult({
+      ok: true,
+      source: 'photo_ocr',
+      totals,
+      items: [
+        {
+          label: normalizedHint || 'Alimento escaneado',
+          quantity: 1,
+        },
+      ],
+      message,
+    });
   };
 
   const useEstimateInDay = () => {
@@ -915,6 +932,23 @@ export default function NutritionScanner({ navigation, route }) {
           title="Estimar por texto"
           style={styles.primaryButton}
           onPress={() => {
+            const parsedFromFreeText = createFoodFromText(manualText);
+            if (parsedFromFreeText?.items?.length) {
+              setResult({
+                ok: true,
+                source: 'free_text',
+                items: parsedFromFreeText.items,
+                totals: {
+                  calories: Math.round(parsedFromFreeText.totals.calories * portionFactor),
+                  protein: Math.round(parsedFromFreeText.totals.protein * portionFactor),
+                  carbs: Math.round(parsedFromFreeText.totals.carbs * portionFactor),
+                  fats: Math.round(parsedFromFreeText.totals.fats * portionFactor),
+                },
+                message: `Texto livre processado com sucesso. Porcao aplicada: ${portionFactor}x.`,
+              });
+              return;
+            }
+
             const parsed = estimateNutritionFromText(manualText);
             if (parsed?.ok) {
               setResult({
