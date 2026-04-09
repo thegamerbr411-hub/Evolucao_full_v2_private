@@ -23,3 +23,8 @@ export function buildLocalRanking(users = []) {
     .sort((a, b) => b.xp - a.xp || b.streak - a.streak || String(a.name || '').localeCompare(String(b.name || '')))
     .map((user, index) => ({ ...user, rank: index + 1 }));
 }
+
+export const calculateXP = (workout) =>
+  (Array.isArray(workout?.exercises) ? workout.exercises.length : 0) * 50;
+
+export const getLevel = (xp) => Math.floor(Number(xp || 0) / 100);

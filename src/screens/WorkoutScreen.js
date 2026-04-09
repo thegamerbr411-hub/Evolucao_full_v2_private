@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
   KeyboardAvoidingView,
+  FlatList,
   Platform,
   ScrollView,
   StyleSheet,
@@ -16,14 +17,19 @@ import { Swipeable } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNotifications, useNutrition, useWorkout } from '../hooks';
+import { useApp } from '../context/AppContext';
 import { getCanonicalExerciseId, getCanonicalMuscleGroup } from '../data/exerciseDatabase';
 import { EXERCISE_NAMES_V2, getExerciseMetaByName } from '../data/exerciseLibraryV2';
 import { SCREENS, trackAppError, trackEvent } from '../utils/analytics';
 import { calculate1RM, calculateSRPE, calculateVolume, getProgression } from '../services/performanceEngine';
 import { findBestFuzzyMatch, fuzzySearchExercises } from '../services/fuzzySearch';
+import { loadWorkout, saveWorkout } from '../services/storage';
+import { loadWorkoutCloud, saveWorkoutCloud } from '../services/cloudWorkoutService';
 import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { ExerciseCard } from '../components/workout/ExerciseCard';
 import { colors, spacing } from '../theme';
+import { logEvent } from '../core/logger';
+import { success } from '../services/feedbackService.js';
 
 function formatTimer(seconds) {
   const safe = Math.max(0, Number(seconds || 0));
@@ -120,6 +126,7 @@ function findBestCatalogMatch(catalog = [], query = '') {
 }
 
 export default function WorkoutScreen({ navigation, route }) {
+  const { workout, setWorkout, user } = useApp();
   const {
     getTodayWorkout,
     prepareTodayWorkoutTargets,
@@ -213,7 +220,105 @@ export default function WorkoutScreen({ navigation, route }) {
   const sessionStartedAtRef = useRef(Date.now());
 
   useEffect(() => {
+    loadWorkout().then((data) => {
+      if (data) setWorkout(data);
+    }).catch(() => {
+      // Ignora cache inválido sem interromper o treino.
+    });
+  }, []);
+
+  useEffect(() => {
+    saveWorkout(workout).catch(() => {
+      // Persistência local resiliente.
+    });
+  }, [workout]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      return;
+    }
+
+    loadWorkoutCloud(user.id)
+      .then((data) => {
+        if (data?.exercises?.length) {
+          setWorkout(data);
+        }
+      })
+      .catch(() => {
+        // Mantem fallback local quando cloud estiver indisponivel.
+      });
+  }, [user?.id, setWorkout]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      return;
+    }
+
+    saveWorkoutCloud(user.id, workout).catch(() => {
+      // Falha de sync cloud nao pode bloquear o treino local.
+    });
+  }, [user?.id, workout]);
+
+  useEffect(() => {
+    if (route.params?.routineExercises) {
+      setWorkout({
+        name: route.params.routineName || 'Treino',
+        exercises: route.params.routineExercises.map(e => ({
+          ...e,
+          sets: [{ reps: '', weight: '', done: false }]
+        }))
+      });
+    }
+  }, [route.params]);
+
+  const addExercise = (exercise) => {
+    setWorkout(prev => ({
+      ...prev,
+      exercises: [
+        ...prev.exercises,
+        {
+          ...exercise,
+          sets: [{ reps: '', weight: '', done: false }]
+        }
+      ]
+    }));
+  };
+
+  const updateSet = useCallback((exerciseIndex, setIndex, field, value) => {
+    setWorkout((prev) => {
+      const currentExercises = Array.isArray(prev?.exercises) ? prev.exercises : [];
+      const updated = currentExercises.map((exercise, idx) => {
+        if (idx !== exerciseIndex) {
+          return exercise;
+        }
+
+        const nextSets = (Array.isArray(exercise?.sets) ? exercise.sets : []).map((setItem, setIdx) => {
+          if (setIdx !== setIndex) {
+            return setItem;
+          }
+
+          return {
+            ...setItem,
+            [field]: value,
+          };
+        });
+
+        return {
+          ...exercise,
+          sets: nextSets,
+        };
+      });
+
+      return {
+        ...prev,
+        exercises: updated,
+      };
+    });
+  }, [setWorkout]);
+
+  useEffect(() => {
     prepareTodayWorkoutTargets();
+    logEvent('workout_started');
   }, []);
 
   useEffect(() => {
@@ -560,8 +665,13 @@ export default function WorkoutScreen({ navigation, route }) {
   };
 
   const suggestedExercises = useMemo(() => {
+    const query = normalizeText(exerciseQuery);
     if (!activeExercise) {
-      return fuzzySearchExercises(exerciseQuery, exerciseCatalog, 20);
+      if (!query) {
+        return exerciseCatalog.slice(0, 20);
+      }
+
+      return fuzzySearchExercises(query, exerciseCatalog, 20).slice(0, 20);
     }
 
     const group = inferExerciseGroup(activeExercise.name);
@@ -569,7 +679,12 @@ export default function WorkoutScreen({ navigation, route }) {
     const related = getFreeWorkoutSuggestions([activeExercise.name]);
     const combined = [...sameGroup, ...related, ...exerciseCatalog];
     const unique = Array.from(new Set(combined));
-    return fuzzySearchExercises(exerciseQuery, unique, 20);
+
+    if (!query) {
+      return unique.slice(0, 20);
+    }
+
+    return fuzzySearchExercises(query, unique, 20).slice(0, 20);
   }, [activeExercise, exerciseCatalog, getFreeWorkoutSuggestions, getExercisesByMuscleGroup, exerciseQuery]);
 
   const lastSetByExercise = useMemo(() => {
@@ -815,11 +930,8 @@ export default function WorkoutScreen({ navigation, route }) {
     setSaveSuccessVisible(true);
     setTimeout(() => setSaveSuccessVisible(false), 1800);
 
-    if (result.xpEvents?.length) {
-      setXpFeedback(result.xpEvents.join(' | '));
-    } else {
-      setXpFeedback('+1 serie concluida');
-    }
+    setXpFeedback('+10 XP');
+    success();
 
     showActionToast(`Serie ${setIndex + 1}/${plannedSets} concluida 🔥`);
 
@@ -1031,6 +1143,7 @@ export default function WorkoutScreen({ navigation, route }) {
     setNewExerciseSets('3');
     setNewExerciseReps('8-12');
     setActiveExerciseIndex(allExercises.length);
+    logEvent('exercise_added');
   };
 
   const replaceActiveExercise = () => {
@@ -1219,9 +1332,8 @@ export default function WorkoutScreen({ navigation, route }) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.keyboardContainer}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 16 : 0}
+      style={{ flex: 1 }}
     >
       {saveSuccessVisible ? (
         <View testID="serie-salva-indicator" style={styles.savedFixedIndicator}>
@@ -1343,7 +1455,11 @@ export default function WorkoutScreen({ navigation, route }) {
           </TouchableOpacity>
         </View>
 
-        {allExercises.map((exercise, exerciseIndex) => {
+        <FlatList
+          data={allExercises}
+          scrollEnabled={false}
+          keyExtractor={(item, index) => String(item?.id || `${item?.name || 'exercise'}-${index}`)}
+          renderItem={({ item: exercise, index: exerciseIndex }) => {
           const plannedSets = Number(setCountByExercise[exercise.name] || exercise.sets || 3);
           const setProgress = getExerciseSetProgress(exercise.name, plannedSets);
           const isActive = exerciseIndex === activeExerciseIndex;
@@ -1713,7 +1829,8 @@ export default function WorkoutScreen({ navigation, route }) {
               {!isActive ? <Text style={styles.inactiveHint}>Toque para focar • {setProgress.completedSets}/{setProgress.totalSets} series</Text> : null}
             </TouchableOpacity>
           );
-        })}
+          }}
+        />
 
         <AppCard style={styles.addExerciseCard}>
           <Text style={styles.addExerciseTitle}>Selecionar exercicio existente</Text>
@@ -1724,15 +1841,19 @@ export default function WorkoutScreen({ navigation, route }) {
             placeholderTextColor="#8FA5CB"
             style={styles.addExerciseInput}
           />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.suggestionScroll}>
-            <View style={styles.suggestionRow}>
-              {suggestedExercises.map((item) => (
-                <TouchableOpacity key={item} style={styles.suggestionChip} onPress={() => setNewExerciseName(item)}>
-                  <Text style={styles.suggestionChipText}>{item}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </ScrollView>
+          <FlatList
+            data={suggestedExercises}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.suggestionScroll}
+            keyExtractor={(item, index) => `${item}-${index}`}
+            contentContainerStyle={styles.suggestionRow}
+            renderItem={({ item }) => (
+              <TouchableOpacity style={styles.suggestionChip} onPress={() => setNewExerciseName(item)}>
+                <Text style={styles.suggestionChipText}>{item}</Text>
+              </TouchableOpacity>
+            )}
+          />
           <Text style={styles.addExerciseTitle}>Adicionar/substituir exercicio</Text>
           <TextInput
             value={newExerciseName}

@@ -34,3 +34,9 @@ android/app/build/
 # misc
 *.keystore
 *.jks
+
+# runtime observability data
+artifacts/*
+!artifacts/.gitkeep
+logs/
+tmp/

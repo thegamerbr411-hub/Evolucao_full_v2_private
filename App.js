@@ -1,8 +1,8 @@
-
 import React from 'react';
 import { View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { NutritionProvider } from './src/context/NutritionContext';
 import RootNavigator from './src/navigation/RootNavigator';
 import { RootProvider } from './src/context/RootProvider';
 import { initializeNotifications } from './src/utils/notifications';
@@ -13,6 +13,18 @@ import {
   setAnalyticsContext,
   trackEvent,
 } from './src/utils/analytics';
+
+import { logError } from './src/utils/errorLogger';
+// Handler global para capturar qualquer erro não tratado e enviar para o backend
+if (typeof ErrorUtils !== 'undefined' && ErrorUtils.setGlobalHandler) {
+  ErrorUtils.setGlobalHandler((error, isFatal) => {
+    logError(error, {
+      screen: 'global',
+      extra: { isFatal },
+    });
+    console.log('🔥 GLOBAL ERROR CAPTURADO:', error);
+  });
+}
 
 export default function App() {
   React.useEffect(() => {
@@ -37,17 +49,26 @@ export default function App() {
     initializeNotifications().catch(() => {
       // Mantem inicializacao resiliente mesmo sem permissao.
     });
+    // Handler global já está configurado fora do componente
+
+    // Trigger de erro real para teste do pipeline
+    logError(new Error('🔥 BUG REAL FINAL'), {
+      screen: 'Home',
+    });
   }, []);
 
+
   return (
-    <RootProvider>
-      <SafeAreaProvider>
-        <View testID="app-root" style={{ flex: 1 }}>
-          <NavigationContainer>
-            <RootNavigator />
-          </NavigationContainer>
-        </View>
-      </SafeAreaProvider>
-    </RootProvider>
+    <NutritionProvider>
+      <RootProvider>
+        <SafeAreaProvider>
+          <View testID="app-root" style={{ flex: 1 }}>
+            <NavigationContainer>
+              <RootNavigator />
+            </NavigationContainer>
+          </View>
+        </SafeAreaProvider>
+      </RootProvider>
+    </NutritionProvider>
   );
 }

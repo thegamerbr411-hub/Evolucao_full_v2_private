@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { colors, spacing } from '../theme';
 import { generateCoachInsight } from '../services/coachInsight';
+import { sendMessage as sendRealtimeMessage, subscribeToMessages } from '../services/chatService.js';
 
 const COACH_MEMORY_KEY = 'coach.memory.v1';
 const TRIGGER_COOLDOWN_MS = 2 * 60 * 60 * 1000;
@@ -259,6 +260,7 @@ export default function CoachChatScreen({ navigation }) {
     buildDailyCoachState,
     buildCoachMessage,
     addWaterIntake,
+    user,
   } = useApp();
   const [input, setInput] = useState('');
   const [coachCard, setCoachCard] = useState({
@@ -293,6 +295,39 @@ export default function CoachChatScreen({ navigation }) {
       text: 'Seu coach aqui. Vamos agir no que falta hoje: treino, agua e proteina.',
     },
   ]);
+
+  useEffect(() => {
+    const chatId = String(user?.id || 'global');
+
+    const unsubscribe = subscribeToMessages({
+      chatId,
+      max: 60,
+      onData: (items) => {
+        if (!Array.isArray(items) || !items.length) {
+          return;
+        }
+
+        setMessages((prev) => {
+          const merged = [...prev];
+          items.forEach((item) => {
+            const exists = merged.some((msg) => msg.id === item.id);
+            if (!exists) {
+              merged.push({
+                id: item.id,
+                role: item.from === 'user' ? 'user' : 'coach',
+                text: String(item.text || ''),
+              });
+            }
+          });
+          return merged;
+        });
+      },
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [user?.id]);
 
   const today = useMemo(() => {
     const date = new Date();
@@ -474,7 +509,7 @@ export default function CoachChatScreen({ navigation }) {
     });
   }, [today, trainedToday, effectiveContext.proteinToday, effectiveContext.proteinTarget, effectiveContext.waterToday, effectiveContext.waterTarget, coachCard.doneText, coachCard.missingText, memory.lastTriggerAt]);
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     const trimmed = String(input || '').trim();
     if (!trimmed) {
       return;
@@ -511,6 +546,8 @@ export default function CoachChatScreen({ navigation }) {
     }
 
     setMessages((prev) => [...prev, userMessage, coachMessage]);
+    await sendRealtimeMessage(String(user?.id || 'global'), trimmed, 'user');
+    await sendRealtimeMessage(String(user?.id || 'global'), coachMessage.text, 'coach');
     setMemory({
       lastUserIntent: intent,
       lastCoachMessage: coachMessage.text,
@@ -596,13 +633,17 @@ export default function CoachChatScreen({ navigation }) {
         </View>
       </AppCard>
 
-      <ScrollView style={styles.chatBox} contentContainerStyle={styles.chatContent}>
-        {messages.map((message) => (
-          <View key={message.id} style={[styles.bubble, message.role === 'user' ? styles.userBubble : styles.coachBubble]}>
+      <FlatList
+        style={styles.chatBox}
+        contentContainerStyle={styles.chatContent}
+        data={messages}
+        keyExtractor={(item, index) => String(item?.id || index)}
+        renderItem={({ item: message }) => (
+          <View style={[styles.bubble, message.role === 'user' ? styles.userBubble : styles.coachBubble]}>
             <Text style={[styles.bubbleText, message.role === 'user' ? styles.userText : styles.coachText]}>{message.text}</Text>
           </View>
-        ))}
-      </ScrollView>
+        )}
+      />
 
       <View style={styles.inputRow}>
         <TextInput

@@ -44,7 +44,6 @@ export default function RoutinesScreen({ navigation }) {
   } = useApp();
 
   const [routineName, setRoutineName] = useState('');
-  const [routineFrequency, setRoutineFrequency] = useState(Number(profile?.trainingDaysPerWeek || 3));
   const [exerciseQuery, setExerciseQuery] = useState('');
   const [builderExercises, setBuilderExercises] = useState([]);
   const [editingRoutineId, setEditingRoutineId] = useState(null);
@@ -102,7 +101,6 @@ export default function RoutinesScreen({ navigation }) {
 
   const resetBuilder = () => {
     setRoutineName('');
-    setRoutineFrequency(Number(profile?.trainingDaysPerWeek || 3));
     setBuilderExercises([]);
     setExerciseQuery('');
     setEditingRoutineId(null);
@@ -113,8 +111,8 @@ export default function RoutinesScreen({ navigation }) {
       const result = updateUserRoutine({
         routineId: editingRoutineId,
         name: routineName,
-        frequency: routineFrequency,
-        exercises: builderExercises,
+        frequency: Number(profile?.trainingDaysPerWeek || 3),
+        exercises: builderExercises.map((name) => ({ name })),
       });
 
       if (!result.ok) {
@@ -129,8 +127,8 @@ export default function RoutinesScreen({ navigation }) {
 
     const result = createUserRoutine({
       name: routineName,
-      frequency: routineFrequency,
-      exercises: builderExercises,
+      frequency: Number(profile?.trainingDaysPerWeek || 3),
+      exercises: builderExercises.map((name) => ({ name })),
     });
 
     if (!result.ok) {
@@ -145,8 +143,11 @@ export default function RoutinesScreen({ navigation }) {
   const loadRoutineToEdit = (routine) => {
     setEditingRoutineId(routine.id);
     setRoutineName(routine.name);
-    setRoutineFrequency(Number(routine.frequency || 3));
-    setBuilderExercises(Array.isArray(routine.exercises) ? routine.exercises : []);
+    setBuilderExercises(
+      Array.isArray(routine.exercises)
+        ? routine.exercises.map((item) => (typeof item === 'string' ? item : item?.name)).filter(Boolean)
+        : []
+    );
   };
 
   const saveRecommendedAsOwn = () => {
@@ -163,34 +164,20 @@ export default function RoutinesScreen({ navigation }) {
     Alert.alert('Rotina salva', 'A recomendacao de hoje foi salva em Minhas Rotinas.');
   };
 
-  const startRoutineNow = (routine) => {
-    const routineExercises = (Array.isArray(routine?.exercises) ? routine.exercises : [])
-      .map((name, index) => ({
-        id: `routine-${String(routine?.id || 'custom')}-${index}`,
-        name: String(name || '').trim(),
-        sets: 3,
-        reps: '8-12',
-        targetWeight: 0,
-      }))
-      .filter((item) => item.name);
+  const startRoutine = (routine) => {
+    if (!routine?.exercises?.length) return;
 
-    if (!routineExercises.length) {
-      Alert.alert('Rotina vazia', 'Essa rotina nao possui exercicios validos.');
-      return;
-    }
-
-    navigation.navigate('TreinoHoje', {
+    navigation.navigate('Workout', {
+      routineExercises: routine.exercises,
       routineName: routine.name,
-      routineExercises,
-      routineSeed: `${routine.id}-${Date.now()}`,
+      startNow: true,
     });
   };
 
   return (
     <KeyboardAvoidingView
-      style={styles.keyboardContainer}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 16 : 0}
+      style={{ flex: 1 }}
     >
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}>
       <ScreenHeader title="Rotinas" subtitle="Controle total: recomendadas e criadas por voce no mesmo padrao." />
@@ -244,19 +231,7 @@ export default function RoutinesScreen({ navigation }) {
           style={styles.input}
         />
 
-        <Text style={styles.stepLabel}>2. Frequencia</Text>
-
-        <View style={styles.frequencyRow}>
-          <TouchableOpacity style={styles.freqButton} onPress={() => setRoutineFrequency((prev) => Math.max(1, prev - 1))}>
-            <Text style={styles.freqButtonText}>-</Text>
-          </TouchableOpacity>
-          <Text style={styles.frequencyText}>Frequencia: {routineFrequency}x/sem</Text>
-          <TouchableOpacity style={styles.freqButton} onPress={() => setRoutineFrequency((prev) => Math.min(7, prev + 1))}>
-            <Text style={styles.freqButtonText}>+</Text>
-          </TouchableOpacity>
-        </View>
-
-        <Text style={styles.stepLabel}>3. Exercicios</Text>
+        <Text style={styles.stepLabel}>2. Exercicios</Text>
         <Text style={styles.helperText}>Atalhos populares (toque para adicionar rapido):</Text>
         <View style={styles.chipsWrap}>
           {QUICK_EXERCISES.map((item) => (
@@ -318,8 +293,8 @@ export default function RoutinesScreen({ navigation }) {
             <Text style={styles.savedRoutineTitle}>{routine.name}</Text>
             <Text style={styles.recommendationSub}>{routine.frequency}x por semana</Text>
             {routine.exercises.map((item, index) => (
-              <View key={`${routine.id}-${item}-${index}`} style={styles.builderRow}>
-                <Text style={styles.line}>• {item}</Text>
+              <View key={`${routine.id}-${String(typeof item === 'string' ? item : item?.name)}-${index}`} style={styles.builderRow}>
+                <Text style={styles.line}>• {typeof item === 'string' ? item : item?.name}</Text>
                 <View style={styles.actionsRow}>
                   <TouchableOpacity
                     style={styles.smallButton}
@@ -337,7 +312,7 @@ export default function RoutinesScreen({ navigation }) {
               </View>
             ))}
             <View style={styles.actionsRow}>
-              <TouchableOpacity style={styles.smallButton} onPress={() => startRoutineNow(routine)}>
+              <TouchableOpacity style={styles.smallButton} onPress={() => startRoutine(routine)}>
                 <Text style={styles.smallButtonText}>Iniciar</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.smallButton} onPress={() => loadRoutineToEdit(routine)}>
@@ -430,30 +405,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 10,
     marginBottom: 8,
-  },
-  frequencyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  freqButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 8,
-    backgroundColor: colors.secondary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  freqButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '900',
-    fontSize: 16,
-  },
-  frequencyText: {
-    color: colors.textPrimary,
-    fontSize: 13,
-    fontWeight: '700',
   },
   chipsWrap: {
     flexDirection: 'row',

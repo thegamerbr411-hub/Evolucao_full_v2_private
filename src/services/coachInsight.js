@@ -1,4 +1,13 @@
 export function generateCoachInsight(userData = {}) {
+  if (Object.prototype.hasOwnProperty.call(userData || {}, 'workout') || Object.prototype.hasOwnProperty.call(userData || {}, 'nutrition')) {
+    const workout = userData?.workout;
+    const nutrition = userData?.nutrition;
+
+    if (!workout?.exercises?.length) return 'Bora treinar hoje 💪';
+    if (Number(nutrition?.protein || 0) < 100) return 'Aumenta proteína 🍗';
+    return 'Boa evolução 🔥';
+  }
+
   const trainedToday = Boolean(userData?.trainedToday);
   const protein = Number(userData?.protein || 0);
   const proteinTarget = Math.max(0, Number(userData?.proteinTarget || 140));

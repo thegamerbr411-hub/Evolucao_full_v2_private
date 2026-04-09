@@ -2,16 +2,14 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useInsights, useWorkout, useNutrition } from '../hooks';
-import { useNotifications } from '../hooks';
 import { trackEvent } from '../utils/analytics';
 import { AnimatedToast, AppCard, MetricText, PrimaryButton, ProgressItem, ScreenHeader } from '../components/ui';
 import { colors, radius, spacing } from '../theme';
 
 export default function HomeScreen({ navigation }) {
-  const { getDailyMacroTargets, getNutritionFeedback, history, plan } = useNutrition();
+  const { getDailyMacroTargets, getNutritionFeedback, history, plan, addWaterIntake } = useNutrition();
   const { gamification, getSmartWorkoutRecommendation, workoutLogs } = useWorkout();
   const { getPerformanceRecoveryInsight } = useInsights();
-  const { addWaterIntake } = useNotifications();
   const [quickActionFeedback, setQuickActionFeedback] = useState('');
   const [toastMessage, setToastMessage] = useState('');
   const scoreProgressAnim = useRef(new Animated.Value(0)).current;
@@ -168,7 +166,13 @@ export default function HomeScreen({ navigation }) {
     }
 
     if (type === 'water') {
-      const result = addWaterIntake(300);
+      let result;
+      if (typeof addWaterIntake === 'function') {
+        result = addWaterIntake(300);
+      } else {
+        console.warn('⚠️ addWaterIntake undefined no HomeScreen');
+        result = { ok: false };
+      }
       if (result?.ok) {
         setQuickActionFeedback('+300ml de agua adicionados');
         showSuccessToast('+300ml adicionados 💧');
@@ -189,7 +193,13 @@ export default function HomeScreen({ navigation }) {
   };
 
   const addWaterFromHome = () => {
-    const result = addWaterIntake(300);
+    let result;
+    if (typeof addWaterIntake === 'function') {
+      result = addWaterIntake(300);
+    } else {
+      console.warn('⚠️ addWaterIntake undefined no HomeScreen');
+      result = { ok: false };
+    }
     if (result?.ok) {
       setQuickActionFeedback('+300ml de agua adicionados');
       showSuccessToast('+300ml adicionados 💧');
@@ -295,8 +305,8 @@ export default function HomeScreen({ navigation }) {
     if (!trainedToday) {
       return {
         label: 'Prioridade de hoje',
-        title: smartWorkout?.title || 'Treino do dia',
-        subtitle: 'Voce ainda nao treinou hoje. Comece agora para manter o ritmo.',
+        title: 'Voce ainda nao treinou. Comeca agora.',
+        subtitle: '',
         buttonTitle: 'Iniciar treino',
         onPress: openWorkoutFromHome,
         testID: 'btn-start-workout',
@@ -405,6 +415,9 @@ export default function HomeScreen({ navigation }) {
     focusCard.onPress();
   };
 
+  const currentActionLabel = focusCard?.buttonTitle || 'Iniciar treino';
+  const progressPct = Math.max(0, Math.min(100, dayScore));
+
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
       <AnimatedToast message={toastMessage} onHide={() => setToastMessage('')} />
@@ -414,8 +427,13 @@ export default function HomeScreen({ navigation }) {
       <Animated.View style={getEntryStyle(0)}>
       <AppCard style={focusCard.testID === 'btn-start-workout' ? styles.priorityCard : null}>
         <Text style={styles.cardLabel}>{focusCard.label}</Text>
+        <View style={styles.topKpiRow}>
+          <Text style={styles.topKpiText}>🔥 Streak: {streakDays}</Text>
+          <Text style={styles.topKpiText}>Progresso: {progressPct}%</Text>
+        </View>
+        <Text style={styles.currentActionText}>Acao atual: {currentActionLabel}</Text>
         <Text style={styles.cardMain}>{focusCard.title}</Text>
-        <Text style={styles.cardSub}>{focusCard.subtitle}</Text>
+        {focusCard.subtitle ? <Text style={styles.cardSub}>{focusCard.subtitle}</Text> : null}
         <PrimaryButton testID={focusCard.testID} title={focusCard.testID === 'btn-start-workout' ? 'COMEÇAR AGORA' : focusCard.buttonTitle} onPress={handleFocusPrimaryPress} style={styles.primaryButton} />
       </AppCard>
       </Animated.View>
@@ -630,6 +648,25 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     marginTop: spacing.sm,
+  },
+  topKpiRow: {
+    marginTop: 2,
+    marginBottom: 6,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  topKpiText: {
+    color: '#BFDBFE',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  currentActionText: {
+    color: '#86EFAC',
+    fontSize: 12,
+    fontWeight: '900',
+    marginBottom: 6,
+    textTransform: 'uppercase',
   },
   progressTrack: {
     marginTop: spacing.sm,

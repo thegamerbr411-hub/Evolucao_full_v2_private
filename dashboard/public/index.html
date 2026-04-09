@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>QA Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial;
+      background: #0f172a;
+      color: #fff;
+      margin: 0;
+      padding: 20px;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+    }
+
+    .login {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .login input {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #fff;
+      border-radius: 8px;
+      padding: 8px 10px;
+    }
+
+    .login button {
+      background: #38bdf8;
+      color: #0f172a;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .error {
+      color: #fca5a5;
+      margin-bottom: 12px;
+      min-height: 20px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+
+    .card {
+      background: #1e293b;
+      padding: 15px;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.4);
+      margin-bottom: 20px;
+    }
+
+    .big {
+      font-size: 28px;
+      font-weight: bold;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    td, th {
+      padding: 8px;
+      border-bottom: 1px solid #333;
+      text-align: left;
+    }
+  </style>
+</head>
+
+<body>
+
+<h1>🚀 QA Dashboard</h1>
+
+<div class="login">
+  <input id="user" placeholder="usuario" value="admin" />
+  <input id="pass" placeholder="senha" type="password" />
+  <input id="apiKey" placeholder="x-api-key do cliente" />
+  <button id="loginBtn" type="button">Entrar</button>
+</div>
+<div id="error" class="error"></div>
+
+<div class="grid">
+  <div class="card">
+    <div>Total Bugs</div>
+    <div id="total" class="big">0</div>
+  </div>
+
+  <div class="card">
+    <div>Críticos</div>
+    <div id="critical" class="big">0</div>
+  </div>
+
+  <div class="card">
+    <div>Último Bug</div>
+    <div id="last" class="big">-</div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>📊 Bugs por dia</h2>
+  <canvas id="chart"></canvas>
+</div>
+
+<div class="card">
+  <h2>🔥 Top Bugs</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Mensagem</th>
+        <th>Count</th>
+        <th>Tela</th>
+        <th>Severidade</th>
+        <th>Sugestão IA</th>
+      </tr>
+    </thead>
+    <tbody id="table"></tbody>
+  </table>
+</div>
+
+<script>
+const tokenKey = 'qa_dashboard_token_v3';
+const adminTokenKey = 'qa_dashboard_admin_token_v1';
+let chartInstance = null;
+
+function getAuthHeaders() {
+  const token = localStorage.getItem(tokenKey) || '';
+  const clientId = document.getElementById('apiKey').value.trim() || 'admin';
+  const headers = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  headers['x-client-id'] = clientId;
+  return headers;
+}
+
+async function login() {
+  const user = document.getElementById('user').value.trim();
+  const pass = document.getElementById('pass').value.trim();
+  const clientId = document.getElementById('apiKey').value.trim() || 'admin';
+  const errorEl = document.getElementById('error');
+
+  try {
+    const res = await fetch('/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user, pass }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data?.token) {
+      throw new Error('Login inválido');
+    }
+
+    localStorage.setItem(adminTokenKey, data.token);
+    const clientRes = await fetch('/token/client', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${data.token}`,
+      },
+      body: JSON.stringify({ clientId }),
+    });
+    const clientData = await clientRes.json();
+    if (!clientRes.ok || !clientData?.token) {
+      throw new Error('Falha ao gerar token do cliente');
+    }
+
+    localStorage.setItem(tokenKey, clientData.token);
+    errorEl.innerText = '';
+    await load();
+  } catch (error) {
+    errorEl.innerText = error.message || 'Falha no login';
+  }
+}
+
+async function fetchBugs() {
+  const res = await fetch('/api/bugs?limit=200', {
+    headers: {
+      ...getAuthHeaders(),
+    },
+  });
+
+  if (res.status === 401) {
+    throw new Error('Sessão expirada. Faça login novamente.');
+  }
+
+  return await res.json();
+}
+
+async function analyzeBatch(data) {
+  const res = await fetch('/api/analyze-batch', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (res.status === 401) {
+    throw new Error('Sessão expirada. Faça login novamente.');
+  }
+
+  return await res.json();
+}
+
+function renderChart(data) {
+  const grouped = {};
+
+  data.forEach((bug) => {
+    const history = Array.isArray(bug.history) ? bug.history : [];
+    if (!history.length) {
+      const fallbackDay = String(bug.lastOccurrence || bug.timestamp || '').slice(0, 10);
+      if (fallbackDay) grouped[fallbackDay] = (grouped[fallbackDay] || 0) + Number(bug.count || 0);
+      return;
+    }
+
+    history.forEach((entry) => {
+      const day = String(entry.date || '').slice(0, 10);
+      if (!day) return;
+      grouped[day] = (grouped[day] || 0) + Number(entry.count || 0);
+    });
+  });
+
+  const labels = Object.keys(grouped).sort();
+  const values = labels.map((label) => grouped[label]);
+
+  const ctx = document.getElementById('chart').getContext('2d');
+  if (chartInstance) {
+    chartInstance.destroy();
+  }
+
+  chartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Bugs',
+        data: values,
+        borderColor: '#38bdf8',
+        backgroundColor: 'rgba(56, 189, 248, 0.2)',
+        fill: true,
+        tension: 0.25,
+      }],
+    },
+    options: {
+      plugins: {
+        legend: {
+          labels: {
+            color: '#fff',
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: '#cbd5e1' },
+          grid: { color: 'rgba(148, 163, 184, 0.2)' },
+        },
+        y: {
+          ticks: { color: '#cbd5e1' },
+          grid: { color: 'rgba(148, 163, 184, 0.2)' },
+        },
+      },
+    },
+  });
+}
+
+async function load() {
+  const errorEl = document.getElementById('error');
+
+  try {
+    const data = await fetchBugs();
+    document.getElementById('total').innerText = data.length;
+    document.getElementById('critical').innerText = data.filter((b) => b.severity === 'CRITICAL').length;
+    document.getElementById('last').innerText = data[0]?.message || '-';
+
+    data.sort((a, b) => Number(b.count || 0) - Number(a.count || 0));
+    const analyzed = await analyzeBatch(data);
+
+    const table = document.getElementById('table');
+    table.innerHTML = '';
+
+    for (const bug of analyzed) {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${bug.message || '-'}</td>
+        <td>${Number(bug.count || 0)}</td>
+        <td>${bug.screen || '-'}</td>
+        <td style="color:${
+          bug.severity === 'CRITICAL' ? 'red' :
+          bug.severity === 'HIGH' ? 'orange' :
+          bug.severity === 'MEDIUM' ? 'yellow' :
+          'lightgreen'
+        }">${bug.severity || 'LOW'}</td>
+        <td>${bug.suggestion || 'Erro desconhecido'}</td>
+      `;
+      table.appendChild(row);
+    }
+
+    renderChart(analyzed);
+    errorEl.innerText = '';
+  } catch (error) {
+    errorEl.innerText = error.message || 'Falha ao carregar dashboard';
+  }
+}
+
+document.getElementById('loginBtn').addEventListener('click', login);
+setInterval(load, 3000);
+load();
+</script>
+
+</body>
+</html>
