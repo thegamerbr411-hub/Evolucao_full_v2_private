@@ -136,10 +136,9 @@ let chartInstance = null;
 
 function getAuthHeaders() {
   const token = localStorage.getItem(tokenKey) || '';
-  const clientId = document.getElementById('apiKey').value.trim() || 'admin';
   const headers = {};
   if (token) headers.Authorization = `Bearer ${token}`;
-  headers['x-client-id'] = clientId;
+  headers['x-api-key'] = '123456';
   return headers;
 }
 
