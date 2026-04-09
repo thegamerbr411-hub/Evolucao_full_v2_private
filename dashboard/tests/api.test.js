@@ -21,6 +21,7 @@ async function run() {
   process.env.ADMIN_USER = 'admin';
   process.env.ADMIN_PASS = 'pass123';
   process.env.JWT_SECRET = 'test-secret';
+  process.env.CLIENT_API_KEYS = JSON.stringify({ admin: '123456' });
 
   const server = startServer(0);
   const port = server.address().port;
@@ -35,24 +36,12 @@ async function run() {
     assert.equal(login.payload.ok, true);
     assert.ok(login.payload.token);
 
-    const clientToken = await httpJson(buildUrl(port, '/token/client'), {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        authorization: `Bearer ${login.payload.token}`,
-      },
-      body: JSON.stringify({ clientId: 'tenant-a' }),
-    });
-    assert.equal(clientToken.response.status, 200);
-    assert.equal(clientToken.payload.ok, true);
-    assert.ok(clientToken.payload.token);
-
     const log = await httpJson(buildUrl(port, '/api/log'), {
       method: 'POST',
       headers: {
-        authorization: `Bearer ${clientToken.payload.token}`,
+        authorization: `Bearer ${login.payload.token}`,
         'content-type': 'application/json',
-        'x-client-id': 'tenant-a',
+        'x-api-key': '123456',
       },
       body: JSON.stringify({
         message: 'Network error 500',
@@ -60,12 +49,13 @@ async function run() {
         stack: 'Error: fail\nat node_modules/x.js\nat Home.js:20',
       }),
     });
-    assert.equal(log.response.status, 201);
+    assert.equal(log.response.status, 200);
+    assert.equal(log.payload.ok, true);
 
     const bugs = await httpJson(buildUrl(port, '/api/bugs?limit=5'), {
       headers: {
-        authorization: `Bearer ${clientToken.payload.token}`,
-        'x-client-id': 'tenant-a',
+        authorization: `Bearer ${login.payload.token}`,
+        'x-api-key': '123456',
       },
     });
     assert.equal(bugs.response.status, 200);
@@ -77,9 +67,9 @@ async function run() {
     const batch = await httpJson(buildUrl(port, '/api/analyze-batch'), {
       method: 'POST',
       headers: {
-        authorization: `Bearer ${clientToken.payload.token}`,
+        authorization: `Bearer ${login.payload.token}`,
         'content-type': 'application/json',
-        'x-client-id': 'tenant-a',
+        'x-api-key': '123456',
       },
       body: JSON.stringify([{ message: 'axios undefined network' }]),
     });

@@ -53,7 +53,7 @@ function createApp() {
 
   const apiLimiter = createSlidingWindowLimiter({
     getKey: (req) => {
-      const clientId = normalizeClientId(req.headers['x-client-id'] || req.headers['x-api-key'] || req.ip || 'unknown');
+      const clientId = normalizeClientId(req.headers['x-api-key'] || req.ip || 'unknown');
       return `${clientId}:${req.path}`;
     },
     max: Number(process.env.RATE_LIMIT_MAX || 180),
@@ -76,7 +76,7 @@ function createApp() {
   app.post('/login', auth.handleLogin);
   app.post('/token/client', auth.authenticateAdmin, auth.handleClientToken);
 
-  app.post('/api/log', auth.authenticateClient, asyncRoute(async (req, res) => {
+  app.post('/api/log', auth.validateJWT, auth.validateClient, asyncRoute(async (req, res) => {
     const normalized = normalizeIncomingLog(req.body || {});
     const clientId = normalizeClientId(req.clientId || 'default');
     const bug = await upsertBug(clientId, normalized);
@@ -92,11 +92,7 @@ function createApp() {
       }));
     }
 
-    res.status(201).json({
-      ok: true,
-      clientId,
-      fingerprint: normalized.fingerprint,
-    });
+    res.json({ ok: true });
   }));
 
   app.get('/api/bugs', auth.authenticateClient, asyncRoute(async (req, res) => {

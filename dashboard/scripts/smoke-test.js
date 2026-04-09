@@ -12,6 +12,7 @@ async function run() {
   process.env.ADMIN_USER = process.env.ADMIN_USER || 'admin';
   process.env.ADMIN_PASS = process.env.ADMIN_PASS || 'pass123';
   process.env.JWT_SECRET = process.env.JWT_SECRET || 'smoke-secret';
+  process.env.CLIENT_API_KEYS = process.env.CLIENT_API_KEYS || JSON.stringify({ admin: '123456' });
 
   const server = startServer(0);
   const port = server.address().port;
@@ -32,21 +33,10 @@ async function run() {
     assert.equal(login.response.status, 200);
 
     const token = login.payload.token;
-    const client = await httpJson(`${base}/token/client`, {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${token}`,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({ clientId: 'smoke-client' }),
-    });
-    assert.equal(client.response.status, 200);
-    const clientToken = client.payload.token;
-
     const headers = {
-      authorization: `Bearer ${clientToken}`,
+      authorization: `Bearer ${token}`,
       'content-type': 'application/json',
-      'x-client-id': 'smoke-client',
+      'x-api-key': '123456',
     };
 
     const log = await httpJson(`${base}/api/log`, {
@@ -58,12 +48,12 @@ async function run() {
         stack: 'Error: smoke',
       }),
     });
-    assert.equal(log.response.status, 201);
+    assert.equal(log.response.status, 200);
 
     const bugs = await httpJson(`${base}/api/bugs?limit=5`, {
       headers: {
-        authorization: `Bearer ${clientToken}`,
-        'x-client-id': 'smoke-client',
+        authorization: `Bearer ${token}`,
+        'x-api-key': '123456',
       },
     });
     assert.equal(bugs.response.status, 200);

@@ -6,6 +6,24 @@ function createAuth(config = {}) {
   const adminUser = String(config.adminUser || 'admin');
   const adminPass = String(config.adminPass || '123456');
   const defaultClientId = normalizeClientId(config.defaultClientId || 'default');
+  const clientKeyMap = parseClientKeyMap(config.clientKeyMap);
+
+  function parseClientKeyMap(rawValue) {
+    if (!rawValue) {
+      return {};
+    }
+
+    if (typeof rawValue === 'object' && !Array.isArray(rawValue)) {
+      return rawValue;
+    }
+
+    try {
+      const parsed = JSON.parse(String(rawValue));
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
 
   function extractBearerToken(req, errorCode) {
     const authHeader = String(req.headers.authorization || '').trim();
@@ -31,7 +49,7 @@ function createAuth(config = {}) {
 
   function issueAdminToken() {
     const payload = {
-      user: 'admin',
+      user: adminUser,
       role: 'admin',
       clientId: 'admin',
     };
@@ -47,6 +65,38 @@ function createAuth(config = {}) {
       secret,
       { expiresIn: '7d' }
     );
+  }
+
+  function validateJWT(req, res, next) {
+    const extracted = extractBearerToken(req, 'unauthorized_client');
+    if (extracted.error) {
+      return res.status(401).json(extracted.error);
+    }
+
+    const verified = verifyJwtToken(extracted.token, 'unauthorized_client');
+    if (verified.error) {
+      return res.status(401).json(verified.error);
+    }
+
+    req.auth = verified.decoded;
+    return next();
+  }
+
+  function validateClient(req, res, next) {
+    const apiKey = String(req.headers['x-api-key'] || '').trim();
+
+    if (!apiKey) {
+      return res.status(401).json({ ok: false, error: 'missing_api_key' });
+    }
+
+    const clientId = Object.entries(clientKeyMap).find(([, value]) => String(value) === apiKey)?.[0];
+
+    if (!clientId) {
+      return res.status(401).json({ ok: false, error: 'unauthorized_client' });
+    }
+
+    req.clientId = normalizeClientId(clientId || defaultClientId);
+    return next();
   }
 
   function authenticateAdmin(req, res, next) {
@@ -70,33 +120,14 @@ function createAuth(config = {}) {
   }
 
   function authenticateClient(req, res, next) {
-    const extracted = extractBearerToken(req, 'unauthorized_client');
-    if (extracted.error) {
-      return res.status(401).json(extracted.error);
-    }
-
-    const verified = verifyJwtToken(extracted.token, 'unauthorized_client');
-    if (verified.error) {
-      return res.status(401).json(verified.error);
-    }
-
-    const decoded = verified.decoded;
-    const headerClientId = normalizeClientId(req.headers['x-client-id'] || '');
-
-    if (!headerClientId || decoded.role !== 'client' || normalizeClientId(decoded.clientId) !== headerClientId) {
-      return res.status(401).json({ ok: false, error: 'unauthorized_client' });
-    }
-
-    req.auth = decoded;
-    req.clientId = headerClientId;
-    return next();
+    return validateJWT(req, res, () => validateClient(req, res, next));
   }
 
   function handleLogin(req, res) {
-    const user = String(req.body?.user || '').trim();
-    const pass = String(req.body?.pass || '').trim();
+    const username = String(req.body?.user || req.body?.email || '').trim();
+    const password = String(req.body?.pass || req.body?.password || '').trim();
 
-    if (user !== adminUser || pass !== adminPass) {
+    if (username !== adminUser || password !== adminPass) {
       return res.status(401).json({ ok: false, error: 'invalid_credentials' });
     }
 
@@ -115,6 +146,8 @@ function createAuth(config = {}) {
     authenticateClient,
     handleClientToken,
     handleLogin,
+    validateClient,
+    validateJWT,
   };
 }
 
