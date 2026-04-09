@@ -56,6 +56,10 @@ const map = new Map();
 
 export const EXERCISE_LIBRARY_V2 = Array.from(map.values());
 export const EXERCISE_NAMES_V2 = EXERCISE_LIBRARY_V2.map((item) => item.name);
+export const EXERCISE_LIBRARY_SIMPLE = EXERCISE_LIBRARY_V2.map((item) => ({
+  name: item.name,
+  muscle: item.muscle,
+}));
 
 export function getExerciseMetaByName(name = '') {
   const key = String(name || '').toLowerCase().trim();

@@ -17,6 +17,8 @@ import DebugMetricsScreen from '../screens/DebugMetricsScreen';
 import PaywallScreen from '../screens/PaywallScreen';
 import InsightsScreen from '../screens/InsightsScreen';
 import RoutinesScreen from '../screens/RoutinesScreen';
+import ImportWorkoutScreen from '../screens/ImportWorkoutScreen';
+import AdminScreen from '../screens/AdminScreen';
 import MainTabs from './MainTabs';
 
 const Stack = createNativeStackNavigator();
@@ -45,8 +47,11 @@ export default function RootNavigator(){
       <Stack.Screen name="Historico" component={HistoryScreen}/>
       <Stack.Screen name="IAWeekly" component={WeeklyInsightScreen}/>
       <Stack.Screen name="TreinoHoje" component={WorkoutScreen}/>
+      <Stack.Screen name="Workout" component={WorkoutScreen}/>
       <Stack.Screen name="TreinoLivre" component={FreeWorkoutScreen}/>
       <Stack.Screen name="Rotinas" component={RoutinesScreen}/>
+      <Stack.Screen name="ImportWorkout" component={ImportWorkoutScreen}/>
+      <Stack.Screen name="Admin" component={AdminScreen}/>
       <Stack.Screen name="MacroSemanal" component={WeeklyMacroScreen}/>
       <Stack.Screen name="AutoCoach" component={AutoCoachScreen}/>
       {(__DEV__ ? true : false) ? <Stack.Screen name="DebugMetrics" component={DebugMetricsScreen}/> : null}

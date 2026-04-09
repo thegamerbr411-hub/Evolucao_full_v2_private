@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors, radius, spacing } from '../../theme';
 
-export const SetRow = React.memo(function SetRow({ set, index, onChange, onComplete, simpleMode, testIDs }) {
+export const SetRow = memo(function SetRow({ set, index, onChange, onComplete, simpleMode, testIDs }) {
   return (
     <View style={styles.row}>
       <Text style={styles.index}>{index + 1}</Text>

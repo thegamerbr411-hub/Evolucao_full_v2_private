@@ -18,6 +18,9 @@ import {
 import { logError } from '../core/logger';
 import { useSubscriptionDomain } from './subscription/SubscriptionProvider';
 import { getJsonItem, removeItem, setJsonItem } from '../services/storageService';
+import { loadWorkout, saveWorkout } from '../services/storage';
+import { loginAnonymous } from '../services/authService';
+import { createUserIfNotExists } from '../services/userService';
 import { getTodayWorkoutUseCase } from '../domains/workout/useCases/getTodayWorkout';
 import { getMacroTargetsUseCase } from '../domains/nutrition/useCases/getMacroTargets';
 import { getRecoveryInsightUseCase } from '../domains/coach/useCases/getRecoveryInsight';
@@ -889,10 +892,12 @@ export const AppProvider=({children})=>{
   } = useSubscriptionDomain();
 
   const [profile, setProfile] = useState(null);
+  const [user, setUser] = useState({ id: null, role: 'user' });
   const [plan, setPlan] = useState(null);
   const [history, setHistory] = useState([]);
   const [nutritionLogs, setNutritionLogs] = useState([]);
   const [workoutLogs, setWorkoutLogs] = useState([]);
+  const [workout, setWorkout] = useState({ exercises: [] });
   const [userRoutines, setUserRoutines] = useState([]);
   const [exerciseTargets, setExerciseTargets] = useState({});
   const [gamification, setGamification] = useState({
@@ -925,9 +930,38 @@ export const AppProvider=({children})=>{
 
   useEffect(() => {
     setAnalyticsContext({
-      userId: String(profile?.id || 'anonymous'),
+      userId: String(user?.id || profile?.id || 'anonymous'),
     });
-  }, [profile?.id]);
+  }, [profile?.id, user?.id]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    loginAnonymous()
+      .then(async (loggedUser) => {
+        if (!isMounted || !loggedUser?.id) {
+          return;
+        }
+
+        setUser((prev) => ({
+          ...prev,
+          id: loggedUser.id,
+          role: loggedUser?.isAdmin ? 'admin' : 'user',
+        }));
+
+        await createUserIfNotExists({
+          id: loggedUser.id,
+          role: loggedUser?.isAdmin ? 'admin' : 'user',
+        });
+      })
+      .catch(() => {
+        // Mantem app funcional sem bloquear caso Firebase nao esteja configurado.
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     const todayKey = getTodayKey();
@@ -1029,6 +1063,20 @@ export const AppProvider=({children})=>{
   }, []);
 
   useEffect(() => {
+    loadWorkout().then((data) => {
+      if (data) setWorkout(data);
+    }).catch(() => {
+      // Mantem fallback local sem bloquear app em caso de cache inválido.
+    });
+  }, []);
+
+  useEffect(() => {
+    saveWorkout(workout).catch(() => {
+      // Ignora erro de persistência local para manter UX fluida.
+    });
+  }, [workout]);
+
+  useEffect(() => {
     if (!isHydrated) {
       return;
     }
@@ -1069,6 +1117,36 @@ export const AppProvider=({children})=>{
 
     setProfile(normalized);
     setPlan(generatePlan(normalized));
+  }, []);
+
+  const addExercise = useCallback((exercise) => {
+    setWorkout((prev) => ({
+      ...prev,
+      exercises: [
+        ...(Array.isArray(prev?.exercises) ? prev.exercises : []),
+        {
+          ...exercise,
+          sets: [{ reps: '', weight: '', done: false }],
+        },
+      ],
+    }));
+  }, []);
+
+  const updateSet = useCallback((exerciseIndex, setIndex, field, value) => {
+    setWorkout((prev) => {
+      const safeExercises = Array.isArray(prev?.exercises) ? prev.exercises : [];
+      const updated = [...safeExercises];
+      if (!updated[exerciseIndex] || !Array.isArray(updated[exerciseIndex].sets) || !updated[exerciseIndex].sets[setIndex]) {
+        return prev;
+      }
+
+      updated[exerciseIndex] = {
+        ...updated[exerciseIndex],
+        sets: updated[exerciseIndex].sets.map((setItem, idx) => (idx === setIndex ? { ...setItem, [field]: value } : setItem)),
+      };
+
+      return { ...prev, exercises: updated };
+    });
   }, []);
 
   const updateProfileSettings = useCallback((partialData = {}) => {
@@ -2134,7 +2212,13 @@ export const AppProvider=({children})=>{
     }
 
     const cleanedExercises = Array.isArray(exercises)
-      ? exercises.map((item) => String(item || '').trim()).filter(Boolean)
+      ? exercises
+          .map((item) => {
+            const parsedName = typeof item === 'string' ? item : item?.name;
+            const safeName = String(parsedName || '').trim();
+            return safeName ? { name: safeName } : null;
+          })
+          .filter(Boolean)
       : [];
 
     if (!cleanedExercises.length) {
@@ -2166,7 +2250,13 @@ export const AppProvider=({children})=>{
         const nextName = String(name || item.name || '').trim();
         const nextFrequency = Math.max(1, Number(frequency || item.frequency || 3));
         const nextExercises = Array.isArray(exercises)
-          ? exercises.map((entry) => String(entry || '').trim()).filter(Boolean)
+          ? exercises
+              .map((entry) => {
+                const parsedName = typeof entry === 'string' ? entry : entry?.name;
+                const safeName = String(parsedName || '').trim();
+                return safeName ? { name: safeName } : null;
+              })
+              .filter(Boolean)
           : item.exercises;
 
         updatedRoutine = {
@@ -3233,16 +3323,22 @@ export const AppProvider=({children})=>{
 
   const contextValue = useMemo(() => ({
         profile,
+        user,
         plan,
         history,
         nutritionLogs,
         workoutLogs,
+        workout,
         exerciseTargets,
         gamification,
         monetization,
         hasCompletedQuestionnaire,
         isHydrated,
         saveQuestionnaire,
+        setUser,
+        setWorkout,
+        addExercise,
+        updateSet,
         updateProfileSettings,
         resetQuestionnaire,
         analyzeDay,
@@ -3310,16 +3406,22 @@ export const AppProvider=({children})=>{
         removeTodayWorkoutSet,
       }), [
         profile,
+        user,
         plan,
         history,
         nutritionLogs,
         workoutLogs,
+        workout,
         exerciseTargets,
         gamification,
         monetization,
         hasCompletedQuestionnaire,
         isHydrated,
         saveQuestionnaire,
+        setUser,
+        setWorkout,
+        addExercise,
+        updateSet,
         updateProfileSettings,
         resetQuestionnaire,
         analyzeDay,
@@ -3386,6 +3488,10 @@ export const AppProvider=({children})=>{
 
   const workoutValue = useMemo(() => ({
     getTodayWorkout,
+    workout,
+    setWorkout,
+    addExercise,
+    updateSet,
     getSmartWorkoutRecommendation,
     getRecommendedWorkoutV4,
     prepareTodayWorkoutTargets,
@@ -3407,6 +3513,10 @@ export const AppProvider=({children})=>{
     exerciseTargets,
   }), [
     getTodayWorkout,
+    workout,
+    setWorkout,
+    addExercise,
+    updateSet,
     getSmartWorkoutRecommendation,
     getRecommendedWorkoutV4,
     prepareTodayWorkoutTargets,

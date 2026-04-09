@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { AppCard } from '../ui';
 import { colors, spacing, typography } from '../../theme';
 import { getExerciseGifFallback } from '../../data/exerciseLibraryV2';
@@ -17,6 +17,18 @@ export const ExerciseCard = React.memo(function ExerciseCard({
 }) {
   const [hasGifError, setHasGifError] = React.useState(false);
   const gifUri = exercise?.gif || getExerciseGifFallback();
+
+  const renderSetItem = React.useCallback(({ item: setItem, index }) => (
+    <SetRow
+      key={setItem.id || `${exercise.name}-${index}`}
+      set={setItem}
+      index={index}
+      simpleMode={simpleMode}
+      onChange={(field, value) => onChangeSet(exercise.name, index, field, value)}
+      onComplete={() => onCompleteSet(exercise.name, index)}
+      testIDs={testIDs(index)}
+    />
+  ), [exercise.name, onChangeSet, onCompleteSet, simpleMode, testIDs]);
 
   return (
     <AppCard>
@@ -37,17 +49,12 @@ export const ExerciseCard = React.memo(function ExerciseCard({
 
       {lastSet ? <Text style={styles.last}>Ultimo: {lastSet}</Text> : null}
 
-      {exercise.sets.map((setItem, index) => (
-        <SetRow
-          key={setItem.id || `${exercise.name}-${index}`}
-          set={setItem}
-          index={index}
-          simpleMode={simpleMode}
-          onChange={(field, value) => onChangeSet(exercise.name, index, field, value)}
-          onComplete={() => onCompleteSet(exercise.name, index)}
-          testIDs={testIDs(index)}
-        />
-      ))}
+      <FlatList
+        data={Array.isArray(exercise.sets) ? exercise.sets : []}
+        scrollEnabled={false}
+        keyExtractor={(item, index) => String(item?.id || `${exercise.name}-${index}`)}
+        renderItem={renderSetItem}
+      />
 
       <TouchableOpacity onPress={() => onAddSet(exercise.name)} style={styles.addButton}>
         <Text style={styles.addText}>+ Adicionar serie</Text>

@@ -30,7 +30,23 @@ function macroTemplate(name) {
 export function createFoodFromText(input = '') {
   const raw = String(input || '').trim();
   if (!raw) {
-    return null;
+    return {
+      name: '',
+      calories: 0,
+      protein: 0,
+      carbs: 0,
+      fat: 0,
+    };
+  }
+
+  if (!/[,+;]|\se\s/i.test(raw)) {
+    return {
+      name: raw,
+      calories: 0,
+      protein: 0,
+      carbs: 0,
+      fat: 0,
+    };
   }
 
   const pieces = raw.split(/[,+;]|\se\s/).map((item) => item.trim()).filter(Boolean);
@@ -101,9 +117,23 @@ export function parseNutritionLabel(image) {
     return match ? toNumber(match[1], 0) : 0;
   };
 
+  const parseFromRequiredPattern = (raw) => {
+    const extractRequired = (regex) => {
+      const match = String(raw || '').match(regex);
+      return match ? Number(match[1]) : 0;
+    };
+
+    return {
+      calories: extractRequired(/(\d+)\s*kcal/i),
+      carbs: extractRequired(/carboidratos\s*(\d+)/i),
+    };
+  };
+
+  const required = parseFromRequiredPattern(rawText);
+
   const parsed = {
-    calories: extract(['kcal', 'calorias', 'energia']),
-    carbs: extract(['carboidratos', 'carboidrato', 'carbs']),
+    calories: required.calories || extract(['kcal', 'calorias', 'energia']),
+    carbs: required.carbs || extract(['carboidratos', 'carboidrato', 'carbs']),
     protein: extract(['proteinas', 'proteina', 'protein']),
     fat: extract(['gorduras totais', 'gordura total', 'gorduras', 'fat']),
     sodium: extract(['sodio', 'sodium']),

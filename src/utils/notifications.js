@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
-import * as Notifications from 'expo-notifications';
+// import * as Notifications from 'expo-notifications';
 
 const NOTIFICATION_STATE_KEY = 'evolucao.notifications.state.v1';
 const MAX_NOTIFICATIONS_PER_DAY = 2;
@@ -45,37 +45,37 @@ async function saveNotificationState(state) {
 
 export async function initializeNotifications() {
   if (!handlerConfigured) {
-    Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowBanner: true,
-        shouldShowList: true,
-        shouldPlaySound: false,
-        shouldSetBadge: false,
-      }),
-    });
+    // Notifications.setNotificationHandler({
+    //   handleNotification: async () => ({
+    //     shouldShowBanner: true,
+    //     shouldShowList: true,
+    //     shouldPlaySound: false,
+    //     shouldSetBadge: false,
+    //   }),
+    // });
     handlerConfigured = true;
   }
 
-  const permissions = await Notifications.getPermissionsAsync();
-  let granted = permissions.granted || permissions.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL;
+  // const permissions = await Notifications.getPermissionsAsync();
+  // let granted = permissions.granted || permissions.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL;
 
-  if (!granted) {
-    const request = await Notifications.requestPermissionsAsync();
-    granted = request.granted || request.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL;
-  }
+  // if (!granted) {
+  //   const request = await Notifications.requestPermissionsAsync();
+  //   granted = request.granted || request.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL;
+  // }
 
-  if (Platform.OS === 'android') {
-    try {
-      await Notifications.setNotificationChannelAsync('default', {
-        name: 'default',
-        importance: Notifications.AndroidImportance.DEFAULT,
-      });
-    } catch (_error) {
-      // Evita quebra de boot em inconsistencias de canal no Android.
-    }
-  }
+  // if (Platform.OS === 'android') {
+  //   try {
+  //     await Notifications.setNotificationChannelAsync('default', {
+  //       name: 'default',
+  //       importance: Notifications.AndroidImportance.DEFAULT,
+  //     });
+  //   } catch (_error) {
+  //     // Evita quebra de boot em inconsistencias de canal no Android.
+  //   }
+  // }
 
-  return { granted };
+  return { granted: false };
 }
 
 export async function sendIntelligentNotification({
@@ -101,29 +101,29 @@ export async function sendIntelligentNotification({
     return { ok: false, reason: 'daily_limit' };
   }
 
-  const permission = await Notifications.getPermissionsAsync();
-  const hasPermission = permission.granted || permission.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL;
-  if (!hasPermission) {
-    return { ok: false, reason: 'no_permission' };
-  }
+  // const permission = await Notifications.getPermissionsAsync();
+  // const hasPermission = permission.granted || permission.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL;
+  // if (!hasPermission) {
+  //   return { ok: false, reason: 'no_permission' };
+  // }
 
-  try {
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title,
-        body,
-        data,
-        sound: Platform.OS === 'ios' ? 'default' : undefined,
-      },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-        seconds: Math.max(1, Number(delaySeconds || 1)),
-        repeats: false,
-      },
-    });
-  } catch (_error) {
-    return { ok: false, reason: 'schedule_failed' };
-  }
+  // try {
+  //   await Notifications.scheduleNotificationAsync({
+  //     content: {
+  //       title,
+  //       body,
+  //       data,
+  //       sound: Platform.OS === 'ios' ? 'default' : undefined,
+  //     },
+  //     trigger: {
+  //       type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+  //       seconds: Math.max(1, Number(delaySeconds || 1)),
+  //       repeats: false,
+  //     },
+  //   });
+  // } catch (_error) {
+  //   return { ok: false, reason: 'schedule_failed' };
+  // }
 
   const nextState = {
     ...state,
@@ -136,7 +136,7 @@ export async function sendIntelligentNotification({
     },
   };
 
-  await saveNotificationState(nextState);
+  // await saveNotificationState(nextState);
 
-  return { ok: true };
+  return { ok: false, reason: 'notifications_disabled' };
 }

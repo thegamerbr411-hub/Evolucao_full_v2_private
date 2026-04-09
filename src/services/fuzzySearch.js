@@ -68,6 +68,21 @@ function scoreCandidate(query, candidate) {
   return score;
 }
 
+export const fuzzySearch = (query, list) => {
+  const normalize = (t) =>
+    String(t || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+
+  const q = normalize(query);
+
+  return (Array.isArray(list) ? list : []).filter((item) => {
+    const name = typeof item === 'string' ? item : item?.name;
+    return normalize(name).includes(q);
+  });
+};
+
 export function fuzzySearchExercises(query, list = [], limit = 30) {
   const safeList = Array.isArray(list) ? list.filter(Boolean) : [];
   const normalizedQuery = normalize(query);

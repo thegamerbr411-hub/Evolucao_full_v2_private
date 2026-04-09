@@ -172,9 +172,8 @@ export default function FreeWorkoutScreen({ navigation }) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.keyboardContainer}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 16 : 0}
+      style={{ flex: 1 }}
     >
       <ScrollView
         contentContainerStyle={styles.container}
