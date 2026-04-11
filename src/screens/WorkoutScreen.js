@@ -30,6 +30,7 @@ import { ExerciseCard } from '../components/workout/ExerciseCard';
 import { colors, spacing } from '../theme';
 import { logEvent } from '../core/logger';
 import { success } from '../services/feedbackService.js';
+import { logError as logQaError } from '../utils/errorLogger';
 
 function formatTimer(seconds) {
   const safe = Math.max(0, Number(seconds || 0));
@@ -878,12 +879,22 @@ export default function WorkoutScreen({ navigation, route }) {
 
     const nextIndex = todaySets.length;
     if (setIndex !== nextIndex) {
+      logQaError(new Error('workout_set_order_invalid'), {
+        screen: SCREENS.WORKOUT,
+        severity: 'low',
+        extra: { expectedSetIndex: nextIndex, receivedSetIndex: setIndex },
+      });
       Alert.alert('Ordem das series', `Salve primeiro a serie ${nextIndex + 1}.`);
       return;
     }
 
     const row = (draftSetsByExercise[exercise.name] || [])[setIndex] || { weight: '', reps: '', rpe: '8' };
     if (!isValidSet(row.weight, row.reps)) {
+      logQaError(new Error('workout_set_invalid_fields'), {
+        screen: SCREENS.WORKOUT,
+        severity: 'low',
+        extra: { exerciseName: exercise.name, weight: row.weight, reps: row.reps },
+      });
       Alert.alert('Dados invalidos', 'Preencha peso e repeticoes validas.');
       return;
     }
@@ -898,6 +909,11 @@ export default function WorkoutScreen({ navigation, route }) {
     });
 
     if (!result.ok) {
+      logQaError(new Error('workout_set_save_failed'), {
+        screen: SCREENS.WORKOUT,
+        severity: 'low',
+        extra: { exerciseName: exercise.name, reason: result.message },
+      });
       Alert.alert('Dados invalidos', result.message);
       return;
     }
@@ -1053,6 +1069,11 @@ export default function WorkoutScreen({ navigation, route }) {
   const removeLastSetFromExercise = (exerciseName) => {
     const plannedSets = Number(setCountByExercise[exerciseName] || 0);
     if (plannedSets <= 1) {
+      logQaError(new Error('workout_remove_last_set_below_minimum'), {
+        screen: SCREENS.WORKOUT,
+        severity: 'low',
+        extra: { exerciseName, plannedSets },
+      });
       Alert.alert('Limite minimo', 'Cada exercicio precisa de pelo menos 1 serie.');
       return;
     }
@@ -1061,6 +1082,11 @@ export default function WorkoutScreen({ navigation, route }) {
       .filter((item) => item.date === todayKey && isSameExerciseLog(item, exerciseName) && (item.mode || 'guided') !== 'free');
 
     if (todaySets.length >= plannedSets) {
+      logQaError(new Error('workout_remove_last_set_saved_conflict'), {
+        screen: SCREENS.WORKOUT,
+        severity: 'low',
+        extra: { exerciseName, plannedSets, savedSets: todaySets.length },
+      });
       Alert.alert('Remova primeiro', 'A ultima serie ja foi salva. Exclua ela antes de reduzir o total.');
       return;
     }
@@ -1115,16 +1141,31 @@ export default function WorkoutScreen({ navigation, route }) {
     const reps = String(newExerciseReps || '').trim() || '8-12';
 
     if (!typedName || !sets || sets <= 0) {
+      logQaError(new Error('workout_add_exercise_invalid_payload'), {
+        screen: SCREENS.WORKOUT,
+        severity: 'low',
+        extra: { typedName, sets, reps },
+      });
       Alert.alert('Dados invalidos', 'Informe nome e quantidade de series validas para o exercicio.');
       return;
     }
 
     if (!exerciseCatalog.includes(safeName)) {
+      logQaError(new Error('workout_add_exercise_unknown_name'), {
+        screen: SCREENS.WORKOUT,
+        severity: 'low',
+        extra: { typedName, safeName },
+      });
       Alert.alert('Exercicio nao encontrado', 'Tente buscar pelo nome aproximado na lista de sugestoes.');
       return;
     }
 
     if (allExercises.some((item) => item.name.toLowerCase() === safeName.toLowerCase())) {
+      logQaError(new Error('workout_add_exercise_duplicate'), {
+        screen: SCREENS.WORKOUT,
+        severity: 'low',
+        extra: { exerciseName: safeName },
+      });
       Alert.alert('Exercicio ja existe', 'Esse exercicio ja esta no treino de hoje.');
       return;
     }
@@ -1150,11 +1191,21 @@ export default function WorkoutScreen({ navigation, route }) {
     const typedName = String(newExerciseName || '').trim();
     const safeName = findBestFuzzyMatch(typedName, exerciseCatalog);
     if (!safeName) {
+      logQaError(new Error('workout_replace_exercise_missing_name'), {
+        screen: SCREENS.WORKOUT,
+        severity: 'low',
+        extra: { typedName },
+      });
       Alert.alert('Escolha um exercicio', 'Selecione um exercicio da lista para substituir.');
       return;
     }
 
     if (!exerciseCatalog.includes(safeName)) {
+      logQaError(new Error('workout_replace_exercise_unknown_name'), {
+        screen: SCREENS.WORKOUT,
+        severity: 'low',
+        extra: { typedName, safeName },
+      });
       Alert.alert('Escolha da lista', 'Selecione um exercicio existente na lista de sugestoes.');
       return;
     }
@@ -1200,6 +1251,11 @@ export default function WorkoutScreen({ navigation, route }) {
     }
 
     if (allExercises.length <= 1) {
+      logQaError(new Error('workout_remove_exercise_below_minimum'), {
+        screen: SCREENS.WORKOUT,
+        severity: 'low',
+        extra: { exerciseName: safeName, exerciseCount: allExercises.length },
+      });
       Alert.alert('Minimo de exercicios', 'O treino precisa ter ao menos 1 exercicio.');
       return;
     }
@@ -1368,6 +1424,7 @@ export default function WorkoutScreen({ navigation, route }) {
         <ScreenHeader title="Treino de hoje" subtitle="Fluxo rapido: preencher e salvar serie." />
 
         <SecondaryButton
+          testID="btn-toggle-workout-mode"
           title={simpleMode ? 'Modo simples ativo' : 'Modo avancado ativo'}
           onPress={() => setSimpleMode((prev) => !prev)}
           style={styles.modeToggleButton}
@@ -1450,7 +1507,7 @@ export default function WorkoutScreen({ navigation, route }) {
               </Text>
             </TouchableOpacity>
           ))}
-          <TouchableOpacity style={styles.manualRestBtn} onPress={() => startRestTimer(restPreset)}>
+          <TouchableOpacity testID="btn-start-rest-manual" style={styles.manualRestBtn} onPress={() => startRestTimer(restPreset)}>
             <Text style={styles.manualRestText}>Descanso</Text>
           </TouchableOpacity>
         </View>
@@ -1856,6 +1913,7 @@ export default function WorkoutScreen({ navigation, route }) {
           />
           <Text style={styles.addExerciseTitle}>Adicionar/substituir exercicio</Text>
           <TextInput
+            testID="input-novo-exercicio"
             value={newExerciseName}
             onChangeText={setNewExerciseName}
             placeholder="Exercicio selecionado"
@@ -1864,6 +1922,7 @@ export default function WorkoutScreen({ navigation, route }) {
           />
           <View style={styles.addExerciseRow}>
             <TextInput
+              testID="input-novo-exercicio-series"
               value={newExerciseSets}
               onChangeText={setNewExerciseSets}
               placeholder="Series"
@@ -1872,6 +1931,7 @@ export default function WorkoutScreen({ navigation, route }) {
               style={[styles.addExerciseInput, styles.addExerciseSmallInput]}
             />
             <TextInput
+              testID="input-novo-exercicio-reps"
               value={newExerciseReps}
               onChangeText={setNewExerciseReps}
               placeholder="Reps ex: 8-12"
@@ -1880,17 +1940,17 @@ export default function WorkoutScreen({ navigation, route }) {
             />
           </View>
           <View style={styles.actionRow}>
-            <TouchableOpacity style={styles.addExerciseButton} onPress={addExerciseToWorkout}>
+            <TouchableOpacity testID="btn-adicionar-exercicio-workout" style={styles.addExerciseButton} onPress={addExerciseToWorkout}>
               <Text style={styles.addExerciseButtonText}>+ Adicionar exercicio</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.replaceExerciseButton} onPress={replaceActiveExercise}>
+            <TouchableOpacity testID="btn-substituir-exercicio-workout" style={styles.replaceExerciseButton} onPress={replaceActiveExercise}>
               <Text style={styles.addExerciseButtonText}>Substituir exercicio</Text>
             </TouchableOpacity>
           </View>
         </AppCard>
 
         <View style={styles.finishCard}>
-          <PrimaryButton title="Finalizar treino" onPress={finishWorkout} style={styles.finishButton} />
+          <PrimaryButton testID="btn-finalizar-treino" title="Finalizar treino" onPress={finishWorkout} style={styles.finishButton} />
           <SecondaryButton testID="btn-salvar-parcial" title="Salvar parcial e sair" onPress={savePartialAndExit} style={styles.partialButton} />
         </View>
 

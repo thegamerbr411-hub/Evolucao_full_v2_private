@@ -32,10 +32,10 @@ export function WorkoutsHubView({ navigation, summary, todayWorkout, recommended
       </AppCard>
 
       <PrimaryButton testID="btn-iniciar-treino" title="Iniciar treino recomendado" onPress={() => navigation.navigate('TreinoHoje')} style={styles.primaryButton} />
-      <SecondaryButton title="Treino livre" onPress={() => navigation.navigate('TreinoLivre')} />
-      <SecondaryButton title="Criar treino em rotina" onPress={() => navigation.navigate('Rotinas')} />
-      <SecondaryButton title="Importar treino (IA)" onPress={() => navigation.navigate('ImportWorkout')} />
-      <SecondaryButton title="Painel admin" onPress={() => navigation.navigate('Admin')} />
+      <SecondaryButton testID="btn-open-free-workout" title="Treino livre" onPress={() => navigation.navigate('TreinoLivre')} />
+      <SecondaryButton testID="btn-open-routines" title="Criar treino em rotina" onPress={() => navigation.navigate('Rotinas')} />
+      <SecondaryButton testID="btn-open-import-workout" title="Importar treino (IA)" onPress={() => navigation.navigate('ImportWorkout')} />
+      <SecondaryButton testID="btn-open-admin" title="Painel admin" onPress={() => navigation.navigate('Admin')} />
     </ScrollView>
   );
 }

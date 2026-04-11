@@ -5,6 +5,9 @@ import { logEvent } from '../core/logger.js';
 
 export const parseWorkout = async ({ userId, text, imageUri, userAiUsageToday = 0 }) => {
   try {
+    if (!functions) {
+      return { name: 'Treino importado', exercises: [] };
+    }
     if (Number(userAiUsageToday || 0) > 5) {
       throw new Error('Limite diário atingido');
     }

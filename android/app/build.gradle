@@ -96,6 +96,9 @@ android {
         versionName "1.0.0"
         testBuildType System.getProperty('testBuildType', 'debug')
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+        // Alguns devices attached não fazem discovery do JUnit no APK de teste;
+        // fixamos a classe Detox para evitar INSTRUMENTATION_RESULT: OK (0 tests).
+        testInstrumentationRunnerArguments class: 'com.tipolt.evolucaofullv2.DetoxTest'
         missingDimensionStrategy 'detox', 'full'
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""

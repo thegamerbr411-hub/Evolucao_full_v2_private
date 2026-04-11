@@ -1,321 +1,589 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="pt-BR">
 <head>
-  <title>QA Dashboard</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    body {
-      font-family: Arial;
-      background: #0f172a;
-      color: #fff;
-      margin: 0;
-      padding: 20px;
-    }
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>QA Dashboard V2</title>
+	<style>
+		:root {
+			--bg: #0f172a;
+			--bg-soft: #111827;
+			--surface: #1f2937;
+			--surface-2: #273449;
+			--text: #e5e7eb;
+			--muted: #94a3b8;
+			--ok: #22c55e;
+			--warn: #f59e0b;
+			--danger: #ef4444;
+			--accent: #06b6d4;
+			--border: #334155;
+		}
 
-    h1 {
-      margin-bottom: 20px;
-    }
+		* {
+			box-sizing: border-box;
+		}
 
-    .login {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
-    }
+		body {
+			margin: 0;
+			min-height: 100vh;
+			font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+			color: var(--text);
+			background:
+				radial-gradient(900px 450px at 90% -20%, rgba(6, 182, 212, 0.15), transparent 70%),
+				radial-gradient(1000px 500px at -10% 10%, rgba(34, 197, 94, 0.08), transparent 70%),
+				var(--bg);
+		}
 
-    .login input {
-      background: #1e293b;
-      border: 1px solid #334155;
-      color: #fff;
-      border-radius: 8px;
-      padding: 8px 10px;
-    }
+		.container {
+			max-width: 1180px;
+			margin: 0 auto;
+			padding: 20px;
+			display: grid;
+			gap: 16px;
+		}
 
-    .login button {
-      background: #38bdf8;
-      color: #0f172a;
-      border: none;
-      border-radius: 8px;
-      padding: 8px 14px;
-      font-weight: bold;
-      cursor: pointer;
-    }
+		.card {
+			border: 1px solid var(--border);
+			border-radius: 14px;
+			background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+			padding: 14px;
+		}
 
-    .error {
-      color: #fca5a5;
-      margin-bottom: 12px;
-      min-height: 20px;
-    }
+		.top {
+			display: grid;
+			gap: 10px;
+			grid-template-columns: 2fr 1fr;
+		}
 
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 20px;
-    }
+		.title {
+			font-size: 20px;
+			margin: 0 0 8px;
+			letter-spacing: 0.2px;
+		}
 
-    .card {
-      background: #1e293b;
-      padding: 15px;
-      border-radius: 12px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.4);
-      margin-bottom: 20px;
-    }
+		.chips {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 8px;
+		}
 
-    .big {
-      font-size: 28px;
-      font-weight: bold;
-    }
+		.chip {
+			border: 1px solid var(--border);
+			border-radius: 999px;
+			padding: 6px 10px;
+			color: var(--muted);
+			font-size: 12px;
+			background: rgba(15, 23, 42, 0.45);
+		}
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
+		.status-ok {
+			color: var(--ok);
+			border-color: rgba(34, 197, 94, 0.35);
+		}
 
-    td, th {
-      padding: 8px;
-      border-bottom: 1px solid #333;
-      text-align: left;
-    }
-  </style>
+		.status-warn {
+			color: var(--warn);
+			border-color: rgba(245, 158, 11, 0.35);
+		}
+
+		.status-danger {
+			color: var(--danger);
+			border-color: rgba(239, 68, 68, 0.35);
+		}
+
+		.grid {
+			display: grid;
+			gap: 14px;
+			grid-template-columns: 1.8fr 1fr;
+		}
+
+		.list {
+			display: grid;
+			gap: 8px;
+			max-height: 430px;
+			overflow: auto;
+			padding-right: 4px;
+		}
+
+		.item {
+			border: 1px solid var(--border);
+			border-radius: 12px;
+			background: rgba(2, 6, 23, 0.38);
+			padding: 10px;
+			display: grid;
+			gap: 8px;
+		}
+
+		.row {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 8px;
+		}
+
+		.mono {
+			font-family: Consolas, "Courier New", monospace;
+			font-size: 12px;
+			color: #cbd5e1;
+			word-break: break-all;
+		}
+
+		.actions {
+			display: flex;
+			gap: 8px;
+			flex-wrap: wrap;
+		}
+
+		button,
+		input,
+		select {
+			border: 1px solid var(--border);
+			border-radius: 10px;
+			background: #0b1220;
+			color: var(--text);
+			padding: 9px 11px;
+			font-size: 13px;
+		}
+
+		button {
+			cursor: pointer;
+			transition: transform 120ms ease, border-color 120ms ease;
+		}
+
+		button:hover {
+			transform: translateY(-1px);
+			border-color: rgba(6, 182, 212, 0.5);
+		}
+
+		.btn-accent {
+			border-color: rgba(6, 182, 212, 0.5);
+			color: #67e8f9;
+		}
+
+		.muted {
+			color: var(--muted);
+			font-size: 12px;
+		}
+
+		.select-compact {
+			padding: 7px 10px;
+			min-width: 130px;
+		}
+
+		.metrics {
+			display: grid;
+			gap: 8px;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+
+		.metric {
+			border: 1px dashed var(--border);
+			border-radius: 10px;
+			padding: 9px;
+		}
+
+		.queue-list {
+			max-height: 220px;
+			overflow: auto;
+			display: grid;
+			gap: 6px;
+		}
+
+		.learning-list {
+			max-height: 220px;
+			overflow: auto;
+			display: grid;
+			gap: 6px;
+		}
+
+		.section-title {
+			font-size: 16px;
+			margin: 0;
+		}
+
+		.queue-title {
+			margin: 12px 0 8px;
+			font-size: 14px;
+		}
+
+		@media (max-width: 920px) {
+			.top,
+			.grid {
+				grid-template-columns: 1fr;
+			}
+		}
+	</style>
 </head>
-
 <body>
+	<main class="container">
+		<section class="top">
+			<article class="card">
+				<h1 class="title">Dashboard QA - Bugs, Fila e Decisões</h1>
+				<div class="chips">
+					<span id="sessionChip" class="chip status-warn">Sessão: sem token</span>
+					<span id="clientChip" class="chip">Cliente: default</span>
+					<span id="workerChip" class="chip">Worker: idle</span>
+					<span id="queueChip" class="chip">Fila: 0</span>
+				</div>
+			</article>
 
-<h1>🚀 QA Dashboard</h1>
+			<article class="card">
+				<div class="actions">
+					<input id="adminUser" placeholder="admin user/email" />
+					<input id="adminPass" type="password" placeholder="admin password" />
+					<input id="clientId" placeholder="client id" value="admin" />
+					<button id="btnLogin" class="btn-accent">Login</button>
+					<button id="btnRefresh">Atualizar</button>
+				</div>
+			</article>
+		</section>
 
-<div class="login">
-  <input id="user" placeholder="usuario" value="admin" />
-  <input id="pass" placeholder="senha" type="password" />
-  <input id="apiKey" placeholder="x-api-key do cliente" />
-  <button id="loginBtn" type="button">Entrar</button>
-</div>
-<div id="error" class="error"></div>
+		<section class="grid">
+			<article class="card">
+				<div class="row">
+					<h2 class="title section-title">Bugs (abertos e em retest)</h2>
+					<span id="bugsCount" class="muted">0 itens</span>
+				</div>
+				<div id="bugsList" class="list"></div>
+			</article>
 
-<div class="grid">
-  <div class="card">
-    <div>Total Bugs</div>
-    <div id="total" class="big">0</div>
-  </div>
+			<article class="card">
+				<h2 class="title section-title">Status Operacional</h2>
+				<div class="metrics" id="metrics"></div>
+				<h3 class="queue-title">IA</h3>
+				<div class="chips">
+					<span id="aiStatusChip" class="chip">IA: idle</span>
+				</div>
+				<div id="learningList" class="learning-list"></div>
+				<h3 class="queue-title">Fila/Worker</h3>
+				<div id="queueList" class="queue-list"></div>
+			</article>
+		</section>
+	</main>
 
-  <div class="card">
-    <div>Críticos</div>
-    <div id="critical" class="big">0</div>
-  </div>
+	<script>
+		const state = {
+			adminToken: localStorage.getItem('qa_admin_v2') || '',
+			clientToken: localStorage.getItem('qa_client_token_v2') || '',
+			clientId: localStorage.getItem('qa_client_id_v2') || 'admin',
+			bugs: [],
+				learningSummary: null,
+				aiStatus: null,
+			retests: { active: [], history: [] },
+		};
 
-  <div class="card">
-    <div>Último Bug</div>
-    <div id="last" class="big">-</div>
-  </div>
-</div>
+		const el = {
+			adminUser: document.getElementById('adminUser'),
+			adminPass: document.getElementById('adminPass'),
+			bugsCount: document.getElementById('bugsCount'),
+			bugsList: document.getElementById('bugsList'),
+			btnLogin: document.getElementById('btnLogin'),
+			btnRefresh: document.getElementById('btnRefresh'),
+			clientChip: document.getElementById('clientChip'),
+			clientId: document.getElementById('clientId'),
+			metrics: document.getElementById('metrics'),
+				aiStatusChip: document.getElementById('aiStatusChip'),
+				learningList: document.getElementById('learningList'),
+			queueChip: document.getElementById('queueChip'),
+			queueList: document.getElementById('queueList'),
+			sessionChip: document.getElementById('sessionChip'),
+			workerChip: document.getElementById('workerChip'),
+		};
 
-<div class="card">
-  <h2>📊 Bugs por dia</h2>
-  <canvas id="chart"></canvas>
-</div>
+		function authHeaders() {
+			return {
+				'content-type': 'application/json',
+				'x-qa-local': '1',
+				'x-qa-client-id': state.clientId || 'admin',
+				...(state.clientToken ? { authorization: `Bearer ${state.clientToken}` } : {}),
+			};
+		}
 
-<div class="card">
-  <h2>🔥 Top Bugs</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>Mensagem</th>
-        <th>Count</th>
-        <th>Tela</th>
-        <th>Severidade</th>
-        <th>Sugestão IA</th>
-      </tr>
-    </thead>
-    <tbody id="table"></tbody>
-  </table>
-</div>
+		function saveSession() {
+			localStorage.setItem('qa_admin_v2', state.adminToken || '');
+			localStorage.setItem('qa_client_token_v2', state.clientToken || '');
+			localStorage.setItem('qa_client_id_v2', state.clientId || 'admin');
+		}
 
-<script>
-const tokenKey = 'qa_dashboard_token_v3';
-const adminTokenKey = 'qa_dashboard_admin_token_v1';
-let chartInstance = null;
+		function setSessionChip() {
+			const hasToken = Boolean(state.adminToken || state.clientToken);
+			el.sessionChip.textContent = hasToken ? 'Sessão: autenticada (token carregado)' : 'Sessão: sem token';
+			el.sessionChip.className = `chip ${hasToken ? 'status-ok' : 'status-warn'}`;
+			el.clientChip.textContent = `Cliente: ${state.clientId || 'admin'}`;
+			el.clientId.value = state.clientId || 'admin';
+		}
 
-function getAuthHeaders() {
-  const token = localStorage.getItem(tokenKey) || '';
-  const headers = {};
-  if (token) headers.Authorization = `Bearer ${token}`;
-  headers['x-api-key'] = '123456';
-  return headers;
-}
+		function bySeverity(item) {
+			const map = { HIGH: 3, MEDIUM: 2, LOW: 1 };
+			return map[String(item?.severity || 'LOW').toUpperCase()] || 0;
+		}
 
-async function login() {
-  const user = document.getElementById('user').value.trim();
-  const pass = document.getElementById('pass').value.trim();
-  const clientId = document.getElementById('apiKey').value.trim() || 'admin';
-  const errorEl = document.getElementById('error');
+		function summarize() {
+			const all = state.bugs;
+			const open = all.filter((b) => String(b.status || '').toLowerCase() === 'open' || String(b.status || '').toLowerCase() === 'reopened').length;
+			const fixing = all.filter((b) => String(b.status || '').toLowerCase() === 'fixing').length;
+			const retest = all.filter((b) => ['in_retest', 'retest_failed'].includes(String(b.status || '').toLowerCase())).length;
+			const resolved = all.filter((b) => ['closed', 'resolved'].includes(String(b.status || '').toLowerCase()) || b.autoClosed).length;
+			const critical = all.filter((b) => bySeverity(b) >= 3).length;
 
-  try {
-    const res = await fetch('/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user, pass }),
-    });
-    const data = await res.json();
-    if (!res.ok || !data?.token) {
-      throw new Error('Login inválido');
-    }
+			const cards = [
+				['Abertos', open],
+				['Fixing', fixing],
+				['Retest', retest],
+				['Resolved', resolved],
+				['Críticos', critical],
+			];
 
-    localStorage.setItem(adminTokenKey, data.token);
-    const clientRes = await fetch('/token/client', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${data.token}`,
-      },
-      body: JSON.stringify({ clientId }),
-    });
-    const clientData = await clientRes.json();
-    if (!clientRes.ok || !clientData?.token) {
-      throw new Error('Falha ao gerar token do cliente');
-    }
+			el.metrics.innerHTML = cards
+				.map(([label, value]) => `<div class="metric"><div class="muted">${label}</div><strong>${value}</strong></div>`)
+				.join('');
+			el.bugsCount.textContent = `${all.length} itens`;
 
-    localStorage.setItem(tokenKey, clientData.token);
-    errorEl.innerText = '';
-    await load();
-  } catch (error) {
-    errorEl.innerText = error.message || 'Falha no login';
-  }
-}
+			const activeCount = Array.isArray(state.retests.active) ? state.retests.active.length : 0;
+			el.workerChip.textContent = activeCount > 0 ? 'Worker: running' : 'Worker: idle';
+			el.queueChip.textContent = `Fila: ${activeCount}`;
+		}
 
-async function fetchBugs() {
-  const res = await fetch('/api/bugs?limit=200', {
-    headers: {
-      ...getAuthHeaders(),
-    },
-  });
+		async function api(path, options = {}) {
+			const response = await fetch(path, {
+				...options,
+				headers: {
+					...authHeaders(),
+					...(options.headers || {}),
+				},
+			});
+			const text = await response.text();
+			let payload = null;
+			try {
+				payload = text ? JSON.parse(text) : null;
+			} catch {
+				payload = null;
+			}
+			if (!response.ok) {
+				const err = new Error(payload?.error || `http_${response.status}`);
+				err.payload = payload;
+				throw err;
+			}
+			return payload;
+		}
 
-  if (res.status === 401) {
-    throw new Error('Sessão expirada. Faça login novamente.');
-  }
+		async function ensureSeedBug() {
+			if (state.bugs.length > 0) return;
+			await api('/api/log', {
+				method: 'POST',
+				body: JSON.stringify({
+					message: 'qa_seed_bug_for_dashboard_visibility',
+					screen: 'Dashboard',
+					stack: 'Error: seed\n at dashboard/index.html:1',
+				}),
+			});
+		}
 
-  return await res.json();
-}
+		async function refreshData() {
+			setSessionChip();
+			try {
+				state.bugs = await api(`/api/bugs?limit=120&clientId=${encodeURIComponent(state.clientId)}`);
+				await ensureSeedBug();
+				state.bugs = await api(`/api/bugs?limit=120&clientId=${encodeURIComponent(state.clientId)}`);
+				state.retests = await api(`/api/retests?limit=20&clientId=${encodeURIComponent(state.clientId)}`);
+				state.learningSummary = await api(`/api/learning/summary?clientId=${encodeURIComponent(state.clientId)}`);
+				state.aiStatus = await api(`/api/ai/status?clientId=${encodeURIComponent(state.clientId)}`);
+			} catch (error) {
+				state.bugs = [];
+				state.learningSummary = null;
+				state.aiStatus = null;
+				state.retests = { active: [], history: [] };
+			}
+			render();
+		}
 
-async function analyzeBatch(data) {
-  const res = await fetch('/api/analyze-batch', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...getAuthHeaders(),
-    },
-    body: JSON.stringify(data),
-  });
+		function renderLearning() {
+			const summary = state.learningSummary || {};
+			const aiStatus = state.aiStatus?.aiStatus || 'idle';
+			el.aiStatusChip.textContent = `IA: ${aiStatus}`;
+			el.aiStatusChip.className = `chip ${aiStatus === 'running' ? 'status-warn' : 'status-ok'}`;
 
-  if (res.status === 401) {
-    throw new Error('Sessão expirada. Faça login novamente.');
-  }
+			const topScreen = Array.isArray(summary.mostProblematicScreens) && summary.mostProblematicScreens.length
+				? summary.mostProblematicScreens[0]
+				: { key: '-', count: 0 };
+			const topAction = Array.isArray(summary.mostProblematicActions) && summary.mostProblematicActions.length
+				? summary.mostProblematicActions[0]
+				: { key: '-', count: 0 };
 
-  return await res.json();
-}
+			el.learningList.innerHTML = `
+				<div class="item">
+					<strong>Tela com mais erro</strong>
+					<span class="mono">${topScreen.key}</span>
+					<span class="muted">Ocorrências: ${Number(topScreen.count || 0)}</span>
+				</div>
+				<div class="item">
+					<strong>Ação mais problemática</strong>
+					<span class="mono">${topAction.key}</span>
+					<span class="muted">Ocorrências: ${Number(topAction.count || 0)}</span>
+				</div>
+			`;
+		}
 
-function renderChart(data) {
-  const grouped = {};
+		function listQueue() {
+			const active = Array.isArray(state.retests.active) ? state.retests.active : [];
+			const history = Array.isArray(state.retests.history) ? state.retests.history.slice(0, 8) : [];
+			const rows = [];
+			active.forEach((job) => {
+				rows.push(`<div class="item"><strong>${job.mode || 'smoke'}</strong><span class="mono">${job.fingerprint || '-'}</span><span class="muted">${job.status || 'running'}</span></div>`);
+			});
+			history.forEach((job) => {
+				rows.push(`<div class="item"><strong>${job.mode || 'smoke'}</strong><span class="mono">${job.fingerprint || '-'}</span><span class="muted">${job.status || 'unknown'}</span></div>`);
+			});
+			el.queueList.innerHTML = rows.join('') || '<div class="muted">Sem jobs na fila.</div>';
+		}
 
-  data.forEach((bug) => {
-    const history = Array.isArray(bug.history) ? bug.history : [];
-    if (!history.length) {
-      const fallbackDay = String(bug.lastOccurrence || bug.timestamp || '').slice(0, 10);
-      if (fallbackDay) grouped[fallbackDay] = (grouped[fallbackDay] || 0) + Number(bug.count || 0);
-      return;
-    }
+		async function runAiFix(bug) {
+			await api('/api/apply-fix', {
+				method: 'POST',
+				body: JSON.stringify({
+					file: bug.file || bug.meta?.file || 'src/screens/HomeScreen.js',
+					change: `AI fix request for: ${bug.message}`,
+					meta: {
+						fingerprint: bug.fingerprint,
+						source: 'dashboard-manual',
+					},
+				}),
+			});
+			await refreshData();
+		}
 
-    history.forEach((entry) => {
-      const day = String(entry.date || '').slice(0, 10);
-      if (!day) return;
-      grouped[day] = (grouped[day] || 0) + Number(entry.count || 0);
-    });
-  });
+		async function runRetest(bug) {
+			await api('/api/retest', {
+				method: 'POST',
+				body: JSON.stringify({
+					fingerprint: bug.fingerprint,
+					mode: 'smoke',
+					meta: { origin: 'dashboard-button' },
+				}),
+			});
+			await refreshData();
+		}
 
-  const labels = Object.keys(grouped).sort();
-  const values = labels.map((label) => grouped[label]);
+		async function applyDecision(bug, decision, reason = 'manual_dashboard_action') {
+			await api('/api/bug-decision', {
+				method: 'POST',
+				body: JSON.stringify({
+					fingerprint: bug.fingerprint,
+					decision,
+					reason,
+					expectedStatus: String(bug.status || ''),
+					expectedCount: Number(bug.count || 0),
+				}),
+			});
+			await refreshData();
+		}
 
-  const ctx = document.getElementById('chart').getContext('2d');
-  if (chartInstance) {
-    chartInstance.destroy();
-  }
+		function normalizeStatusLabel(rawStatus, autoClosed) {
+			const status = String(rawStatus || '').toLowerCase();
+			if (autoClosed || status === 'closed' || status === 'resolved') return 'resolved';
+			if (status === 'in_retest' || status === 'retest_failed') return 'retest';
+			if (status === 'fixing' || status === 'merge') return 'fixing';
+			return 'open';
+		}
 
-  chartInstance = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [{
-        label: 'Bugs',
-        data: values,
-        borderColor: '#38bdf8',
-        backgroundColor: 'rgba(56, 189, 248, 0.2)',
-        fill: true,
-        tension: 0.25,
-      }],
-    },
-    options: {
-      plugins: {
-        legend: {
-          labels: {
-            color: '#fff',
-          },
-        },
-      },
-      scales: {
-        x: {
-          ticks: { color: '#cbd5e1' },
-          grid: { color: 'rgba(148, 163, 184, 0.2)' },
-        },
-        y: {
-          ticks: { color: '#cbd5e1' },
-          grid: { color: 'rgba(148, 163, 184, 0.2)' },
-        },
-      },
-    },
-  });
-}
+		function statusChipClass(status) {
+			if (status === 'resolved') return 'status-ok';
+			if (status === 'retest') return 'status-warn';
+			if (status === 'fixing') return 'status-warn';
+			return 'status-danger';
+		}
 
-async function load() {
-  const errorEl = document.getElementById('error');
+		function renderBugs() {
+			const sorted = [...state.bugs].sort((a, b) => Number(b.count || 0) - Number(a.count || 0));
+			el.bugsList.innerHTML = sorted.map((bug) => {
+				const status = normalizeStatusLabel(bug.status, bug.autoClosed);
+				const severity = String(bug.severity || 'LOW').toUpperCase();
+				return `
+					<article class="item">
+						<div class="row">
+							<strong>${bug.message || 'erro sem mensagem'}</strong>
+							<span class="chip ${severity === 'HIGH' ? 'status-warn' : ''}">${severity}</span>
+						</div>
+						<div class="mono">${bug.fingerprint || '-'}</div>
+						<div class="row">
+							<span class="muted">Status: <span class="chip ${statusChipClass(status)}">${status}</span> | Count: ${Number(bug.count || 0)}</span>
+							<span class="muted">Tela: ${bug.screen || '-'}</span>
+						</div>
+						<div class="actions">
+							<button class="btn-accent" data-action="ai" data-fp="${bug.fingerprint}">Corrigir com IA</button>
+							<button data-action="retest" data-fp="${bug.fingerprint}">Re-testar</button>
+							<select class="select-compact" data-action="decision-select" data-fp="${bug.fingerprint}">
+								<option value="resolver">resolver</option>
+								<option value="rollback">rollback</option>
+								<option value="merge">merge</option>
+							</select>
+							<button data-action="decision" data-fp="${bug.fingerprint}">Aplicar decisão</button>
+						</div>
+					</article>
+				`;
+			}).join('');
 
-  try {
-    const data = await fetchBugs();
-    document.getElementById('total').innerText = data.length;
-    document.getElementById('critical').innerText = data.filter((b) => b.severity === 'CRITICAL').length;
-    document.getElementById('last').innerText = data[0]?.message || '-';
+			el.bugsList.querySelectorAll('button[data-action]').forEach((button) => {
+				button.addEventListener('click', async () => {
+					const action = button.getAttribute('data-action');
+					const fp = button.getAttribute('data-fp');
+					const bug = state.bugs.find((item) => item.fingerprint === fp);
+					if (!bug) return;
+					try {
+						if (action === 'ai') await runAiFix(bug);
+						if (action === 'retest') await runRetest(bug);
+						if (action === 'decision') {
+							const select = el.bugsList.querySelector(`select[data-action="decision-select"][data-fp="${fp}"]`);
+							const decision = select?.value || 'resolver';
+							await applyDecision(bug, decision);
+						}
+					} catch (error) {
+						console.error('dashboard-action-error', error.message);
+					}
+				});
+			});
+		}
 
-    data.sort((a, b) => Number(b.count || 0) - Number(a.count || 0));
-    const analyzed = await analyzeBatch(data);
+		function render() {
+			summarize();
+			renderBugs();
+			renderLearning();
+			listQueue();
+		}
 
-    const table = document.getElementById('table');
-    table.innerHTML = '';
+		async function login() {
+			const user = (el.adminUser.value || '').trim();
+			const pass = (el.adminPass.value || '').trim();
+			state.clientId = (el.clientId.value || 'admin').trim() || 'admin';
+			const response = await fetch('/login', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ user, pass }),
+			});
+			const payload = await response.json();
+			if (!response.ok || !payload?.token) {
+				throw new Error(payload?.error || 'login_failed');
+			}
+			state.adminToken = payload.token;
+			state.clientToken = payload.token;
+			saveSession();
+			await refreshData();
+		}
 
-    for (const bug of analyzed) {
-      const row = document.createElement('tr');
-      row.innerHTML = `
-        <td>${bug.message || '-'}</td>
-        <td>${Number(bug.count || 0)}</td>
-        <td>${bug.screen || '-'}</td>
-        <td style="color:${
-          bug.severity === 'CRITICAL' ? 'red' :
-          bug.severity === 'HIGH' ? 'orange' :
-          bug.severity === 'MEDIUM' ? 'yellow' :
-          'lightgreen'
-        }">${bug.severity || 'LOW'}</td>
-        <td>${bug.suggestion || 'Erro desconhecido'}</td>
-      `;
-      table.appendChild(row);
-    }
+		el.adminUser.value = localStorage.getItem('admin_user_cached') || 'admin@teste.com';
+		el.adminPass.value = '';
+		el.btnLogin.addEventListener('click', async () => {
+			try {
+				localStorage.setItem('admin_user_cached', el.adminUser.value || '');
+				await login();
+			} catch (error) {
+				console.error('login-error', error.message);
+			}
+		});
+		el.btnRefresh.addEventListener('click', refreshData);
 
-    renderChart(analyzed);
-    errorEl.innerText = '';
-  } catch (error) {
-    errorEl.innerText = error.message || 'Falha ao carregar dashboard';
-  }
-}
-
-document.getElementById('loginBtn').addEventListener('click', login);
-setInterval(load, 3000);
-load();
-</script>
-
+		setSessionChip();
+		refreshData();
+	</script>
 </body>
 </html>

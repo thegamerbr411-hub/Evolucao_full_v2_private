@@ -1,6 +1,7 @@
 import React from 'react';
 import { Animated, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { colors, radius, spacing, typography } from '../../theme';
+import { trackEvent } from '../../utils/analytics';
 
 export function PrimaryButton({ title, onPress, style, testID }) {
   const scaleAnim = React.useRef(new Animated.Value(1)).current;
@@ -23,9 +24,26 @@ export function PrimaryButton({ title, onPress, style, testID }) {
     }).start();
   }, [scaleAnim]);
 
+  const handlePress = React.useCallback(() => {
+    trackEvent('tap', {
+      screen: 'ui',
+      meta: {
+        allowBurst: true,
+        component: 'PrimaryButton',
+        domain: 'interaction',
+        id: String(testID || title || 'primary-button'),
+        label: String(title || ''),
+      },
+    });
+
+    if (typeof onPress === 'function') {
+      onPress();
+    }
+  }, [onPress, testID, title]);
+
   return (
     <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-      <TouchableOpacity testID={testID} onPress={onPress} onPressIn={handlePressIn} onPressOut={handlePressOut} style={[styles.button, style]}>
+      <TouchableOpacity testID={testID} onPress={handlePress} onPressIn={handlePressIn} onPressOut={handlePressOut} style={[styles.button, style]}>
         <Text style={styles.text}>{title}</Text>
       </TouchableOpacity>
     </Animated.View>

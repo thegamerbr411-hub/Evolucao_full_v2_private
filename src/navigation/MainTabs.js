@@ -9,15 +9,32 @@ import WorkoutsHubScreen from '../screens/WorkoutsHubScreen';
 import CoachChatScreen from '../screens/CoachChatScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import { colors } from '../theme';
+import { trackEvent } from '../utils/analytics';
 
 const Tab = createBottomTabNavigator();
 
 export default function MainTabs() {
   const insets = useSafeAreaInsets();
 
-  const createTabButton = (testID) => {
+  const createTabButton = (testID, routeName) => {
     return function TabButton(props) {
-      return <TouchableOpacity {...props} testID={testID} />;
+      const handlePress = () => {
+        trackEvent('tap', {
+          screen: 'MainTabs',
+          meta: {
+            allowBurst: true,
+            domain: 'navigation',
+            id: testID,
+            routeName,
+          },
+        });
+
+        if (typeof props.onPress === 'function') {
+          props.onPress();
+        }
+      };
+
+      return <TouchableOpacity {...props} onPress={handlePress} testID={testID} />;
     };
   };
 
@@ -48,11 +65,11 @@ export default function MainTabs() {
         },
       }}
     >
-      <Tab.Screen name="HomeHoje" component={HomeScreen} options={{ title: 'Home', tabBarButton: createTabButton('tab-home'), tabBarIcon: ({ color, size, focused }) => <Ionicons name={getTabIcon('HomeHoje', focused)} color={color} size={size} /> }} />
-      <Tab.Screen name="Nutricao" component={NutritionScanner} options={{ title: 'Nutricao', tabBarButton: createTabButton('tab-nutricao'), tabBarIcon: ({ color, size, focused }) => <Ionicons name={getTabIcon('Nutricao', focused)} color={color} size={size} /> }} />
-      <Tab.Screen name="Treinos" component={WorkoutsHubScreen} options={{ title: 'Treino', tabBarButton: createTabButton('tab-treino'), tabBarIcon: ({ color, size, focused }) => <Ionicons name={getTabIcon('Treinos', focused)} color={color} size={size} /> }} />
-      <Tab.Screen name="Conversa" component={CoachChatScreen} options={{ title: 'Coach', tabBarButton: createTabButton('tab-conversa'), tabBarIcon: ({ color, size, focused }) => <Ionicons name={getTabIcon('Conversa', focused)} color={color} size={size} /> }} />
-      <Tab.Screen name="Perfil" component={ProfileScreen} options={{ title: 'Perfil', tabBarButton: createTabButton('tab-perfil'), tabBarIcon: ({ color, size, focused }) => <Ionicons name={getTabIcon('Perfil', focused)} color={color} size={size} /> }} />
+      <Tab.Screen name="HomeHoje" component={HomeScreen} options={{ title: 'Home', tabBarButton: createTabButton('tab-home', 'HomeHoje'), tabBarIcon: ({ color, size, focused }) => <Ionicons name={getTabIcon('HomeHoje', focused)} color={color} size={size} /> }} />
+      <Tab.Screen name="Nutricao" component={NutritionScanner} options={{ title: 'Nutricao', tabBarButton: createTabButton('tab-nutricao', 'Nutricao'), tabBarIcon: ({ color, size, focused }) => <Ionicons name={getTabIcon('Nutricao', focused)} color={color} size={size} /> }} />
+      <Tab.Screen name="Treinos" component={WorkoutsHubScreen} options={{ title: 'Treino', tabBarButton: createTabButton('tab-treino', 'Treinos'), tabBarIcon: ({ color, size, focused }) => <Ionicons name={getTabIcon('Treinos', focused)} color={color} size={size} /> }} />
+      <Tab.Screen name="Conversa" component={CoachChatScreen} options={{ title: 'Coach', tabBarButton: createTabButton('tab-conversa', 'Conversa'), tabBarIcon: ({ color, size, focused }) => <Ionicons name={getTabIcon('Conversa', focused)} color={color} size={size} /> }} />
+      <Tab.Screen name="Perfil" component={ProfileScreen} options={{ title: 'Perfil', tabBarButton: createTabButton('tab-perfil', 'Perfil'), tabBarIcon: ({ color, size, focused }) => <Ionicons name={getTabIcon('Perfil', focused)} color={color} size={size} /> }} />
     </Tab.Navigator>
   );
 }

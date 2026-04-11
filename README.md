@@ -1,69 +1,216 @@
 # Evolucao Full v2
 
-API de bugs + dashboard web para observabilidade de erros do app React Native.
+App React Native/Expo com automacao Detox, telemetria QA local e dashboard de observabilidade para rodar testes de uso real por horas.
 
-## Rodar local
+## Stack QA entregue
 
-1. Entre na pasta `dashboard`.
-2. Copie `dashboard/.env.example` para `dashboard/.env`.
-3. Ajuste credenciais (`ADMIN_EMAIL`, `ADMIN_PASSWORD`, `JWT_SECRET`).
-4. Instale e rode:
+- Detox para Android (`.detoxrc.js`, `e2e/`, runner nativo Android).
+- Backend local de QA com:
+  - `POST /api/log`
+  - `POST /api/events`
+  - `GET /api/events`
+  - `GET /api/heatmap`
+  - `GET /api/insights`
+  - `POST /api/apply-fix`
+  - `GET /api/retests`
+  - `POST /api/retest`
+- Persistencia local em `artifacts/`:
+  - `learning.json`
+  - `events.json`
+  - `apply-fix.json`
+  - `insights.json`
+- Scripts de ciclo e loop:
+  - `scripts/run-detox-cycle.js`
+  - `scripts/run-detox-loop.js`
+  - `dashboard/scripts/night-run.js`
+
+## Rodar ambiente local
+
+### 1. Subir app + backend QA
 
 ```powershell
+npm run dev:start
+```
+
+Esse comando:
+
+- corrige `adb` e Java
+- sobe `dashboard/server.js`
+- sobe o Metro
+- aplica `adb reverse` para `3000`, `8081` e `8082`
+- builda e abre o app Android
+
+### 2. Smoke test da API local
+
+```powershell
+npm run qa:smoke
+```
+
+Esse comando agora sobe um servidor efemero automaticamente quando `BASE_URL` nao for informado.
+
+### 3. Testes do backend
+
+```powershell
+npm test
+npm run dashboard:test
 cd dashboard
-npm install
-npm start
+npm run test:smoke
 ```
 
-Healthcheck local:
+## Detox
 
-`http://localhost:3000/health`
+### Build Android para Detox
 
-Resposta esperada:
-
-```json
-{
-  "status": "ok",
-  "uptime": 123,
-  "timestamp": "2026-04-09T05:00:00.000Z"
-}
+```powershell
+npm run detox:build
 ```
 
-## Deploy no Render (backend)
+### Rodar suite completa no emulador
+
+```powershell
+npm run detox:test
+```
+
+### Rodar em device Android conectado
+
+```powershell
+$env:DETOX_CONFIGURATION='android.attached.debug'
+npm run detox:test:attached
+```
+
+### Rodar um ciclo com seed/persona
+
+```powershell
+$env:QA_PERSONA='maromba'
+$env:QA_SEED='night-001'
+npm run detox:cycle
+```
+
+### Bootstrap automatico Detox (recomendado)
+
+Detecta AVD/device automaticamente, configura variaveis e executa o ciclo:
+
+```powershell
+npm run detox:auto
+```
+
+Para tentar executar suite Detox direta com autodeteccao:
+
+```powershell
+npm run detox:auto:test
+```
+
+Se nao houver AVD/device, o ciclo usa skip controlado e registra no artifact `artifacts/detox-cycle-last.json`.
+
+Variaveis uteis:
+
+- `DETOX_CONFIGURATION=android.emulator.debug|android.attached.debug`
+- `DETOX_AVD_NAME=nome-do-avd`
+- `DETOX_ADB_NAME=serial-ou-regex-do-device`
+- `DETOX_TEST_PATTERN=texto do teste`
+- `QA_PERSONA=iniciante|maromba|dieta`
+- `QA_SEED=qualquer-string`
+- `QA_PERSONA_SEQUENCE=iniciante,maromba,dieta`
+- `QA_SOAK_ROUNDS=2`
+
+## Rodar por horas
+
+### Loop Detox
+
+```powershell
+$env:QA_LOOP_HOURS='8'
+$env:QA_LOOP_COOLDOWN_MS='10000'
+npm run detox:loop
+```
+
+Para o soak operacional de 2 horas em device conectado:
+
+```powershell
+npm run qa:soak:2h
+```
+
+Ou com wrapper PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/run-detox-loop.ps1 -Hours 8 -CooldownMs 10000 -Configuration android.emulator.debug
+```
+
+### Night run completo
+
+Esse fluxo roda:
+
+1. smoke da API
+2. analise local de bugs
+3. ciclo Detox
+4. nova analise ao final do ciclo
+5. repete
+
+```powershell
+npm run qa:night
+```
+
+Para rodar um ciclo unico:
+
+```powershell
+npm run qa:night:once
+```
+
+## Artefatos gerados
+
+- `artifacts/learning.json`: bugs agregados por cliente
+- `artifacts/events.json`: eventos de uso real e heatmap
+- `artifacts/apply-fix.json`: sugestoes recebidas em `/api/apply-fix`
+- `artifacts/insights.json`: classificacao local dos bugs
+- `artifacts/retests.json`: historico dos retestes disparados pelo dashboard/API
+- `artifacts/detox/`: logs/screenshots do Detox
+- `artifacts/detox-loop-report.json`: historico do loop
+
+## Fluxos e2e cobertos
+
+- onboarding/questionario real do app
+- treino guiado
+- treino livre
+- nutricao
+- tracking de agua
+- coach/chat
+- erros de validacao + spam click
+- soak curto com rotacao de personas
+
+## Deploy do backend no Render
 
 Este repositorio ja tem `render.yaml` pronto para deploy com:
 
 - `buildCommand: npm install`
 - `startCommand: node dashboard/server.js`
 
-Variaveis de ambiente minimas:
+Variaveis minimas:
 
 - `JWT_SECRET`
-- `ADMIN_EMAIL`
-- `ADMIN_PASSWORD`
+- `ADMIN_EMAIL` ou `ADMIN_USER`
+- `ADMIN_PASSWORD` ou `ADMIN_PASS`
 - `DEFAULT_CLIENT_ID=admin`
-- `CLIENT_API_KEYS=admin:SUA_API_KEY`
+- `CLIENT_API_KEYS={"admin":"SUA_API_KEY"}`
 
-Passos:
+Fluxo do dashboard:
 
-1. Suba o repositorio no GitHub.
-2. No Render, clique em `New +` -> `Web Service`.
-3. Conecte o repositorio e mantenha root vazio.
-4. Configure as variaveis de ambiente no painel.
-5. Deploy.
+1. fazer login com admin
+2. gerar token do `clientId`
+3. opcionalmente informar a `API key` do cliente
+4. operar backlog, analise, correcoes e retestes via `/api/insights`, `/api/apply-fix` e `/api/retest`
 
-Teste:
+Em producao, o bypass local de QA deve ficar desativado:
 
-`https://SEU_BACKEND.onrender.com/health`
+- `ENABLE_QA_LOCAL_BYPASS=0`
 
-## App React Native
+## Observacoes
 
-Configure o `baseURL` para:
+- O fluxo de "login" automatizado usa o onboarding/questionario real do app, nao uma tela nova.
+- O app envia telemetria QA local sem bloquear UI.
+- O erro artificial no boot ficou protegido por flag QA (`EXPO_PUBLIC_QA_INJECT_APP_CRASH`).
+- Para attached device, prefira rodar com `adb devices` validado antes.
 
-`https://SEU_BACKEND.onrender.com`
+## Troubleshooting Detox (Windows)
 
-Nao use `localhost` nem IP interno em build mobile.
-
-## Dashboard estatico (opcional)
-
-Voce pode publicar `dashboard/public` como site estatico (ex: Vercel) e apontar as chamadas da UI para o backend no Render.
+- Se o Detox no emulador falhar com `x86_64 emulation currently requires hardware acceleration`, habilite virtualizacao na BIOS/UEFI e instale o Android Emulator Hypervisor Driver (ou WHPX), depois reinicie a maquina.
+- Se `adb devices` mostrar `unauthorized`, aceite o prompt de depuracao USB no aparelho e rode `adb kill-server` + `adb start-server`.
+- Para fluxo automatico com fallback controlado sem hardware disponivel, use `npm run detox:auto`.

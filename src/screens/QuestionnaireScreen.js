@@ -11,15 +11,18 @@ import {
 import { useApp } from '../context/AppContext';
 import { AppCard, PrimaryButton, ScreenHeader } from '../components/ui';
 import { colors, radius, spacing, typography } from '../theme';
+import { logError } from '../utils/errorLogger';
 
 const goals = [
   { key: 'emagrecer', label: 'Emagrecer' },
   { key: 'ganhar_massa', label: 'Ganhar massa' },
+  { key: 'recomposicao', label: 'Recomposição' },
 ];
 
 const levels = [
   { key: 'iniciante', label: 'Iniciante' },
   { key: 'intermediario', label: 'Intermediario' },
+  { key: 'avancado', label: 'Avancado' },
 ];
 
 const trainingDays = [
@@ -31,7 +34,7 @@ const trainingDays = [
   { key: '7', label: '7x' },
 ];
 
-function OptionGroup({ title, options, selected, onSelect }) {
+function OptionGroup({ title, options, selected, onSelect, testIDPrefix }) {
   return (
     <View style={styles.group}>
       <Text style={styles.label}>{title}</Text>
@@ -41,6 +44,7 @@ function OptionGroup({ title, options, selected, onSelect }) {
           return (
             <TouchableOpacity
               key={option.key}
+              testID={testIDPrefix ? `${testIDPrefix}-${option.key}` : undefined}
               style={[styles.chip, isSelected && styles.chipSelected]}
               onPress={() => onSelect(option.key)}
             >
@@ -80,6 +84,12 @@ export default function QuestionnaireScreen({ navigation }) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const handleSubmit = () => {
+    console.log('[ONBOARDING_SUBMIT_ATTEMPT]', {
+      daysPerWeek,
+      goal,
+      level,
+      weight,
+    });
     const currentWeight = Number(weight);
     const trainingDaysValue = Number(daysPerWeek);
     const safeTargetWeight = Number(targetWeight || weight);
@@ -95,27 +105,52 @@ export default function QuestionnaireScreen({ navigation }) {
     };
 
     if (!payload.currentWeight || payload.currentWeight < 30 || payload.currentWeight > 300) {
+      logError(new Error('questionnaire_invalid_weight'), {
+        screen: 'Questionnaire',
+        severity: 'low',
+        extra: { currentWeight },
+      });
       Alert.alert('Dados invalidos', 'Informe um peso atual valido.');
       return;
     }
 
     if (!payload.trainingDaysPerWeek || payload.trainingDaysPerWeek < 2 || payload.trainingDaysPerWeek > 7) {
+      logError(new Error('questionnaire_invalid_training_days'), {
+        screen: 'Questionnaire',
+        severity: 'low',
+        extra: { trainingDaysPerWeek: trainingDaysValue },
+      });
       Alert.alert('Dados invalidos', 'Escolha de 2 a 7 dias por semana.');
       return;
     }
 
     if (payload.targetWeight < 30 || payload.targetWeight > 300 || payload.height < 120 || payload.height > 230) {
+      logError(new Error('questionnaire_invalid_advanced_fields'), {
+        screen: 'Questionnaire',
+        severity: 'low',
+        extra: { height: safeHeight, targetWeight: safeTargetWeight },
+      });
       Alert.alert('Dados invalidos', 'Ajuste peso meta e altura nas opcoes avancadas.');
       return;
     }
 
     try {
       saveQuestionnaire(payload);
+      console.log('[ONBOARDING_COMPLETED]', {
+        goal,
+        level,
+        trainingDaysPerWeek: payload.trainingDaysPerWeek,
+      });
       navigation.reset({
         index: 0,
         routes: [{ name: 'MainTabs' }],
       });
-    } catch (_error) {
+    } catch (error) {
+      logError(error, {
+        screen: 'Questionnaire',
+        severity: 'medium',
+        extra: { action: 'saveQuestionnaire' },
+      });
       Alert.alert('Erro ao salvar', 'Nao foi possivel concluir o questionario agora. Tente novamente.');
     }
   };
@@ -130,8 +165,8 @@ export default function QuestionnaireScreen({ navigation }) {
       <ScreenHeader title="Comece em 30 segundos" subtitle="So o essencial para criar seu plano." />
 
       <AppCard>
-        <OptionGroup title="Objetivo" options={goals} selected={goal} onSelect={setGoal} />
-        <OptionGroup title="Nivel" options={levels} selected={level} onSelect={setLevel} />
+        <OptionGroup title="Objetivo" options={goals} selected={goal} onSelect={setGoal} testIDPrefix="chip-goal" />
+        <OptionGroup title="Nivel" options={levels} selected={level} onSelect={setLevel} testIDPrefix="chip-level" />
 
         <NumberField
           label="Peso atual"
@@ -148,6 +183,7 @@ export default function QuestionnaireScreen({ navigation }) {
             return (
               <TouchableOpacity
                 key={day.key}
+                testID={`chip-days-${day.key}`}
                 style={[styles.chip, selected && styles.chipSelected]}
                 onPress={() => setDaysPerWeek(day.key)}
               >
@@ -157,7 +193,7 @@ export default function QuestionnaireScreen({ navigation }) {
           })}
         </View>
 
-        <TouchableOpacity onPress={() => setAdvancedOpen((value) => !value)} style={styles.moreButton}>
+        <TouchableOpacity testID="btn-toggle-advanced-questionnaire" onPress={() => setAdvancedOpen((value) => !value)} style={styles.moreButton}>
           <Text style={styles.moreText}>{advancedOpen ? 'Ocultar opcoes' : 'Mais opcoes'}</Text>
         </TouchableOpacity>
 

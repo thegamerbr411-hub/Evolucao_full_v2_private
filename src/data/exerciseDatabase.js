@@ -1,3 +1,5 @@
+import gymExerciseCatalog from './exerciseCatalogGym.json';
+
 const exerciseDatabase = {
   peito: [
     { id: '0001', nome: 'Supino Reto com Barra', grupo: 'peito', tipo: 'composto', nivel: 'intermediario', substitutos: ['0002', '0003'], equipamento: 'Barra', dicas: ['Escapulas aduzidas', 'Barra no meio do peito', 'Pes firmes'], dificuldade: 'medio' },
@@ -6,7 +8,9 @@ const exerciseDatabase = {
     { id: '0004', nome: 'Supino Declinado com Barra', grupo: 'peito', tipo: 'composto', nivel: 'intermediario', substitutos: ['0001'], equipamento: 'Barra', dicas: ['Ponte leve e estavel', 'Barra na linha inferior do peito', 'Controle no retorno'], dificuldade: 'medio' },
     { id: '0005', nome: 'Crossover no Cabo', grupo: 'peito', tipo: 'isolado', nivel: 'iniciante', substitutos: ['0003'], equipamento: 'Cabo', dicas: ['Passo a frente', 'Fechar com controle', 'Manter peito aberto'], dificuldade: 'facil' },
     { id: '0006', nome: 'Flexao de Bracos', grupo: 'peito', tipo: 'composto', nivel: 'iniciante', substitutos: ['0001', '0002'], equipamento: 'Peso corporal', dicas: ['Linha neutra do corpo', 'Descer com controle', 'Subir sem perder tronco'], dificuldade: 'facil' },
-    { id: '0007', nome: 'Pullover com Halter', grupo: 'peito', tipo: 'isolado', nivel: 'intermediario', substitutos: ['0005'], equipamento: 'Halteres', dicas: ['Bracos semi-flexionados', 'Alongar sem perder lombar', 'Subir focando peitoral'], dificuldade: 'medio' }
+    { id: '0007', nome: 'Pullover com Halter', grupo: 'peito', tipo: 'isolado', nivel: 'intermediario', substitutos: ['0005'], equipamento: 'Halteres', dicas: ['Bracos semi-flexionados', 'Alongar sem perder lombar', 'Subir focando peitoral'], dificuldade: 'medio' },
+    { id: '0051', nome: 'Supino Maquina (Chest Press)', grupo: 'peito', tipo: 'composto', nivel: 'iniciante', substitutos: ['0001', '0003', '0056'], equipamento: 'Maquina', dicas: ['Ajustar banco na linha do peito', 'Empurrar sem perder escapulas', 'Retorno controlado'], dificuldade: 'facil', aliases: ['chest press', 'maquina de peito', 'supino guiado', 'press de peito', 'maquina de empurrar', 'supino maquina'] },
+    { id: '0056', nome: 'Supino Inclinado Maquina', grupo: 'peito', tipo: 'composto', nivel: 'intermediario', substitutos: ['0051', '0002'], equipamento: 'Maquina', dicas: ['Ajustar inclinacao para peitoral superior', 'Empurrar com cotovelos alinhados', 'Evitar tranco no final'], dificuldade: 'medio', aliases: ['incline chest press', 'supino inclinado guiado', 'supino inclinado maquina'] }
   ],
   costas: [
     { id: '0008', nome: 'Puxada Frente no Pulldown', grupo: 'costas', tipo: 'composto', nivel: 'iniciante', substitutos: ['0009'], equipamento: 'Cabo', dicas: ['Puxar com o cotovelo', 'Peito estufado', 'Nao balancar tronco'], dificuldade: 'facil' },
@@ -15,7 +19,10 @@ const exerciseDatabase = {
     { id: '0011', nome: 'Remada Baixa no Cabo', grupo: 'costas', tipo: 'composto', nivel: 'iniciante', substitutos: ['0008', '0010'], equipamento: 'Cabo', dicas: ['Peito aberto', 'Cotovelos junto ao tronco', 'Retorno controlado'], dificuldade: 'facil' },
     { id: '0012', nome: 'Barra Fixa Pronada', grupo: 'costas', tipo: 'composto', nivel: 'avancado', substitutos: ['0008'], equipamento: 'Peso corporal', dicas: ['Corpo em bloco', 'Subir com escapulas', 'Descer completo'], dificuldade: 'dificil' },
     { id: '0013', nome: 'Face Pull no Cabo', grupo: 'costas', tipo: 'isolado', nivel: 'iniciante', substitutos: ['0011'], equipamento: 'Cabo', dicas: ['Puxar para altura dos olhos', 'Cotovelos altos', 'Foco em escapulas'], dificuldade: 'facil' },
-    { id: '0014', nome: 'Pulldown com Bracos Estendidos', grupo: 'costas', tipo: 'isolado', nivel: 'intermediario', substitutos: ['0008'], equipamento: 'Cabo', dicas: ['Bracos semi-rigidos', 'Puxar ate coxa', 'Nao roubar com lombar'], dificuldade: 'medio' }
+    { id: '0014', nome: 'Pulldown com Bracos Estendidos', grupo: 'costas', tipo: 'isolado', nivel: 'intermediario', substitutos: ['0008'], equipamento: 'Cabo', dicas: ['Bracos semi-rigidos', 'Puxar ate coxa', 'Nao roubar com lombar'], dificuldade: 'medio' },
+    { id: '0052', nome: 'Remada Sentada Maquina', grupo: 'costas', tipo: 'composto', nivel: 'iniciante', substitutos: ['0011', '0057'], equipamento: 'Maquina', dicas: ['Peito aberto no apoio', 'Puxar com cotovelos para tras', 'Segurar 1s na contracao'], dificuldade: 'facil', aliases: ['seated row', 'remada sentada', 'remada maquina', 'maquina de remada', 'maquina de costas', 'remada baixa'] },
+    { id: '0055', nome: 'Graviton (Barra Assistida)', grupo: 'costas', tipo: 'composto', nivel: 'iniciante', substitutos: ['0008', '0037'], equipamento: 'Maquina', dicas: ['Ajustar carga de assistencia', 'Controlar descida completa', 'Evitar balanço do tronco'], dificuldade: 'facil', aliases: ['graviton', 'assisted pull-up', 'assisted pull up', 'assisted dip', 'barra assistida', 'maquina de barra'] },
+    { id: '0057', nome: 'Remada Articulada', grupo: 'costas', tipo: 'composto', nivel: 'intermediario', substitutos: ['0052', '0009'], equipamento: 'Maquina', dicas: ['Apoio estavel no peito', 'Puxar unilateral ou bilateral com controle', 'Sem girar tronco'], dificuldade: 'medio', aliases: ['hammer row', 'remada articulada', 'remada unilateral maquina'] }
   ],
   pernas: [
     { id: '0015', nome: 'Agachamento Livre', grupo: 'pernas', tipo: 'composto', nivel: 'avancado', substitutos: ['0016', '0017'], equipamento: 'Barra', dicas: ['Quadril para tras', 'Joelhos para fora', 'Peito aberto'], dificuldade: 'dificil' },
@@ -36,7 +43,8 @@ const exerciseDatabase = {
     { id: '0028', nome: 'Elevacao Frontal', grupo: 'ombros', tipo: 'isolado', nivel: 'iniciante', substitutos: ['0027'], equipamento: 'Halteres', dicas: ['Subir ate linha dos olhos', 'Controle total', 'Alternar bracos'], dificuldade: 'facil' },
     { id: '0029', nome: 'Crucifixo Inverso no Peck Deck', grupo: 'ombros', tipo: 'isolado', nivel: 'iniciante', substitutos: ['0013'], equipamento: 'Maquina', dicas: ['Peito no apoio', 'Abrir com cotovelos', 'Pausa curta no pico'], dificuldade: 'facil' },
     { id: '0030', nome: 'Arnold Press', grupo: 'ombros', tipo: 'composto', nivel: 'intermediario', substitutos: ['0026'], equipamento: 'Halteres', dicas: ['Rotacao fluida', 'Sem perder postura', 'Controle na descida'], dificuldade: 'medio' },
-    { id: '0031', nome: 'Desenvolvimento na Maquina', grupo: 'ombros', tipo: 'composto', nivel: 'iniciante', substitutos: ['0026'], equipamento: 'Maquina', dicas: ['Ajustar banco', 'Empurrar em linha', 'Descer completo'], dificuldade: 'facil' }
+    { id: '0031', nome: 'Desenvolvimento na Maquina', grupo: 'ombros', tipo: 'composto', nivel: 'iniciante', substitutos: ['0026'], equipamento: 'Maquina', dicas: ['Ajustar banco', 'Empurrar em linha', 'Descer completo'], dificuldade: 'facil', aliases: ['shoulder press', 'maquina de ombro', 'maquina de ombros', 'desenvolvimento maquina', 'ombro maquina'] },
+    { id: '0053', nome: 'Elevacao Lateral Maquina', grupo: 'ombros', tipo: 'isolado', nivel: 'iniciante', substitutos: ['0027', '0031'], equipamento: 'Maquina', dicas: ['Ajustar apoio de cotovelo', 'Subir ate linha do ombro', 'Descer sem relaxar totalmente'], dificuldade: 'facil', aliases: ['lateral raise machine', 'elevacao lateral', 'lateral', 'maquina lateral', 'ombro lateral maquina'] }
   ],
   biceps: [
     { id: '0032', nome: 'Rosca Direta com Barra', grupo: 'biceps', tipo: 'isolado', nivel: 'iniciante', substitutos: ['0033'], equipamento: 'Barra', dicas: ['Cotovelos fixos', 'Subir sem balancar', 'Descer devagar'], dificuldade: 'facil' },
@@ -50,7 +58,8 @@ const exerciseDatabase = {
     { id: '0038', nome: 'Triceps Frances com Halter', grupo: 'triceps', tipo: 'isolado', nivel: 'intermediario', substitutos: ['0037'], equipamento: 'Halteres', dicas: ['Cotovelos apontando para frente', 'Amplitude total', 'Sem forcar lombar'], dificuldade: 'medio' },
     { id: '0039', nome: 'Triceps Testa com Barra EZ', grupo: 'triceps', tipo: 'isolado', nivel: 'intermediario', substitutos: ['0038'], equipamento: 'Barra EZ', dicas: ['Cotovelos estaveis', 'Descer perto da testa', 'Subir com controle'], dificuldade: 'medio' },
     { id: '0040', nome: 'Mergulho entre Bancos', grupo: 'triceps', tipo: 'composto', nivel: 'iniciante', substitutos: ['0037'], equipamento: 'Peso corporal', dicas: ['Quadril proximo ao banco', 'Descer ate 90 graus', 'Subir sem travar'], dificuldade: 'facil' },
-    { id: '0041', nome: 'Triceps no Banco com Pegada Fechada', grupo: 'triceps', tipo: 'composto', nivel: 'intermediario', substitutos: ['0039'], equipamento: 'Barra', dicas: ['Pegada fechada firme', 'Cotovelos junto ao corpo', 'Controle da descida'], dificuldade: 'medio' }
+    { id: '0041', nome: 'Triceps no Banco com Pegada Fechada', grupo: 'triceps', tipo: 'composto', nivel: 'intermediario', substitutos: ['0039'], equipamento: 'Barra', dicas: ['Pegada fechada firme', 'Cotovelos junto ao corpo', 'Controle da descida'], dificuldade: 'medio' },
+    { id: '0054', nome: 'Triceps Maquina', grupo: 'triceps', tipo: 'isolado', nivel: 'iniciante', substitutos: ['0037', '0039'], equipamento: 'Maquina', dicas: ['Ajustar eixo no cotovelo', 'Estender sem deslocar ombro', 'Retorno controlado'], dificuldade: 'facil', aliases: ['triceps press', 'triceps maquina', 'triceps na maquina', 'maquina de triceps', 'triceps sentado'] }
   ],
   abdomen: [
     { id: '0042', nome: 'Prancha Frontal', grupo: 'abdomen', tipo: 'composto', nivel: 'iniciante', substitutos: ['0043'], equipamento: 'Peso corporal', dicas: ['Quadril alinhado', 'Abdomen contraido', 'Respiracao controlada'], dificuldade: 'facil' },
@@ -75,6 +84,13 @@ function normalize(value = '') {
     .trim();
 }
 
+function normalizeWords(value = '') {
+  return normalize(value)
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
 function normalizeGroupName(group = '') {
   const normalized = normalize(group);
   if (normalized === 'pernas') return 'perna';
@@ -84,6 +100,12 @@ function normalizeGroupName(group = '') {
 
 export const allExercises = Object.values(exerciseDatabase).flat();
 
+const gymCatalog = Array.isArray(gymExerciseCatalog) ? gymExerciseCatalog : [];
+const gymCatalogById = gymCatalog.reduce((acc, item) => {
+  acc[String(item?.id || '')] = item;
+  return acc;
+}, {});
+
 const exerciseIndexById = allExercises.reduce((acc, item) => {
   acc[item.id] = item;
   return acc;
@@ -92,6 +114,12 @@ const exerciseIndexById = allExercises.reduce((acc, item) => {
 const exerciseNameAliasMap = allExercises.reduce((acc, item) => {
   const key = normalize(item.nome);
   acc[key] = item;
+  (Array.isArray(item.aliases) ? item.aliases : []).forEach((alias) => {
+    const aliasKey = normalize(alias);
+    if (aliasKey) {
+      acc[aliasKey] = item;
+    }
+  });
   return acc;
 }, {
   'supino reto barra': null,
@@ -142,8 +170,34 @@ buildAliasLink('panturrilha sentado', 'panturrilha sentado');
 buildAliasLink('elevacao lateral halter', 'elevacao lateral');
 buildAliasLink('rosca martelo halter', 'rosca martelo');
 
+gymCatalog.forEach((entry) => {
+  const canonicalId = String(entry?.canonical_exercise_id || '').trim();
+  const canonicalExercise = canonicalId ? getExerciseById(canonicalId) : null;
+  if (!canonicalExercise) {
+    return;
+  }
+
+  const preferredNames = [entry?.nome_principal, ...(Array.isArray(entry?.aliases) ? entry.aliases : [])];
+  preferredNames.forEach((name) => {
+    const key = normalize(name);
+    if (key) {
+      exerciseNameAliasMap[key] = canonicalExercise;
+    }
+  });
+});
+
 export function getExerciseNamesFromDatabase() {
-  return allExercises.map((item) => item.nome);
+  const exerciseNames = allExercises.map((item) => item.nome);
+  const gymNames = gymCatalog.map((item) => String(item?.nome_principal || '').trim()).filter(Boolean);
+  const exerciseAliases = allExercises
+    .flatMap((item) => (Array.isArray(item.aliases) ? item.aliases : []))
+    .map((item) => String(item || '').trim())
+    .filter(Boolean);
+  const gymAliases = gymCatalog
+    .flatMap((item) => (Array.isArray(item.aliases) ? item.aliases : []))
+    .map((item) => String(item || '').trim())
+    .filter(Boolean);
+  return Array.from(new Set([...exerciseNames, ...gymNames, ...exerciseAliases, ...gymAliases]));
 }
 
 export function findExerciseByName(query = '') {
@@ -162,6 +216,162 @@ export function findExerciseByName(query = '') {
   }
 
   return allExercises.find((item) => normalize(item.nome).includes(normalized)) || null;
+}
+
+function mapFallbackIdToExercise(fallbackId = '') {
+  const normalizedId = String(fallbackId || '').trim();
+  if (!normalizedId) {
+    return null;
+  }
+
+  const byExerciseId = getExerciseById(normalizedId);
+  if (byExerciseId) {
+    return byExerciseId;
+  }
+
+  const gymEntry = gymCatalogById[normalizedId];
+  if (!gymEntry) {
+    return null;
+  }
+
+  const canonicalId = String(gymEntry?.canonical_exercise_id || '').trim();
+  return canonicalId ? getExerciseById(canonicalId) : null;
+}
+
+function getDefaultGroupSuggestions(groupName = '', limit = 4) {
+  const normalizedGroup = normalize(groupName);
+  if (!normalizedGroup) {
+    return [];
+  }
+
+  return allExercises
+    .filter((item) => normalizeGroupName(item.grupo) === normalizedGroup)
+    .slice(0, limit)
+    .map((item) => item.nome);
+}
+
+export function getGymExerciseCatalog() {
+  return gymCatalog;
+}
+
+export function getGymCatalogMappingReport() {
+  const recognized = [];
+  const mappedFromPhoto = [];
+  const largeGymPattern = [];
+  const needsReview = [];
+
+  gymCatalog.forEach((entry) => {
+    const canonicalId = String(entry?.canonical_exercise_id || '').trim();
+    const canonical = canonicalId ? getExerciseById(canonicalId) : null;
+    const payload = {
+      aliases: Array.isArray(entry?.aliases) ? entry.aliases : [],
+      canonicalExerciseId: canonical?.id || canonicalId || '',
+      canonicalExerciseName: canonical?.nome || '',
+      equipment: String(entry?.equipamento || ''),
+      id: String(entry?.id || ''),
+      nomePrincipal: String(entry?.nome_principal || ''),
+      needsReview: Boolean(entry?.needs_review),
+      observacoes: String(entry?.observacoes || ''),
+    };
+
+    recognized.push(payload);
+
+    if (payload.observacoes.toLowerCase().includes('foto')) {
+      mappedFromPhoto.push(payload);
+    }
+
+    if (payload.observacoes.toLowerCase().includes('academias padronizadas') || payload.observacoes.toLowerCase().includes('rede grande')) {
+      largeGymPattern.push(payload);
+    }
+
+    if (payload.needsReview || !payload.canonicalExerciseId) {
+      needsReview.push(payload);
+    }
+  });
+
+  return {
+    largeGymPattern,
+    mappedFromPhoto,
+    needsReview,
+    recognized,
+  };
+}
+
+export function resolveGymExerciseMention(text = '') {
+  const normalizedText = normalize(text);
+  if (!normalizedText) {
+    return null;
+  }
+
+  const matchedEntry = gymCatalog.find((entry) => {
+    const primary = normalize(entry?.nome_principal);
+    if (primary && normalizedText.includes(primary)) {
+      return true;
+    }
+
+    return (Array.isArray(entry?.aliases) ? entry.aliases : [])
+      .some((alias) => {
+        const normalizedAlias = normalize(alias);
+        return normalizedAlias && normalizedText.includes(normalizedAlias);
+      });
+  });
+
+  if (!matchedEntry) {
+    return null;
+  }
+
+  const canonicalId = String(matchedEntry?.canonical_exercise_id || '').trim();
+  const canonicalExercise = canonicalId ? getExerciseById(canonicalId) : null;
+  const aliases = Array.isArray(matchedEntry?.aliases) ? matchedEntry.aliases : [];
+  const aliasMatched = aliases.find((alias) => normalizedText.includes(normalize(alias))) || '';
+
+  return {
+    id: matchedEntry.id,
+    nomePrincipal: matchedEntry.nome_principal,
+    aliasMatched,
+    grupoMuscular: Array.isArray(matchedEntry.grupo_muscular) ? matchedEntry.grupo_muscular : [],
+    equipamento: String(matchedEntry.equipamento || ''),
+    padraoMovimento: String(matchedEntry.padrao_de_movimento || ''),
+    needsReview: Boolean(matchedEntry.needs_review),
+    canonicalExercise,
+  };
+}
+
+export function getExerciseFallbackSuggestions(query = '', limit = 5) {
+  const mention = resolveGymExerciseMention(query);
+  if (mention) {
+    const fallbackBySimilarity = (gymCatalogById[mention.id]?.fallback || [])
+      .map((fallbackId) => mapFallbackIdToExercise(fallbackId))
+      .filter(Boolean)
+      .map((item) => item.nome)
+      .slice(0, limit);
+
+    const primaryGroup = mention.grupoMuscular[0] || '';
+    const fallbackByGroup = getDefaultGroupSuggestions(primaryGroup, limit);
+    const fallbackByMachine = allExercises
+      .filter((item) => normalize(item.equipamento).includes('maquina'))
+      .slice(0, limit)
+      .map((item) => item.nome);
+
+    return {
+      matched: mention,
+      similar: Array.from(new Set(fallbackBySimilarity)),
+      byGroup: Array.from(new Set(fallbackByGroup)),
+      byMachine: Array.from(new Set(fallbackByMachine)),
+    };
+  }
+
+  const words = normalizeWords(query);
+  const inferredGroup = words.find((word) => ['peito', 'costas', 'ombro', 'triceps', 'biceps', 'perna'].includes(word)) || '';
+  return {
+    matched: null,
+    similar: [],
+    byGroup: getDefaultGroupSuggestions(inferredGroup, limit),
+    byMachine: allExercises
+      .filter((item) => normalize(item.equipamento).includes('maquina'))
+      .slice(0, limit)
+      .map((item) => item.nome),
+  };
 }
 
 export function getExerciseById(exerciseId = '') {

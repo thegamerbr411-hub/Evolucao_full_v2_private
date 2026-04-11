@@ -8,11 +8,36 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
+    "test": "node scripts/run-node-tests.js",
+    "test:all": "node scripts/run-node-tests.js && node dashboard/tests/api.test.js && node scripts/test-flow.js",
     "fix:java": "powershell -ExecutionPolicy Bypass -File scripts/fix-java.ps1",
     "fix:adb": "powershell -ExecutionPolicy Bypass -File scripts/fix-adb.ps1",
     "dev:start": "powershell -ExecutionPolicy Bypass -File scripts/start-dev.ps1",
     "dashboard:start": "node dashboard/server.js",
-    "test:auto": "node scripts/test-flow.js"
+    "qa:smoke": "node scripts/test-flow.js",
+    "dashboard:test": "node dashboard/tests/api.test.js",
+    "dashboard:analyze": "node dashboard/scripts/ai-analyze.js",
+    "qa:night": "node dashboard/scripts/night-run.js",
+    "detox:build": "detox build --configuration android.emulator.debug",
+    "detox:build:attached": "detox build --configuration android.attached.release",
+    "detox:test": "detox test --configuration android.emulator.debug",
+    "detox:test:attached": "detox test --configuration android.attached.debug",
+    "detox:test:attached:release": "detox test --configuration android.attached.release",
+    "detox:auto": "powershell -ExecutionPolicy Bypass -File scripts/detox-bootstrap.ps1 -Mode auto -Run cycle",
+    "detox:auto:test": "powershell -ExecutionPolicy Bypass -File scripts/detox-bootstrap.ps1 -Mode auto -Run test",
+    "detox:cycle": "node scripts/run-detox-cycle.js",
+    "detox:loop": "node scripts/run-detox-loop.js",
+    "qa:soak:2h": "powershell -ExecutionPolicy Bypass -File scripts/run-detox-loop.ps1 -Hours 2 -CooldownMs 15000 -Configuration android.attached.debug",
+    "qa:night:once": "node dashboard/scripts/night-run.js --once",
+    "test:auto": "node scripts/test-flow.js",
+    "qa:prod:check": "node scripts/validate-production.js",
+    "sim:loop": "node scripts/user-simulation-loop.js",
+    "sim:generate": "node scripts/ai-generate-tests.js",
+    "ai:brain": "node scripts/ai-brain.js",
+    "ai:brain:loop": "node scripts/ai-brain-loop.js",
+    "alerts": "node scripts/alerts.js",
+    "continuous:runner": "node scripts/continuous-runner.js",
+    "rollback": "node scripts/rollback.js"
   },
   "dependencies": {
     "@expo/ngrok": "^4.1.0",
@@ -39,6 +64,10 @@
     "react-native-web": "^0.21.2"
   },
   "devDependencies": {
-    "jest": "~29.7.0"
+    "@playwright/test": "^1.59.1",
+    "@types/jest": "^29.5.14",
+    "detox": "^20.39.0",
+    "jest": "~29.7.0",
+    "playwright": "^1.59.1"
   }
 }

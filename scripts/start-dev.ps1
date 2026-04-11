@@ -9,14 +9,34 @@ Write-Host 'Corrigindo ADB...'
 Write-Host 'Corrigindo Java...'
 & "$repoRoot\scripts\fix-java.ps1"
 
-Write-Host 'Limpando portas 8081 e 8082...'
-try { npx kill-port 8081 | Out-Null } catch { Write-Host '8081 ja livre.' }
-try { npx kill-port 8082 | Out-Null } catch { Write-Host '8082 ja livre.' }
+function Stop-ListeningPort {
+  param([int]$Port)
+
+  try {
+    $connections = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
+    foreach ($connection in $connections) {
+      if ($connection.OwningProcess) {
+        Stop-Process -Id $connection.OwningProcess -Force -ErrorAction SilentlyContinue
+      }
+    }
+  } catch {
+    Write-Host "Porta $Port ja livre."
+  }
+}
+
+Write-Host 'Limpando portas 3000, 8081 e 8082...'
+Stop-ListeningPort -Port 3000
+Stop-ListeningPort -Port 8081
+Stop-ListeningPort -Port 8082
+
+Write-Host 'Iniciando dashboard QA local...'
+Start-Process powershell -ArgumentList '-NoExit', '-Command', "Set-Location '$repoRoot'; node dashboard/server.js"
 
 Write-Host 'Iniciando Metro...'
 Start-Process powershell -ArgumentList '-NoExit', '-Command', "Set-Location '$repoRoot'; npx expo start --dev-client --clear"
 
 Write-Host 'Aplicando adb reverse...'
+adb reverse tcp:3000 tcp:3000
 adb reverse tcp:8081 tcp:8081
 adb reverse tcp:8082 tcp:8082
 

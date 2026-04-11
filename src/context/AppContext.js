@@ -3,7 +3,14 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { sumNutritionTotals } from './modules/nutrition';
 import { applyPainAdaptiveWorkout, getNextWeightSuggestion, getRecommendedWorkout, getWeekBounds, getWorkoutDelta } from './modules/workout';
 import { buildCoachMessage, buildDailyCoachState, buildWeeklyUrgency } from './modules/coach';
-import { getCanonicalExerciseId, getCanonicalMuscleGroup, getExerciseNamesFromDatabase } from '../data/exerciseDatabase';
+import {
+  findExerciseByName,
+  getCanonicalExerciseId,
+  getCanonicalMuscleGroup,
+  getExerciseFallbackSuggestions,
+  getExerciseNamesFromDatabase,
+  resolveGymExerciseMention,
+} from '../data/exerciseDatabase';
 import { getCanonicalFoodData, getFoodCatalog, matchNutritionToken, searchNutritionDatabase } from '../data/nutritionDatabase';
 import { sendIntelligentNotification } from '../utils/notifications';
 import {
@@ -728,6 +735,48 @@ function matchesExerciseLog(logItem, identity) {
 
 function filterLogsByExercise(logs = [], identity) {
   return (Array.isArray(logs) ? logs : []).filter((item) => matchesExerciseLog(item, identity));
+}
+
+function resolveRoutineExerciseName(rawName = '') {
+  const trimmedName = String(rawName || '').trim();
+  if (!trimmedName) {
+    return null;
+  }
+
+  const gymMention = resolveGymExerciseMention(trimmedName);
+  if (gymMention?.canonicalExercise?.nome) {
+    return {
+      name: gymMention.canonicalExercise.nome,
+      canonicalId: gymMention.canonicalExercise.id,
+      matchedAlias: gymMention.aliasMatched || gymMention.nomePrincipal,
+      needsReview: gymMention.needsReview,
+      suggestions: [],
+    };
+  }
+
+  const canonical = findExerciseByName(trimmedName);
+  if (canonical?.nome) {
+    return {
+      name: canonical.nome,
+      canonicalId: canonical.id,
+      matchedAlias: '',
+      needsReview: false,
+      suggestions: [],
+    };
+  }
+
+  const fallback = getExerciseFallbackSuggestions(trimmedName, 3);
+  return {
+    name: trimmedName,
+    canonicalId: null,
+    matchedAlias: '',
+    needsReview: false,
+    suggestions: [
+      ...(Array.isArray(fallback?.similar) ? fallback.similar : []),
+      ...(Array.isArray(fallback?.byGroup) ? fallback.byGroup : []),
+      ...(Array.isArray(fallback?.byMachine) ? fallback.byMachine : []),
+    ].filter(Boolean),
+  };
 }
 
 function getExerciseCatalogFromSources(logs) {
@@ -2215,8 +2264,23 @@ export const AppProvider=({children})=>{
       ? exercises
           .map((item) => {
             const parsedName = typeof item === 'string' ? item : item?.name;
-            const safeName = String(parsedName || '').trim();
-            return safeName ? { name: safeName } : null;
+            const safeInputName = String(parsedName || '').trim();
+            if (!safeInputName) {
+              return null;
+            }
+
+            const resolved = resolveRoutineExerciseName(safeInputName);
+            if (!resolved) {
+              return null;
+            }
+
+            return {
+              name: resolved.name,
+              sourceName: safeInputName,
+              canonicalId: resolved.canonicalId,
+              suggestions: resolved.suggestions,
+              needsReview: resolved.needsReview,
+            };
           })
           .filter(Boolean)
       : [];
@@ -2234,8 +2298,18 @@ export const AppProvider=({children})=>{
       updatedAt: new Date().toISOString(),
     };
 
+    const remappedCount = cleanedExercises.filter(
+      (item) => item?.sourceName && item.sourceName !== item.name
+    ).length;
+
     setUserRoutines((prev) => [routine, ...prev]);
-    return { ok: true, routine, message: 'Rotina criada com sucesso.' };
+    return {
+      ok: true,
+      routine,
+      message: remappedCount
+        ? `Rotina criada com sucesso. ${remappedCount} exercicio(s) foram ajustados para nomes reconhecidos.`
+        : 'Rotina criada com sucesso.',
+    };
   };
 
   const updateUserRoutine = ({ routineId, name, frequency, exercises }) => {
@@ -2253,8 +2327,23 @@ export const AppProvider=({children})=>{
           ? exercises
               .map((entry) => {
                 const parsedName = typeof entry === 'string' ? entry : entry?.name;
-                const safeName = String(parsedName || '').trim();
-                return safeName ? { name: safeName } : null;
+                const safeInputName = String(parsedName || '').trim();
+                if (!safeInputName) {
+                  return null;
+                }
+
+                const resolved = resolveRoutineExerciseName(safeInputName);
+                if (!resolved) {
+                  return null;
+                }
+
+                return {
+                  name: resolved.name,
+                  sourceName: safeInputName,
+                  canonicalId: resolved.canonicalId,
+                  suggestions: resolved.suggestions,
+                  needsReview: resolved.needsReview,
+                };
               })
               .filter(Boolean)
           : item.exercises;

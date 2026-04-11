@@ -1,12 +1,34 @@
 const jwt = require('jsonwebtoken');
 const { normalizeClientId } = require('./storage');
 
+const QA_LOCAL_HEADER = 'x-qa-local';
+const QA_CLIENT_ID_HEADER = 'x-qa-client-id';
+const QA_LOCAL_SECRET_HEADER = 'x-qa-secret';
+
+function parseBoolean(value, fallback = false) {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) {
+    return fallback;
+  }
+
+  return ['1', 'true', 'yes', 'on'].includes(normalized);
+}
+
 function createAuth(config = {}) {
   const secret = String(config.secret || 'supersecret');
   const adminUser = String(config.adminUser || 'admin');
   const adminPass = String(config.adminPass || '123456');
   const defaultClientId = normalizeClientId(config.defaultClientId || 'default');
   const clientKeyMap = parseClientKeyMap(config.clientKeyMap);
+  const allowQaLocalBypass = parseBoolean(
+    config.allowQaLocalBypass,
+    String(process.env.NODE_ENV || '').trim().toLowerCase() !== 'production'
+  );
+  const qaLocalSecret = String(config.qaLocalSecret || process.env.QA_LOCAL_SECRET || '').trim();
 
   function parseClientKeyMap(rawValue) {
     if (!rawValue) {
@@ -23,6 +45,42 @@ function createAuth(config = {}) {
     } catch {
       return {};
     }
+  }
+
+  function getQaClientId(req) {
+    return normalizeClientId(req.headers[QA_CLIENT_ID_HEADER] || defaultClientId);
+  }
+
+  function isLocalQaRequest(req) {
+    if (!allowQaLocalBypass) {
+      return false;
+    }
+
+    const qaLocal = String(req.headers[QA_LOCAL_HEADER] || '').trim().toLowerCase();
+    if (!['1', 'true', 'yes', 'on'].includes(qaLocal)) {
+      return false;
+    }
+
+    if (!qaLocalSecret) {
+      return true;
+    }
+
+    return String(req.headers[QA_LOCAL_SECRET_HEADER] || '').trim() === qaLocalSecret;
+  }
+
+  function applyLocalQaAuth(req) {
+    if (!isLocalQaRequest(req)) {
+      return false;
+    }
+
+    const clientId = getQaClientId(req);
+    req.auth = {
+      role: 'qa-local',
+      clientId,
+    };
+    req.clientId = clientId;
+    req.isQaLocal = true;
+    return true;
   }
 
   function extractBearerToken(req, errorCode) {
@@ -68,6 +126,10 @@ function createAuth(config = {}) {
   }
 
   function validateJWT(req, res, next) {
+    if (applyLocalQaAuth(req)) {
+      return next();
+    }
+
     const extracted = extractBearerToken(req, 'unauthorized_client');
     if (extracted.error) {
       return res.status(401).json(extracted.error);
@@ -79,11 +141,51 @@ function createAuth(config = {}) {
     }
 
     req.auth = verified.decoded;
+    if (verified.decoded?.clientId) {
+      req.clientId = normalizeClientId(verified.decoded.clientId);
+    }
     return next();
   }
 
   function validateClient(req, res, next) {
+    if (req.isQaLocal && req.clientId) {
+      return next();
+    }
+
     const apiKey = String(req.headers['x-api-key'] || '').trim();
+    const jwtClientId = normalizeClientId(req.auth?.clientId || defaultClientId);
+    const isClientJwt = req.auth?.role === 'client' && Boolean(req.auth?.clientId);
+    const isAdminJwt = req.auth?.role === 'admin';
+
+    // Permite token admin + x-api-key válido para facilitar automação
+    if (isAdminJwt && apiKey) {
+      const mappedClientId = Object.entries(clientKeyMap).find(([, value]) => String(value) === apiKey)?.[0];
+      if (!mappedClientId) {
+        return res.status(401).json({ ok: false, error: 'unauthorized_client' });
+      }
+      req.clientId = normalizeClientId(mappedClientId);
+      return next();
+    }
+
+    if (isClientJwt && !apiKey) {
+      req.clientId = jwtClientId;
+      return next();
+    }
+
+    if (isClientJwt && apiKey) {
+      const mappedClientId = Object.entries(clientKeyMap).find(([, value]) => String(value) === apiKey)?.[0];
+      if (!mappedClientId) {
+        return res.status(401).json({ ok: false, error: 'unauthorized_client' });
+      }
+
+      const normalizedMappedClientId = normalizeClientId(mappedClientId);
+      if (normalizedMappedClientId !== jwtClientId) {
+        return res.status(401).json({ ok: false, error: 'unauthorized_client' });
+      }
+
+      req.clientId = normalizedMappedClientId;
+      return next();
+    }
 
     if (!apiKey) {
       return res.status(401).json({ ok: false, error: 'missing_api_key' });
@@ -127,7 +229,9 @@ function createAuth(config = {}) {
     const username = String(req.body?.user || req.body?.email || '').trim();
     const password = String(req.body?.pass || req.body?.password || '').trim();
 
-    if (username !== adminUser || password !== adminPass) {
+    const valid = (username === adminUser && password === adminPass);
+
+    if (!valid) {
       return res.status(401).json({ ok: false, error: 'invalid_credentials' });
     }
 
@@ -142,15 +246,20 @@ function createAuth(config = {}) {
   }
 
   return {
+    QA_CLIENT_ID_HEADER,
+    QA_LOCAL_HEADER,
     authenticateAdmin,
     authenticateClient,
     handleClientToken,
     handleLogin,
+    isLocalQaRequest,
     validateClient,
     validateJWT,
   };
 }
 
 module.exports = {
+  QA_CLIENT_ID_HEADER,
+  QA_LOCAL_HEADER,
   createAuth,
 };

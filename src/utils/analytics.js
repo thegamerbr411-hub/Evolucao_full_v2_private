@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { fireAndForgetQaPost } from './qaTransport.js';
 
 const metrics = {
   paywall_open: 0,
@@ -219,8 +220,7 @@ export const trackEvent = (name, data = {}) => {
     console.log('[ANALYTICS]', payload.event, payload);
   }
 
-  // Future backend sink:
-  // firebase.analytics().logEvent(name, payload);
+  fireAndForgetQaPost('/api/events', payload);
   return payload;
 };
 
@@ -367,6 +367,7 @@ export const resetAnalyticsMetrics = () => {
   Object.keys(durationStats).forEach((key) => {
     delete durationStats[key];
   });
+  lastEventAtByKey.clear();
   recentEvents.length = 0;
 };
 

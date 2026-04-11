@@ -15,13 +15,16 @@ function toNumber(value, fallback = 0) {
 
 function macroTemplate(name) {
   const text = normalize(name);
-  if (text.includes('whey') || text.includes('frango') || text.includes('atum') || text.includes('patinho')) {
+  if (text.includes('whey') || text.includes('frango') || text.includes('atum') || text.includes('patinho') || text.includes('tilapia')) {
     return { calories: 130, protein: 24, carbs: 4, fats: 2 };
+  }
+  if (text.includes('salmao')) {
+    return { calories: 208, protein: 20, carbs: 0, fats: 13 };
   }
   if (text.includes('iogurte') || text.includes('yopro')) {
     return { calories: 140, protein: 15, carbs: 12, fats: 2 };
   }
-  if (text.includes('pao') || text.includes('arroz') || text.includes('batata') || text.includes('banana')) {
+  if (text.includes('pao') || text.includes('arroz') || text.includes('batata') || text.includes('banana') || text.includes('tapioca') || text.includes('cuscuz') || text.includes('mandioca')) {
     return { calories: 120, protein: 3, carbs: 25, fats: 1 };
   }
   return { calories: 100, protein: 6, carbs: 12, fats: 3 };

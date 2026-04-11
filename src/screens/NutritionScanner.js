@@ -4,15 +4,17 @@ import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNotifications, useNutrition } from '../hooks';
+import { useNotifications } from '../hooks';
+import { useApp } from '../context/AppContext';
 import { SCREENS, trackAppError, trackEvent } from '../utils/analytics';
 import { AnimatedToast, AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { colors, spacing } from '../theme';
 import { createFoodFromText, parseNutritionLabel } from '../services/nutritionIntelligence';
+import { logError } from '../utils/errorLogger';
 
 const FAVORITES_STORAGE_KEY = 'nutrition.favorite.foods.v1';
 const SHOW_PHOTO_BETA = true;
-const SHOW_ADVANCED_NUTRITION = false;
+const SHOW_ADVANCED_NUTRITION = true;
 
 export default function NutritionScanner({ navigation, route }) {
   const {
@@ -28,7 +30,7 @@ export default function NutritionScanner({ navigation, route }) {
     getPerformanceRecoveryInsight,
     evaluateMealQuality,
     nutritionLogs,
-  } = useNutrition();
+  } = useApp();
   const { hasFeatureAccess } = useNotifications();
   const [quickMealText, setQuickMealText] = useState('');
   const [quickMealItems, setQuickMealItems] = useState([]);
@@ -425,6 +427,11 @@ export default function NutritionScanner({ navigation, route }) {
     });
 
     if (!result?.ok) {
+      logError(new Error('nutrition_repeat_latest_meal_failed'), {
+        screen: SCREENS.NUTRITION,
+        severity: 'low',
+        extra: { itemCount: latestMealGroup.items.length },
+      });
       setMealFeedback('Nao foi possivel repetir a ultima refeicao.');
       return;
     }
@@ -523,6 +530,11 @@ export default function NutritionScanner({ navigation, route }) {
   const buildQuickMeal = () => {
     const parsed = parseFoodText(quickMealText);
     if (!parsed.length) {
+      logError(new Error('nutrition_quick_meal_unrecognized'), {
+        screen: SCREENS.NUTRITION,
+        severity: 'low',
+        extra: { quickMealText },
+      });
       setMealFeedback('Nao identifiquei alimentos validos nesse texto.');
       return;
     }
@@ -549,6 +561,11 @@ export default function NutritionScanner({ navigation, route }) {
     });
 
     if (!result?.ok) {
+      logError(new Error('nutrition_quick_meal_save_failed'), {
+        screen: SCREENS.NUTRITION,
+        severity: 'low',
+        extra: { itemCount: quickMealItems.length },
+      });
       trackEvent('quick_meal_save_failed', {
         screen: SCREENS.NUTRITION,
         meta: {
@@ -607,6 +624,11 @@ export default function NutritionScanner({ navigation, route }) {
     });
 
     if (!result?.ok) {
+      logError(new Error('nutrition_meal_draft_save_failed'), {
+        screen: SCREENS.NUTRITION,
+        severity: 'low',
+        extra: { itemCount: mealDraftItems.length },
+      });
       trackEvent('meal_draft_save_failed', {
         screen: SCREENS.NUTRITION,
         meta: {
@@ -858,8 +880,9 @@ export default function NutritionScanner({ navigation, route }) {
           ))}
         </View>
 
-        <PrimaryButton title="Adicionar alimento +" onPress={useEstimateInDay} style={styles.primaryButton} />
+        <PrimaryButton testID="btn-add-selected-food" title="Adicionar alimento +" onPress={useEstimateInDay} style={styles.primaryButton} />
         <SecondaryButton
+          testID="btn-repeat-last-meal"
           title={latestMealGroup ? `Repetir ultima refeicao (${latestMealGroup.items.length})` : 'Repetir ultima refeicao'}
           onPress={repeatLatestMeal}
           style={styles.secondaryButton}
@@ -967,7 +990,7 @@ export default function NutritionScanner({ navigation, route }) {
           }}
         />
         {result?.ok && Array.isArray(result.items) && result.items.length ? (
-          <SecondaryButton title="Adicionar resultado ao draft" onPress={pushResultItemsToDraft} style={styles.secondaryButton} />
+          <SecondaryButton testID="btn-add-estimate-result" title="Adicionar resultado ao draft" onPress={pushResultItemsToDraft} style={styles.secondaryButton} />
         ) : null}
         {result?.ok && Array.isArray(result.items) && result.items.length ? (
           <View style={styles.chipsWrap}>
@@ -1029,7 +1052,7 @@ export default function NutritionScanner({ navigation, route }) {
       ) : null}
 
       {result ? (
-        <AppCard style={styles.resultCard}>
+        <AppCard testID="nutrition-result-card" style={styles.resultCard}>
           <Text style={styles.resultTitle}>Resultado</Text>
           <Text style={styles.resultMessage}>{result.message}</Text>
           {result.ok ? (

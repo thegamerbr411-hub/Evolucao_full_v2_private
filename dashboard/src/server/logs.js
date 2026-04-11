@@ -50,8 +50,13 @@ function inferSeverity(message, providedSeverity = '') {
   return getSeverity(message);
 }
 
-function buildFingerprint(message) {
-  const normalized = String(message || '')
+function buildFingerprint(message, screen, stack = '') {
+  const topFrame = String(stack || '')
+    .split('\n')
+    .map((line) => line.trim())
+    .find(Boolean) || '';
+
+  const normalized = `${String(message || '')}|${String(screen || '')}|${topFrame}`
     .toLowerCase()
     .replace(/[0-9]/g, '')
     .slice(0, 100);
@@ -72,7 +77,7 @@ function normalizeIncomingLog(payload = {}) {
     severity,
     stack,
     timestamp,
-    fingerprint: buildFingerprint(message),
+    fingerprint: buildFingerprint(message, screen, stack),
   };
 }
 

@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { AppCard, PrimaryButton, ScreenHeader } from '../components/ui';
+import { generateCoachInsight } from '../services/coachInsight';
 import { colors, spacing } from '../theme';
 
 const GOALS = [
@@ -23,6 +24,7 @@ export default function ProfileScreen({ navigation }) {
     history,
     userRoutines,
     getWorkoutGamification,
+    getDailyMacroTargets,
     updateProfileSettings,
   } = useApp();
 
@@ -31,8 +33,11 @@ export default function ProfileScreen({ navigation }) {
   const [trainingDays, setTrainingDays] = useState(String(profile?.trainingDaysPerWeek || 3));
   const [currentWeight, setCurrentWeight] = useState(String(profile?.currentWeight || 70));
   const [targetWeight, setTargetWeight] = useState(String(profile?.targetWeight || 70));
+  const [height, setHeight] = useState(String(profile?.height || 170));
+  const [currentPain, setCurrentPain] = useState(String(profile?.currentPain || profile?.pain || ''));
 
   const gamification = getWorkoutGamification();
+  const macroTargets = getDailyMacroTargets();
 
   const historySummary = useMemo(() => {
     const recent = history.slice(0, 7);
@@ -48,6 +53,20 @@ export default function ProfileScreen({ navigation }) {
     };
   }, [history]);
 
+  const profileCoach = useMemo(() => generateCoachInsight({
+    trainedToday: historySummary.trainedDays > 0,
+    protein: historySummary.avgProtein,
+    proteinTarget: Number(macroTargets?.protein || 140),
+    water: Number(plan?.waterLitersPerDay || 0) * 700,
+    waterTarget: Number(plan?.waterLitersPerDay || 0) * 1000,
+    weeklyDone: historySummary.trainedDays,
+    weeklyTarget: Number(trainingDays || profile?.trainingDaysPerWeek || 3),
+    hasRoutine: Array.isArray(userRoutines) && userRoutines.length > 0,
+    goal,
+    level,
+    pain: currentPain,
+  }), [historySummary.trainedDays, historySummary.avgProtein, macroTargets?.protein, plan?.waterLitersPerDay, trainingDays, profile?.trainingDaysPerWeek, userRoutines, goal, level, currentPain]);
+
   const saveProfile = () => {
     const result = updateProfileSettings({
       goal,
@@ -55,6 +74,8 @@ export default function ProfileScreen({ navigation }) {
       trainingDaysPerWeek: Number(trainingDays || 3),
       currentWeight: Number(currentWeight || 0),
       targetWeight: Number(targetWeight || 0),
+      height: Number(height || 170),
+      currentPain,
     });
 
     if (!result.ok) {
@@ -107,6 +128,16 @@ export default function ProfileScreen({ navigation }) {
       </AppCard>
 
       <AppCard>
+        <Text style={styles.cardLabel}>Altura (cm)</Text>
+        <TextInput value={height} onChangeText={setHeight} keyboardType="numeric" style={styles.input} />
+      </AppCard>
+
+      <AppCard>
+        <Text style={styles.cardLabel}>Dor / limitação atual</Text>
+        <TextInput value={currentPain} onChangeText={setCurrentPain} placeholder="Ex: ombro direito" placeholderTextColor="#8FA5CB" style={styles.input} />
+      </AppCard>
+
+      <AppCard>
         <Text style={styles.cardLabel}>Historico recente</Text>
         <Text style={styles.metric}>Dias com registro: {historySummary.days}</Text>
         <Text style={styles.metric}>Dias treinados: {historySummary.trainedDays}</Text>
@@ -126,6 +157,15 @@ export default function ProfileScreen({ navigation }) {
         <Text style={styles.metric}>Calorias alvo: {Number(plan?.caloriesPerDay || 0)} kcal/dia</Text>
         <Text style={styles.metric}>Agua alvo: {Number(plan?.waterLitersPerDay || 0)}L/dia</Text>
         <Text style={styles.metric}>Estrategia: {String(plan?.strategy || 'recomposicao')}</Text>
+      </AppCard>
+
+      <AppCard>
+        <Text style={styles.cardLabel}>Coach sobre o seu perfil</Text>
+        <Text style={styles.metric}>Prioridade: {profileCoach.priority}</Text>
+        <Text style={styles.metric}>{profileCoach.summary}</Text>
+        {(profileCoach.actions || []).slice(0, 2).map((item) => (
+          <Text key={item} style={styles.metric}>• {item}</Text>
+        ))}
       </AppCard>
 
       {(__DEV__ ? true : false) ? (

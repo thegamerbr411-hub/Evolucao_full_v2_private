@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { useApp } from '../context/AppContext';
+import { logError } from '../utils/errorLogger';
 
 const CATEGORIES = [
   { key: 'peito', label: 'Peito', terms: ['supino', 'crucifixo', 'peito'] },
@@ -41,6 +42,15 @@ function groupCatalogByCategory(catalog, categoryKey) {
   });
 
   return list.slice(0, 8);
+}
+
+function toTestId(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }
 
 export default function FreeWorkoutScreen({ navigation }) {
@@ -126,6 +136,10 @@ export default function FreeWorkoutScreen({ navigation }) {
 
   const saveSelectionAsRoutine = () => {
     if (!selectedExercises.length) {
+      logError(new Error('free_workout_empty_routine'), {
+        screen: 'FreeWorkout',
+        severity: 'low',
+      });
       Alert.alert('Sem exercicios', 'Adicione ao menos 1 exercicio para salvar sua rotina.');
       return;
     }
@@ -137,6 +151,11 @@ export default function FreeWorkoutScreen({ navigation }) {
     });
 
     if (!result.ok) {
+      logError(new Error('free_workout_save_routine_failed'), {
+        screen: 'FreeWorkout',
+        severity: 'low',
+        extra: { reason: result.message },
+      });
       Alert.alert('Nao foi possivel salvar', result.message);
       return;
     }
@@ -155,6 +174,11 @@ export default function FreeWorkoutScreen({ navigation }) {
     });
 
     if (!result.ok) {
+      logError(new Error('free_workout_invalid_set'), {
+        screen: 'FreeWorkout',
+        severity: 'low',
+        extra: { exerciseName, reason: result.message, failed },
+      });
       Alert.alert('Dados invalidos', result.message);
       return;
     }
@@ -176,6 +200,7 @@ export default function FreeWorkoutScreen({ navigation }) {
       style={{ flex: 1 }}
     >
       <ScrollView
+        testID="screen-free-workout"
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
@@ -183,7 +208,7 @@ export default function FreeWorkoutScreen({ navigation }) {
       <Text style={styles.title}>Treino livre</Text>
       <Text style={styles.subtitle}>Escolha exercicios por categoria e registre rapido.</Text>
 
-      <TouchableOpacity style={styles.saveRoutineButton} onPress={saveSelectionAsRoutine}>
+      <TouchableOpacity testID="btn-free-save-routine" style={styles.saveRoutineButton} onPress={saveSelectionAsRoutine}>
         <Text style={styles.saveRoutineButtonText}>Salvar selecao como rotina</Text>
       </TouchableOpacity>
 
@@ -191,6 +216,7 @@ export default function FreeWorkoutScreen({ navigation }) {
         <Text style={styles.timerLabel}>Descanso</Text>
         <Text style={styles.timerValue}>{formatTimer(restSeconds)}</Text>
         <TouchableOpacity
+          testID="btn-free-rest-toggle"
           style={[styles.timerAction, restRunning ? styles.timerActionStop : null]}
           onPress={restRunning ? stopRest : startRest}
         >
@@ -201,6 +227,7 @@ export default function FreeWorkoutScreen({ navigation }) {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Adicionar exercicio</Text>
         <TextInput
+          testID="input-free-exercise-name"
           placeholder="Nome do exercicio"
           placeholderTextColor="#8AA2C7"
           value={exerciseNameInput}
@@ -208,6 +235,7 @@ export default function FreeWorkoutScreen({ navigation }) {
           style={styles.input}
         />
         <TouchableOpacity
+          testID="btn-free-add-exercise"
           style={styles.addButton}
           onPress={() => {
             addExercise(exerciseNameInput);
@@ -224,6 +252,7 @@ export default function FreeWorkoutScreen({ navigation }) {
           {CATEGORIES.map((category) => (
             <TouchableOpacity
               key={category.key}
+              testID={`chip-free-category-${category.key}`}
               style={[styles.chip, activeCategory === category.key ? styles.chipActive : null]}
               onPress={() => setActiveCategory(category.key)}
             >
@@ -236,7 +265,7 @@ export default function FreeWorkoutScreen({ navigation }) {
 
         <View style={styles.chipsWrap}>
           {categoryExercises.map((name) => (
-            <TouchableOpacity key={name} style={styles.suggestionChip} onPress={() => addExercise(name)}>
+            <TouchableOpacity key={name} testID={`chip-free-exercise-${toTestId(name)}`} style={styles.suggestionChip} onPress={() => addExercise(name)}>
               <Text style={styles.suggestionChipText}>{name}</Text>
             </TouchableOpacity>
           ))}
@@ -248,7 +277,7 @@ export default function FreeWorkoutScreen({ navigation }) {
           <Text style={styles.cardTitleGreen}>Sugestoes para continuar</Text>
           <View style={styles.chipsWrap}>
             {suggestions.map((name) => (
-              <TouchableOpacity key={name} style={styles.suggestionChipGreen} onPress={() => addExercise(name)}>
+              <TouchableOpacity key={name} testID={`chip-free-suggestion-${toTestId(name)}`} style={styles.suggestionChipGreen} onPress={() => addExercise(name)}>
                 <Text style={styles.suggestionChipGreenText}>{name}</Text>
               </TouchableOpacity>
             ))}
@@ -261,12 +290,13 @@ export default function FreeWorkoutScreen({ navigation }) {
         const setProgress = getExerciseSetProgress(exerciseName, 3);
 
         return (
-          <View key={exerciseName} style={styles.exerciseCard}>
+          <View key={exerciseName} testID={`card-free-exercise-${toTestId(exerciseName)}`} style={styles.exerciseCard}>
             <Text style={styles.exerciseName}>{exerciseName}</Text>
             <Text style={styles.progressText}>Serie {setProgress.nextSet}/3</Text>
 
             <View style={styles.row}>
               <TextInput
+                testID={`input-free-weight-${toTestId(exerciseName)}`}
                 keyboardType="numeric"
                 placeholder="Carga"
                 placeholderTextColor="#8AA2C7"
@@ -275,6 +305,7 @@ export default function FreeWorkoutScreen({ navigation }) {
                 style={styles.input}
               />
               <TextInput
+                testID={`input-free-reps-${toTestId(exerciseName)}`}
                 keyboardType="numeric"
                 placeholder="Reps"
                 placeholderTextColor="#8AA2C7"
@@ -285,13 +316,13 @@ export default function FreeWorkoutScreen({ navigation }) {
             </View>
 
             <View style={styles.row}>
-              <TouchableOpacity style={styles.successButton} onPress={() => submitSet(exerciseName, false)}>
+              <TouchableOpacity testID={`btn-free-save-set-${toTestId(exerciseName)}`} style={styles.successButton} onPress={() => submitSet(exerciseName, false)}>
                 <Text style={styles.successText}>+ serie</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.failButton} onPress={() => submitSet(exerciseName, true)}>
+              <TouchableOpacity testID={`btn-free-fail-set-${toTestId(exerciseName)}`} style={styles.failButton} onPress={() => submitSet(exerciseName, true)}>
                 <Text style={styles.failText}>- serie</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.restButton} onPress={restRunning ? stopRest : startRest}>
+              <TouchableOpacity testID={`btn-free-inline-rest-${toTestId(exerciseName)}`} style={styles.restButton} onPress={restRunning ? stopRest : startRest}>
                 <Text style={styles.restText}>descanso</Text>
               </TouchableOpacity>
             </View>

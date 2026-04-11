@@ -6,7 +6,15 @@ import { fuzzySearchExercises } from '../services/fuzzySearch';
 import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { colors, spacing } from '../theme';
 
-const QUICK_EXERCISES = ['Leg Press 45', 'Agachamento Livre', 'Supino Reto', 'Remada Curvada', 'Stiff'];
+const QUICK_EXERCISES = [
+  'Leg Press 45',
+  'Agachamento Livre',
+  'Supino Maquina (Chest Press)',
+  'Remada Sentada Maquina',
+  'Puxada Frontal Polia',
+  'Graviton (Barra Assistida)',
+  'Stiff',
+];
 
 function normalizeText(value) {
   return String(value || '')
@@ -14,6 +22,15 @@ function normalizeText(value) {
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .trim();
+}
+
+function toTestId(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }
 
 function getConfidenceVisual(confidence) {
@@ -170,6 +187,7 @@ export default function RoutinesScreen({ navigation }) {
     navigation.navigate('Workout', {
       routineExercises: routine.exercises,
       routineName: routine.name,
+      routineSeed: `${routine.id}-${Date.now()}`,
       startNow: true,
     });
   };
@@ -179,10 +197,10 @@ export default function RoutinesScreen({ navigation }) {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={{ flex: 1 }}
     >
-    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}>
+    <ScrollView testID="screen-routines" contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}>
       <ScreenHeader title="Rotinas" subtitle="Controle total: recomendadas e criadas por voce no mesmo padrao." />
 
-      <AppCard>
+      <AppCard testID="card-routine-templates">
         <Text style={styles.cardTitle}>Templates prontos</Text>
         <Text style={styles.recommendationSub}>Inicie com 1 toque e depois personalize.</Text>
         <View style={styles.chipsWrap}>
@@ -206,7 +224,7 @@ export default function RoutinesScreen({ navigation }) {
         </View>
       </AppCard>
 
-      <AppCard>
+      <AppCard testID="card-routine-builder">
         <Text style={styles.cardTitle}>Recomendada hoje</Text>
         <Text style={styles.recommendationMain}>🔥 Hoje e {smart.title}. Foco nisso.</Text>
         <Text style={styles.recommendationSub}>Confianca: {getConfidenceVisual(smart.confidence)} · Semana: {smart.trainedThisWeek}/{smart.weeklyTarget}</Text>
@@ -224,6 +242,7 @@ export default function RoutinesScreen({ navigation }) {
         <Text style={styles.helperText}>Escolha um nome curto: exemplo "Perna A" ou "Upper Forte".</Text>
 
         <TextInput
+          testID="input-routine-name"
           value={routineName}
           onChangeText={setRoutineName}
           placeholder="Ex: Perna A"
@@ -235,13 +254,14 @@ export default function RoutinesScreen({ navigation }) {
         <Text style={styles.helperText}>Atalhos populares (toque para adicionar rapido):</Text>
         <View style={styles.chipsWrap}>
           {QUICK_EXERCISES.map((item) => (
-            <TouchableOpacity key={`quick-${item}`} style={styles.quickChip} onPress={() => addExerciseToBuilder(item)}>
+            <TouchableOpacity testID={`chip-routine-quick-${toTestId(item)}`} key={`quick-${item}`} style={styles.quickChip} onPress={() => addExerciseToBuilder(item)}>
               <Text style={styles.quickChipText}>{item}</Text>
             </TouchableOpacity>
           ))}
         </View>
 
         <TextInput
+          testID="input-routine-search"
           value={exerciseQuery}
           onChangeText={setExerciseQuery}
           placeholder="Buscar exercicio (ex: leg press)"
@@ -252,7 +272,7 @@ export default function RoutinesScreen({ navigation }) {
         {filteredCatalog.length === 0 ? <Text style={styles.empty}>Nenhum exercicio encontrado. Tente "leg press" ou "agachamento".</Text> : null}
         <View style={styles.chipsWrap}>
           {filteredCatalog.map((item) => (
-            <TouchableOpacity key={item} style={styles.chip} onPress={() => addExerciseToBuilder(item)}>
+            <TouchableOpacity testID={`chip-routine-catalog-${toTestId(item)}`} key={item} style={styles.chip} onPress={() => addExerciseToBuilder(item)}>
               <Text style={styles.chipText}>{item}</Text>
             </TouchableOpacity>
           ))}
@@ -261,7 +281,7 @@ export default function RoutinesScreen({ navigation }) {
         <Text style={styles.blockLabel}>Exercicios da rotina</Text>
         {builderExercises.length === 0 ? <Text style={styles.empty}>Adicione exercicios para montar sua rotina.</Text> : null}
         {builderExercises.map((item, index) => (
-          <View key={item} style={styles.builderRow}>
+          <View testID={`row-routine-builder-${toTestId(item)}`} key={item} style={styles.builderRow}>
             <Text style={styles.line}>• {item}</Text>
             <View style={styles.actionsRow}>
               <TouchableOpacity style={styles.smallButton} onPress={() => moveBuilderExercise(index, -1)}>
@@ -278,9 +298,9 @@ export default function RoutinesScreen({ navigation }) {
         ))}
 
         <View style={styles.actionsRow}>
-          <PrimaryButton title={editingRoutineId ? 'Salvar edicao' : 'Criar rotina'} onPress={saveRoutine} style={styles.primaryButton} />
+          <PrimaryButton testID="btn-routine-save" title={editingRoutineId ? 'Salvar edicao' : 'Criar rotina'} onPress={saveRoutine} style={styles.primaryButton} />
           {editingRoutineId ? (
-            <SecondaryButton title="Cancelar" onPress={resetBuilder} style={styles.secondaryButton} />
+            <SecondaryButton testID="btn-routine-cancel-edit" title="Cancelar" onPress={resetBuilder} style={styles.secondaryButton} />
           ) : null}
         </View>
       </AppCard>
@@ -289,7 +309,7 @@ export default function RoutinesScreen({ navigation }) {
         <Text style={styles.cardTitle}>Minhas rotinas</Text>
         {userRoutines.length === 0 ? <Text style={styles.empty}>Nenhuma rotina salva ainda.</Text> : null}
         {userRoutines.map((routine) => (
-          <View key={routine.id} style={styles.savedRoutineCard}>
+          <View testID={`card-routine-${toTestId(routine.name || routine.id)}`} key={routine.id} style={styles.savedRoutineCard}>
             <Text style={styles.savedRoutineTitle}>{routine.name}</Text>
             <Text style={styles.recommendationSub}>{routine.frequency}x por semana</Text>
             {routine.exercises.map((item, index) => (
@@ -312,16 +332,17 @@ export default function RoutinesScreen({ navigation }) {
               </View>
             ))}
             <View style={styles.actionsRow}>
-              <TouchableOpacity style={styles.smallButton} onPress={() => startRoutine(routine)}>
+              <TouchableOpacity testID={`btn-routine-start-${toTestId(routine.name || routine.id)}`} style={styles.smallButton} onPress={() => startRoutine(routine)}>
                 <Text style={styles.smallButtonText}>Iniciar</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.smallButton} onPress={() => loadRoutineToEdit(routine)}>
+              <TouchableOpacity testID={`btn-routine-edit-${toTestId(routine.name || routine.id)}`} style={styles.smallButton} onPress={() => loadRoutineToEdit(routine)}>
                 <Text style={styles.smallButtonText}>Editar</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.smallButton} onPress={() => duplicateUserRoutine(routine.id)}>
+              <TouchableOpacity testID={`btn-routine-duplicate-${toTestId(routine.name || routine.id)}`} style={styles.smallButton} onPress={() => duplicateUserRoutine(routine.id)}>
                 <Text style={styles.smallButtonText}>Duplicar</Text>
               </TouchableOpacity>
               <TouchableOpacity
+                testID={`btn-routine-delete-${toTestId(routine.name || routine.id)}`}
                 style={[styles.smallButton, styles.smallButtonDanger]}
                 onPress={() => {
                   const result = deleteUserRoutine(routine.id);

@@ -1,0 +1,20 @@
+AI FLOW AUTONOMO (erro -> detectar -> priorizar -> analisar -> fix -> retest -> decidir)
+
+Pipeline:
+1) /api/log registra bug e enfileira bugQueue + aiQueue
+2) aiWorker analisa prioridade/confianca
+3) fixWorker registra sugestao e enfileira retestQueue
+4) retestWorker dispara retest e atualiza status
+5) /api/bug-decision suporta merge/rollback/resolver com stale guard
+
+Controles anti-loop:
+- bloqueio de reaplicacao da mesma sugestao
+- limite de tentativas de retest
+- threshold minimo de confianca (MIN_FIX_CONFIDENCE)
+
+Aprendizado continuo:
+- scripts/ai-brain.js gera ranking de risco por tela/acao
+- scripts/alerts.js gera alertas criticos
+- scripts/continuous-runner.js roda ciclos de validacao
+- scripts/rollback.js aplica rollback operacional de bug
+- persistencia em artifacts/learning.json

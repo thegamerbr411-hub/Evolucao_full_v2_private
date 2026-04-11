@@ -7,6 +7,7 @@ import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../compon
 import { colors, spacing } from '../theme';
 import { generateCoachInsight } from '../services/coachInsight';
 import { sendMessage as sendRealtimeMessage, subscribeToMessages } from '../services/chatService.js';
+import { getExerciseFallbackSuggestions, resolveGymExerciseMention } from '../data/exerciseDatabase';
 
 const COACH_MEMORY_KEY = 'coach.memory.v1';
 const TRIGGER_COOLDOWN_MS = 2 * 60 * 60 * 1000;
@@ -21,6 +22,18 @@ function getMessageVariant(options, seed) {
 function detectIntents(message) {
   const text = String(message || '').toLowerCase();
   const intents = [];
+  const machineKeywords = [
+    'supino maquina',
+    'maquina de peito',
+    'chest press',
+    'puxador',
+    'lat pulldown',
+    'graviton',
+    'seated row',
+    'remada maquina',
+    'shoulder press',
+    'triceps maquina',
+  ];
 
   const pushIntent = (intent) => {
     if (!intents.includes(intent)) {
@@ -43,7 +56,13 @@ function detectIntents(message) {
   if (text.includes('me monta uma rotina') || text.includes('monta rotina') || text.includes('rotina') || text.includes('semana') || text.includes('planejar') || text.includes('planejamento')) {
     pushIntent('routine');
   }
-  if (text.includes('treino') || text.includes('carga') || text.includes('exercicio') || text.includes('exercício')) {
+  if (
+    text.includes('treino') ||
+    text.includes('carga') ||
+    text.includes('exercicio') ||
+    text.includes('exercício') ||
+    machineKeywords.some((keyword) => text.includes(keyword))
+  ) {
     pushIntent('training');
   }
 
@@ -52,6 +71,35 @@ function detectIntents(message) {
   }
 
   return intents;
+}
+
+function buildExerciseRecognitionLine(message = '') {
+  const mention = resolveGymExerciseMention(message);
+  if (!mention) {
+    return '';
+  }
+
+  const canonicalName = mention?.canonicalExercise?.nome || mention?.nomePrincipal || '';
+  if (!canonicalName) {
+    return '';
+  }
+
+  const fallback = getExerciseFallbackSuggestions(message, 3);
+  const fallbackList = Array.from(
+    new Set([...(fallback?.similar || []), ...(fallback?.byGroup || [])])
+  )
+    .filter((name) => name && name !== canonicalName)
+    .slice(0, 2);
+
+  const recognitionText = mention?.aliasMatched
+    ? `Entendi "${mention.aliasMatched}" como ${canonicalName}.`
+    : `Entendi como ${canonicalName}.`;
+
+  if (!fallbackList.length) {
+    return recognitionText;
+  }
+
+  return `${recognitionText} Se estiver ocupado, pode trocar por ${fallbackList.join(' ou ')}.`;
 }
 
 function getDayPeriod() {
@@ -192,7 +240,8 @@ function getCoachReply(message, context, turnIndex, memory) {
       'Vamos tornar seu treino de hoje objetivo.',
       'Perfeito, foco em decisao pratica de treino.'
     ], seed);
-    return `${intro} Recomendacao atual: ${context.smart.title}. ${context.smart.justification} ${context.trainedToday ? 'Voce ja treinou hoje, entao foque em recuperacao e alimentacao.' : 'Se puder, inicia com os exercicios principais primeiro.'}`;
+    const recognitionLine = buildExerciseRecognitionLine(message);
+    return `${intro} Recomendacao atual: ${context.smart.title}. ${context.smart.justification} ${context.trainedToday ? 'Voce ja treinou hoje, entao foque em recuperacao e alimentacao.' : 'Se puder, inicia com os exercicios principais primeiro.'} ${recognitionLine}`.trim();
   }
 
   return getMessageVariant([
@@ -253,6 +302,7 @@ export default function CoachChatScreen({ navigation }) {
     history,
     getDailyMacroTargets,
     plan,
+    userRoutines,
     workoutLogs,
     getSmartWorkoutRecommendation,
     getTodayFoodLog,
@@ -363,7 +413,12 @@ export default function CoachChatScreen({ navigation }) {
     waterTarget: effectiveContext.waterTarget,
     weeklyDone: smart.trainedThisWeek,
     weeklyTarget: smart.weeklyTarget,
-  }), [trainedToday, effectiveContext.proteinToday, effectiveContext.proteinTarget, effectiveContext.waterToday, effectiveContext.waterTarget, smart.trainedThisWeek, smart.weeklyTarget]);
+    weakMeals,
+    hasRoutine: Array.isArray(userRoutines) && userRoutines.length > 0,
+    goal: profile?.goal,
+    level: profile?.level,
+    pain: currentPain,
+  }), [trainedToday, effectiveContext.proteinToday, effectiveContext.proteinTarget, effectiveContext.waterToday, effectiveContext.waterTarget, smart.trainedThisWeek, smart.weeklyTarget, weakMeals, userRoutines, profile?.goal, profile?.level, currentPain]);
 
   const refreshCoachCard = () => {
     const state = buildDailyCoachState({
@@ -607,7 +662,7 @@ export default function CoachChatScreen({ navigation }) {
   const urgencyUI = getUrgencyStyles(coachCard.urgencyLevel);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView testID="screen-coach" style={styles.container} edges={['top']}>
       <ScreenHeader title="Conversa com o Personal/Nutri" subtitle="Conversa orientada pelo seu treino, água e macros do dia." />
 
       <AppCard style={[styles.coachCard, { borderColor: urgencyUI.borderColor, backgroundColor: urgencyUI.backgroundColor }]}> 
@@ -621,6 +676,10 @@ export default function CoachChatScreen({ navigation }) {
         <Text style={styles.coachTitle}>Agora</Text>
         <Text style={styles.coachAction}>{coachCard.action}</Text>
         <Text style={styles.smartInsightLine}>Prioridade IA: {smartInsight.priority} | {smartInsight.summary}</Text>
+        {smartInsight.profileLine ? <Text style={styles.supportLine}>{smartInsight.profileLine}</Text> : null}
+        {(smartInsight.actions || []).slice(0, 2).map((action) => (
+          <Text key={action} style={styles.supportLine}>• {action}</Text>
+        ))}
         <Text style={styles.progressLine}>Progresso do dia: {coachCard.completedGoals || 0}/{coachCard.totalGoals || 3} metas</Text>
         {coachCard.isPerfectDay ? <Text style={styles.perfectDayLine}>Dia perfeito 🔥</Text> : null}
         {actionFeedback ? <Text style={styles.feedbackLine}>{actionFeedback}</Text> : null}
@@ -639,7 +698,7 @@ export default function CoachChatScreen({ navigation }) {
         data={messages}
         keyExtractor={(item, index) => String(item?.id || index)}
         renderItem={({ item: message }) => (
-          <View style={[styles.bubble, message.role === 'user' ? styles.userBubble : styles.coachBubble]}>
+          <View testID={message.role === 'user' ? 'message-user' : 'message-coach'} style={[styles.bubble, message.role === 'user' ? styles.userBubble : styles.coachBubble]}>
             <Text style={[styles.bubbleText, message.role === 'user' ? styles.userText : styles.coachText]}>{message.text}</Text>
           </View>
         )}
@@ -729,6 +788,12 @@ const styles = StyleSheet.create({
   },
   feedbackLine: {
     color: '#FDE68A',
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  supportLine: {
+    color: '#D9E7F5',
     fontSize: 12,
     fontWeight: '700',
     marginTop: 4,

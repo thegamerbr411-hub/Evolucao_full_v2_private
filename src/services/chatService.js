@@ -4,6 +4,10 @@ import { logCriticalError } from './loggingService.js';
 
 export const sendMessage = async (chatId, message, from = 'user') => {
   try {
+    if (!db) {
+      return false;
+    }
+
     await addDoc(collection(db, 'chats', chatId, 'messages'), {
       text: String(message || ''),
       from,
@@ -21,6 +25,10 @@ export const sendMessage = async (chatId, message, from = 'user') => {
 
 export const getRecentMessages = async (chatId, max = 30) => {
   try {
+    if (!db) {
+      return [];
+    }
+
     const q = query(
       collection(db, 'chats', chatId, 'messages'),
       orderBy('createdAt', 'desc'),
@@ -39,6 +47,14 @@ export const getRecentMessages = async (chatId, max = 30) => {
 };
 
 export const subscribeToMessages = ({ chatId, max = 50, onData, onError }) => {
+  if (!db) {
+    if (typeof onData === 'function') {
+      onData([]);
+    }
+
+    return () => {};
+  }
+
   const q = query(
     collection(db, 'chats', String(chatId || 'global'), 'messages'),
     orderBy('createdAt', 'desc'),
