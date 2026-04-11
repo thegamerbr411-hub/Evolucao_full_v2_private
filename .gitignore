@@ -14,6 +14,10 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+*.log
+
+# zip artifacts
+*.zip
 
 # macOS / Windows
 .DS_Store
@@ -27,6 +31,16 @@ Thumbs.db
 android/.gradle/
 android/build/
 android/app/build/
+android/artifacts/
+
+# build outputs
+build/
+build-output/
+dist/
+
+# test artifacts
+test-results/
+dashboard/test-results/
 
 # local gradle config
 .gradle-local/
