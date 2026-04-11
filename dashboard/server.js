@@ -34,7 +34,9 @@ const faultProfile = {
 
 function createApp() {
   const app = express();
-  const baseUrl = String(process.env.PUBLIC_API_BASE_URL || process.env.RENDER_EXTERNAL_URL || `http://127.0.0.1:${PORT}`).trim();
+  const isProduction = String(process.env.NODE_ENV || '').toLowerCase() === 'production';
+  const devLocalBaseUrl = `http://127.0.0.1:${PORT}`;
+  const baseUrl = String(process.env.PUBLIC_API_BASE_URL || process.env.RENDER_EXTERNAL_URL || (isProduction ? '' : devLocalBaseUrl)).trim();
   const queueSystem = getQueueSystem();
   const auth = createAuth({
     adminPass: process.env.ADMIN_PASS || process.env.ADMIN_PASSWORD,
@@ -47,7 +49,6 @@ function createApp() {
   });
   const bugsCache = createTTLCache(BUGS_CACHE_TTL_MS);
   const retestService = createRetestService({ baseUrl });
-  const isProduction = String(process.env.NODE_ENV || '').toLowerCase() === 'production';
   const allowedOrigins = String(process.env.CORS_ORIGIN || '').split(',').map((item) => item.trim()).filter(Boolean);
 
   app.disable('x-powered-by');

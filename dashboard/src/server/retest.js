@@ -45,7 +45,8 @@ function getModeConfig(mode, baseUrl) {
 
 function createRetestService(options = {}) {
   const activeJobs = new Map();
-  const baseUrl = String(options.baseUrl || 'http://127.0.0.1:3000').trim();
+  const isProduction = String(process.env.NODE_ENV || '').toLowerCase() === 'production';
+  const baseUrl = String(options.baseUrl || (isProduction ? '' : 'http://127.0.0.1:3000')).trim();
 
   async function listStatus(clientId, retestOptions = {}) {
     const safeClientId = normalizeClientId(clientId);
@@ -128,7 +129,7 @@ function createRetestService(options = {}) {
     }
 
     const jobId = `${safeClientId}-${safeMode}-${Date.now()}`;
-    const effectiveBaseUrl = String(baseUrlOverride || baseUrl || '').trim() || 'http://127.0.0.1:3000';
+    const effectiveBaseUrl = String(baseUrlOverride || baseUrl || (isProduction ? '' : 'http://127.0.0.1:3000')).trim();
     const config = getModeConfig(safeMode, effectiveBaseUrl);
     const job = {
       clientId: safeClientId,

@@ -20,7 +20,8 @@ function shouldAutoClose(bug) {
 
 function createRetestWorker() {
   const queueSystem = ensureConnection();
-  const defaultBaseUrl = String(process.env.PUBLIC_API_BASE_URL || process.env.RENDER_EXTERNAL_URL || '').trim();
+  const isProduction = String(process.env.NODE_ENV || '').toLowerCase() === 'production';
+  const defaultBaseUrl = String(process.env.PUBLIC_API_BASE_URL || process.env.RENDER_EXTERNAL_URL || (isProduction ? '' : 'http://127.0.0.1:3000')).trim();
 
   return new Worker('retestQueue', async (job) => {
     const payload = job.data || {};
@@ -47,7 +48,7 @@ function createRetestWorker() {
     }
 
     const retestService = createRetestService({
-      baseUrl: defaultBaseUrl || 'http://127.0.0.1:3000',
+      baseUrl: defaultBaseUrl,
     });
 
     const started = retestService.startJob({

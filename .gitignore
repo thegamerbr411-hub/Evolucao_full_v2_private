@@ -18,6 +18,7 @@ yarn-error.log*
 
 # zip artifacts
 *.zip
+*.apk
 
 # macOS / Windows
 .DS_Store
