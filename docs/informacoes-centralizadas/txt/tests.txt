@@ -1,0 +1,18 @@
+TESTES E VALIDACAO
+
+Executado nesta rodada:
+- npm run test:all -> OK
+- npm --prefix dashboard test -> OK
+
+Cobertura relevante:
+- login admin
+- /health
+- /api/log
+- /api/bugs
+- /api/maintenance/artifacts
+- /api/maintenance/cleanup
+- stale state guard (409 stale_bug_state)
+
+E2E attached:
+- fluxo critico validado anteriormente no padrao 04|05|06|07|12
+- full sweep attached ainda sujeito a ruido detox cleanup/conexao

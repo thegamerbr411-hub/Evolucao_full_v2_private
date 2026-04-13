@@ -1,0 +1,68 @@
+{
+  "project_info": {
+    "project_number": "1097989170325",
+    "project_id": "nexa-app-felipe-2026-d4b3b",
+    "storage_bucket": "nexa-app-felipe-2026-d4b3b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1097989170325:android:00cec17d497a7eedeb679c",
+        "android_client_info": {
+          "package_name": "com.nexa.finance"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1097989170325-otiu8kq7d3jplr8gqf244ic8i36i6n98.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCqZI4gLroYWQeaP1M-36s0v3HzO8U5xjo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1097989170325-otiu8kq7d3jplr8gqf244ic8i36i6n98.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1097989170325:android:69a3cdafb891d471eb679c",
+        "android_client_info": {
+          "package_name": "com.tipolt.evolucaofullv2"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1097989170325-otiu8kq7d3jplr8gqf244ic8i36i6n98.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCqZI4gLroYWQeaP1M-36s0v3HzO8U5xjo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1097989170325-otiu8kq7d3jplr8gqf244ic8i36i6n98.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

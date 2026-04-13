@@ -1,9 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useApp } from '../context/AppContext';
-import { AppCard, PrimaryButton, ScreenHeader } from '../components/ui';
+import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { generateCoachInsight } from '../services/coachInsight';
 import { colors, spacing } from '../theme';
+import { APP_VERSION } from '../utils/appVersion';
+import { isGoogleAuthConfigured, loginWithGoogleToken, logoutGoogleSession, useGoogleAuth } from '../services/authService';
+import { getOrCreateUserIdentity, saveUserIdentity } from '../services/appIdentityService';
+import { setQaRuntimeAuth } from '../utils/qaTransport';
 
 const GOALS = [
   { key: 'emagrecer', label: 'Perda de gordura' },
@@ -20,12 +24,14 @@ const LEVELS = [
 export default function ProfileScreen({ navigation }) {
   const {
     profile,
+    user,
     plan,
     history,
     userRoutines,
     getWorkoutGamification,
     getDailyMacroTargets,
     updateProfileSettings,
+    setUser,
   } = useApp();
 
   const [goal, setGoal] = useState(profile?.goal || 'recomposicao');
@@ -35,6 +41,10 @@ export default function ProfileScreen({ navigation }) {
   const [targetWeight, setTargetWeight] = useState(String(profile?.targetWeight || 70));
   const [height, setHeight] = useState(String(profile?.height || 170));
   const [currentPain, setCurrentPain] = useState(String(profile?.currentPain || profile?.pain || ''));
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [logoutLoading, setLogoutLoading] = useState(false);
+  const { request, promptAsync, response } = useGoogleAuth();
+  const googleConfigured = isGoogleAuthConfigured();
 
   const gamification = getWorkoutGamification();
   const macroTargets = getDailyMacroTargets();
@@ -85,6 +95,40 @@ export default function ProfileScreen({ navigation }) {
 
     Alert.alert('Perfil atualizado', 'Suas configuracoes ja estao valendo no coach e nas rotinas.');
   };
+
+  React.useEffect(() => {
+    const handleGoogleResponse = async () => {
+      if (!response || response.type !== 'success') {
+        return;
+      }
+
+      setGoogleLoading(true);
+      try {
+        const authData = response.authentication || {};
+        const idToken = authData.idToken || response?.params?.id_token || null;
+        const loggedUser = await loginWithGoogleToken({
+          accessToken: authData.accessToken,
+          idToken,
+        });
+
+        if (!loggedUser?.id) {
+          Alert.alert('Falha no login', 'Nao foi possivel concluir o login Google.');
+          return;
+        }
+
+        await saveUserIdentity({ userId: loggedUser.id, source: loggedUser.source || 'google' });
+        setQaRuntimeAuth({ userId: loggedUser.id });
+        setUser((prev) => ({ ...prev, id: loggedUser.id, role: loggedUser.role || 'user' }));
+        Alert.alert('Login concluido', 'Conta Google conectada com sucesso.');
+      } catch (error) {
+        Alert.alert('Erro no login', String(error?.message || 'Nao foi possivel autenticar com Google.'));
+      } finally {
+        setGoogleLoading(false);
+      }
+    };
+
+    handleGoogleResponse();
+  }, [response, setUser]);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -160,6 +204,48 @@ export default function ProfileScreen({ navigation }) {
       </AppCard>
 
       <AppCard>
+        <Text style={styles.cardLabel}>Conta</Text>
+        <Text style={styles.metric}>User ID atual: {String(user?.id || 'local')}</Text>
+        <Text style={styles.metric}>Google OAuth: {googleConfigured ? 'configurado' : 'nao configurado'}</Text>
+        <PrimaryButton
+          title={googleLoading ? 'Conectando Google...' : 'Entrar com Google'}
+          onPress={() => {
+            if (googleLoading || !googleConfigured) {
+              if (!googleConfigured) {
+                Alert.alert('Google nao configurado', 'Defina EXPO_PUBLIC_GOOGLE_CLIENT_ID ou as variaveis EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID, EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID e EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID para login real.');
+              }
+              return;
+            }
+            promptAsync().catch(() => {
+              Alert.alert('Falha no login', 'Nao foi possivel abrir o fluxo do Google.');
+            });
+          }}
+        />
+        <SecondaryButton
+          title={logoutLoading ? 'Trocando conta...' : 'Desconectar e usar identidade local'}
+          onPress={async () => {
+            if (logoutLoading) {
+              return;
+            }
+
+            setLogoutLoading(true);
+            try {
+              await logoutGoogleSession();
+              const localIdentity = await getOrCreateUserIdentity();
+              await saveUserIdentity({ userId: localIdentity.userId, source: 'local' });
+              setQaRuntimeAuth({ userId: localIdentity.userId });
+              setUser((prev) => ({ ...prev, id: localIdentity.userId, role: 'user' }));
+              Alert.alert('Conta local ativa', 'Sessao Google encerrada neste dispositivo.');
+            } finally {
+              setLogoutLoading(false);
+            }
+          }}
+          style={styles.secondaryButton}
+        />
+        {!request && googleConfigured ? <Text style={styles.metric}>Preparando provedor Google...</Text> : null}
+      </AppCard>
+
+      <AppCard>
         <Text style={styles.cardLabel}>Coach sobre o seu perfil</Text>
         <Text style={styles.metric}>Prioridade: {profileCoach.priority}</Text>
         <Text style={styles.metric}>{profileCoach.summary}</Text>
@@ -172,6 +258,7 @@ export default function ProfileScreen({ navigation }) {
         <PrimaryButton title="Abrir Debug Metrics" onPress={() => navigation.navigate('DebugMetrics')} />
       ) : null}
       <PrimaryButton title="Salvar perfil" onPress={saveProfile} />
+      <Text style={styles.versionText}>Versao do app: v{APP_VERSION}</Text>
     </ScrollView>
   );
 }
@@ -229,5 +316,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     marginBottom: 4,
+  },
+  versionText: {
+    marginTop: spacing.md,
+    textAlign: 'center',
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  secondaryButton: {
+    marginTop: spacing.sm,
   },
 });

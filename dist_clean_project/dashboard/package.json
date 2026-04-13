@@ -1,0 +1,26 @@
+{
+  "name": "qa-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "start:worker": "node worker.js --role=all",
+    "start:worker:ai": "node worker.js --role=ai",
+    "start:worker:fix": "node worker.js --role=fix",
+    "start:worker:retest": "node worker.js --role=retest",
+    "test": "node tests/api.test.js",
+    "test:smoke": "node scripts/smoke-test.js",
+    "analyze": "node scripts/ai-analyze.js",
+    "night": "node scripts/night-run.js",
+    "test:auto": "npm run test && npm run test:smoke"
+  },
+  "dependencies": {
+    "bullmq": "^5.58.2",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.1",
+    "express": "^5.2.1",
+    "ioredis": "^5.8.1",
+    "jsonwebtoken": "^9.0.3"
+  }
+}

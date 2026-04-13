@@ -1,0 +1,15 @@
+<svg width="960" height="320" viewBox="0 0 960 320" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="960" height="320" rx="32" fill="#0E1624"/>
+  <g transform="translate(70,70)">
+    <circle cx="80" cy="80" r="74" fill="#2B1D0F" stroke="#F0A500" stroke-width="12"/>
+    <text x="80" y="95" text-anchor="middle" fill="#FFE2A8" font-size="42" font-family="Segoe UI, Arial" font-weight="800">B</text>
+  </g>
+  <g transform="translate(330,70)">
+    <circle cx="80" cy="80" r="74" fill="#1B2532" stroke="#9AAAC4" stroke-width="12"/>
+    <text x="80" y="95" text-anchor="middle" fill="#E3ECFF" font-size="42" font-family="Segoe UI, Arial" font-weight="800">S</text>
+  </g>
+  <g transform="translate(590,70)">
+    <circle cx="80" cy="80" r="74" fill="#122A1F" stroke="#00D08A" stroke-width="12"/>
+    <text x="80" y="95" text-anchor="middle" fill="#B9FFE2" font-size="42" font-family="Segoe UI, Arial" font-weight="800">E</text>
+  </g>
+</svg>

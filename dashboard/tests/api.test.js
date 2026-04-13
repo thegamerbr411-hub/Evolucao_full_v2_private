@@ -22,6 +22,7 @@ async function run() {
   process.env.ADMIN_PASS = 'pass123';
   process.env.JWT_SECRET = 'test-secret';
   process.env.CLIENT_API_KEYS = JSON.stringify({ admin: '123456' });
+  process.env.APP_API_KEY = 'app-key-test';
   process.env.ENABLE_QA_LOCAL_BYPASS = '1';
   const qaClientId = `night-qa-${Date.now()}`;
 
@@ -196,6 +197,239 @@ async function run() {
     assert.equal(typeof cleanup.payload.bugs, 'object');
     assert.equal(typeof cleanup.payload.detox, 'object');
     assert.ok(cleanup.payload.timestamp);
+
+    const workoutPayload = {
+      userId: 'user_qa_1',
+      name: 'Treino teste API',
+      plan: 'free',
+      totalSets: 3,
+      totalVolume: 1200,
+      exercises: [
+        { name: 'supino', reps: 10, sets: 3, weight: 40 },
+      ],
+    };
+
+    const saveWorkout = await httpJson(buildUrl(port, '/api/workouts'), {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': 'app-key-test',
+        'x-user-id': 'user_qa_1',
+      },
+      body: JSON.stringify(workoutPayload),
+    });
+    assert.equal(saveWorkout.response.status, 200);
+    assert.equal(saveWorkout.payload.ok, true);
+    assert.equal(saveWorkout.payload.workout.userId, 'user_qa_1');
+
+    const rejectWorkoutWithoutUser = await httpJson(buildUrl(port, '/api/workouts'), {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': 'app-key-test',
+        'x-user-id': 'forged_user_id',
+      },
+      body: JSON.stringify({
+        ...workoutPayload,
+        userId: '',
+      }),
+    });
+    assert.equal(rejectWorkoutWithoutUser.response.status, 400);
+    assert.equal(rejectWorkoutWithoutUser.payload.error, 'missing_user_id');
+
+    const saveHydration = await httpJson(buildUrl(port, '/api/hydration'), {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': 'app-key-test',
+        'x-user-timezone': 'America/Sao_Paulo',
+      },
+      body: JSON.stringify({
+        id: 'hydration-e2e-1',
+        userId: 'user_qa_1',
+        ml: 350,
+        occurredAt: '2026-04-11T12:00:00.000Z',
+      }),
+    });
+    assert.equal(saveHydration.response.status, 200);
+    assert.equal(saveHydration.payload.ok, true);
+    assert.equal(Number(saveHydration.payload.entry?.ml || 0) >= 350, true);
+    assert.equal(typeof saveHydration.payload.deduped, 'boolean');
+
+    const hydrationSummary = await httpJson(buildUrl(port, '/api/hydration?userId=user_qa_1&dayKey=2026-04-11'), {
+      headers: {
+        'x-api-key': 'app-key-test',
+        'x-user-timezone': 'America/Sao_Paulo',
+      },
+    });
+    assert.equal(hydrationSummary.response.status, 200);
+    assert.equal(hydrationSummary.payload.ok, true);
+    assert.equal(typeof hydrationSummary.payload.summary.totalMl, 'number');
+    assert.equal(Number(hydrationSummary.payload.summary.totalMl) >= 350, true);
+
+    const listWorkouts = await httpJson(buildUrl(port, '/api/workouts?userId=user_qa_1'), {
+      headers: {
+        'x-api-key': 'app-key-test',
+      },
+    });
+    assert.equal(listWorkouts.response.status, 200);
+    assert.ok(Array.isArray(listWorkouts.payload));
+    assert.ok(listWorkouts.payload.length >= 1);
+
+    const streak = await httpJson(buildUrl(port, '/api/streak?userId=user_qa_1'), {
+      headers: {
+        'x-api-key': 'app-key-test',
+      },
+    });
+    assert.equal(streak.response.status, 200);
+    assert.equal(typeof streak.payload.streakDays, 'number');
+
+    const ranking = await httpJson(buildUrl(port, '/api/ranking'), {
+      headers: {
+        'x-api-key': 'app-key-test',
+      },
+    });
+    assert.equal(ranking.response.status, 200);
+    assert.ok(Array.isArray(ranking.payload));
+
+    const rankingXp = await httpJson(buildUrl(port, '/api/ranking?metric=xp'), {
+      headers: {
+        'x-api-key': 'app-key-test',
+      },
+    });
+    assert.equal(rankingXp.response.status, 200);
+    assert.ok(Array.isArray(rankingXp.payload));
+    if (rankingXp.payload.length) {
+      assert.equal(typeof rankingXp.payload[0].xpScore, 'number');
+      assert.equal(typeof rankingXp.payload[0].league, 'string');
+      assert.equal(typeof rankingXp.payload[0].nextLeagueProgress, 'number');
+    }
+
+    const rankingCompleted = await httpJson(buildUrl(port, '/api/ranking?metric=completed'), {
+      headers: {
+        'x-api-key': 'app-key-test',
+      },
+    });
+    assert.equal(rankingCompleted.response.status, 200);
+    assert.ok(Array.isArray(rankingCompleted.payload));
+    if (rankingCompleted.payload.length) {
+      assert.equal(typeof rankingCompleted.payload[0].completedScore, 'number');
+    }
+
+    const rankingMicro = await httpJson(buildUrl(port, '/api/ranking/micro?metric=xp&userId=user_qa_1&radius=2'), {
+      headers: {
+        'x-api-key': 'app-key-test',
+      },
+    });
+    assert.equal(rankingMicro.response.status, 200);
+    assert.equal(rankingMicro.payload.ok, true);
+    assert.equal(rankingMicro.payload.userId, 'user_qa_1');
+    assert.ok(Array.isArray(rankingMicro.payload.ranking));
+
+    const xpFormula = await httpJson(buildUrl(port, '/api/gamification/formula'), {
+      headers: {
+        'x-api-key': 'app-key-test',
+      },
+    });
+    assert.equal(xpFormula.response.status, 200);
+    assert.equal(xpFormula.payload.ok, true);
+    assert.equal(typeof xpFormula.payload.formula, 'object');
+    assert.equal(typeof xpFormula.payload.formula.rules, 'object');
+
+    const meStats = await httpJson(buildUrl(port, '/api/me/stats?userId=user_qa_1&plan=free'), {
+      headers: {
+        'x-api-key': 'app-key-test',
+      },
+    });
+    assert.equal(meStats.response.status, 200);
+    assert.equal(meStats.payload.userId, 'user_qa_1');
+    assert.equal(typeof meStats.payload.totalWorkouts, 'number');
+    assert.ok(Array.isArray(meStats.payload.exerciseProgress));
+    assert.equal(typeof meStats.payload.xp, 'number');
+    assert.equal(typeof meStats.payload.level, 'number');
+    assert.equal(typeof meStats.payload.league, 'string');
+    assert.equal(typeof meStats.payload.rankings, 'object');
+
+    const addFriend = await httpJson(buildUrl(port, '/api/social/friends/add'), {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': 'app-key-test',
+      },
+      body: JSON.stringify({ userId: 'user_qa_1', friendUserId: 'user_qa_2' }),
+    });
+    assert.equal(addFriend.response.status, 200);
+    assert.equal(addFriend.payload.ok, true);
+    assert.ok(Array.isArray(addFriend.payload.friends));
+
+    const createChallenge = await httpJson(buildUrl(port, '/api/social/challenges'), {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': 'app-key-test',
+      },
+      body: JSON.stringify({
+        userId: 'user_qa_1',
+        title: 'Desafio 3 treinos',
+        target: 3,
+        type: 'workouts_count',
+      }),
+    });
+    assert.equal(createChallenge.response.status, 200);
+    assert.equal(createChallenge.payload.ok, true);
+    assert.ok(createChallenge.payload.challenge?.id);
+
+    const invalidChallenge = await httpJson(buildUrl(port, '/api/social/challenges'), {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': 'app-key-test',
+      },
+      body: JSON.stringify({
+        userId: 'user_qa_1',
+        title: '   ',
+        target: 3,
+      }),
+    });
+    assert.equal(invalidChallenge.response.status, 400);
+
+    const challengeId = createChallenge.payload.challenge.id;
+    const joinChallenge = await httpJson(buildUrl(port, `/api/social/challenges/${encodeURIComponent(challengeId)}/join`), {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': 'app-key-test',
+      },
+      body: JSON.stringify({ userId: 'user_qa_2' }),
+    });
+    assert.equal(joinChallenge.response.status, 200);
+    assert.equal(joinChallenge.payload.ok, true);
+
+    const challengeProgress = await httpJson(buildUrl(port, `/api/social/challenges/${encodeURIComponent(challengeId)}/progress`), {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': 'app-key-test',
+      },
+      body: JSON.stringify({ userId: 'user_qa_1', progress: 2 }),
+    });
+    assert.equal(challengeProgress.response.status, 200);
+    assert.equal(challengeProgress.payload.ok, true);
+
+    const socialOverview = await httpJson(buildUrl(port, '/api/social/overview?userId=user_qa_1'), {
+      headers: {
+        'x-api-key': 'app-key-test',
+      },
+    });
+    assert.equal(socialOverview.response.status, 200);
+    assert.equal(socialOverview.payload.ok, true);
+    assert.ok(Array.isArray(socialOverview.payload.friends));
+    assert.ok(Array.isArray(socialOverview.payload.activeChallenges));
+    assert.ok(Array.isArray(socialOverview.payload.friendsLeaderboard));
+    assert.ok(Array.isArray(socialOverview.payload.consistencyLeaderboard));
+    assert.ok(Array.isArray(socialOverview.payload.volumeLeaderboard));
+    assert.ok(Array.isArray(socialOverview.payload.completedLeaderboard));
+    assert.equal(typeof socialOverview.payload.xpToPassFriend, 'number');
 
     console.log('api-test:ok');
   } finally {

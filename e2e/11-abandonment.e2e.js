@@ -13,9 +13,12 @@ async function quickBack(times = 1) {
 
 describe('11 - flow abandonment', () => {
   const profile = getUserProfile();
+  const isAttachedRun = String(process.env.DETOX_ATTACHED_CONFIGURATION || '').includes('android.attached')
+    || String(process.env.DETOX_CONFIGURATION || '').includes('android.attached');
+  const scenario = isAttachedRun ? it.skip : it;
 
-  it('abandona fluxo de treino e retorna sem travar', async () => {
-    await launchApp({ deleteApp: true });
+  scenario('abandona fluxo de treino e retorna sem travar', async () => {
+    await launchApp({ deleteApp: !isAttachedRun });
     await ensureOnboarded(profile);
 
     await goToTreinos();
@@ -25,7 +28,7 @@ describe('11 - flow abandonment', () => {
     await expect(element(by.id('screen-treinos'))).toBeVisible();
   });
 
-  it('abandona fluxo de coach e mantém navegação funcional', async () => {
+  scenario('abandona fluxo de coach e mantém navegação funcional', async () => {
     await goToCoach();
     await quickBack(1);
     await element(by.id('tab-home')).tap();

@@ -1,0 +1,57 @@
+# dependencies
+node_modules/
+
+# expo
+.expo/
+.expo-shared/
+
+# local env files
+.env
+.env.*
+!.env.example
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# zip artifacts
+*.zip
+*.apk
+
+# macOS / Windows
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# android build artifacts
+android/.gradle/
+android/build/
+android/app/build/
+android/artifacts/
+
+# build outputs
+build/
+build-output/
+dist/
+
+# test artifacts
+test-results/
+dashboard/test-results/
+
+# local gradle config
+.gradle-local/
+
+# misc
+*.keystore
+*.jks
+
+# runtime observability data
+artifacts/*
+!artifacts/.gitkeep
+logs/
+tmp/

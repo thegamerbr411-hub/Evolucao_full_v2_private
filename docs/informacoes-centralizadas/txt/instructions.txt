@@ -1,0 +1,27 @@
+COMO RODAR (RESUMO)
+
+API local:
+- npm --prefix dashboard start
+
+Workers locais (com REDIS_URL configurado):
+- npm --prefix dashboard run start:worker:ai
+- npm --prefix dashboard run start:worker:fix
+- npm --prefix dashboard run start:worker:retest
+
+Qualidade:
+- npm run test:all
+- npm --prefix dashboard test
+
+Aprendizado/ops:
+- npm run ai:brain
+- npm run alerts
+- npm run continuous:runner
+- npm run rollback -- <clientId> <fingerprint>
+
+Guia completo:
+- docs/INSTALACAO_E_USO_COMPLETO.md
+
+Render:
+- blueprint multi-service em render.yaml
+- envs obrigatorias: ADMIN_USER, ADMIN_PASS, JWT_SECRET, DEFAULT_CLIENT_ID, CLIENT_API_KEYS, REDIS_URL
+- producao: NODE_ENV=production e ENABLE_QA_LOCAL_BYPASS=0

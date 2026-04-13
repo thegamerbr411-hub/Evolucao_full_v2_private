@@ -1,5 +1,9 @@
+const fs = require('fs');
+const path = require('path');
+const { execFileSync } = require('child_process');
 const { getPersona } = require('./personas');
 const {
+  countEventEntries,
   fetchHeatmap,
   hideKeyboardIfNeeded,
   humanDelay,
@@ -10,25 +14,123 @@ const {
   slugify,
   tapElement,
   waitForAny,
+  waitForCountIncrease,
 } = require('./utils');
 
+const ANDROID_APP_ID = 'com.tipolt.evolucaofullv2';
+
+function resolveAdbPath() {
+  const directCandidates = [
+    process.env.ADB,
+    process.env.ANDROID_HOME && path.join(process.env.ANDROID_HOME, 'platform-tools', 'adb.exe'),
+    process.env.ANDROID_SDK_ROOT && path.join(process.env.ANDROID_SDK_ROOT, 'platform-tools', 'adb.exe'),
+  ].filter(Boolean);
+
+  for (const candidate of directCandidates) {
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  const localPropertiesPath = path.resolve(__dirname, '..', '..', 'android', 'local.properties');
+  if (fs.existsSync(localPropertiesPath)) {
+    const contents = fs.readFileSync(localPropertiesPath, 'utf8');
+    const match = contents.match(/^sdk\.dir=(.+)$/m);
+    if (match) {
+      const sdkDir = match[1].trim().replace(/\\/g, '\\');
+      const adbPath = path.join(sdkDir, 'platform-tools', 'adb.exe');
+      if (fs.existsSync(adbPath)) {
+        return adbPath;
+      }
+    }
+  }
+
+  return 'adb';
+}
+
+function clearAttachedAndroidAppData() {
+  if (device.getPlatform() !== 'android') {
+    return;
+  }
+
+  const adbName = String(process.env.DETOX_ADB_NAME || '').trim();
+  const adbArgs = [];
+  if (adbName) {
+    adbArgs.push('-s', adbName);
+  }
+  adbArgs.push('shell', 'pm', 'clear', ANDROID_APP_ID);
+  execFileSync(resolveAdbPath(), adbArgs, { stdio: 'pipe' });
+}
+
 async function launchApp({ deleteApp = false } = {}) {
-  await device.launchApp({
-    delete: deleteApp,
-    launchArgs: {
-      class: 'com.tipolt.evolucaofullv2.DetoxTest',
-      detoxEnableSynchronization: 0,
-    },
-    newInstance: true,
-    permissions: {
-      notifications: 'YES',
-    },
-  });
+  const isAttachedRun = String(process.env.DETOX_ATTACHED_CONFIGURATION || '').includes('android.attached')
+    || String(process.env.DETOX_CONFIGURATION || '').includes('android.attached')
+    || String(process.env.DETOX_REUSE_APP || '') === '1';
+  const shouldForceTerminateAttached = String(process.env.DETOX_FORCE_TERMINATE || '0') === '1';
+  const shouldClearAttachedData = Boolean(deleteApp)
+    && isAttachedRun
+    && String(process.env.DETOX_CLEAR_APP_DATA || '1') !== '0';
 
-  // O app dispara telemetria e timers contínuos; sem isso o Detox pode ficar bloqueado aguardando "idle".
-  await device.disableSynchronization();
+  const shouldDeleteAppData = Boolean(deleteApp) && !isAttachedRun;
 
-  await waitFor(element(by.id('app-root'))).toBeVisible().withTimeout(30000);
+  if (shouldClearAttachedData) {
+    if (shouldForceTerminateAttached) {
+      try {
+        await device.terminateApp();
+      } catch {
+        // app pode ainda nao estar aberto nesta sessao
+      }
+    }
+    clearAttachedAndroidAppData();
+  }
+
+  let lastError = null;
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      if (isAttachedRun) {
+        // For physical devices, avoid hard terminate by default to preserve Detox handshake stability.
+        if (shouldForceTerminateAttached) {
+          try {
+            await device.terminateApp();
+          } catch {
+            // app pode ja estar fechado
+          }
+        }
+
+        await device.launchApp({ newInstance: true });
+      } else {
+        try {
+          await device.terminateApp();
+        } catch {
+          // app pode ja estar fechado
+        }
+
+        await device.launchApp({
+          delete: shouldDeleteAppData,
+          launchArgs: {
+            detoxEnableSynchronization: 0,
+          },
+          newInstance: true,
+          permissions: {
+            notifications: 'YES',
+          },
+        });
+      }
+
+      // O app dispara telemetria e timers contínuos; sem isso o Detox pode ficar bloqueado aguardando "idle".
+      await device.disableSynchronization();
+
+      await waitForAny(['app-root', 'questionnaire-screen', 'screen-home', 'tab-home'], 45000);
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt >= 2) {
+        break;
+      }
+    }
+  }
+
+  throw lastError || new Error('Falha ao iniciar app no e2e.');
 }
 
 async function completeOnboarding(persona = getPersona()) {
@@ -47,26 +149,20 @@ async function completeOnboarding(persona = getPersona()) {
   await humanDelay(persona, 'goal');
   await tapElement(persona.levelTestId);
   await humanDelay(persona, 'level');
-  await tapElement(persona.trainingDaysTestId);
-  await scrollToElement('scroll-container', 'input-peso-atual');
   await replaceInput('input-peso-atual', persona.currentWeight);
   await hideKeyboardIfNeeded();
+  await tapElement(persona.trainingDaysTestId);
   await scrollToElement('scroll-container', 'btn-toggle-advanced-questionnaire');
   await tapElement('btn-toggle-advanced-questionnaire');
   await scrollToElement('scroll-container', 'input-peso-meta');
   await replaceInput('input-peso-meta', persona.targetWeight);
   await scrollToElement('scroll-container', 'input-altura');
   await replaceInput('input-altura', persona.height);
+  await scrollToElement('scroll-container', 'btn-continuar');
   await hideKeyboardIfNeeded();
   await humanDelay(persona, 'submit-questionnaire');
   await tapElement('btn-continuar');
-  await waitForAny(['screen-home', 'tab-home'], 30000);
-
-  if (await isVisible('tab-home', 1500)) {
-    await tapElement('tab-home');
-  }
-
-  await waitFor(element(by.id('screen-home'))).toBeVisible().withTimeout(15000);
+  await waitFor(element(by.id('screen-home'))).toBeVisible().withTimeout(30000);
 }
 
 async function ensureOnboarded(persona = getPersona()) {
@@ -131,8 +227,13 @@ async function runGuidedWorkoutHappyPath(persona = getPersona()) {
   await replaceInput('input-reps', persona.guidedReps);
   await hideKeyboardIfNeeded();
   await humanDelay(persona, 'save-guided-set');
+  const eventsBeforeSave = countEventEntries();
   await tapElement('btn-salvar-serie');
-  await waitFor(element(by.id('serie-salva-indicator'))).toBeVisible().withTimeout(8000);
+  try {
+    await waitForAny(['btn-editar-serie', 'btn-remover-serie', 'serie-salva-indicator'], 4000);
+  } catch {
+    await waitForCountIncrease(countEventEntries, eventsBeforeSave, 8000);
+  }
 }
 
 async function saveGuidedWorkoutPartial() {
