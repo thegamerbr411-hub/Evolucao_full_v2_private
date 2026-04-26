@@ -1542,6 +1542,9 @@ export default function WorkoutScreen({ navigation, route }) {
         evolution,
         prevWeight: Math.round(prevWeight),
         currWeight: Math.round(currWeight),
+        exerciseCount,
+        sessionDurationMinutes,
+        totalSets: todaySets,
       });
     } catch (error) {
       logQaError(error, {

@@ -15,6 +15,7 @@ import { useApp } from '../context/AppContext';
 import { colors, spacing, radius, typography } from '../theme';
 
 const XP_PER_LEVEL = 500;
+const WEEK_DAYS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -62,6 +63,44 @@ function QuickAction({ icon, label, onPress, accent, testID }) {
   );
 }
 
+function WeeklyProgress({ streak, onPress }) {
+  const today = new Date().getDay(); // 0=Dom, 1=Seg...
+  // Quantos dias desta semana (Dom a hoje) foram treinados com base no streak
+  const daysThisWeek = today + 1; // número de dias da semana até hoje (1-7)
+  const trainedInWeek = Math.min(streak, daysThisWeek);
+  // Marca os últimos `trainedInWeek` dias antes de hoje como feitos
+  const dots = WEEK_DAYS.map((label, idx) => {
+    const dayOffset = today - idx; // positivo = passou, 0 = hoje, negativo = futuro
+    const done = dayOffset >= 0 && dayOffset < streak;
+    const isToday = idx === today;
+    return { label, done, isToday };
+  });
+
+  const totalWeekWorkouts = dots.filter((d) => d.done).length;
+
+  return (
+    <TouchableOpacity style={wpStyles.card} onPress={onPress} activeOpacity={0.85}>
+      <View style={wpStyles.header}>
+        <Text style={wpStyles.title}>SEMANA ATUAL</Text>
+        <Text style={wpStyles.count}>{totalWeekWorkouts}/7 treinos</Text>
+      </View>
+      <View style={wpStyles.dotsRow}>
+        {dots.map(({ label, done, isToday }, i) => (
+          <View key={i} style={wpStyles.dotWrap}>
+            <View style={[wpStyles.dot, done && wpStyles.dotDone, isToday && wpStyles.dotToday]}>
+              {done && <Ionicons name="checkmark" size={10} color="#fff" />}
+            </View>
+            <Text style={[wpStyles.dotLabel, isToday && wpStyles.dotLabelToday]}>{label}</Text>
+          </View>
+        ))}
+      </View>
+      {streak > 0 && (
+        <Text style={wpStyles.streakHint}>🔥 {streak} {streak === 1 ? 'dia' : 'dias'} seguidos — continue!</Text>
+      )}
+    </TouchableOpacity>
+  );
+}
+
 const qaStyles = StyleSheet.create({
   btn: {
     flexGrow: 1,
@@ -82,6 +121,76 @@ const qaStyles = StyleSheet.create({
   },
   label: { fontSize: 11, fontWeight: '700', color: colors.primary, textAlign: 'center' },
   labelAccent: { color: colors.textInverse },
+});
+
+const wpStyles = StyleSheet.create({
+  card: {
+    backgroundColor: colors.card,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  title: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textMuted,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  count: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  dotsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  dotWrap: {
+    alignItems: 'center',
+    gap: 4,
+    flex: 1,
+  },
+  dot: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  dotDone: {
+    backgroundColor: colors.primary,
+  },
+  dotToday: {
+    borderColor: colors.primary,
+  },
+  dotLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+  },
+  dotLabelToday: {
+    color: colors.primary,
+    fontWeight: '800',
+  },
+  streakHint: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: spacing.sm,
+    textAlign: 'center',
+    fontWeight: '600',
+  },
 });
 
 export default function HomeScreen({ navigation }) {
@@ -224,6 +333,12 @@ export default function HomeScreen({ navigation }) {
           <Ionicons name="flash" size={18} color={colors.textInverse} />
           <Text style={styles.mainCtaText}>{workoutDone ? 'VER TREINO DE HOJE' : 'COMEÇAR TREINO AGORA'}</Text>
         </TouchableOpacity>
+
+        {/* ── PROGRESSO SEMANAL ── */}
+        <WeeklyProgress
+          streak={streak}
+          onPress={() => navigation.navigate('Historico')}
+        />
 
         {/* ── MACROS DO DIA ── */}
         <View style={styles.macroCard}>
