@@ -1,0 +1,72 @@
+name: Release APK on Push
+
+on:
+  push:
+    branches:
+      - evolucao-app
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-release-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate release mirror drift
+        run: npm run audit:release:check
+
+      - name: Setup Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build Android APK (EAS preview profile)
+        id: eas_build
+        run: |
+          npx eas-cli build --platform android --profile preview --non-interactive --wait --json > eas-build.json
+
+          node -e "const fs=require('fs');const data=JSON.parse(fs.readFileSync('eas-build.json','utf8'));const b=Array.isArray(data)?data[0]:data;const url=b?.artifacts?.buildUrl||b?.artifacts?.applicationArchiveUrl||'';if(!url){throw new Error('build_url_not_found_in_eas_output')}const out=process.env.GITHUB_OUTPUT;fs.appendFileSync(out,`build_url=${url}\n`);fs.appendFileSync(out,`build_id=${b?.id||''}\n`);"
+
+      - name: Download APK
+        id: download_apk
+        run: |
+          APK_NAME="evolucao-${GITHUB_SHA::8}.apk"
+          curl -L "${{ steps.eas_build.outputs.build_url }}" -o "$APK_NAME"
+          echo "apk_name=$APK_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk-${{ github.sha }}
+          path: ${{ steps.download_apk.outputs.apk_name }}
+          retention-days: 14
+
+      - name: Create GitHub Release with APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-${{ github.ref_name }}-${{ github.run_number }}
+          name: APK ${{ github.ref_name }} #${{ github.run_number }}
+          body: |
+            Build automatica de APK para instalacao no Android.
+
+            Commit: ${{ github.sha }}
+            EAS Build ID: ${{ steps.eas_build.outputs.build_id }}
+            EAS Build URL: ${{ steps.eas_build.outputs.build_url }}
+          prerelease: true
+          files: ${{ steps.download_apk.outputs.apk_name }}
