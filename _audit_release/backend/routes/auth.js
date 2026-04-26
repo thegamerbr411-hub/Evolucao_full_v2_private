@@ -100,6 +100,7 @@ router.post('/google', (req, res) => {
     const accessToken = generateToken(user)
 
     res.json({
+      ok: true,
       accessToken,
       refreshToken: 'refresh-token-aqui', // em produção seria diferente
       user: {
@@ -129,6 +130,7 @@ router.post('/refresh', (req, res) => {
     const accessToken = generateToken(user)
 
     res.json({
+      ok: true,
       accessToken,
       refreshToken,
     })
@@ -149,6 +151,7 @@ router.get('/me', authMiddleware, (req, res) => {
       // Usuário não encontrado na sessão atual (reinício do servidor)
       // Retornar dados do JWT como fallback para evitar quebrar o cliente
       return res.json({
+        ok: true,
         user: {
           id: req.user.id,
           email: req.user.email,
@@ -160,6 +163,7 @@ router.get('/me', authMiddleware, (req, res) => {
     }
 
     res.json({
+      ok: true,
       user: {
         ...user,
         role: user?.role || req.user.role || 'user',

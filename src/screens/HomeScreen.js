@@ -215,6 +215,16 @@ export default function HomeScreen({ navigation }) {
           <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
         </TouchableOpacity>
 
+        <TouchableOpacity
+          testID="home-main-cta"
+          style={styles.mainCta}
+          onPress={() => navigation.navigate('TreinoHoje')}
+          activeOpacity={0.9}
+        >
+          <Ionicons name="flash" size={18} color={colors.textInverse} />
+          <Text style={styles.mainCtaText}>{workoutDone ? 'VER TREINO DE HOJE' : 'COMEÇAR TREINO AGORA'}</Text>
+        </TouchableOpacity>
+
         {/* ── MACROS DO DIA ── */}
         <View style={styles.macroCard}>
           <View style={styles.macroHeader}>
@@ -268,15 +278,8 @@ export default function HomeScreen({ navigation }) {
         </View>
 
         {/* ── AÇÕES RÁPIDAS ── */}
-        <Text style={styles.sectionTitleStandalone}>AÇÕES RÁPIDAS</Text>
+        <Text style={styles.sectionTitleStandalone}>ACESSOS ESSENCIAIS</Text>
         <View style={styles.quickActionsRow}>
-          <QuickAction
-            icon="barbell"
-            label="Treinar"
-            testID="home-quick-treino"
-            onPress={() => navigation.navigate('TreinoHoje')}
-            accent
-          />
           <QuickAction
             icon="restaurant"
             label="Registrar refeição"
@@ -311,7 +314,7 @@ export default function HomeScreen({ navigation }) {
         )}
 
         {/* ── ACESSO RÁPIDO ── */}
-        <Text style={styles.sectionTitleStandalone}>ACESSO RÁPIDO</Text>
+        <Text style={styles.sectionTitleStandalone}>OUTRAS OPÇÕES</Text>
         <View style={styles.shortcutsGrid}>
           <TouchableOpacity
             style={styles.shortcutItem}
@@ -321,26 +324,11 @@ export default function HomeScreen({ navigation }) {
             <Text style={styles.shortcutLabel}>Histórico</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            testID="home-shortcut-insights"
-            style={styles.shortcutItem}
-            onPress={() => navigation.navigate('Insights')}
-          >
-            <Ionicons name="bulb-outline" size={22} color={colors.warning} />
-            <Text style={styles.shortcutLabel}>Insights IA</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
             style={styles.shortcutItem}
             onPress={() => navigation.navigate('Rotinas')}
           >
             <Ionicons name="repeat-outline" size={22} color={colors.accent} />
             <Text style={styles.shortcutLabel}>Rotinas</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.shortcutItem}
-            onPress={() => navigation.navigate('IAWeekly')}
-          >
-            <Ionicons name="stats-chart-outline" size={22} color={colors.success} />
-            <Text style={styles.shortcutLabel}>Semana IA</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -466,6 +454,23 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textSecondary,
     marginTop: 2,
+  },
+  mainCta: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: spacing.xs,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  mainCtaText: {
+    color: colors.textInverse,
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: 0.4,
   },
 
   // MACRO CARD

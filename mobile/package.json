@@ -1,0 +1,10 @@
+{
+  "name": "evolucao-mobile",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "start": "npm --prefix .. run start",
+    "android": "npm --prefix .. run android",
+    "test:basic": "npm --prefix .. run test:basic"
+  }
+}

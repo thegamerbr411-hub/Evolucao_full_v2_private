@@ -1,5 +1,5 @@
 import { getApp, getApps, initializeApp } from 'firebase/app';
-import { getAuth, getReactNativePersistence, initializeAuth } from 'firebase/auth';
+import * as FirebaseAuth from 'firebase/auth';
 import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 import { getFirestore } from 'firebase/firestore';
 import { getFunctions } from 'firebase/functions';
@@ -38,13 +38,25 @@ function createAuthInstance() {
     return null;
   }
 
+  const initializeAuth = FirebaseAuth?.initializeAuth;
+  const getAuth = FirebaseAuth?.getAuth;
+  const getReactNativePersistence = FirebaseAuth?.getReactNativePersistence;
+
+  if (typeof initializeAuth !== 'function') {
+    return typeof getAuth === 'function' ? getAuth(app) : null;
+  }
+
   try {
-    return initializeAuth(app, {
-      persistence: getReactNativePersistence(ReactNativeAsyncStorage),
-    });
+    if (typeof getReactNativePersistence === 'function') {
+      return initializeAuth(app, {
+        persistence: getReactNativePersistence(ReactNativeAsyncStorage),
+      });
+    }
+
+    return initializeAuth(app);
   } catch {
     // Auth já inicializado, retorna a instância existente
-    return getAuth(app);
+    return typeof getAuth === 'function' ? getAuth(app) : null;
   }
 }
 

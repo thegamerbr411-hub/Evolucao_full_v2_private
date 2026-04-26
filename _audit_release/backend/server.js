@@ -9,9 +9,12 @@ import syncRoutes from './routes/sync.js'
 import socialRoutes from './routes/social.js'
 import rankingRoutes from './routes/ranking.js'
 import subscriptionRoutes from './routes/subscription.js'
+import nutritionRoutes from './routes/nutrition.js'
+import qaRoutes from './routes/qa.js'
 
 const app = express()
 const PORT = Number(process.env.PORT || 3001)
+const ENABLE_QA_ENDPOINTS = String(process.env.ENABLE_QA_ENDPOINTS || '').trim() === '1'
 
 // Middleware
 app.use(cors())
@@ -26,10 +29,14 @@ app.use((req, res, next) => {
 // Routes
 app.use('/auth', authRoutes)
 app.use('/workouts', workoutRoutes)
+app.use('/nutrition', nutritionRoutes)
 app.use('/sync', syncRoutes)
 app.use('/social', socialRoutes)
 app.use('/ranking', rankingRoutes)
 app.use('/subscription', subscriptionRoutes)
+if (ENABLE_QA_ENDPOINTS) {
+  app.use('/qa', qaRoutes)
+}
 
 // Health check
 app.get('/health', (req, res) => {

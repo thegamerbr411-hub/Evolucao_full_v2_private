@@ -114,7 +114,7 @@ router.get('/:id', authMiddleware, (req, res) => {
  */
 router.delete('/:id', authMiddleware, (req, res) => {
   try {
-    const index = workouts.findIndex(
+    const index = workoutStore.findIndex(
       (w) => w.id === req.params.id && w.userId === req.user.id
     )
 
@@ -122,7 +122,7 @@ router.delete('/:id', authMiddleware, (req, res) => {
       return res.status(404).json({ error: 'Workout not found' })
     }
 
-    workouts.splice(index, 1)
+    workoutStore.splice(index, 1)
 
     res.json({ success: true })
   } catch (error) {
