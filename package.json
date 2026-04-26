@@ -13,6 +13,8 @@
     "start:dev-client:tunnel": "expo start --dev-client --tunnel",
     "start:rn": "react-native start",
     "android": "expo run:android",
+    "release:apk": "powershell -ExecutionPolicy Bypass -File scripts/release-local-install.ps1 -NoInstall",
+    "release:install": "powershell -ExecutionPolicy Bypass -File scripts/release-local-install.ps1",
     "android:rn": "react-native run-android",
     "android:fix-run": "powershell -ExecutionPolicy Bypass -File scripts/fix-and-run-android.ps1",
     "ios": "expo run:ios",
