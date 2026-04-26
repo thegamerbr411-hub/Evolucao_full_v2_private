@@ -17,7 +17,9 @@ export const useAuth = () => {
     try {
       setError(null)
       const authResponse = await promptAsync()
-      const idToken = authResponse?.type === 'success' ? authResponse.authentication?.idToken : null
+      const idToken = authResponse?.type === 'success'
+        ? (authResponse.authentication?.idToken || (authResponse as any)?.params?.id_token)
+        : null
       const result = await loginWithGoogle(idToken || undefined)
 
       if (!result) {

@@ -119,7 +119,24 @@ function writeStore(store) {
   const payload = JSON.stringify(store, null, 2);
   const tempPath = `${STORE_PATH}.tmp`;
   fs.writeFileSync(tempPath, payload, 'utf-8');
-  fs.renameSync(tempPath, STORE_PATH);
+
+  try {
+    fs.renameSync(tempPath, STORE_PATH);
+  } catch (error) {
+    if (error && ['EPERM', 'EACCES', 'EBUSY', 'EXDEV'].includes(error.code)) {
+      fs.writeFileSync(STORE_PATH, payload, 'utf-8');
+    } else {
+      throw error;
+    }
+  } finally {
+    if (fs.existsSync(tempPath)) {
+      try {
+        fs.unlinkSync(tempPath);
+      } catch {
+        // Best-effort cleanup.
+      }
+    }
+  }
 }
 
 function saveHydration(input = {}) {

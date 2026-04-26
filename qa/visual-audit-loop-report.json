@@ -1,0 +1,24 @@
+﻿{
+    "generatedAt":  "2026-04-18T04:26:38.4899432-03:00",
+    "config":  {
+                   "cycles":  5,
+                   "configuration":  "android.attached.debug",
+                   "testFile":  "e2e/18-visual-map-audit.e2e.js",
+                   "skipZip":  false
+               },
+    "totals":  {
+                   "totalRuns":  1,
+                   "passed":  0,
+                   "failed":  1,
+                   "zipExit":  0
+               },
+    "results":  [
+                    {
+                        "timestamp":  "2026-04-18T04:26:33.3897578-03:00",
+                        "cycle":  1,
+                        "configuration":  "android.attached.debug",
+                        "testFile":  "e2e/18-visual-map-audit.e2e.js",
+                        "exitCode":  1
+                    }
+                ]
+}

@@ -2,7 +2,8 @@
 import React from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useApp } from '../context/AppContext';
+import { useAppStore } from '../stores/useAppStore';
+import { useUserStore } from '../stores/useUserStore';
 import { colors } from '../theme';
 import NutritionScanner from '../screens/NutritionScanner';
 import QuestionnaireScreen from '../screens/QuestionnaireScreen';
@@ -21,12 +22,19 @@ import ImportWorkoutScreen from '../screens/ImportWorkoutScreen';
 import AdminScreen from '../screens/AdminScreen';
 import SocialChallengesScreen from '../screens/SocialChallengesScreen';
 import RankingEvolutionScreen from '../screens/RankingEvolutionScreen';
+import ExerciseDetailScreen from '../screens/ExerciseDetailScreen';
+import WorkoutCompleteScreen from '../screens/WorkoutCompleteScreen';
 import MainTabs from './MainTabs';
 
 const Stack = createNativeStackNavigator();
 
 export default function RootNavigator(){
-  const { hasCompletedQuestionnaire, isHydrated } = useApp();
+  const hasCompletedQuestionnaire = useAppStore((state) => state.hasCompletedQuestionnaire);
+  const isHydrated = useUserStore((state) => state.isHydrated);
+  const profile = useUserStore((state) => state.profile);
+  const user = useUserStore((state) => state.user);
+  const hasPersistedProfile = Boolean(profile && Number(profile.currentWeight || 0) > 0);
+  const canAccessAdmin = user?.role === 'admin';
 
   if (!isHydrated) {
     return (
@@ -38,7 +46,7 @@ export default function RootNavigator(){
 
   return(
     <Stack.Navigator
-      initialRouteName={hasCompletedQuestionnaire ? 'MainTabs' : 'Questionario'}
+      initialRouteName={hasCompletedQuestionnaire || hasPersistedProfile ? 'MainTabs' : 'Questionario'}
       screenOptions={{headerShown:false}}
     >
       <Stack.Screen name="Questionario" component={QuestionnaireScreen}/>
@@ -50,15 +58,17 @@ export default function RootNavigator(){
       <Stack.Screen name="IAWeekly" component={WeeklyInsightScreen}/>
       <Stack.Screen name="TreinoHoje" component={WorkoutScreen}/>
       <Stack.Screen name="Workout" component={WorkoutScreen}/>
+      <Stack.Screen name="WorkoutCompleteScreen" component={WorkoutCompleteScreen}/>
       <Stack.Screen name="TreinoLivre" component={FreeWorkoutScreen}/>
       <Stack.Screen name="Rotinas" component={RoutinesScreen}/>
       <Stack.Screen name="ImportWorkout" component={ImportWorkoutScreen}/>
-      <Stack.Screen name="Admin" component={AdminScreen}/>
+      {canAccessAdmin ? <Stack.Screen name="Admin" component={AdminScreen}/> : null}
       <Stack.Screen name="SocialChallenges" component={SocialChallengesScreen}/>
       <Stack.Screen name="RankingEvolution" component={RankingEvolutionScreen}/>
+      <Stack.Screen name="ExerciseDetail" component={ExerciseDetailScreen}/>
       <Stack.Screen name="MacroSemanal" component={WeeklyMacroScreen}/>
       <Stack.Screen name="AutoCoach" component={AutoCoachScreen}/>
-      {(__DEV__ ? true : false) ? <Stack.Screen name="DebugMetrics" component={DebugMetricsScreen}/> : null}
+      {__DEV__ ? <Stack.Screen name="DebugMetrics" component={DebugMetricsScreen}/> : null}
       <Stack.Screen name="Paywall" component={PaywallScreen}/>
     </Stack.Navigator>
   );

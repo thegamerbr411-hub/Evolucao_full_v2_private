@@ -5,6 +5,7 @@ Direcao visual: fitness + dados + progresso, estilo premium e limpo.
 ## Arquivos
 
 - `logo-evolucao.svg`: logo principal horizontal.
+- `logo-evolucao-performance.svg`: logo alternativa focada em progresso/performance.
 - `splash-screen.svg`: arte base para splash.
 - `../icons/app-icon.svg`: icone principal do app.
 - `../icons/badge-pack.svg`: pacote de badges base (bronze/prata/elite).

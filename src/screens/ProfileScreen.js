@@ -5,7 +5,13 @@ import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../compon
 import { generateCoachInsight } from '../services/coachInsight';
 import { colors, spacing } from '../theme';
 import { APP_VERSION } from '../utils/appVersion';
-import { isGoogleAuthConfigured, loginWithGoogleToken, logoutGoogleSession, useGoogleAuth } from '../services/authService';
+import { cancelCreatineReminder, scheduleCreatineReminder } from '../utils/notifications';
+import * as _authServiceModule from '../services/authService';
+const { isGoogleAuthConfigured: _isGoogleAuthConfigured, loginWithGoogleToken: _loginWithGoogleToken, logoutGoogleSession: _logoutGoogleSession, useGoogleAuth: _useGoogleAuth } = _authServiceModule || {};
+const isGoogleAuthConfigured = typeof _isGoogleAuthConfigured === 'function' ? _isGoogleAuthConfigured : () => false;
+const loginWithGoogleToken = typeof _loginWithGoogleToken === 'function' ? _loginWithGoogleToken : async () => ({ id: null, isAdmin: false, role: 'user', source: 'unavailable' });
+const logoutGoogleSession = typeof _logoutGoogleSession === 'function' ? _logoutGoogleSession : async () => ({ ok: false });
+const useGoogleAuth = typeof _useGoogleAuth === 'function' ? _useGoogleAuth : () => ({ request: null, response: null, promptAsync: async () => {} });
 import { getOrCreateUserIdentity, saveUserIdentity } from '../services/appIdentityService';
 import { setQaRuntimeAuth } from '../utils/qaTransport';
 
@@ -43,6 +49,7 @@ export default function ProfileScreen({ navigation }) {
   const [currentPain, setCurrentPain] = useState(String(profile?.currentPain || profile?.pain || ''));
   const [googleLoading, setGoogleLoading] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
+  const [creatineLoading, setCreatineLoading] = useState(false);
   const { request, promptAsync, response } = useGoogleAuth();
   const googleConfigured = isGoogleAuthConfigured();
 
@@ -78,13 +85,25 @@ export default function ProfileScreen({ navigation }) {
   }), [historySummary.trainedDays, historySummary.avgProtein, macroTargets?.protein, plan?.waterLitersPerDay, trainingDays, profile?.trainingDaysPerWeek, userRoutines, goal, level, currentPain]);
 
   const saveProfile = () => {
+    const parsedDays = Math.round(Number(String(trainingDays || '3').replace(',', '.')));
+    if (!parsedDays || parsedDays < 1 || parsedDays > 7) {
+      Alert.alert('Frequencia invalida', 'Informe entre 1 e 7 dias por semana.');
+      return;
+    }
+    const parsedWeight = Number(String(currentWeight || '70').replace(',', '.'));
+    if (!parsedWeight || parsedWeight < 30 || parsedWeight > 300) {
+      Alert.alert('Peso invalido', 'Informe um peso entre 30 e 300 kg.');
+      return;
+    }
+    const parsedTargetWeight = Number(String(targetWeight || '70').replace(',', '.'));
+    const parsedHeight = Number(String(height || '170').replace(',', '.'));
     const result = updateProfileSettings({
       goal,
       level,
-      trainingDaysPerWeek: Number(trainingDays || 3),
-      currentWeight: Number(currentWeight || 0),
-      targetWeight: Number(targetWeight || 0),
-      height: Number(height || 170),
+      trainingDaysPerWeek: parsedDays,
+      currentWeight: parsedWeight,
+      targetWeight: parsedTargetWeight || parsedWeight,
+      height: parsedHeight || 170,
       currentPain,
     });
 
@@ -131,7 +150,7 @@ export default function ProfileScreen({ navigation }) {
   }, [response, setUser]);
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView testID="screen-perfil" contentContainerStyle={styles.container}>
       <ScreenHeader title="Perfil" subtitle="Centro de controle da sua estrategia e evolucao." />
 
       <AppCard>
@@ -163,7 +182,7 @@ export default function ProfileScreen({ navigation }) {
 
       <AppCard>
         <Text style={styles.cardLabel}>Peso atual (kg)</Text>
-        <TextInput value={currentWeight} onChangeText={setCurrentWeight} keyboardType="numeric" style={styles.input} />
+        <TextInput testID="input-profile-current-weight" value={currentWeight} onChangeText={setCurrentWeight} keyboardType="numeric" style={styles.input} />
       </AppCard>
 
       <AppCard>
@@ -206,43 +225,87 @@ export default function ProfileScreen({ navigation }) {
       <AppCard>
         <Text style={styles.cardLabel}>Conta</Text>
         <Text style={styles.metric}>User ID atual: {String(user?.id || 'local')}</Text>
+        <Text style={styles.metric}>Role: {String(user?.role || 'user')}</Text>
         <Text style={styles.metric}>Google OAuth: {googleConfigured ? 'configurado' : 'nao configurado'}</Text>
-        <PrimaryButton
-          title={googleLoading ? 'Conectando Google...' : 'Entrar com Google'}
-          onPress={() => {
-            if (googleLoading || !googleConfigured) {
-              if (!googleConfigured) {
-                Alert.alert('Google nao configurado', 'Defina EXPO_PUBLIC_GOOGLE_CLIENT_ID ou as variaveis EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID, EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID e EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID para login real.');
+        {googleConfigured ? (
+          <>
+            <PrimaryButton
+              testID="btn-profile-google-login"
+              title={googleLoading ? 'Conectando Google...' : 'Entrar com Google'}
+              onPress={() => {
+                if (googleLoading) return;
+                promptAsync().catch(() => {
+                  Alert.alert('Falha no login', 'Nao foi possivel abrir o fluxo do Google.');
+                });
+              }}
+            />
+            <SecondaryButton
+              testID="btn-profile-google-logout"
+              title={logoutLoading ? 'Trocando conta...' : 'Desconectar e usar identidade local'}
+              onPress={async () => {
+                if (logoutLoading) {
+                  return;
+                }
+
+                setLogoutLoading(true);
+                try {
+                  await logoutGoogleSession();
+                  const localIdentity = await getOrCreateUserIdentity();
+                  await saveUserIdentity({ userId: localIdentity.userId, source: 'local' });
+                  setQaRuntimeAuth({ userId: localIdentity.userId });
+                  setUser((prev) => ({ ...prev, id: localIdentity.userId, role: 'user' }));
+                  Alert.alert('Conta local ativa', 'Sessao Google encerrada neste dispositivo.');
+                } finally {
+                  setLogoutLoading(false);
+                }
+              }}
+              style={styles.secondaryButton}
+            />
+            {!request ? <Text style={styles.metric}>Preparando provedor Google...</Text> : null}
+          </>
+        ) : (
+          <Text style={styles.metric}>Login Google nao disponivel neste build. Configure EXPO_PUBLIC_GOOGLE_CLIENT_ID para habilitar.</Text>
+        )}
+      </AppCard>
+
+      <AppCard>
+        <Text style={styles.cardLabel}>Lembrete diario de creatina</Text>
+        <Text style={styles.metric}>Ative um lembrete fixo para manter consistencia diaria.</Text>
+        <SecondaryButton
+          testID="btn-profile-creatine-enable"
+          title={creatineLoading ? 'Ativando lembrete...' : 'Ativar lembrete (09:00)'}
+          onPress={async () => {
+            if (creatineLoading) return;
+
+            setCreatineLoading(true);
+            try {
+              const result = await scheduleCreatineReminder({ hour: 9, minute: 0 });
+              if (!result?.ok) {
+                Alert.alert('Nao foi possivel ativar', 'Verifique a permissao de notificacoes no dispositivo.');
+                return;
               }
-              return;
+              Alert.alert('Lembrete ativo', 'Creatina diaria agendada para 09:00.');
+            } finally {
+              setCreatineLoading(false);
             }
-            promptAsync().catch(() => {
-              Alert.alert('Falha no login', 'Nao foi possivel abrir o fluxo do Google.');
-            });
           }}
         />
         <SecondaryButton
-          title={logoutLoading ? 'Trocando conta...' : 'Desconectar e usar identidade local'}
+          testID="btn-profile-creatine-disable"
+          title={creatineLoading ? 'Desativando...' : 'Desativar lembrete'}
           onPress={async () => {
-            if (logoutLoading) {
-              return;
-            }
+            if (creatineLoading) return;
 
-            setLogoutLoading(true);
+            setCreatineLoading(true);
             try {
-              await logoutGoogleSession();
-              const localIdentity = await getOrCreateUserIdentity();
-              await saveUserIdentity({ userId: localIdentity.userId, source: 'local' });
-              setQaRuntimeAuth({ userId: localIdentity.userId });
-              setUser((prev) => ({ ...prev, id: localIdentity.userId, role: 'user' }));
-              Alert.alert('Conta local ativa', 'Sessao Google encerrada neste dispositivo.');
+              await cancelCreatineReminder();
+              Alert.alert('Lembrete desativado', 'O lembrete diario de creatina foi removido.');
             } finally {
-              setLogoutLoading(false);
+              setCreatineLoading(false);
             }
           }}
           style={styles.secondaryButton}
         />
-        {!request && googleConfigured ? <Text style={styles.metric}>Preparando provedor Google...</Text> : null}
       </AppCard>
 
       <AppCard>
@@ -257,7 +320,7 @@ export default function ProfileScreen({ navigation }) {
       {(__DEV__ ? true : false) ? (
         <PrimaryButton title="Abrir Debug Metrics" onPress={() => navigation.navigate('DebugMetrics')} />
       ) : null}
-      <PrimaryButton title="Salvar perfil" onPress={saveProfile} />
+      <PrimaryButton testID="btn-profile-save" title="Salvar perfil" onPress={saveProfile} />
       <Text style={styles.versionText}>Versao do app: v{APP_VERSION}</Text>
     </ScrollView>
   );
@@ -276,6 +339,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     textTransform: 'uppercase',
+    letterSpacing: 0.6,
     marginBottom: 6,
   },
   chipsRow: {
@@ -289,6 +353,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 6,
+    backgroundColor: colors.surface,
   },
   chipActive: {
     backgroundColor: colors.secondary,
@@ -309,11 +374,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 10,
     color: colors.textPrimary,
-    backgroundColor: '#141922',
+    backgroundColor: colors.surface,
   },
   metric: {
     color: colors.textPrimary,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
     marginBottom: 4,
   },

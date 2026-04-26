@@ -1,0 +1,27 @@
+{
+  "generatedAt": "2026-04-23T23:21:13.846Z",
+  "sourceFile": "artifacts/events.json",
+  "totals": {
+    "events": 176,
+    "sessions": 65,
+    "errorEvents": 0,
+    "criticalEvents": 0,
+    "sessionsWithError": 0,
+    "sessionsWithCritical": 0
+  },
+  "rates": {
+    "errorRatePerSessionPct": 0,
+    "criticalRatePerSessionPct": 0,
+    "errorRatePerEventPct": 0
+  },
+  "slo": {
+    "targetErrorSessionRatePct": 5,
+    "targetCriticalSessionRatePct": 1,
+    "targetErrorEventRatePct": 2
+  },
+  "errorBudget": {
+    "status": "ok",
+    "breaches": [],
+    "rollbackRecommended": false
+  }
+}

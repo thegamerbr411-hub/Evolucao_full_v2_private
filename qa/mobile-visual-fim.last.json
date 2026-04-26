@@ -1,0 +1,35 @@
+{
+  "phase": "fim",
+  "completedAt": "2026-04-17T19:02:00.295Z",
+  "questionnairePersisted": true,
+  "screenshots": [
+    "checkpoint-fim-ready",
+    "audit-fim-home-top",
+    "audit-fim-home-mid",
+    "audit-fim-home-end",
+    "audit-fim-treino-top",
+    "audit-fim-treino-mid",
+    "audit-fim-treino-end",
+    "audit-fim-nutricao-top",
+    "audit-fim-nutricao-mid",
+    "audit-fim-nutricao-end",
+    "audit-fim-coach-top",
+    "audit-fim-coach-mid",
+    "audit-fim-coach-end",
+    "audit-fim-social-top",
+    "audit-fim-social-mid",
+    "audit-fim-social-end",
+    "audit-fim-perfil-top",
+    "audit-fim-perfil-mid",
+    "audit-fim-perfil-end",
+    "fim-persistencia-onboarding"
+  ],
+  "workflow": [
+    "audit-fim-home:ok",
+    "audit-fim-treino:ok",
+    "audit-fim-nutricao:ok",
+    "audit-fim-coach:ok",
+    "audit-fim-social:ok",
+    "audit-fim-perfil:ok"
+  ]
+}

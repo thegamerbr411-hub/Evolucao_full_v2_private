@@ -19,6 +19,21 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function isDetoxConcurrencyError(error) {
+  const message = String(error?.message || error || '');
+  return message.includes('multiple interactions taking place simultaneously');
+}
+
+async function withDetoxGuard(action, fallbackValue, timeoutMs = 2000) {
+  try {
+    // Avoid Promise.race here: timed-out Detox actions keep running in the background
+    // and can flood the bridge with overlapping requests.
+    return await Promise.resolve().then(action);
+  } catch {
+    return fallbackValue;
+  }
+}
+
 function randomBetween(min, max, rng = Math.random) {
   const safeMin = Math.max(0, Number(min || 0));
   const safeMax = Math.max(safeMin, Number(max || safeMin));
@@ -38,18 +53,48 @@ async function humanDelay(persona, label = 'delay') {
 
 async function isVisible(target, timeout = 1000) {
   const matcher = typeof target === 'string' ? element(by.id(target)) : target;
-  try {
-    await waitFor(matcher).toBeVisible().withTimeout(timeout);
-    return true;
-  } catch {
-    return false;
+  return withDetoxGuard(
+    async () => {
+      await waitFor(matcher).toBeVisible().withTimeout(timeout);
+      return true;
+    },
+    false,
+    Math.max(1200, Number(timeout || 0) + 800)
+  );
+}
+
+async function dismissBlockingSystemDialogs() {
+  const labels = [
+    'Nao permitir',
+    'Não permitir',
+    "Don't allow",
+    'Deny',
+    'Permitir',
+    'Allow',
+    'ALLOW',
+    'OK',
+    'Ok',
+    'Fechar',
+  ];
+  for (const label of labels) {
+    try {
+      await waitFor(element(by.text(label))).toBeVisible().withTimeout(120);
+      await element(by.text(label)).tap();
+      await sleep(120);
+      return true;
+    } catch {
+      // segue para o proximo rotulo
+    }
   }
+  return false;
 }
 
 async function waitForAny(ids, timeout = 15000) {
   const startedAt = Date.now();
 
   while (Date.now() - startedAt < timeout) {
+    await dismissBlockingSystemDialogs();
+
     for (const id of ids) {
       if (await isVisible(id, 400)) {
         return id;
@@ -63,32 +108,80 @@ async function waitForAny(ids, timeout = 15000) {
 }
 
 async function tapElement(id, timeout = 12000) {
-  try {
-    await waitFor(element(by.id(id))).toBeVisible().withTimeout(timeout);
-  } catch {
-    try {
-      await device.pressBack();
-    } catch {
-      // sem stack para voltar
+  const becameVisible = await withDetoxGuard(
+    async () => {
+      await waitFor(element(by.id(id))).toBeVisible().withTimeout(timeout);
+      return true;
+    },
+    false,
+    Math.max(3000, Number(timeout || 0) + 1000)
+  );
+
+  if (!becameVisible) {
+    const exists = await withDetoxGuard(
+      async () => {
+        await waitFor(element(by.id(id))).toExist().withTimeout(timeout);
+        return true;
+      },
+      false,
+      Math.max(3000, Number(timeout || 0) + 1000)
+    );
+
+    if (!exists) {
+      throw new Error(`elemento ${id} nao ficou disponivel para tap`);
     }
-    await waitFor(element(by.id(id))).toBeVisible().withTimeout(timeout);
+
+    const visibleAfterExist = await withDetoxGuard(
+      async () => {
+        await waitFor(element(by.id(id))).toBeVisible().withTimeout(Math.max(1500, timeout));
+        return true;
+      },
+      false,
+      Math.max(2500, Number(timeout || 0) + 500)
+    );
+
+    if (!visibleAfterExist) {
+      throw new Error(`elemento ${id} nao ficou visivel para tap`);
+    }
   }
-  await element(by.id(id)).tap();
+
+  const tapped = await withDetoxGuard(
+    async () => {
+      await element(by.id(id)).tap();
+      return true;
+    },
+    false,
+    2500
+  );
+
+  if (!tapped) {
+    throw new Error(`falha ao tocar no elemento ${id}`);
+  }
 }
 
 async function replaceInput(id, value, timeout = 12000) {
+  const target = element(by.id(id));
+
   try {
-    await waitFor(element(by.id(id))).toBeVisible().withTimeout(timeout);
+    await waitFor(target).toBeVisible().withTimeout(timeout);
   } catch {
-    await waitFor(element(by.id(id))).toExist().withTimeout(timeout);
+    await waitFor(target).toExist().withTimeout(timeout);
     try {
-      await element(by.id(id)).tap();
+      await target.tap();
     } catch {
       // segue para tentativa de clear/replace mesmo sem tap
     }
   }
+
   try {
-    await element(by.id(id)).clearText();
+    await target.tap();
+    await sleep(120);
+  } catch {
+    // foco best effort
+  }
+
+  try {
+    await target.clearText();
   } catch {
     // alguns campos nao suportam clearText em todos os devices
   }
@@ -98,21 +191,47 @@ async function replaceInput(id, value, timeout = 12000) {
   }
 
   const expectedValue = String(value);
-  for (let attempt = 1; attempt <= 2; attempt += 1) {
-    await element(by.id(id)).replaceText(expectedValue);
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      await waitFor(target).toBeVisible().withTimeout(Math.min(2500, timeout));
+    } catch {
+      // visibilidade pode oscilar por transicao de layout
+    }
 
     try {
-      await waitFor(element(by.id(id))).toHaveText(expectedValue).withTimeout(1500);
+      await target.tap();
+      await sleep(80);
+    } catch {
+      // foco best effort
+    }
+
+    try {
+      await target.replaceText(expectedValue);
+    } catch {
+      try {
+        await target.typeText(expectedValue);
+      } catch {
+        if (attempt >= 3) {
+          throw new Error(`falha ao preencher ${id} com ${expectedValue}`);
+        }
+        await sleep(220);
+        continue;
+      }
+    }
+
+    try {
+      await waitFor(target).toHaveText(expectedValue).withTimeout(1800);
       return;
     } catch {
-      if (attempt >= 2) {
+      if (attempt >= 3) {
         throw new Error(`falha ao preencher ${id} com ${expectedValue}`);
       }
       try {
-        await element(by.id(id)).tap();
+        await target.tap();
       } catch {
         // segue para nova tentativa
       }
+      await sleep(200);
     }
   }
 }
@@ -138,14 +257,42 @@ async function hideKeyboardIfNeeded() {
 async function scrollToElement(scrollId, targetId, direction = 'down', amount = 320, attempts = 8) {
   for (let index = 0; index < attempts; index += 1) {
     if (await isVisible(targetId, 500)) {
-      return;
+      return true;
     }
 
-    await element(by.id(scrollId)).scroll(amount, direction);
+    let scrolled = false;
+    for (let retry = 0; retry < 3; retry += 1) {
+      try {
+        await element(by.id(scrollId)).scroll(amount, direction);
+        scrolled = true;
+        break;
+      } catch (error) {
+        if (!isDetoxConcurrencyError(error) || retry >= 2) {
+          throw error;
+        }
+        await sleep(220);
+      }
+    }
+
+    if (!scrolled) {
+      await sleep(220);
+      continue;
+    }
+
     await sleep(150);
   }
 
-  await waitFor(element(by.id(targetId))).toBeVisible().withTimeout(4000);
+  try {
+    await waitFor(element(by.id(targetId))).toBeVisible().withTimeout(4000);
+    return true;
+  } catch {
+    try {
+      await waitFor(element(by.id(targetId))).toExist().withTimeout(4000);
+      return true;
+    } catch {
+      return false;
+    }
+  }
 }
 
 function slugify(value) {

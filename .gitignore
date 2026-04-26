@@ -55,3 +55,36 @@ artifacts/*
 !artifacts/.gitkeep
 logs/
 tmp/
+Cria um .gitignore na raiz com isso:
+Gitignore
+node_modules/
+android/build/
+ios/build/
+.env
+.env.*
+
+# Logs
+*.log
+
+# imagens temporárias
+*.png
+screen*
+screenshots/
+
+# pastas lixo
+_export_zip/
+dist_clean_project/
+_audit_release/android/artifacts/
+
+# arquivos de teste / dump
+*.xml
+*.txt
+
+# build / cache
+build/
+dist/
+.tmp/
+
+# eas
+eas-log*
+eas-result*

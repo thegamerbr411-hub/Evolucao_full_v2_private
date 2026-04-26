@@ -128,6 +128,16 @@ function findAttachedAndroidDevices(androidEnv = process.env) {
 
 function getApkPathForConfiguration(configuration) {
   const isRelease = String(configuration || '').includes('.release');
+  const stagedRoot = process.env.DETOX_APK_STAGE_DIR
+    || (process.platform === 'win32' ? 'C:\\detox-bin' : '/tmp/detox-bin');
+  const stagedPath = isRelease
+    ? path.resolve(stagedRoot, 'app-release.apk')
+    : path.resolve(stagedRoot, 'app-debug.apk');
+
+  if (fs.existsSync(stagedPath)) {
+    return stagedPath;
+  }
+
   return isRelease
     ? path.resolve(__dirname, '..', 'android', 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk')
     : path.resolve(__dirname, '..', 'android', 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk');
@@ -197,12 +207,102 @@ function ensureAttachedAppInstalled(target, configuration, androidEnv = process.
   }
 }
 
+function ensureAttachedDeviceAwake(target, androidEnv = process.env) {
+  if (!target || target.mode !== 'attached' || !target.selected) {
+    return;
+  }
+
+  const adb = getAdbCommand(androidEnv);
+  const serial = target.selected;
+
+  const safeExec = (args) => {
+    try {
+      execFileSync(adb, ['-s', serial, ...args], {
+        encoding: 'utf-8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      });
+    } catch {
+      // best effort only
+    }
+  };
+
+  // Evita lock/sleep durante testes longos em device físico.
+  safeExec(['shell', 'svc', 'power', 'stayon', 'true']);
+  safeExec(['shell', 'input', 'keyevent', 'KEYCODE_WAKEUP']);
+  safeExec(['shell', 'wm', 'dismiss-keyguard']);
+}
+
+function ensureAttachedAppForeground(target, androidEnv = process.env) {
+  if (!target || target.mode !== 'attached' || !target.selected) {
+    return;
+  }
+
+  const adb = getAdbCommand(androidEnv);
+  const serial = target.selected;
+  const packageId = 'com.tipolt.evolucaofullv2';
+  const launchActivity = `${packageId}/.MainActivity`;
+
+  try {
+    // Tenta trazer a activity principal para foreground antes do bootstrap Detox.
+    execFileSync(adb, ['-s', serial, 'shell', 'am', 'start', '-W', '-n', launchActivity], {
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    return;
+  } catch {
+    // Fallback best effort para dispositivos com variação de launcher/activity resolve.
+  }
+
+  try {
+    execFileSync(adb, ['-s', serial, 'shell', 'monkey', '-p', packageId, '-c', 'android.intent.category.LAUNCHER', '1'], {
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+  } catch {
+    // Best effort somente; Detox ainda pode tentar iniciar app normalmente.
+  }
+}
+
 function resolveDetoxRuntimeTarget(baseEnv = process.env) {
   const explicitConfiguration = String(baseEnv.DETOX_CONFIGURATION || '').trim();
   const explicitAvd = String(baseEnv.DETOX_AVD_NAME || '').trim();
   const explicitAdb = String(baseEnv.DETOX_ADB_NAME || '').trim();
 
   if (explicitConfiguration) {
+    if (explicitConfiguration.includes('android.attached')) {
+      const attachedDevices = findAttachedAndroidDevices(baseEnv);
+      const selected = explicitAdb || attachedDevices[0] || '';
+      if (!selected) {
+        throw new Error('detox_target_not_available: configuracao attached explicita sem device USB conectado.');
+      }
+
+      return {
+        configuration: explicitConfiguration,
+        env: {
+          DETOX_ADB_NAME: selected,
+        },
+        mode: 'attached',
+        selected,
+      };
+    }
+
+    if (explicitConfiguration.includes('android.emulator')) {
+      const avds = findAvailableAvds();
+      const selected = explicitAvd || avds[0] || '';
+      if (!selected) {
+        throw new Error('detox_target_not_available: configuracao emulator explicita sem AVD disponivel.');
+      }
+
+      return {
+        configuration: explicitConfiguration,
+        env: {
+          DETOX_AVD_NAME: selected,
+        },
+        mode: 'emulator',
+        selected,
+      };
+    }
+
     return {
       configuration: explicitConfiguration,
       env: {
@@ -287,6 +387,36 @@ async function healthcheck(baseUrl = QA_BASE_URL) {
   }
 }
 
+async function healthcheckUrl(url) {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      return false;
+    }
+    const payload = await response.json();
+    return Boolean(payload?.ok);
+  } catch {
+    return false;
+  }
+}
+
+async function ensureBackendHealthForAttached(target) {
+  if (!target || target.mode !== 'attached') {
+    return;
+  }
+
+  const requireHealth = String(process.env.DETOX_REQUIRE_BACKEND_HEALTH || '1').trim() !== '0';
+  if (!requireHealth) {
+    return;
+  }
+
+  const backendHealthUrl = String(process.env.DETOX_BACKEND_HEALTH_URL || 'http://127.0.0.1:3001/health').trim();
+  const ok = await healthcheckUrl(backendHealthUrl);
+  if (!ok) {
+    throw new Error(`backend_healthcheck_failed: ${backendHealthUrl}`);
+  }
+}
+
 async function waitForHealth(baseUrl = QA_BASE_URL, timeoutMs = 10000) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < timeoutMs) {
@@ -368,6 +498,7 @@ async function main() {
   const persona = process.env.QA_PERSONA || 'iniciante';
   const seed = String(process.env.QA_SEED || Date.now());
   const testPattern = String(process.env.DETOX_TEST_PATTERN || '').trim();
+  const testFile = String(process.env.DETOX_TEST_FILE || '').trim();
   let androidEnv = resolveAndroidEnv(process.env);
   let target = null;
   let configuration = String(process.env.DETOX_CONFIGURATION || '').trim() || 'android.emulator.debug';
@@ -406,8 +537,18 @@ async function main() {
       args.push('--record-logs', String(process.env.DETOX_RECORD_LOGS).trim());
     }
 
+    if (testFile) {
+      // Forward directly to Jest to avoid loading unrelated suites in loop mode.
+      args.push('--', '--runTestsByPath', testFile);
+    }
+
     qaServer = await ensureQaServer();
+    await ensureBackendHealthForAttached(target);
+    ensureAttachedDeviceAwake(target, androidEnv);
     ensureAttachedAppInstalled(target, configuration, androidEnv);
+    if (String(process.env.DETOX_PREFLIGHT_FOREGROUND || '0').trim() === '1') {
+      ensureAttachedAppForeground(target, androidEnv);
+    }
     console.log(`[detox-cycle] configuration=${configuration} mode=${target.mode} target=${target.selected || 'default'} persona=${persona} seed=${seed}`);
 
     const exitCode = await runDetox(args, {

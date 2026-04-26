@@ -8,6 +8,7 @@ import workoutRoutes from './routes/workouts.js'
 import syncRoutes from './routes/sync.js'
 import socialRoutes from './routes/social.js'
 import rankingRoutes from './routes/ranking.js'
+import subscriptionRoutes from './routes/subscription.js'
 
 const app = express()
 const PORT = Number(process.env.PORT || 3001)
@@ -28,6 +29,7 @@ app.use('/workouts', workoutRoutes)
 app.use('/sync', syncRoutes)
 app.use('/social', socialRoutes)
 app.use('/ranking', rankingRoutes)
+app.use('/subscription', subscriptionRoutes)
 
 // Health check
 app.get('/health', (req, res) => {

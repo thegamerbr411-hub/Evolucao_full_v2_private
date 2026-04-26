@@ -107,7 +107,11 @@ function main() {
   weakRenderKeys.forEach((key) => {
     const value = String(renderEnvMap[key] || '').trim();
     if (value && /changeme|example|test|123456|super_secret|secret/i.test(value)) {
-      warnings.push(`weak_render_value:${key}`);
+      if (key === 'JWT_SECRET' || key === 'CLIENT_API_KEYS' || key === 'APP_API_KEY') {
+        errors.push(`weak_render_value_blocking:${key}`);
+      } else {
+        warnings.push(`weak_render_value:${key}`);
+      }
     }
   });
 

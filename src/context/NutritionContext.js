@@ -1,3 +1,5 @@
+import React, { createContext, useMemo, useState } from 'react';
+
 // Função provisória para feedback de nutrição
 function getNutritionFeedback() {
   return {
@@ -14,7 +16,6 @@ function getDailyMacroTargets() {
     fat: 70,
   };
 }
-import React, { createContext, useMemo, useState } from 'react';
 
 const defaultValue = {
   water: 0,

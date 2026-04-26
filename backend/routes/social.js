@@ -92,4 +92,84 @@ router.get('/friends', authMiddleware, (req, res) => {
   }
 })
 
+/**
+ * GET /social/overview
+ * Painel social consolidado: ranking, desafios, amigos e leaderboards
+ */
+router.get('/overview', authMiddleware, (req, res) => {
+  try {
+    const userId = req.user.id
+
+    const userFriendsIds = friends
+      .filter((f) => f.userId === userId)
+      .map((f) => f.friendId || f.friendUserId)
+
+    // Ranking de amigos por XP (dados do feed)
+    const xpMap = {}
+    feedItems.forEach((item) => {
+      if (!xpMap[item.userId]) {
+        xpMap[item.userId] = { userId: item.userId, username: item.userName || 'Atleta', xp: 0, workoutsCount: 0, totalVolume: 0 }
+      }
+      xpMap[item.userId].xp += Number(item.xp || 0)
+      xpMap[item.userId].workoutsCount += 1
+      xpMap[item.userId].totalVolume += Number(item.data?.totalVolume || 0)
+    })
+
+    const friendsLeaderboard = Object.values(xpMap)
+      .filter((e) => userFriendsIds.includes(e.userId) || e.userId === userId)
+      .sort((a, b) => b.xp - a.xp)
+      .map((e, idx) => ({ ...e, position: idx + 1, isCurrentUser: e.userId === userId }))
+
+    const completedLeaderboard = Object.values(xpMap)
+      .sort((a, b) => b.workoutsCount - a.workoutsCount)
+      .map((e, idx) => ({ ...e, position: idx + 1, isCurrentUser: e.userId === userId }))
+      .slice(0, 10)
+
+    const volumeLeaderboard = Object.values(xpMap)
+      .sort((a, b) => b.totalVolume - a.totalVolume)
+      .map((e, idx) => ({ ...e, position: idx + 1, isCurrentUser: e.userId === userId }))
+      .slice(0, 10)
+
+    const consistencyLeaderboard = completedLeaderboard
+
+    const recentFeed = feedItems
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, 20)
+
+    res.json({
+      ok: true,
+      data: {
+        friendsLeaderboard,
+        completedLeaderboard,
+        volumeLeaderboard,
+        consistencyLeaderboard,
+        recentFeed,
+        friends: userFriends,
+        challenges: [],
+      },
+    })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Helper local
+const userFriends = friends
+
+/**
+ * POST /social/challenges
+ * Criar desafio
+ */
+router.post('/challenges', authMiddleware, (req, res) => {
+  try {
+    const { title, target = 3, type = 'workouts_count', endDate } = req.body
+    if (!title) {
+      return res.status(400).json({ error: 'title required' })
+    }
+    res.json({ ok: true, data: { id: Math.random().toString(36).slice(2), title, target, type, endDate, createdBy: req.user.id, createdAt: new Date().toISOString() } })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
 export default router

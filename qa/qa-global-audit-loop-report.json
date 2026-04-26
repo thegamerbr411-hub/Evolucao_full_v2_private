@@ -1,0 +1,138 @@
+﻿{
+    "generatedAt":  "2026-04-23T20:21:43.4721303-03:00",
+    "config":  {
+                   "profile":  "attached-strict",
+                   "innerCycles":  1,
+                   "outerCycles":  5,
+                   "includeEmulator":  false,
+                   "configurations":  [
+                                          "android.attached.debug"
+                                      ],
+                   "testFiles":  [
+                                     "e2e/14-full-visual-functional.e2e.js"
+                                 ],
+                   "dryRun":  true,
+                   "skipZip":  false
+               },
+    "totals":  {
+                   "totalRuns":  10,
+                   "passed":  10,
+                   "failed":  0,
+                   "zipExit":  0
+               },
+    "coverageGate":  {
+                         "checked":  false,
+                         "reportFile":  "qa/mobile-full-visual-functional.last.json",
+                         "missingStep1Count":  null,
+                         "missingScreensCount":  null,
+                         "missingActionsCount":  null,
+                         "coveragePercent":  null,
+                         "screenshotCount":  null,
+                         "screenshotMinimum":  null,
+                         "safeModeDetected":  false,
+                         "failed":  false,
+                         "reason":  null
+                     },
+    "results":  [
+                    {
+                        "timestamp":  "2026-04-23T20:21:43.4192553-03:00",
+                        "configuration":  "android.attached.debug",
+                        "testFile":  "e2e/14-full-visual-functional.e2e.js",
+                        "outerCycle":  1,
+                        "innerCycle":  1,
+                        "phase":  "main",
+                        "exitCode":  0,
+                        "dryRun":  true
+                    },
+                    {
+                        "timestamp":  "2026-04-23T20:21:43.4413010-03:00",
+                        "configuration":  "android.attached.debug",
+                        "testFile":  "e2e/14-full-visual-functional.e2e.js",
+                        "outerCycle":  1,
+                        "innerCycle":  0,
+                        "phase":  "stability",
+                        "exitCode":  0,
+                        "dryRun":  true
+                    },
+                    {
+                        "timestamp":  "2026-04-23T20:21:43.4423884-03:00",
+                        "configuration":  "android.attached.debug",
+                        "testFile":  "e2e/14-full-visual-functional.e2e.js",
+                        "outerCycle":  2,
+                        "innerCycle":  1,
+                        "phase":  "main",
+                        "exitCode":  0,
+                        "dryRun":  true
+                    },
+                    {
+                        "timestamp":  "2026-04-23T20:21:43.4423884-03:00",
+                        "configuration":  "android.attached.debug",
+                        "testFile":  "e2e/14-full-visual-functional.e2e.js",
+                        "outerCycle":  2,
+                        "innerCycle":  0,
+                        "phase":  "stability",
+                        "exitCode":  0,
+                        "dryRun":  true
+                    },
+                    {
+                        "timestamp":  "2026-04-23T20:21:43.4444089-03:00",
+                        "configuration":  "android.attached.debug",
+                        "testFile":  "e2e/14-full-visual-functional.e2e.js",
+                        "outerCycle":  3,
+                        "innerCycle":  1,
+                        "phase":  "main",
+                        "exitCode":  0,
+                        "dryRun":  true
+                    },
+                    {
+                        "timestamp":  "2026-04-23T20:21:43.4444089-03:00",
+                        "configuration":  "android.attached.debug",
+                        "testFile":  "e2e/14-full-visual-functional.e2e.js",
+                        "outerCycle":  3,
+                        "innerCycle":  0,
+                        "phase":  "stability",
+                        "exitCode":  0,
+                        "dryRun":  true
+                    },
+                    {
+                        "timestamp":  "2026-04-23T20:21:43.4459180-03:00",
+                        "configuration":  "android.attached.debug",
+                        "testFile":  "e2e/14-full-visual-functional.e2e.js",
+                        "outerCycle":  4,
+                        "innerCycle":  1,
+                        "phase":  "main",
+                        "exitCode":  0,
+                        "dryRun":  true
+                    },
+                    {
+                        "timestamp":  "2026-04-23T20:21:43.4464208-03:00",
+                        "configuration":  "android.attached.debug",
+                        "testFile":  "e2e/14-full-visual-functional.e2e.js",
+                        "outerCycle":  4,
+                        "innerCycle":  0,
+                        "phase":  "stability",
+                        "exitCode":  0,
+                        "dryRun":  true
+                    },
+                    {
+                        "timestamp":  "2026-04-23T20:21:43.4464208-03:00",
+                        "configuration":  "android.attached.debug",
+                        "testFile":  "e2e/14-full-visual-functional.e2e.js",
+                        "outerCycle":  5,
+                        "innerCycle":  1,
+                        "phase":  "main",
+                        "exitCode":  0,
+                        "dryRun":  true
+                    },
+                    {
+                        "timestamp":  "2026-04-23T20:21:43.4475337-03:00",
+                        "configuration":  "android.attached.debug",
+                        "testFile":  "e2e/14-full-visual-functional.e2e.js",
+                        "outerCycle":  5,
+                        "innerCycle":  0,
+                        "phase":  "stability",
+                        "exitCode":  0,
+                        "dryRun":  true
+                    }
+                ]
+}

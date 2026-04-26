@@ -62,8 +62,27 @@ function readStore() {
 function writeStore(store) {
   ensureArtifactsDir();
   const tempPath = `${WORKOUTS_STORE_FILE}.tmp`;
-  fs.writeFileSync(tempPath, JSON.stringify(store, null, 2), 'utf-8');
-  fs.renameSync(tempPath, WORKOUTS_STORE_FILE);
+  const payload = JSON.stringify(store, null, 2);
+  fs.writeFileSync(tempPath, payload, 'utf-8');
+
+  try {
+    fs.renameSync(tempPath, WORKOUTS_STORE_FILE);
+  } catch (error) {
+    // Windows can intermittently fail renames while scanners/indexers hold locks.
+    if (error && ['EPERM', 'EACCES', 'EBUSY', 'EXDEV'].includes(error.code)) {
+      fs.writeFileSync(WORKOUTS_STORE_FILE, payload, 'utf-8');
+    } else {
+      throw error;
+    }
+  } finally {
+    if (fs.existsSync(tempPath)) {
+      try {
+        fs.unlinkSync(tempPath);
+      } catch {
+        // Best-effort cleanup.
+      }
+    }
+  }
 }
 
 function toNumber(value, fallback = 0) {

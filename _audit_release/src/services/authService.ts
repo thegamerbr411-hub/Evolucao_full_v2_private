@@ -6,8 +6,10 @@ import { useAuthStore } from '../stores/useAuthStore'
 
 WebBrowser.maybeCompleteAuthSession()
 
-// ⚠️ MUDE PRA SEU GOOGLE CLIENT ID (Android)
-const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || ''
+const GOOGLE_CLIENT_ID = String(process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '').trim()
+const GOOGLE_ANDROID_CLIENT_ID = String(process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || GOOGLE_CLIENT_ID).trim()
+const GOOGLE_EXPO_CLIENT_ID = String(process.env.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID || GOOGLE_CLIENT_ID).trim()
+const GOOGLE_IOS_CLIENT_ID = String(process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || GOOGLE_CLIENT_ID).trim()
 
 type GoogleAuthResponse = {
   accessToken: string
@@ -23,10 +25,11 @@ type GoogleAuthResponse = {
 export const loginWithGoogle = async (googleIdToken?: string): Promise<GoogleAuthResponse | null> => {
   try {
     if (!googleIdToken) {
+      console.warn('[INTEGRATION][AUTH][TS] idToken ausente no loginWithGoogle')
       return null
     }
 
-    // 🔄 Envia token Google pro backend
+    console.log('[INTEGRATION][AUTH][TS] POST /auth/google')
     const response = await api.post('/auth/google', {
       token: googleIdToken,
     })
@@ -68,9 +71,9 @@ export const logout = async () => {
  */
 export const useGoogleAuth = () => {
   const [request, response, promptAsync] = Google.useAuthRequest({
-    androidClientId: GOOGLE_CLIENT_ID, // Android
-    expoClientId: GOOGLE_CLIENT_ID,
-    iosClientId: GOOGLE_CLIENT_ID, // iPhone
+    androidClientId: GOOGLE_ANDROID_CLIENT_ID,
+    expoClientId: GOOGLE_EXPO_CLIENT_ID,
+    iosClientId: GOOGLE_IOS_CLIENT_ID,
   })
 
   return { request, response, promptAsync }

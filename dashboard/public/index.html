@@ -196,6 +196,156 @@
 			gap: 6px;
 		}
 
+		/* ── Catalog styles ───────────────────────────────────────────── */
+		.catalog-grid {
+			display: grid;
+			grid-template-columns: 1.15fr 1fr;
+			gap: 14px;
+		}
+
+		.catalog-form {
+			display: grid;
+			gap: 8px;
+			margin-bottom: 12px;
+		}
+
+		.catalog-field-row {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 8px;
+		}
+
+		.catalog-field-row.triple {
+			grid-template-columns: 1fr 1fr 1fr;
+		}
+
+		.catalog-textarea {
+			width: 100%;
+			resize: vertical;
+			min-height: 60px;
+			border: 1px solid var(--border);
+			border-radius: 10px;
+			background: #0b1220;
+			color: var(--text);
+			padding: 9px 11px;
+			font-size: 13px;
+			font-family: inherit;
+		}
+
+		.catalog-list {
+			max-height: 370px;
+			overflow: auto;
+			display: grid;
+			gap: 8px;
+		}
+
+		.catalog-item {
+			border: 1px solid var(--border);
+			border-radius: 12px;
+			background: rgba(2, 6, 23, 0.38);
+			padding: 10px;
+			display: grid;
+			gap: 6px;
+		}
+
+		.confidence-bar-wrap {
+			height: 4px;
+			border-radius: 999px;
+			background: rgba(255,255,255,0.08);
+			overflow: hidden;
+		}
+
+		.confidence-bar {
+			height: 4px;
+			border-radius: 999px;
+			background: var(--ok);
+			transition: width 300ms ease;
+		}
+
+		.confidence-bar.low { background: var(--danger); }
+		.confidence-bar.mid { background: var(--warn); }
+
+		.badge {
+			display: inline-block;
+			border-radius: 6px;
+			padding: 2px 8px;
+			font-size: 11px;
+			font-weight: 600;
+			text-transform: uppercase;
+			letter-spacing: 0.5px;
+		}
+
+		.badge-exercise { background: rgba(6,182,212,0.18); color: #67e8f9; }
+		.badge-machine  { background: rgba(245,158,11,0.18); color: #fcd34d; }
+		.badge-pending  { background: rgba(245,158,11,0.18); color: #fcd34d; }
+		.badge-approved { background: rgba(34,197,94,0.18);  color: #86efac; }
+		.badge-rejected { background: rgba(239,68,68,0.18);  color: #fca5a5; }
+
+		.catalog-tabs {
+			display: flex;
+			gap: 8px;
+			margin-bottom: 12px;
+			flex-wrap: wrap;
+		}
+
+		.hidden-section {
+			display: none;
+		}
+
+		.mb-12 {
+			margin-bottom: 12px;
+		}
+
+		.mt-0 {
+			margin-top: 0;
+		}
+
+		.w-100 {
+			width: 100%;
+		}
+
+		.catalog-list-compact {
+			max-height: 200px;
+		}
+
+		.reject-panel {
+			display: grid;
+			gap: 6px;
+			margin-top: 4px;
+		}
+
+		.reject-input {
+			width: 100%;
+		}
+
+		.hidden {
+			display: none;
+		}
+
+		.tab-btn {
+			border-radius: 8px;
+			padding: 6px 14px;
+			font-size: 12px;
+			font-weight: 600;
+			cursor: pointer;
+			border: 1px solid var(--border);
+			background: rgba(15, 23, 42, 0.55);
+			color: var(--muted);
+			transition: all 120ms;
+		}
+
+		.tab-btn.active {
+			border-color: rgba(6,182,212,0.5);
+			color: #67e8f9;
+			background: rgba(6,182,212,0.08);
+		}
+
+		@media (max-width: 920px) {
+			.catalog-grid { grid-template-columns: 1fr; }
+			.catalog-field-row, .catalog-field-row.triple { grid-template-columns: 1fr; }
+		}
+		/* ── End catalog styles ───────────────────────────────────────── */
+
 		.section-title {
 			font-size: 16px;
 			margin: 0;
@@ -261,6 +411,60 @@
 				<div id="queueList" class="queue-list"></div>
 			</article>
 		</section>
+
+		<!-- ── Catalog Module ────────────────────────────────────────────────── -->
+		<section class="card hidden-section" id="catalogSection">
+			<div class="row mb-12">
+				<h2 class="title section-title">Catálogo de Exercícios &amp; Máquinas</h2>
+				<span id="catalogCount" class="muted">0 pendentes</span>
+			</div>
+
+			<div class="catalog-grid">
+				<!-- Formulário de submissão -->
+				<div>
+					<h3 class="queue-title mt-0">Submeter novo item</h3>
+					<div class="catalog-form">
+						<input id="catalogTitle" class="w-100" placeholder="Nome do exercício ou máquina *" />
+						<textarea id="catalogDesc" class="catalog-textarea" placeholder="Descrição (execução, músculos, dicas)"></textarea>
+						<div class="catalog-field-row triple">
+							<select id="catalogType">
+								<option value="exercise">Exercício</option>
+								<option value="machine">Máquina</option>
+							</select>
+							<input id="catalogMuscle" placeholder="Grupo muscular" />
+							<input id="catalogEquip" placeholder="Equipamento" />
+						</div>
+						<div class="catalog-field-row">
+							<select id="catalogDifficulty">
+								<option value="beginner">Iniciante</option>
+								<option value="intermediate" selected>Intermediário</option>
+								<option value="advanced">Avançado</option>
+							</select>
+							<input id="catalogSource" placeholder="Fonte (ex: coach, manual)" value="admin" />
+						</div>
+						<div class="actions">
+							<button id="btnCatalogSubmit" class="btn-accent">Enviar para análise</button>
+							<span id="catalogSubmitMsg" class="muted"></span>
+						</div>
+					</div>
+
+					<!-- Catálogo oficial resumido -->
+					<h3 class="queue-title">Catálogo oficial (resumo)</h3>
+					<div class="catalog-tabs">
+						<button class="tab-btn active" data-catalog-tab="exercises">Exercícios (<span id="exerciseCount">0</span>)</button>
+						<button class="tab-btn" data-catalog-tab="machines">Máquinas (<span id="machineCount">0</span>)</button>
+					</div>
+					<div id="officialCatalogList" class="catalog-list catalog-list-compact"></div>
+				</div>
+
+				<!-- Fila de aprovação -->
+				<div>
+					<h3 class="queue-title mt-0">Fila de aprovação</h3>
+					<div class="catalog-list" id="catalogPendingList"></div>
+				</div>
+			</div>
+		</section>
+		<!-- ── End Catalog Module ─────────────────────────────────────────────── -->
 	</main>
 
 	<script>
@@ -274,6 +478,9 @@
 			retests: { active: [], history: [] },
 			leaderboard: [],
 			meStats: null,
+			catalogPending: [],
+			catalogOfficial: { exercises: [], machines: [] },
+			catalogActiveTab: 'exercises',
 		};
 
 		const el = {
@@ -293,6 +500,22 @@
 			queueList: document.getElementById('queueList'),
 			sessionChip: document.getElementById('sessionChip'),
 			workerChip: document.getElementById('workerChip'),
+			// Catalog
+			catalogSection: document.getElementById('catalogSection'),
+			catalogCount: document.getElementById('catalogCount'),
+			catalogTitle: document.getElementById('catalogTitle'),
+			catalogDesc: document.getElementById('catalogDesc'),
+			catalogType: document.getElementById('catalogType'),
+			catalogMuscle: document.getElementById('catalogMuscle'),
+			catalogEquip: document.getElementById('catalogEquip'),
+			catalogDifficulty: document.getElementById('catalogDifficulty'),
+			catalogSource: document.getElementById('catalogSource'),
+			btnCatalogSubmit: document.getElementById('btnCatalogSubmit'),
+			catalogSubmitMsg: document.getElementById('catalogSubmitMsg'),
+			catalogPendingList: document.getElementById('catalogPendingList'),
+			officialCatalogList: document.getElementById('officialCatalogList'),
+			exerciseCount: document.getElementById('exerciseCount'),
+			machineCount: document.getElementById('machineCount'),
 		};
 
 		function authHeaders() {
@@ -395,6 +618,17 @@
 				state.aiStatus = await api(`/api/ai/status?clientId=${encodeURIComponent(state.clientId)}`);
 				state.leaderboard = await api('/api/leaderboard?metric=consistency');
 				state.meStats = await api(`/api/me/stats?userId=${encodeURIComponent(state.clientId)}&plan=free`);
+				try {
+					const pending = await api('/api/catalog/pending');
+					state.catalogPending = Array.isArray(pending?.items) ? pending.items : [];
+				} catch { state.catalogPending = []; }
+				try {
+					const official = await api('/api/catalog/official');
+					state.catalogOfficial = {
+						exercises: Array.isArray(official?.exercises) ? official.exercises : [],
+						machines: Array.isArray(official?.machines) ? official.machines : [],
+					};
+				} catch { state.catalogOfficial = { exercises: [], machines: [] }; }
 			} catch (error) {
 				state.bugs = [];
 				state.learningSummary = null;
@@ -577,7 +811,219 @@
 			renderLearning();
 			renderWorkoutIntel();
 			listQueue();
+			renderCatalog();
 		}
+
+		// ── Catalog functions ─────────────────────────────────────────────────
+
+		function confidenceBarClass(conf) {
+			if (conf >= 0.7) return '';
+			if (conf >= 0.4) return 'mid';
+			return 'low';
+		}
+
+		function typeBadge(type) {
+			return type === 'machine'
+				? '<span class="badge badge-machine">Máquina</span>'
+				: '<span class="badge badge-exercise">Exercício</span>';
+		}
+
+		function statusBadge(status) {
+			const map = {
+				pending: '<span class="badge badge-pending">Pendente</span>',
+				approved: '<span class="badge badge-approved">Aprovado</span>',
+				rejected: '<span class="badge badge-rejected">Recusado</span>',
+			};
+			return map[status] || `<span class="badge">${status}</span>`;
+		}
+
+		function renderCatalog() {
+			const hasToken = Boolean(state.adminToken || state.clientToken);
+			if (el.catalogSection) {
+				el.catalogSection.style.display = hasToken ? 'block' : 'none';
+			}
+			if (!hasToken) return;
+
+			const pending = state.catalogPending || [];
+			const official = state.catalogOfficial || { exercises: [], machines: [] };
+
+			if (el.catalogCount) {
+				el.catalogCount.textContent = `${pending.length} pendente(s)`;
+			}
+			if (el.exerciseCount) el.exerciseCount.textContent = String(official.exercises.length);
+			if (el.machineCount) el.machineCount.textContent = String(official.machines.length);
+
+			// Official catalog list (by active tab)
+			const activeItems = state.catalogActiveTab === 'machines' ? official.machines : official.exercises;
+
+			if (el.officialCatalogList) {
+				el.officialCatalogList.innerHTML = activeItems.length
+					? activeItems.slice(0, 30).map((item) => `
+						<div class="catalog-item">
+							<div class="row">
+								<strong>${item.title || '-'}</strong>
+								${typeBadge(item.type || (state.catalogActiveTab === 'machines' ? 'machine' : 'exercise'))}
+							</div>
+							<span class="muted">${item.muscleGroup || item.category || ''} ${item.equipment ? '· ' + item.equipment : ''}</span>
+						</div>
+					`).join('')
+					: '<div class="muted">Nenhum item no catálogo ainda.</div>';
+			}
+
+			// Pending list
+			if (el.catalogPendingList) {
+				el.catalogPendingList.innerHTML = pending.length
+					? pending.map((item) => {
+						const conf = Number(item.analysis?.confidence || 0);
+						const barCls = confidenceBarClass(conf);
+						return `
+							<div class="catalog-item">
+								<div class="row">
+									<strong>${item.title || '-'}</strong>
+									${typeBadge(item.type)}
+									${statusBadge(item.status)}
+								</div>
+								<span class="muted">${item.analysis?.suggestedMuscleGroup || item.muscleGroup || ''} ${item.analysis?.suggestedEquipment ? '· ' + item.analysis.suggestedEquipment : ''}</span>
+								<div class="confidence-bar-wrap">
+									<div class="confidence-bar ${barCls}" style="width:${Math.round(conf * 100)}%"></div>
+								</div>
+								<span class="muted">Confiança: ${Math.round(conf * 100)}% · Por: ${item.createdBy || '-'}</span>
+								${item.analysis?.reason ? `<span class="muted" style="font-size:11px">${item.analysis.reason}</span>` : ''}
+								<div class="actions" style="margin-top:4px">
+									<button class="btn-accent btn-approve-catalog" data-id="${item.id}">✓ Aprovar</button>
+									<button class="btn-reject-catalog" data-id="${item.id}">✗ Recusar</button>
+								</div>
+								<div class="reject-panel hidden" data-reject-panel="${item.id}">
+									<input class="reject-input" data-reject-input="${item.id}" placeholder="Motivo da recusa (obrigatório)" />
+									<div class="actions">
+										<button class="btn-confirm-reject" data-id="${item.id}">Confirmar recusa</button>
+										<button class="btn-cancel-reject" data-id="${item.id}">Cancelar</button>
+									</div>
+								</div>
+							</div>
+						`;
+					}).join('')
+					: '<div class="muted">Sem submissões pendentes.</div>';
+
+				el.catalogPendingList.querySelectorAll('.btn-approve-catalog').forEach((btn) => {
+					btn.addEventListener('click', async () => {
+						const id = btn.getAttribute('data-id');
+						try {
+							btn.disabled = true;
+							await approveCatalogItem(id);
+							await refreshData();
+						} catch (err) {
+							console.error('catalog-approve-error', err.message);
+							btn.disabled = false;
+						}
+					});
+				});
+
+				el.catalogPendingList.querySelectorAll('.btn-reject-catalog').forEach((btn) => {
+					btn.addEventListener('click', async () => {
+						const id = btn.getAttribute('data-id');
+						const panel = el.catalogPendingList.querySelector(`[data-reject-panel="${id}"]`);
+						if (panel) panel.classList.remove('hidden');
+					});
+				});
+
+				el.catalogPendingList.querySelectorAll('.btn-cancel-reject').forEach((btn) => {
+					btn.addEventListener('click', () => {
+						const id = btn.getAttribute('data-id');
+						const panel = el.catalogPendingList.querySelector(`[data-reject-panel="${id}"]`);
+						if (panel) panel.classList.add('hidden');
+					});
+				});
+
+				el.catalogPendingList.querySelectorAll('.btn-confirm-reject').forEach((btn) => {
+					btn.addEventListener('click', async () => {
+						const id = btn.getAttribute('data-id');
+						const input = el.catalogPendingList.querySelector(`[data-reject-input="${id}"]`);
+						const reason = String(input?.value || '').trim();
+						if (!reason) {
+							if (input) input.focus();
+							return;
+						}
+						try {
+							btn.disabled = true;
+							await rejectCatalogItem(id, reason);
+							await refreshData();
+						} catch (err) {
+							console.error('catalog-reject-error', err.message);
+							btn.disabled = false;
+						}
+					});
+				});
+			}
+
+			// Tab buttons click handlers
+			document.querySelectorAll('[data-catalog-tab]').forEach((tabBtn) => {
+				tabBtn.onclick = () => {
+					state.catalogActiveTab = tabBtn.getAttribute('data-catalog-tab');
+					document.querySelectorAll('[data-catalog-tab]').forEach((b) => b.classList.remove('active'));
+					tabBtn.classList.add('active');
+					renderCatalog();
+				};
+			});
+		}
+
+		async function submitCatalogItem() {
+			const title = (el.catalogTitle?.value || '').trim();
+			if (!title) {
+				if (el.catalogSubmitMsg) el.catalogSubmitMsg.textContent = 'Título é obrigatório.';
+				return;
+			}
+			try {
+				if (el.btnCatalogSubmit) el.btnCatalogSubmit.disabled = true;
+				if (el.catalogSubmitMsg) el.catalogSubmitMsg.textContent = 'Enviando...';
+
+				const body = {
+					title,
+					description: el.catalogDesc?.value || '',
+					type: el.catalogType?.value || 'exercise',
+					muscleGroup: el.catalogMuscle?.value || '',
+					equipment: el.catalogEquip?.value || '',
+					difficulty: el.catalogDifficulty?.value || 'intermediate',
+					source: el.catalogSource?.value || 'admin',
+					createdBy: state.clientId || 'admin',
+				};
+
+				const result = await api('/api/catalog/submit', {
+					method: 'POST',
+					body: JSON.stringify(body),
+				});
+
+				if (el.catalogTitle) el.catalogTitle.value = '';
+				if (el.catalogDesc) el.catalogDesc.value = '';
+				if (el.catalogMuscle) el.catalogMuscle.value = '';
+				if (el.catalogEquip) el.catalogEquip.value = '';
+				if (el.catalogSubmitMsg) el.catalogSubmitMsg.textContent = `✓ Enviado (id: ${result.submission?.id || 'ok'})`;
+
+				await refreshData();
+			} catch (err) {
+				if (el.catalogSubmitMsg) el.catalogSubmitMsg.textContent = `Erro: ${err.message}`;
+			} finally {
+				if (el.btnCatalogSubmit) el.btnCatalogSubmit.disabled = false;
+			}
+		}
+
+		async function approveCatalogItem(id) {
+			await api(`/api/catalog/${encodeURIComponent(id)}/approve`, {
+				method: 'POST',
+				headers: { authorization: `Bearer ${state.adminToken}` },
+				body: JSON.stringify({}),
+			});
+		}
+
+		async function rejectCatalogItem(id, reason) {
+			await api(`/api/catalog/${encodeURIComponent(id)}/reject`, {
+				method: 'POST',
+				headers: { authorization: `Bearer ${state.adminToken}` },
+				body: JSON.stringify({ reason }),
+			});
+		}
+
+		// ── End catalog functions ────────────────────────────────────────────
 
 		async function login() {
 			const user = (el.adminUser.value || '').trim();
@@ -623,6 +1069,12 @@
 			}
 		});
 		el.btnRefresh.addEventListener('click', refreshData);
+
+		if (el.btnCatalogSubmit) {
+			el.btnCatalogSubmit.addEventListener('click', () => submitCatalogItem().catch((err) => {
+				console.error('catalog-submit-error', err.message);
+			}));
+		}
 
 		setSessionChip();
 		refreshData();

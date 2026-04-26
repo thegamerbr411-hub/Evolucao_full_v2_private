@@ -11,8 +11,13 @@ import {
   Vibration,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
+import { getExerciseByName, getExerciseFilters, searchExercises } from '../data/exercises.js';
+import { matchNutritionToken } from '../data/nutritionDatabase';
 import { logError } from '../utils/errorLogger';
+import { AppCard, PrimaryButton, ScreenHeader } from '../components/ui';
+import { colors, spacing, radius, typography } from '../theme';
 
 const CATEGORIES = [
   { key: 'peito', label: 'Peito', terms: ['supino', 'crucifixo', 'peito'] },
@@ -45,8 +50,10 @@ function groupCatalogByCategory(catalog, categoryKey) {
 }
 
 function toTestId(value) {
-  return String(value || '')
-    .normalize('NFD')
+  const base = String(value || '');
+  const normalized = typeof base.normalize === 'function' ? base.normalize('NFD') : base;
+
+  return normalized
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
@@ -63,27 +70,74 @@ export default function FreeWorkoutScreen({ navigation }) {
     profile,
   } = useApp();
 
-  const catalog = useMemo(() => getExerciseCatalog(), [getExerciseCatalog]);
+  const catalog = useMemo(() => {
+    const result = typeof getExerciseCatalog === 'function' ? getExerciseCatalog() : [];
+    return Array.isArray(result) ? result : [];
+  }, [getExerciseCatalog]);
   const [activeCategory, setActiveCategory] = useState('peito');
+  const [catalogSearch, setCatalogSearch] = useState('');
+  const [equipmentFilter, setEquipmentFilter] = useState('all');
   const [exerciseNameInput, setExerciseNameInput] = useState('');
   const [selectedExercises, setSelectedExercises] = useState([]);
   const [setData, setSetData] = useState({});
   const [restSeconds, setRestSeconds] = useState(0);
   const [restRunning, setRestRunning] = useState(false);
+  const exerciseFilters = useMemo(() => {
+    const raw = typeof getExerciseFilters === 'function' ? getExerciseFilters() : {};
+    const equipments = Array.isArray(raw?.equipments) ? raw.equipments : [];
+    return { ...raw, equipments };
+  }, []);
 
   const categoryExercises = useMemo(
-    () => groupCatalogByCategory(catalog, activeCategory),
-    [catalog, activeCategory]
+    () => {
+      const muscleMap = {
+        peito: 'peito',
+        costas: 'costas',
+        perna: 'pernas',
+        ombro: 'ombro',
+        braco: 'biceps',
+        core: 'core',
+      };
+
+      const premiumResults = searchExercises({
+        query: catalogSearch,
+        muscle: muscleMap[activeCategory] || 'all',
+        equipment: equipmentFilter,
+      });
+      const premiumNames = (Array.isArray(premiumResults) ? premiumResults : [])
+        .map((item) => item?.name)
+        .filter(Boolean);
+
+      const fallback = groupCatalogByCategory(catalog, activeCategory).filter((name) => {
+        if (!catalogSearch.trim()) return true;
+        return String(name || '').toLowerCase().includes(String(catalogSearch || '').toLowerCase());
+      });
+
+      return Array.from(new Set([...premiumNames, ...fallback])).slice(0, 8);
+    },
+    [catalog, activeCategory, catalogSearch, equipmentFilter]
   );
 
   const suggestions = useMemo(
-    () => getFreeWorkoutSuggestions(selectedExercises).slice(0, 6),
+    () => {
+      const raw = typeof getFreeWorkoutSuggestions === 'function'
+        ? getFreeWorkoutSuggestions(selectedExercises)
+        : [];
+      return (Array.isArray(raw) ? raw : []).slice(0, 6);
+    },
     [selectedExercises, getFreeWorkoutSuggestions]
   );
 
   const addExercise = (rawName) => {
     const name = String(rawName || '').trim();
     if (!name) {
+      return;
+    }
+
+    const nutritionHit = matchNutritionToken(name);
+    const exerciseHit = getExerciseByName(name);
+    if (nutritionHit && !exerciseHit) {
+      Alert.alert('Entrada inválida', 'Esse item parece um alimento. No treino livre, adicione apenas exercícios.');
       return;
     }
 
@@ -132,6 +186,11 @@ export default function FreeWorkoutScreen({ navigation }) {
   const stopRest = () => {
     setRestRunning(false);
     setRestSeconds(0);
+  };
+
+  const openExerciseDetail = (exerciseName) => {
+    const detail = getExerciseByName(exerciseName) || { name: exerciseName };
+    navigation.navigate('ExerciseDetail', { exercise: detail });
   };
 
   const saveSelectionAsRoutine = () => {
@@ -205,12 +264,25 @@ export default function FreeWorkoutScreen({ navigation }) {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
       >
-      <Text style={styles.title}>Treino livre</Text>
-      <Text style={styles.subtitle}>Escolha exercicios por categoria e registre rapido.</Text>
+      <ScreenHeader title="Treino livre" subtitle="Monte seu treino na hora com fluxo rápido e organizado." />
 
-      <TouchableOpacity testID="btn-free-save-routine" style={styles.saveRoutineButton} onPress={saveSelectionAsRoutine}>
-        <Text style={styles.saveRoutineButtonText}>Salvar selecao como rotina</Text>
-      </TouchableOpacity>
+      <AppCard elevated>
+        <Text style={styles.kpiLabel}>SELEÇÃO ATUAL</Text>
+        <View style={styles.kpiRow}>
+          <View style={styles.kpiItem}>
+            <Ionicons name="barbell-outline" size={18} color={colors.primary} />
+            <Text style={styles.kpiValue}>{selectedExercises.length}</Text>
+            <Text style={styles.kpiText}>Exercícios</Text>
+          </View>
+          <View style={styles.kpiDivider} />
+          <View style={styles.kpiItem}>
+            <Ionicons name="time-outline" size={18} color={colors.secondary} />
+            <Text style={styles.kpiValue}>{formatTimer(restSeconds)}</Text>
+            <Text style={styles.kpiText}>Descanso</Text>
+          </View>
+        </View>
+        <PrimaryButton testID="btn-free-save-routine" title="Salvar seleção como rotina" onPress={saveSelectionAsRoutine} style={styles.primaryButton} />
+      </AppCard>
 
       <View style={styles.timerBox}>
         <Text style={styles.timerLabel}>Descanso</Text>
@@ -248,6 +320,33 @@ export default function FreeWorkoutScreen({ navigation }) {
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Categorias</Text>
+        <TextInput
+          testID="input-free-catalog-search"
+          placeholder="Buscar exercicio"
+          placeholderTextColor="#8AA2C7"
+          value={catalogSearch}
+          onChangeText={setCatalogSearch}
+          style={styles.input}
+        />
+
+        <View style={styles.chipsWrap}>
+          <TouchableOpacity
+            style={[styles.chip, equipmentFilter === 'all' ? styles.chipActive : null]}
+            onPress={() => setEquipmentFilter('all')}
+          >
+            <Text style={[styles.chipText, equipmentFilter === 'all' ? styles.chipTextActive : null]}>Todos</Text>
+          </TouchableOpacity>
+          {exerciseFilters.equipments.map((item) => (
+            <TouchableOpacity
+              key={`free-equipment-${item}`}
+              style={[styles.chip, equipmentFilter === item ? styles.chipActive : null]}
+              onPress={() => setEquipmentFilter(item)}
+            >
+              <Text style={[styles.chipText, equipmentFilter === item ? styles.chipTextActive : null]}>{item.replace(/_/g, ' ')}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
         <View style={styles.chipsWrap}>
           {CATEGORIES.map((category) => (
             <TouchableOpacity
@@ -265,9 +364,14 @@ export default function FreeWorkoutScreen({ navigation }) {
 
         <View style={styles.chipsWrap}>
           {categoryExercises.map((name) => (
-            <TouchableOpacity key={name} testID={`chip-free-exercise-${toTestId(name)}`} style={styles.suggestionChip} onPress={() => addExercise(name)}>
-              <Text style={styles.suggestionChipText}>{name}</Text>
-            </TouchableOpacity>
+            <View key={name} style={styles.catalogRow}>
+              <TouchableOpacity testID={`chip-free-exercise-${toTestId(name)}`} style={styles.suggestionChip} onPress={() => addExercise(name)}>
+                <Text style={styles.suggestionChipText}>{name}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.detailInlineButton} onPress={() => openExerciseDetail(name)}>
+                <Text style={styles.detailInlineButtonText}>Detalhes</Text>
+              </TouchableOpacity>
+            </View>
           ))}
         </View>
       </View>
@@ -337,99 +441,121 @@ export default function FreeWorkoutScreen({ navigation }) {
 const styles = StyleSheet.create({
   keyboardContainer: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.background,
   },
   container: {
     flexGrow: 1,
-    backgroundColor: '#0F172A',
-    paddingTop: 56,
-    paddingHorizontal: 16,
-    paddingBottom: 84,
+    backgroundColor: colors.background,
+    paddingTop: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.xxl,
   },
-  title: {
-    fontSize: 30,
+  primaryButton: {
+    marginTop: spacing.sm,
+  },
+  kpiLabel: {
+    ...typography.sectionTitle,
+    marginBottom: spacing.sm,
+  },
+  kpiRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  kpiItem: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 4,
+  },
+  kpiDivider: {
+    width: 1,
+    height: 42,
+    backgroundColor: colors.border,
+  },
+  kpiValue: {
+    fontSize: 18,
     fontWeight: '800',
-    color: '#F8FAFC',
+    color: colors.textPrimary,
   },
-  subtitle: {
-    marginTop: 8,
-    marginBottom: 12,
-    color: '#9FB3D9',
-    fontSize: 14,
+  kpiText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '600',
   },
   timerBox: {
-    backgroundColor: '#13294B',
-    borderRadius: 14,
+    backgroundColor: colors.cardElevated,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: '#355B8E',
-    padding: 14,
-    marginBottom: 10,
+    borderColor: colors.secondaryMuted,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
   },
   timerLabel: {
-    color: '#AAC7F4',
+    color: colors.textSecondary,
     fontSize: 12,
+    fontWeight: '700',
     textTransform: 'uppercase',
   },
   timerValue: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 34,
     fontWeight: '900',
   },
   timerAction: {
     marginTop: 8,
-    backgroundColor: '#1D4ED8',
-    borderRadius: 10,
+    backgroundColor: colors.secondaryDim,
+    borderRadius: radius.sm,
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: spacing.sm,
   },
   timerActionStop: {
-    backgroundColor: '#B63A3A',
+    backgroundColor: colors.danger,
   },
   timerActionText: {
-    color: '#FFFFFF',
+    color: colors.text,
     fontWeight: '800',
   },
   card: {
-    backgroundColor: '#111D35',
-    borderRadius: 14,
+    backgroundColor: colors.card,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: '#2A446D',
-    padding: 12,
-    marginBottom: 10,
+    borderColor: colors.border,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
   },
   cardGreen: {
-    backgroundColor: '#0F2A1E',
-    borderRadius: 14,
+    backgroundColor: colors.cardElevated,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: '#2D6E53',
-    padding: 12,
-    marginBottom: 10,
+    borderColor: colors.success,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
   },
   cardTitle: {
-    color: '#DCE8FF',
+    color: colors.textPrimary,
     fontSize: 13,
     fontWeight: '800',
-    marginBottom: 8,
+    marginBottom: spacing.xs,
   },
   cardTitleGreen: {
-    color: '#BDEFD7',
+    color: colors.success,
     fontSize: 13,
     fontWeight: '800',
-    marginBottom: 8,
+    marginBottom: spacing.xs,
   },
   input: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#4B6896',
+    borderColor: colors.border,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    backgroundColor: '#0F1D36',
-    color: '#F2F7FF',
+    backgroundColor: colors.surface,
+    color: colors.textPrimary,
   },
   addButton: {
     marginTop: 8,
-    backgroundColor: '#2B6CB0',
+    backgroundColor: colors.secondary,
     borderRadius: 10,
     alignItems: 'center',
     paddingVertical: 10,
@@ -458,67 +584,86 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 10,
   },
+  catalogRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   chip: {
     borderWidth: 1,
-    borderColor: '#4E6FA4',
+    borderColor: colors.border,
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 6,
+    backgroundColor: colors.surface,
   },
   chipActive: {
-    backgroundColor: '#EAF2FF',
-    borderColor: '#EAF2FF',
+    backgroundColor: colors.secondaryMuted,
+    borderColor: colors.secondary,
   },
   chipText: {
-    color: '#AECBFF',
+    color: colors.textSecondary,
     fontWeight: '700',
     fontSize: 12,
   },
   chipTextActive: {
-    color: '#10386D',
+    color: colors.textPrimary,
   },
   suggestionChip: {
-    backgroundColor: '#203659',
+    backgroundColor: colors.cardElevated,
     borderWidth: 1,
-    borderColor: '#395B8B',
+    borderColor: colors.border,
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
   suggestionChipText: {
-    color: '#D7E7FF',
+    color: colors.textPrimary,
     fontSize: 12,
     fontWeight: '700',
   },
-  suggestionChipGreen: {
-    backgroundColor: '#1C4C39',
+  detailInlineButton: {
     borderWidth: 1,
-    borderColor: '#2D6E53',
+    borderColor: colors.border,
+    borderRadius: radius.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: colors.surface,
+  },
+  detailInlineButtonText: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  suggestionChipGreen: {
+    backgroundColor: colors.successMuted,
+    borderWidth: 1,
+    borderColor: colors.success,
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
   suggestionChipGreenText: {
-    color: '#DDF8EB',
+    color: colors.textPrimary,
     fontSize: 12,
     fontWeight: '700',
   },
   exerciseCard: {
-    backgroundColor: '#111D35',
+    backgroundColor: colors.card,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#2A446D',
+    borderColor: colors.border,
     padding: 12,
     marginBottom: 10,
   },
   exerciseName: {
-    color: '#F8FAFC',
+    color: colors.textPrimary,
     fontSize: 20,
     fontWeight: '800',
     marginBottom: 2,
   },
   progressText: {
-    color: '#8CC7FF',
+    color: colors.secondary,
     fontSize: 12,
     fontWeight: '700',
     marginBottom: 8,
@@ -532,7 +677,7 @@ const styles = StyleSheet.create({
   successButton: {
     flexGrow: 1,
     minWidth: 88,
-    backgroundColor: '#28A765',
+    backgroundColor: colors.success,
     borderRadius: 10,
     alignItems: 'center',
     paddingVertical: 12,
@@ -540,7 +685,7 @@ const styles = StyleSheet.create({
   failButton: {
     flexGrow: 1,
     minWidth: 88,
-    backgroundColor: '#B63A3A',
+    backgroundColor: colors.danger,
     borderRadius: 10,
     alignItems: 'center',
     paddingVertical: 12,
@@ -548,9 +693,9 @@ const styles = StyleSheet.create({
   restButton: {
     flexGrow: 1,
     minWidth: 88,
-    backgroundColor: '#274870',
+    backgroundColor: colors.secondaryMuted,
     borderWidth: 1,
-    borderColor: '#4F78AA',
+    borderColor: colors.secondary,
     borderRadius: 10,
     alignItems: 'center',
     paddingVertical: 12,
@@ -566,7 +711,7 @@ const styles = StyleSheet.create({
     textTransform: 'lowercase',
   },
   restText: {
-    color: '#E4F1FF',
+    color: colors.textPrimary,
     fontWeight: '800',
     textTransform: 'lowercase',
   },

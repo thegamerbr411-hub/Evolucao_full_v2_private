@@ -1,0 +1,123 @@
+{
+  "completedAt": "2026-04-18T05:59:14.122Z",
+  "questionnairePersisted": true,
+  "socialVisible": true,
+  "screenshots": [
+    "attached-safe-home-dashboard",
+    "attached-safe-loading-state",
+    "attached-safe-treino-overview",
+    "attached-safe-workout-summary",
+    "attached-safe-coach-overview",
+    "attached-safe-chat-coach",
+    "attached-safe-nutricao-overview",
+    "attached-safe-meal-summary",
+    "attached-safe-social-feed",
+    "attached-safe-ranking-social",
+    "attached-safe-modal-alert",
+    "attached-safe-error-placeholder"
+  ],
+  "workflow": [
+    "sync:disabled",
+    "mode:attached-safe",
+    "attached-safe-minimal-skip-interactions"
+  ],
+  "coverageChecklist": {
+    "requiredStep1Contexts": [
+      "inicio/home",
+      "inicio/treino",
+      "inicio/nutricao",
+      "inicio/coach",
+      "inicio/social",
+      "inicio/perfil"
+    ],
+    "fulfilledStep1Contexts": [],
+    "missingStep1Contexts": [
+      "inicio/home",
+      "inicio/treino",
+      "inicio/nutricao",
+      "inicio/coach",
+      "inicio/social",
+      "inicio/perfil"
+    ],
+    "byPhase": {
+      "inicio": {
+        "home": {
+          "baseScreens": false,
+          "expandedOrPopupEvidence": false
+        },
+        "treino": {
+          "baseScreens": false,
+          "expandedOrPopupEvidence": false
+        },
+        "nutricao": {
+          "baseScreens": false,
+          "expandedOrPopupEvidence": false
+        },
+        "coach": {
+          "baseScreens": false,
+          "expandedOrPopupEvidence": false
+        },
+        "social": {
+          "baseScreens": false,
+          "expandedOrPopupEvidence": false
+        },
+        "perfil": {
+          "baseScreens": false,
+          "expandedOrPopupEvidence": false
+        }
+      },
+      "meio": {
+        "home": {
+          "baseScreens": false,
+          "expandedOrPopupEvidence": false
+        },
+        "treino": {
+          "baseScreens": false,
+          "expandedOrPopupEvidence": false
+        },
+        "nutricao": {
+          "baseScreens": false,
+          "expandedOrPopupEvidence": false
+        },
+        "coach": {
+          "baseScreens": false,
+          "expandedOrPopupEvidence": false
+        },
+        "social": {
+          "baseScreens": false,
+          "expandedOrPopupEvidence": false
+        },
+        "perfil": {
+          "baseScreens": false,
+          "expandedOrPopupEvidence": false
+        }
+      },
+      "fim": {
+        "home": {
+          "baseScreens": false,
+          "expandedOrPopupEvidence": false
+        },
+        "treino": {
+          "baseScreens": false,
+          "expandedOrPopupEvidence": false
+        },
+        "nutricao": {
+          "baseScreens": false,
+          "expandedOrPopupEvidence": false
+        },
+        "coach": {
+          "baseScreens": false,
+          "expandedOrPopupEvidence": false
+        },
+        "social": {
+          "baseScreens": false,
+          "expandedOrPopupEvidence": false
+        },
+        "perfil": {
+          "baseScreens": false,
+          "expandedOrPopupEvidence": false
+        }
+      }
+    }
+  }
+}

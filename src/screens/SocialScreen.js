@@ -4,6 +4,7 @@ import {
   FlatList,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
   RefreshControl,
@@ -15,6 +16,7 @@ import { useSocialStore } from '../stores/useSocialStore';
 import { colors, spacing } from '../theme';
 import { AppCard, ScreenHeader } from '../components/ui';
 import { trackEvent } from '../utils/analytics';
+import { getSocialOverviewFromApi, addFriendFromApi } from '../services/socialApiService';
 
 const RANK_MEDALS = {
   1: '🥇',
@@ -48,9 +50,17 @@ export default function SocialScreen({ navigation }) {
   const onRefresh = async () => {
     setLoading(true);
     try {
-      // Aqui você chamaria a API para refresh
-      // Por enquanto, deixa apenas para feedback visual
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      if (userId) {
+        const result = await getSocialOverviewFromApi({ userId });
+        if (result?.ok && result.data) {
+          const entries = result.data.friendsLeaderboard || [];
+          if (Array.isArray(entries) && entries.length) {
+            useSocialStore.getState().setRanking(entries);
+          }
+        }
+      }
+    } catch (_) {
+      // silent — dados locais continuam visíveis
     } finally {
       setLoading(false);
     }
@@ -79,7 +89,7 @@ export default function SocialScreen({ navigation }) {
     setFriendInput('');
   };
 
-  const handleRemoveFriend = (friendId: string) => {
+  const handleRemoveFriend = (friendId) => {
     Alert.alert(
       'Remover amigo?',
       'Você não será mais competidor desse amigo',
@@ -444,7 +454,7 @@ export default function SocialScreen({ navigation }) {
   );
 }
 
-function getTimeAgo(date: Date): string {
+function getTimeAgo(date) {
   const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
   const intervals = {
     year: 31536000,

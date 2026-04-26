@@ -67,6 +67,23 @@ export default function SocialChallengesScreen() {
     return map[String(selectedMetric || 'xp')] || 'XP';
   }, [selectedMetric]);
 
+  const metricTabs = useMemo(() => ([
+    { key: 'xp', label: 'XP' },
+    { key: 'consistency', label: 'Consistência' },
+    { key: 'volume', label: 'Volume' },
+    { key: 'completed', label: 'Concluídos' },
+  ]), []);
+
+  const mapSocialError = (code) => {
+    const key = String(code || '').trim();
+    if (key === 'cannot_add_self') return 'Voce nao pode adicionar seu proprio perfil.';
+    if (key === 'friend_already_added') return 'Esse amigo ja foi adicionado.';
+    if (key === 'missing_user_id') return 'Conecte um perfil antes de usar recursos sociais.';
+    if (key === 'challenge_not_found') return 'Desafio nao encontrado ou encerrado.';
+    if (key === 'invalid_progress_payload') return 'Valor de progresso invalido.';
+    return 'Nao foi possivel concluir a acao agora.';
+  };
+
   const onAddFriend = async () => {
     const friendUserId = String(friendInput || '').trim();
     if (!friendUserId) {
@@ -76,7 +93,7 @@ export default function SocialChallengesScreen() {
 
     const result = await addFriendFromApi({ userId: myUserId, friendUserId });
     if (!result?.ok) {
-      Alert.alert('Falha', 'Nao foi possivel adicionar amigo.');
+      Alert.alert('Falha', mapSocialError(result?.error));
       return;
     }
 
@@ -100,7 +117,7 @@ export default function SocialChallengesScreen() {
     });
 
     if (!result?.ok) {
-      Alert.alert('Falha', 'Nao foi possivel criar desafio agora.');
+      Alert.alert('Falha', mapSocialError(result?.error));
       return;
     }
 
@@ -110,7 +127,7 @@ export default function SocialChallengesScreen() {
   const onJoinChallenge = async (challengeId) => {
     const result = await joinChallengeFromApi({ userId: myUserId, challengeId });
     if (!result?.ok) {
-      Alert.alert('Falha', 'Nao foi possivel entrar no desafio.');
+      Alert.alert('Falha', mapSocialError(result?.error));
       return;
     }
 
@@ -131,7 +148,7 @@ export default function SocialChallengesScreen() {
     });
 
     if (!result?.ok) {
-      Alert.alert('Falha', 'Nao foi possivel atualizar progresso.');
+      Alert.alert('Falha', mapSocialError(result?.error));
       return;
     }
 
@@ -139,12 +156,13 @@ export default function SocialChallengesScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView testID="screen-social" contentContainerStyle={styles.container}>
       <ScreenHeader title="Social e Desafios" subtitle="Amigos, ranking e desafios semanais." />
 
       <AppCard>
         <Text style={styles.title}>Painel social</Text>
-        <Text style={styles.line}>{myUserId || 'Sem user ID'}</Text>
+        <Text style={styles.line}>{myUserId || 'Perfil social ainda nao conectado'}</Text>
+        {!myUserId ? <Text style={styles.meta}>Entre com um perfil para liberar amizades, ranking e desafios.</Text> : null}
         <Text style={styles.meta}>Amigos: {Number(overview?.friendsCount || 0)}</Text>
         <Text style={styles.meta}>Liga atual: {String(overview?.myLeague || 'bronze').toUpperCase()}</Text>
         {overview?.nextFriendToPass ? (
@@ -160,13 +178,14 @@ export default function SocialChallengesScreen() {
       <AppCard>
         <Text style={styles.title}>Adicionar amigo</Text>
         <TextInput
+          testID="input-social-friend-userid"
           value={friendInput}
           onChangeText={setFriendInput}
           placeholder="user id do amigo"
           placeholderTextColor={colors.textSecondary}
           style={styles.input}
         />
-        <PrimaryButton title="Adicionar" onPress={onAddFriend} />
+        <PrimaryButton testID="btn-social-add-friend" title="Adicionar" onPress={onAddFriend} />
       </AppCard>
 
       <AppCard>
@@ -192,13 +211,13 @@ export default function SocialChallengesScreen() {
       <AppCard>
         <Text style={styles.title}>Ranking entre amigos</Text>
         <View style={styles.metricTabs}>
-          {['xp', 'consistency', 'volume', 'completed'].map((metric) => (
+          {metricTabs.map((metric) => (
             <TouchableOpacity
-              key={metric}
-              style={[styles.metricTab, selectedMetric === metric ? styles.metricTabActive : null]}
-              onPress={() => setSelectedMetric(metric)}
+              key={metric.key}
+              style={[styles.metricTab, selectedMetric === metric.key ? styles.metricTabActive : null]}
+              onPress={() => setSelectedMetric(metric.key)}
             >
-              <Text style={[styles.metricTabText, selectedMetric === metric ? styles.metricTabTextActive : null]}>{metric}</Text>
+              <Text style={[styles.metricTabText, selectedMetric === metric.key ? styles.metricTabTextActive : null]}>{metric.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -263,9 +282,9 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.textPrimary,
-    fontSize: 14,
+    fontSize: 18,
     fontWeight: '800',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   line: {
     color: colors.textPrimary,
@@ -275,14 +294,14 @@ const styles = StyleSheet.create({
   },
   meta: {
     color: colors.textSecondary,
-    fontSize: 12,
+    fontSize: 13,
     marginBottom: 6,
   },
   input: {
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 10,
-    backgroundColor: '#141922',
+    backgroundColor: colors.surface,
     color: colors.textPrimary,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
@@ -292,8 +311,8 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   goalLine: {
-    color: '#A7F3D0',
-    fontSize: 12,
+    color: colors.success,
+    fontSize: 13,
     fontWeight: '800',
     marginTop: 2,
   },
@@ -309,19 +328,21 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    backgroundColor: '#141922',
+    backgroundColor: colors.surface,
   },
   metricTabActive: {
     borderColor: colors.secondary,
-    backgroundColor: '#1D2B40',
+    backgroundColor: colors.secondaryMuted,
   },
   metricTabText: {
-    color: colors.textPrimary,
+    color: colors.textSecondary,
     fontSize: 11,
     fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
   },
   metricTabTextActive: {
-    color: '#BFDBFE',
+    color: colors.textPrimary,
   },
   challengeCard: {
     borderWidth: 1,
@@ -346,7 +367,8 @@ const styles = StyleSheet.create({
   inlineBtn: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 8,
+    borderRadius: 12,
+    backgroundColor: colors.cardElevated,
     backgroundColor: colors.secondary,
     paddingHorizontal: 10,
     paddingVertical: 8,

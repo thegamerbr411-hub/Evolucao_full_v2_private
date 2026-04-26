@@ -1,5 +1,5 @@
 import React from 'react';
-import { View } from 'react-native';
+import { View, Text } from 'react-native';
 import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NutritionProvider } from './src/context/NutritionContext';
@@ -23,13 +23,42 @@ if (typeof ErrorUtils !== 'undefined' && ErrorUtils.setGlobalHandler) {
       screen: 'global',
       extra: { isFatal },
     });
-    console.log('GLOBAL ERROR CAPTURADO:', error);
+    if (__DEV__) console.log('GLOBAL ERROR CAPTURADO:', error);
   });
+}
+
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, info) {
+    logError(error, { screen: 'ErrorBoundary', extra: { componentStack: info?.componentStack } });
+    console.log('[ErrorBoundary] crash capturado:', error?.message);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0d0d0d', padding: 24 }}>
+          <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold', marginBottom: 12 }}>Algo deu errado</Text>
+          <Text style={{ color: '#aaa', fontSize: 14, textAlign: 'center' }}>Reinicie o aplicativo para continuar.</Text>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 export default function App() {
   const navigationRef = useNavigationContainerRef();
   const routeNameRef = React.useRef('');
+  const [bootstrapReady, setBootstrapReady] = React.useState(false);
 
   React.useEffect(() => {
     console.log('[APP_STARTED]', new Date().toISOString());
@@ -66,14 +95,16 @@ export default function App() {
   }, []);
 
   return (
-    <NutritionProvider>
-      <RootProvider>
-        <SafeAreaProvider>
-          <View testID="app-root" style={{ flex: 1 }}>
-            <NavigationContainer
+    <ErrorBoundary>
+      <NutritionProvider>
+        <RootProvider>
+          <SafeAreaProvider>
+            <View testID="app-root" style={{ flex: 1 }}>
+              <NavigationContainer
               ref={navigationRef}
               onReady={() => {
                 routeNameRef.current = navigationRef.getCurrentRoute()?.name || '';
+                setBootstrapReady(true);
               }}
               onStateChange={() => {
                 const currentRoute = navigationRef.getCurrentRoute()?.name || '';
@@ -93,9 +124,11 @@ export default function App() {
             >
               <RootNavigator />
             </NavigationContainer>
+            {bootstrapReady ? <View testID="app-bootstrap-ready" style={{ width: 1, height: 1 }} /> : null}
           </View>
         </SafeAreaProvider>
       </RootProvider>
     </NutritionProvider>
+    </ErrorBoundary>
   );
 }

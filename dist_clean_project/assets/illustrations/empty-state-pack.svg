@@ -1,9 +1,0 @@
-<svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="1280" height="720" fill="#0F1724"/>
-  <rect x="180" y="170" width="260" height="380" rx="24" fill="#1A2A3F"/>
-  <rect x="500" y="210" width="260" height="340" rx="24" fill="#20354E"/>
-  <rect x="820" y="130" width="260" height="420" rx="24" fill="#1A2A3F"/>
-  <circle cx="630" cy="120" r="52" fill="#274265"/>
-  <path d="M610 122L625 137L656 105" stroke="#00D08A" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="640" y="652" text-anchor="middle" fill="#D8E7FF" font-size="42" font-family="Segoe UI, Arial" font-weight="700">Nada por aqui ainda. Comece agora e domine o ranking.</text>
-</svg>

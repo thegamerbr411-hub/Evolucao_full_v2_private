@@ -2,12 +2,12 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { TouchableOpacity } from 'react-native';
+import { TouchableOpacity, View } from 'react-native';
 import HomeScreen from '../screens/HomeScreen';
+import NutritionScanner from '../screens/NutritionScanner';
 import WorkoutsHubScreen from '../screens/WorkoutsHubScreen';
 import CoachChatScreen from '../screens/CoachChatScreen';
 import SocialChallengesScreen from '../screens/SocialChallengesScreen';
-import SocialScreen from '../screens/SocialScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import { colors } from '../theme';
 import { trackEvent } from '../utils/analytics';
@@ -15,17 +15,14 @@ import { trackEvent } from '../utils/analytics';
 const Tab = createBottomTabNavigator();
 
 /**
- * 🔥 ESTRUTURA FINAL DE NAVEGAÇÃO
- * 
- * 6 ABAS (Bottom Tabs):
- * 1. Home (central, resumo do dia, streak, XP)
- * 2. Treino (criação, execução, séries)
- * 3. Coach (sugestões inteligentes)
- * 4. Desafios (daily/weekly, XP rewards)
- * 5. Social (NOVO - feed, ranking, competição)
- * 6. Perfil (stats, plano, config)
- * 
- * REGRA: Cada aba é isolada. Não misturar lógica.
+ * 6 ABAS — estrutura principal do app
+ *
+ * 1. Home    — dashboard, streak, XP, macros do dia
+ * 2. Treino  — criar, executar, registrar séries
+ * 3. Nutrição — log alimentar, macros, scanner
+ * 4. Coach   — chat inteligente, sugestões
+ * 5. Social  — amigos, ranking e desafios
+ * 6. Perfil  — conta, stats, configurações
  */
 export default function MainTabs() {
   const insets = useSafeAreaInsets();
@@ -54,25 +51,12 @@ export default function MainTabs() {
 
   const getTabIcon = (routeName, focused) => {
     const iconMap = {
-      // 1. HOME - central de controle
       Home: focused ? 'home' : 'home-outline',
-
-      // 2. TREINO - core (fazer)
       Treino: focused ? 'barbell' : 'barbell-outline',
-
-      // 3. COACH - inteligência (orientar)
+      Nutricao: focused ? 'restaurant' : 'restaurant-outline',
       Coach: focused ? 'chatbubbles' : 'chatbubbles-outline',
-
-      // 4. DESAFIOS - retenção
-      Desafios: focused ? 'flame' : 'flame-outline',
-
-      // 5. SOCIAL - vício + competição (NOVO)
-      Social: focused ? 'people' : 'people-outline',
-
-      // 6. PERFIL - conta
       Perfil: focused ? 'person-circle' : 'person-circle-outline',
     };
-
     return iconMap[routeName] || (focused ? 'ellipse' : 'ellipse-outline');
   };
 
@@ -80,18 +64,28 @@ export default function MainTabs() {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
+        sceneStyle: {
+          backgroundColor: colors.background,
+        },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textSecondary,
+        tabBarHideOnKeyboard: true,
+        tabBarBackground: () => <View style={{ flex: 1, backgroundColor: colors.surface }} />,
         tabBarStyle: {
-          backgroundColor: colors.card,
+          backgroundColor: colors.surface,
           borderTopColor: colors.border,
-          height: 56 + Math.max(10, insets.bottom + 6),
-          paddingBottom: Math.max(10, insets.bottom),
-          paddingTop: 8,
+          borderTopWidth: 1,
+          height: 56 + Math.max(8, insets.bottom),
+          paddingBottom: Math.max(8, insets.bottom),
+          paddingTop: 6,
+        },
+        tabBarLabelStyle: {
+          fontSize: 10,
+          fontWeight: '600',
+          marginTop: -2,
         },
       }}
     >
-      {/* 1. HOME - Resumo, streak, XP */}
       <Tab.Screen
         name="Home"
         component={HomeScreen}
@@ -104,7 +98,6 @@ export default function MainTabs() {
         }}
       />
 
-      {/* 2. TREINO - Criar, registrar, executar */}
       <Tab.Screen
         name="Treino"
         component={WorkoutsHubScreen}
@@ -117,46 +110,42 @@ export default function MainTabs() {
         }}
       />
 
-      {/* 3. COACH - Sugestões, feedback, inteligência */}
+      <Tab.Screen
+        name="Nutricao"
+        component={NutritionScanner}
+        options={{
+          title: 'Nutrição',
+          tabBarButton: createTabButton('tab-nutricao', 'Nutricao'),
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={getTabIcon('Nutricao', focused)} color={color} size={size} />
+          ),
+        }}
+      />
+
       <Tab.Screen
         name="Coach"
         component={CoachChatScreen}
         options={{
           title: 'Coach',
-          tabBarButton: createTabButton('tab-coach', 'Coach'),
+          tabBarButton: createTabButton('tab-conversa', 'Coach'),
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons name={getTabIcon('Coach', focused)} color={color} size={size} />
           ),
         }}
       />
 
-      {/* 4. DESAFIOS - Daily/Weekly, XP, prender usuário */}
-      <Tab.Screen
-        name="Desafios"
-        component={SocialChallengesScreen}
-        options={{
-          title: 'Desafios',
-          tabBarButton: createTabButton('tab-desafios', 'Desafios'),
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={getTabIcon('Desafios', focused)} color={color} size={size} />
-          ),
-        }}
-      />
-
-      {/* 5. SOCIAL - Feed, ranking, amigos (NOVO - SEPARADO) */}
       <Tab.Screen
         name="Social"
-        component={SocialScreen}
+        component={SocialChallengesScreen}
         options={{
           title: 'Social',
           tabBarButton: createTabButton('tab-social', 'Social'),
           tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={getTabIcon('Social', focused)} color={color} size={size} />
+            <Ionicons name={focused ? 'people' : 'people-outline'} color={color} size={size} />
           ),
         }}
       />
 
-      {/* 6. PERFIL - Conta, stats, config */}
       <Tab.Screen
         name="Perfil"
         component={ProfileScreen}

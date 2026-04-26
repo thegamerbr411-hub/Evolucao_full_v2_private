@@ -1,0 +1,18 @@
+{
+  "cycles": 1,
+  "detoxConfiguration": "android.attached.debug",
+  "androidPackage": "com.tipolt.evolucaofullv2",
+  "mainActivity": ".MainActivity",
+  "captureTests": [
+    "e2e/14-full-visual-functional.e2e.js",
+    "e2e/18-visual-map-audit.e2e.js"
+  ],
+  "functionalTests": [
+    "e2e/14-full-visual-functional.e2e.js",
+    "e2e/17-social-tab-smoke.e2e.js"
+  ],
+  "improveCommands": [],
+  "stopOnImproveFailure": true,
+  "cleanupRawImages": true,
+  "cleanupDetoxRoot": false
+}

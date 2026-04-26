@@ -1,0 +1,122 @@
+[
+  {
+    "bloco": "1 - LOGIN GOOGLE",
+    "status": "FAIL",
+    "tentativas": 1,
+    "erro": "Sem validacao OAuth Google real no dispositivo com credenciais produtivas (client IDs/SHA-1) nesta execucao.",
+    "correcao": "Nao aplicavel sem credenciais reais e release keystore/SHA-1 do projeto alvo.",
+    "validacao": "Codebase auditado e hooks presentes; execucao real OAuth nao concluida."
+  },
+  {
+    "bloco": "2 - AMIGOS",
+    "status": "OK",
+    "tentativas": 1,
+    "erro": "",
+    "correcao": "",
+    "validacao": "npm test passou com cobertura de add friend/challenges/overview em socialUxVariations.integration.test.mjs e humanRealUsage.fullstack.test.mjs."
+  },
+  {
+    "bloco": "3 - FEED",
+    "status": "OK",
+    "tentativas": 1,
+    "erro": "",
+    "correcao": "",
+    "validacao": "Fluxo fullstack executado com criacao de treinos/eventos e leitura de dados sociais/ranking sem falha em npm test."
+  },
+  {
+    "bloco": "4 - RANKING",
+    "status": "OK",
+    "tentativas": 1,
+    "erro": "",
+    "correcao": "",
+    "validacao": "enterpriseServices.test.mjs, socialUxVariations.integration.test.mjs e humanRealUsage.fullstack.test.mjs aprovados."
+  },
+  {
+    "bloco": "5 - IA TREINO",
+    "status": "OK",
+    "tentativas": 1,
+    "erro": "",
+    "correcao": "",
+    "validacao": "aiWorkoutParser.test.mjs e workoutRecommendation.intelligence.test.mjs aprovados em execucao real."
+  },
+  {
+    "bloco": "6 - PROGRESSO",
+    "status": "OK",
+    "tentativas": 1,
+    "erro": "",
+    "correcao": "",
+    "validacao": "performanceEngine.test.mjs e fluxos fullstack aprovados (volume/carga/progressao)."
+  },
+  {
+    "bloco": "7 - OCR",
+    "status": "FAIL",
+    "tentativas": 1,
+    "erro": "Sem validacao de OCR de imagem real ponta-a-ponta no ambiente atual.",
+    "correcao": "Nao aplicavel sem amostra de imagem controlada e pipeline OCR ativo no dispositivo.",
+    "validacao": "Somente parsing/heuristicas de nutricao foram validados por testes locais."
+  },
+  {
+    "bloco": "8 - SPOTIFY",
+    "status": "FAIL",
+    "tentativas": 1,
+    "erro": "Nao ha execucao OAuth Spotify real validada nesta rodada.",
+    "correcao": "Nao aplicavel sem clientId/secret e redirect URI ativos para teste em dispositivo.",
+    "validacao": "Sem evidencia de token real retornado nesta execucao."
+  },
+  {
+    "bloco": "9 - APPLE WATCH",
+    "status": "FAIL",
+    "tentativas": 1,
+    "erro": "Ambiente Windows/Android sem HealthKit e sem dispositivo Apple Watch.",
+    "correcao": "Nao aplicavel no ambiente atual.",
+    "validacao": "Impossivel validar calorias/batimentos reais via HealthKit aqui."
+  },
+  {
+    "bloco": "10 - ANTI-ERRO",
+    "status": "OK",
+    "tentativas": 1,
+    "erro": "",
+    "correcao": "",
+    "validacao": "useCases.errorHandling.test.mjs aprovado validando bloqueios e erros estruturados."
+  },
+  {
+    "bloco": "11 - FEEDBACK",
+    "status": "OK",
+    "tentativas": 1,
+    "erro": "",
+    "correcao": "",
+    "validacao": "humanRealUsage.fullstack.test.mjs aprovou envio de feedback/log para coach."
+  },
+  {
+    "bloco": "12 - TESTE GLOBAL",
+    "status": "FAIL",
+    "tentativas": 5,
+    "erro": "e2e/14-full-visual-functional.e2e.js ainda falha no onboarding/chegada em home em Detox.",
+    "correcao": "Auto-debug aplicado em e2e/helpers/flows.js com preenchimento condicional e fallback pos-submit; falha residual persiste.",
+    "validacao": "Execucoes reais em android.emulator.debug e android.attached.debug registradas com stack trace."
+  },
+  {
+    "bloco": "13 - INTEGRACAO COM QA",
+    "status": "FAIL",
+    "tentativas": 1,
+    "erro": "Cobertura visual consolidada existe, mas ciclo atual controlado interrompeu por falha de captura no teste 14.",
+    "correcao": "Pipeline foi executado e integrou artefatos; pendente estabilizar teste 14 para cobertura total sem quebra.",
+    "validacao": "qa/mobile-visual-consolidated.last.json gerado; run-controlled-cycle 2x falhou no ciclo 1 por capture_failed."
+  },
+  {
+    "bloco": "14 - LOOP CONTROLADO",
+    "status": "FAIL",
+    "tentativas": 1,
+    "erro": "node qa/core/run-controlled-cycle.js --cycles=2 falhou no ciclo 1.",
+    "correcao": "Dependencia bloqueadora: falha em e2e/14-full-visual-functional.e2e.js durante etapa de capture.",
+    "validacao": "artifacts/controlled-loop/run-20260417-083314/run-summary.json com status failed."
+  },
+  {
+    "bloco": "15 - EXPORT FINAL",
+    "status": "OK",
+    "tentativas": 1,
+    "erro": "",
+    "correcao": "",
+    "validacao": "Pacote final qa-final-report.zip gerado com relatrios, logs e evidencias de execucao."
+  }
+]

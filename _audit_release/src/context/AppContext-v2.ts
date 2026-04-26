@@ -6,10 +6,10 @@ import { useNutritionStore } from '../stores/useNutritionStore';
 import { useAppStore } from '../stores/useAppStore';
 import { useCoachStore } from '../stores/useCoachStore';
 import { useGamificationStore } from '../stores/useGamificationStore';
+import { useSubscriptionDomain } from './subscription/SubscriptionProvider';
 
 // Import logic modules
 import {
-  normalizeHistoryStatus,
   getTodayKey,
   getPreviousDateKey,
   round,
@@ -30,30 +30,21 @@ import {
 } from '../context/modules/nutrition';
 
 import {
+  WORKOUT_LIBRARY,
   getTodayWorkoutUseCase,
   getRecommendedWorkout,
-  buildWeeklyUrgency,
   buildTrainingAdjustment,
   getWorkoutBySplit,
-  WORKOUT_LIBRARY,
   getExerciseCatalogFromSources,
   getWeeklyMacroSummary,
   getNextWeightSuggestion,
   getRecoveryInsightUseCase,
   resolveExerciseIdentity,
   filterLogsByExercise,
-  matchesExerciseLog,
-  getWorkoutDelta,
-  normalizeExerciseLabel,
-  isLowerBodyExercise,
   getProgressionStep,
-  parseRepRange,
   getExerciseTemplate,
   getDefaultStartingWeight,
-  buildConfidence,
-  detectPainFromDescription,
   applyPainAdaptiveWorkout,
-  inferMuscleGroup,
   resolveRoutineExerciseName,
   buildRoutineId,
 } from '../context/modules/workout';
@@ -103,6 +94,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const appStore = useAppStore();
   const coachStore = useCoachStore();
   const gamificationStore = useGamificationStore();
+  const subscriptionDomain = useSubscriptionDomain();
 
   // Refs for caching local decisions
   const localDecisionCacheRef = useRef({
@@ -110,11 +102,13 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   });
   const workoutStartedTrackedRef = useRef({});
   const workoutFlowStartedAtRef = useRef({});
+  const hydrationRefreshSignatureRef = useRef('');
 
   // Destructure stores states
   const user = userStore.user;
   const profile = userStore.profile;
   const isHydrated = userStore.isHydrated;
+  const isAppStoreHydrated = appStore.isHydrated;
 
   const workout = workoutStore.workout;
   const workoutLogs = workoutStore.workoutLogs;
@@ -126,7 +120,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
   const hasCompletedQuestionnaire = appStore.hasCompletedQuestionnaire;
   const userRoutines = appStore.userRoutines;
-  const monetization = appStore.monetization;
+  const monetization = subscriptionDomain.monetization;
 
   const gamification = gamificationStore.gamification;
 
@@ -135,21 +129,111 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     if (!isHydrated) {
       const hydrateApp = async () => {
         try {
-          // TODO: Load from localStorage/MMKV
+          if (!isAppStoreHydrated && typeof appStore.hydrateAppStore === 'function') {
+            await appStore.hydrateAppStore();
+          }
           userStore.setHydrated(true);
         } catch (error) {
-          logError(error, { screen: SCREENS.CONTEXT, action: 'hydrateApp' });
+          logError(error, { screen: SCREENS?.CONTEXT || 'Context', action: 'hydrateApp' });
           userStore.setHydrated(true);
         }
       };
 
       hydrateApp();
     }
-  }, [isHydrated]);
+  }, [isHydrated, isAppStoreHydrated]);
+
+  useEffect(() => {
+    const today = getTodayKey();
+    const trainedToday = workoutLogs.some((item) => item.date === today);
+    const estimatedTrainingHours = trainedToday ? 1 : 0;
+    const weightKg = Number(profile?.currentWeight || 0);
+
+    if (!weightKg) {
+      hydrationRefreshSignatureRef.current = '';
+      return;
+    }
+
+    const signature = `${today}|${weightKg}|${trainedToday ? 1 : 0}|${estimatedTrainingHours}`;
+    if (hydrationRefreshSignatureRef.current === signature) {
+      return;
+    }
+
+    hydrationRefreshSignatureRef.current = signature;
+    nutritionStore.refreshHydrationForToday({
+      weightKg,
+      trainedToday,
+      trainingHours: estimatedTrainingHours,
+    });
+  }, [profile?.currentWeight, workoutLogs]);
+
+  const normalizeQuestionnaireSubmission = useCallback((input: any) => {
+    if (!input || typeof input !== 'object') {
+      return { profile: null, plan: null };
+    }
+
+    const profileInput = input.profile && typeof input.profile === 'object' ? input.profile : input;
+    const currentWeight = Number(profileInput.currentWeight || 0);
+    const targetWeight = Number(profileInput.targetWeight || profileInput.currentWeight || 0);
+    const height = Number(profileInput.height || 170);
+    const trainingDaysPerWeek = Number(profileInput.trainingDaysPerWeek || 3);
+    const level = profileInput.level || 'iniciante';
+    const goal = profileInput.goal || 'recomposicao';
+
+    if (!currentWeight) {
+      return { profile: null, plan: null };
+    }
+
+    const normalizedProfile = {
+      goal,
+      level,
+      currentWeight,
+      targetWeight,
+      height,
+      trainingDaysPerWeek,
+    };
+
+    const strategy =
+      goal === 'emagrecer'
+        ? 'cutting'
+        : goal === 'ganhar_massa'
+        ? 'bulking'
+        : 'recomposicao';
+
+    const baseCalories = currentWeight * 30 + height * 4 + trainingDaysPerWeek * 80;
+    const targetCalories =
+      strategy === 'cutting'
+        ? round(baseCalories - 350)
+        : strategy === 'bulking'
+        ? round(baseCalories + 300)
+        : round(baseCalories);
+
+    const calorieRange = CALORIE_RANGES?.[strategy] || { min: 1200, max: 5000 };
+    const trainingSplit =
+      trainingDaysPerWeek <= 3
+        ? 'Full body 3x semana'
+        : trainingDaysPerWeek === 4
+        ? 'Superior/Inferior 4x semana'
+        : level === 'iniciante'
+        ? 'Push/Pull/Legs + Full body (5x semana)'
+        : 'Divisao classica (5x semana)';
+
+    const normalizedPlan = input.plan && typeof input.plan === 'object'
+      ? input.plan
+      : {
+          caloriesPerDay: clamp(targetCalories, calorieRange.min, calorieRange.max),
+          waterLitersPerDay: Number(((currentWeight * 35 + trainingDaysPerWeek * 250) / 1000).toFixed(1)),
+          trainingSplit,
+          strategy,
+        };
+
+    return { profile: normalizedProfile, plan: normalizedPlan };
+  }, []);
 
   // Business logic functions - moved from original AppContext
   const saveQuestionnaire = useCallback(
-    ({ profile: newProfile, plan: newPlan }) => {
+    (payload) => {
+      const { profile: newProfile, plan: newPlan } = normalizeQuestionnaireSubmission(payload);
       if (!newProfile) return { ok: false };
 
       userStore.setProfile(newProfile);
@@ -157,7 +241,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       appStore.setHasCompletedQuestionnaire(true);
 
       trackEvent('questionnaire_submitted', {
-        screen: SCREENS.HOME,
+        screen: SCREENS?.HOME || 'Home',
         meta: {
           domain: 'onboarding',
           version: 1,
@@ -167,7 +251,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
       return { ok: true };
     },
-    []
+    [normalizeQuestionnaireSubmission]
   );
 
   const getRecentHistory = useCallback(() => {
@@ -195,12 +279,24 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     const daysLogged = last7.length;
     const trainedDays = last7.filter((item) => item.trained).length;
     const consistencyScore = round((daysLogged / 7) * 100);
+    const diagnosis = consistencyScore >= 80
+      ? 'Sua consistencia semanal esta alta e o comportamento esta estavel.'
+      : consistencyScore >= 60
+      ? 'A consistencia semanal esta moderada; voce ja criou base, mas ainda oscila.'
+      : 'A consistencia semanal esta baixa e o ritmo precisa ser retomado.';
+    const recommendation = trainedDays >= 4
+      ? 'Mantenha o mesmo ritmo e priorize qualidade de execucao e recuperacao.'
+      : trainedDays >= 2
+      ? 'Inclua 1 treino curto extra nesta semana para subir consistencia sem sobrecarga.'
+      : 'Comece por um treino enxuto hoje para quebrar a inercia e recuperar o habito.';
 
     return {
       daysLogged,
       trainedDays,
       consistencyScore,
       guidance: consistencyScore > 80 ? 'excelente' : consistencyScore > 60 ? 'bom' : 'melhorar',
+      diagnosis,
+      recommendation,
     };
   }, [history]);
 
@@ -301,7 +397,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       return [];
     }
 
-    return adaptive.exercises;
+    return Array.isArray(adaptive?.exercises) ? adaptive.exercises : [];
   }, [plan?.trainingSplit, exerciseTargets, profile, workoutLogs]);
 
   const getTodayWorkoutSummary = useCallback(() => {
@@ -402,6 +498,67 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     };
   }, [gamification]);
 
+  const getSmartWorkoutRecommendation = useCallback(() => {
+    const weeklyTarget = Math.max(1, Number(profile?.trainingDaysPerWeek || 3));
+    const recommendation = getRecommendedWorkout({
+      workoutLogs,
+      weeklyTarget,
+      pain: profile?.currentPain,
+      library: WORKOUT_LIBRARY,
+      catalog: getExerciseCatalogFromSources(),
+      todayKey: getTodayKey(),
+    });
+
+    const trainedThisWeek = Number(recommendation?.trainedThisWeek || 0);
+    const remaining = Math.max(0, weeklyTarget - trainedThisWeek);
+
+    return {
+      ...recommendation,
+      title: recommendation?.title || 'Treino de consistencia',
+      justification: remaining > 0
+        ? `Faltam ${remaining} treino(s) para fechar sua meta semanal.`
+        : 'Meta semanal concluida. Mantenha execucao para consolidar progresso.',
+      urgencyMessage: remaining > 2
+        ? 'Voce esta atrasado na semana — vale um treino mais curto hoje.'
+        : remaining === 1
+        ? 'Mais um treino e voce fecha a semana!'
+        : remaining === 0
+        ? 'Meta semanal atingida 🎉'
+        : '',
+      trainedThisWeek,
+      weeklyTarget,
+      isBehindWeek: remaining > 0,
+    };
+  }, [workoutLogs, profile?.trainingDaysPerWeek, profile?.currentPain]);
+
+  const addWaterIntake = useCallback((amountMl = 0) => {
+    const safeAmount = Math.max(0, Number(amountMl || 0));
+    if (!safeAmount) {
+      return { ok: false, reason: 'invalid_amount' };
+    }
+
+    nutritionStore.addHydrationIntake(safeAmount);
+
+    const today = getTodayKey();
+    const todayEntry = history.find((item) => item.date === today);
+    const currentWater = Number(todayEntry?.waterMl || 0);
+
+    nutritionStore.updateHistoryEntry(today, {
+      date: today,
+      waterMl: currentWater + safeAmount,
+      protein: Number(todayEntry?.protein || 0),
+      calories: Number(todayEntry?.calories || 0),
+      carbs: Number(todayEntry?.carbs || 0),
+      fats: Number(todayEntry?.fats || 0),
+      trained: Boolean(todayEntry?.trained),
+      status: String(todayEntry?.status || 'indefinido'),
+      insight: String(todayEntry?.insight || ''),
+      macroInsight: String(todayEntry?.macroInsight || ''),
+    });
+
+    return { ok: true, amountMl: safeAmount };
+  }, [history]);
+
   const getExerciseProgressionSuggestion = useCallback((exerciseName, exerciseId = null) => {
     const identity = resolveExerciseIdentity(exerciseName, exerciseId);
     const logs = filterLogsByExercise(workoutLogs, identity);
@@ -454,7 +611,14 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       userRoutines,
 
       // User actions
-      setUser: userStore.setUser,
+      setUser: (nextUser) => {
+        if (typeof nextUser === 'function') {
+          const resolvedUser = nextUser(user);
+          userStore.setUser(resolvedUser);
+          return;
+        }
+        userStore.setUser(nextUser);
+      },
       setProfile: userStore.setProfile,
       updateProfileSettings: (partial) => userStore.updateProfile(partial),
 
@@ -470,9 +634,41 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       addExercise: workoutStore.addExercise,
       updateSet: workoutStore.updateSet,
       getTodayWorkout,
-      getSmartWorkoutRecommendation: () => ({}),
-      getRecommendedWorkoutV4: () => ({}),
-      prepareTodayWorkoutTargets: () => {},
+      getSmartWorkoutRecommendation,
+      getRecommendedWorkoutV4: getSmartWorkoutRecommendation,
+      prepareTodayWorkoutTargets: () => {
+        const today = getTodayKey();
+        const todayWorkout = getWorkoutBySplit(plan?.trainingSplit);
+        if (!todayWorkout.length) {
+          return;
+        }
+        const { exerciseTargets: prev, setExerciseTargets } = useWorkoutStore.getState();
+        let hasChanged = false;
+        const next = { ...prev };
+        for (const exercise of todayWorkout) {
+          const current = next[exercise.name] || {};
+          if (current.lastAutoAppliedDate === today) {
+            continue;
+          }
+          const suggestion = getExerciseProgressionSuggestion(exercise.name);
+          if (suggestion.level === 'aumentar' || suggestion.level === 'reduzir') {
+            next[exercise.name] = {
+              targetWeight: suggestion.suggestedWeight,
+              lastAutoAppliedDate: today,
+              lastSuggestionLevel: suggestion.level,
+            };
+            hasChanged = true;
+            continue;
+          }
+          if (!current.targetWeight && suggestion.suggestedWeight > 0) {
+            next[exercise.name] = { ...current, targetWeight: suggestion.suggestedWeight };
+            hasChanged = true;
+          }
+        }
+        if (hasChanged) {
+          setExerciseTargets(next);
+        }
+      },
       saveWorkoutSet: (data) => {
         const log = {
           id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -550,15 +746,55 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       },
 
       // History & Summary
-      analyzeDay: (dateKey, macro) => {
+      analyzeDay: (dateKeyOrMacro, maybeMacro) => {
+        const isSinglePayload = dateKeyOrMacro && typeof dateKeyOrMacro === 'object';
+        const dateKey = isSinglePayload ? getTodayKey() : String(dateKeyOrMacro || getTodayKey());
+        const macro = isSinglePayload ? (dateKeyOrMacro || {}) : (maybeMacro || {});
+        const consumedCalories = Math.max(0, Number(macro.consumedCalories || macro.calories || 0));
+        const protein = Math.max(0, Number(macro.protein || 0));
+        const carbs = Math.max(0, Number(macro.carbs || 0));
+        const fats = Math.max(0, Number(macro.fats || 0));
+        const trained = Boolean(macro.trained ?? macro.trainedToday ?? false);
+        const macroTargets = getNutritionMacroTargets(plan, profile);
+        const calorieTarget = Number(macroTargets?.calories || 0);
+        const calorieRatio = calorieTarget > 0 ? consumedCalories / calorieTarget : 0;
+        const status = calorieRatio > 1.1 ? 'acima' : calorieRatio < 0.85 ? 'abaixo' : 'ok';
+        const macroInsight = {
+          status: {
+            protein: classifyMacro(protein, Number(macroTargets?.protein || 0)),
+            carbs: classifyMacro(carbs, Number(macroTargets?.carbs || 0)),
+            fats: classifyMacro(fats, Number(macroTargets?.fats || 0)),
+          },
+          message: buildMacroInsight(
+            { calories: consumedCalories, protein, carbs, fats },
+            macroTargets
+          ),
+        };
+        const nutritionFeedback = getNutritionFeedback({
+          proteinConsumed: protein,
+          caloriesConsumed: consumedCalories,
+          trainedToday: trained,
+        });
         const entry = {
           date: dateKey,
-          ...macro,
-          trained: macro.trained || false,
-          status: normalizeHistoryStatus(macro),
+          consumedCalories,
+          calories: consumedCalories,
+          protein,
+          carbs,
+          fats,
+          trained,
+          status,
+          macroInsight: macroInsight.message,
+          insight: nutritionFeedback?.message || nutritionFeedback?.title || '',
         };
         nutritionStore.addHistoryEntry(entry);
-        return { ok: true };
+        return {
+          ok: true,
+          status,
+          macroTargets,
+          macroInsight,
+          message: nutritionFeedback?.message || nutritionFeedback?.title || 'Analise salva com sucesso.',
+        };
       },
 
       getRecentHistory,
@@ -586,13 +822,15 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         return { ok: true };
       },
 
-      addFoodLogEntriesBatch: (logs) => {
-        logs.forEach((log) => {
+      addFoodLogEntriesBatch: ({ items = [], loggedAt } = {}) => {
+        if (!items.length) return { ok: false, message: 'Nenhum alimento valido.' };
+        const safeLoggedAt = loggedAt || new Date().toISOString();
+        items.forEach((item) => {
           const entry = {
             id: `${Date.now()}-${Math.random()}`,
             date: getTodayKey(),
-            loggedAt: new Date().toISOString(),
-            ...log,
+            loggedAt: safeLoggedAt,
+            ...item,
           };
           nutritionStore.addNutritionLog(entry);
         });
@@ -621,7 +859,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       // Performance & Insights
       getPerformanceRecoveryInsight: () => ({}),
       getPerformanceScore: () => ({ score: 0, label: 'Pouco dados' }),
-      getTopFoods: ({ days = 7, limit = 5 } = {}) => ({}),
+      getTopFoods: ({ days = 7, limit = 5 } = {}) => ({ ranking: [] }),
       evaluateMealQuality: (entry) => ({ score: 0 }),
       getDailyScoreForDate: (date) => ({ score: 0 }),
       getScoreTrendSummary: (days = 7) => ({ points: [], averageScore: 0 }),
@@ -632,45 +870,99 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       getExerciseHistorySnapshot: () => [],
       getExercisesByMuscleGroup: () => [],
       getFreeWorkoutSuggestions: () => [],
-      getWorkoutTemplates: () => [],
+      getWorkoutTemplates: () => [
+        { key: 'fullBody', name: 'Full Body' },
+        { key: 'upper', name: 'Superior' },
+        { key: 'lower', name: 'Inferior' },
+        { key: 'push', name: 'Push' },
+        { key: 'pull', name: 'Pull' },
+      ],
 
-      getUserRoutines: () => userRoutines,
-      getUserRoutineById: (id) => userRoutines.find((r) => r.id === id),
+      getUserRoutines: () => (Array.isArray(userRoutines) ? userRoutines : []),
+      getUserRoutineById: (id) => (Array.isArray(userRoutines) ? userRoutines : []).find((r) => r.id === id),
       createUserRoutine: ({ name, exercises }) => {
-        const routine = { id: `routine-${Date.now()}`, name, exercises };
-        appStore.updateUserRoutines((routines) => [routine, ...routines]);
+        const safeExercises = Array.isArray(exercises) ? exercises : [];
+        const routine = { id: `routine-${Date.now()}`, name, exercises: safeExercises };
+        appStore.updateUserRoutines((routines) => [routine, ...(Array.isArray(routines) ? routines : [])]);
         return { ok: true, routine };
       },
 
       updateUserRoutine: ({ routineId, name, exercises }) => {
+        const safeExercises = Array.isArray(exercises) ? exercises : [];
         appStore.updateUserRoutines((routines) => 
-          routines.map((r) => (r.id === routineId ? { ...r, name, exercises } : r))
+          (Array.isArray(routines) ? routines : []).map((r) => (r.id === routineId ? { ...r, name, exercises: safeExercises } : r))
         );
         return { ok: true };
       },
 
       deleteUserRoutine: (id) => {
-        appStore.updateUserRoutines((routines) => routines.filter((r) => r.id !== id));
+        appStore.updateUserRoutines((routines) => (Array.isArray(routines) ? routines : []).filter((r) => r.id !== id));
         return { ok: true };
       },
 
       // Not fully implemented yet
       getAutoCoachSuggestions: () => ({ hasData: false, suggestions: [] }),
       applyMacroOverride: () => {},
-      buildDailyCoachState: () => ({}),
-      buildCoachMessage: () => ({}),
+      buildDailyCoachState,
+      buildCoachMessage,
       getDebugMetricsSnapshot: () => ({}),
       getProductMetricsDashboard: async () => ({}),
       getProductMetricsHistory: async () => ({}),
-      getSubscriptionStatus: () =>  monetization,
-      hasFeatureAccess: () => true,
-      startProTrial: () => {},
-      activateProPlan: () => {},
-      addWaterIntake: () => {},
-      createRoutineFromTemplate: () => {},
-      saveTodayWorkoutAsRoutine: () => {},
-      reorderUserRoutineExercises: () => {},
-      duplicateUserRoutine: () => {},
+      getSubscriptionStatus: subscriptionDomain.getSubscriptionStatus,
+      hasFeatureAccess: subscriptionDomain.hasFeatureAccess,
+      startProTrial: subscriptionDomain.startProTrial,
+      activateProPlan: subscriptionDomain.activateProPlan,
+      addWaterIntake,
+      createRoutineFromTemplate: ({ templateKey, frequency } = {}) => {
+        const templates = {
+          fullBody: { name: 'Full Body', exercises: [{ name: 'Agachamento Livre' }, { name: 'Supino Reto Barra' }, { name: 'Remada Curvada Barra' }] },
+          upper: { name: 'Superior', exercises: [{ name: 'Supino Reto Barra' }, { name: 'Puxada Frontal Polia' }, { name: 'Desenvolvimento Militar Halter' }] },
+          lower: { name: 'Inferior', exercises: [{ name: 'Agachamento Livre' }, { name: 'Leg Press' }, { name: 'Stiff' }] },
+          push: { name: 'Push', exercises: [{ name: 'Supino Reto Barra' }, { name: 'Desenvolvimento Militar Halter' }, { name: 'Triceps Polia' }] },
+          pull: { name: 'Pull', exercises: [{ name: 'Puxada Frontal Polia' }, { name: 'Remada Curvada Barra' }, { name: 'Rosca Direta Barra' }] },
+        };
+        const template = templates[templateKey as string];
+        if (!template) {
+          return { ok: false, message: 'Template nao encontrado.' };
+        }
+        const routine = { id: `routine-${Date.now()}`, name: template.name, exercises: template.exercises };
+        appStore.updateUserRoutines((routines) => [routine, ...(Array.isArray(routines) ? routines : [])]);
+        return { ok: true, routine };
+      },
+      saveTodayWorkoutAsRoutine: ({ name, frequency } = {} as any) => {
+        const todayExercises = getTodayWorkout();
+        if (!todayExercises.length) {
+          return { ok: false, message: 'Nenhum treino definido para hoje.' };
+        }
+        const routine = {
+          id: `routine-${Date.now()}`,
+          name: String(name || 'Minha Rotina'),
+          exercises: todayExercises.map((e: any) => ({ name: e.name, sets: e.sets, reps: e.reps })),
+        };
+        appStore.updateUserRoutines((routines) => [routine, ...(Array.isArray(routines) ? routines : [])]);
+        return { ok: true, routine };
+      },
+      reorderUserRoutineExercises: ({ routineId, from, to } = {} as any) => {
+        appStore.updateUserRoutines((routines) => {
+          const safeRoutines = Array.isArray(routines) ? routines : [];
+          return safeRoutines.map((r) => {
+            if (r.id !== routineId) return r;
+            const exercises = Array.isArray(r.exercises) ? [...r.exercises] : [];
+            const [moved] = exercises.splice(from, 1);
+            exercises.splice(to, 0, moved);
+            return { ...r, exercises };
+          });
+        });
+        return { ok: true };
+      },
+      duplicateUserRoutine: (id: string) => {
+        const safeRoutines = Array.isArray(userRoutines) ? userRoutines : [];
+        const source = safeRoutines.find((r) => r.id === id);
+        if (!source) return { ok: false, message: 'Rotina nao encontrada.' };
+        const copy = { ...source, id: `routine-${Date.now()}`, name: `${source.name} (copia)` };
+        appStore.updateUserRoutines((routines) => [copy, ...(Array.isArray(routines) ? routines : [])]);
+        return { ok: true, routine: copy };
+      },
     }),
     [
       profile,
@@ -690,6 +982,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       getTodayWorkoutSummary,
       getNutritionFeedback,
       getWorkoutGamification,
+      getSmartWorkoutRecommendation,
       getExerciseProgressionSuggestion,
       getRecentHistory,
       getWeeklySummary,
@@ -697,6 +990,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       getAutoAdjustmentSuggestion,
       saveQuestionnaire,
       applyAutoPlanAdjustment,
+      addWaterIntake,
+      subscriptionDomain,
     ]
   );
 
@@ -707,9 +1002,41 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       setWorkout: workoutStore.setWorkout,
       addExercise: workoutStore.addExercise,
       updateSet: workoutStore.updateSet,
-      getSmartWorkoutRecommendation: () => ({}),
-      getRecommendedWorkoutV4: () => ({}),
-      prepareTodayWorkoutTargets: () => {},
+      getSmartWorkoutRecommendation,
+      getRecommendedWorkoutV4: getSmartWorkoutRecommendation,
+      prepareTodayWorkoutTargets: () => {
+        const today = getTodayKey();
+        const todayWorkout = getWorkoutBySplit(plan?.trainingSplit);
+        if (!todayWorkout.length) {
+          return;
+        }
+        const { exerciseTargets: prev, setExerciseTargets } = useWorkoutStore.getState();
+        let hasChanged = false;
+        const next = { ...prev };
+        for (const exercise of todayWorkout) {
+          const current = next[exercise.name] || {};
+          if (current.lastAutoAppliedDate === today) {
+            continue;
+          }
+          const suggestion = getExerciseProgressionSuggestion(exercise.name);
+          if (suggestion.level === 'aumentar' || suggestion.level === 'reduzir') {
+            next[exercise.name] = {
+              targetWeight: suggestion.suggestedWeight,
+              lastAutoAppliedDate: today,
+              lastSuggestionLevel: suggestion.level,
+            };
+            hasChanged = true;
+            continue;
+          }
+          if (!current.targetWeight && suggestion.suggestedWeight > 0) {
+            next[exercise.name] = { ...current, targetWeight: suggestion.suggestedWeight };
+            hasChanged = true;
+          }
+        }
+        if (hasChanged) {
+          setExerciseTargets(next);
+        }
+      },
       saveWorkoutSet: contextValue.saveWorkoutSet,
       saveFreeWorkoutSet: contextValue.saveFreeWorkoutSet,
       removeTodayWorkoutSet: contextValue.removeTodayWorkoutSet,
@@ -732,6 +1059,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       workout,
       getExerciseProgressionSuggestion,
       getWorkoutGamification,
+      getSmartWorkoutRecommendation,
       getTodayWorkoutSummary,
       workoutLogs,
       gamification,
@@ -756,31 +1084,31 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       getPerformanceRecoveryInsight: () => ({}),
       evaluateMealQuality: () => ({}),
       saveNutritionEntry: contextValue.saveNutritionEntry,
-      addWaterIntake: () => {},
+      addWaterIntake,
       nutritionLogs,
       history,
       plan,
     }),
-    [nutritionLogs, history, plan, getNutritionFeedback, contextValue]
+    [nutritionLogs, history, plan, getNutritionFeedback, contextValue, addWaterIntake]
   );
 
   const coachValue = useMemo(
     () => ({
-      buildDailyCoachState: () => ({}),
-      buildCoachMessage: () => ({}),
-      getAutoCoachSuggestions: () => ({}),
+      buildDailyCoachState,
+      buildCoachMessage,
+      getAutoCoachSuggestions: () => ({ hasData: false, suggestions: [], message: 'Sem dados para ajustes automaticos agora.' }),
       applyMacroOverride: () => {},
       getDailyMissions: () => [],
       completeMission: () => {},
-      getPerformanceScore: () => ({}),
+      getPerformanceScore: () => ({ score: 0, label: 'Sem dados', training: 0, maxTraining: 100, diet: 0, maxDiet: 100, consistency: 0, maxConsistency: 100 }),
       getNutritionFeedback,
-      getSmartWorkoutRecommendation: () => ({}),
-      addWaterIntake: () => {},
+      getSmartWorkoutRecommendation,
+      addWaterIntake,
       history,
       nutritionLogs,
       workoutLogs,
     }),
-    [history, nutritionLogs, workoutLogs, getNutritionFeedback]
+    [history, nutritionLogs, workoutLogs, getNutritionFeedback, getSmartWorkoutRecommendation, addWaterIntake]
   );
 
   return React.createElement(

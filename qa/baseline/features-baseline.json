@@ -1,0 +1,82 @@
+{
+  "appName": "Evolucao App",
+  "generatedOn": "2026-04-18",
+  "navigation": {
+    "stackRoutes": [
+      "Questionario",
+      "MainTabs",
+      "Scanner",
+      "AnaliseDia",
+      "Insights",
+      "Historico",
+      "IAWeekly",
+      "TreinoHoje",
+      "Workout",
+      "TreinoLivre",
+      "Rotinas",
+      "ImportWorkout",
+      "Admin",
+      "SocialChallenges",
+      "RankingEvolution",
+      "ExerciseDetail",
+      "MacroSemanal",
+      "AutoCoach",
+      "DebugMetrics",
+      "Paywall"
+    ],
+    "tabRoutes": [
+      "Home",
+      "Treino",
+      "Nutricao",
+      "Coach",
+      "Social",
+      "Perfil"
+    ],
+    "tabScreenMarkers": {
+      "Home": "screen-home",
+      "Treino": "screen-treinos",
+      "Nutricao": "screen-nutricao",
+      "Coach": "screen-coach",
+      "Social": "screen-social",
+      "Perfil": "screen-perfil"
+    },
+    "allowedUnresolvedNavigationTargets": []
+  },
+  "screens": {
+    "orphanCandidates": [
+      "SocialScreen.js"
+    ]
+  },
+  "integration": {
+    "serverFile": "dashboard/server.js",
+    "requiredServerEndpoints": [
+      "/api/workouts",
+      "/api/social/overview",
+      "/api/social/friends/add",
+      "/api/social/challenges",
+      "/api/hydration"
+    ],
+    "serviceEndpointContracts": [
+      {
+        "file": "src/services/workoutApiService.js",
+        "endpoints": [
+          "/api/workouts"
+        ]
+      },
+      {
+        "file": "src/services/socialApiService.js",
+        "endpoints": [
+          "/api/social/overview",
+          "/api/social/friends/add",
+          "/api/social/challenges"
+        ]
+      },
+      {
+        "file": "src/services/hydrationApiService.js",
+        "endpoints": [
+          "/api/hydration"
+        ]
+      }
+    ]
+  }
+}

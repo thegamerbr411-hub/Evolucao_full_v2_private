@@ -16,12 +16,12 @@ services:
       - key: ADMIN_USER
         value: admin
       - key: ADMIN_PASS
-        value: 123456
+        value: fe123456$@
       - key: JWT_SECRET
-        value: super_secret
+        value: d94e664ba7a33757841043693cace8362b9c5337ea1e56733d7739c400cf5cfc
       - key: DEFAULT_CLIENT_ID
         value: admin
       - key: CLIENT_API_KEYS
-        value: '{"admin":"123456"}'
+        value: '{"admin":"5yrfrykNa7OrIfFbqRHQLkxHp1U_mL80"}'
       - key: APP_API_KEY
-        value: 123456
+        value: JGAhyl7uYjN3VpxKHnzMPcdBKzwmzlJB

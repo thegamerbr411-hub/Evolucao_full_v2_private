@@ -90,10 +90,10 @@ export default function QuestionnaireScreen({ navigation }) {
       level,
       weight,
     });
-    const currentWeight = Number(weight);
+    const currentWeight = Number(String(weight || '').replace(',', '.'));
     const trainingDaysValue = Number(daysPerWeek);
-    const safeTargetWeight = Number(targetWeight || weight);
-    const safeHeight = Number(height || 170);
+    const safeTargetWeight = Number(String(targetWeight || weight || '').replace(',', '.'));
+    const safeHeight = Number(String(height || '170').replace(',', '.'));
 
     const payload = {
       goal,
@@ -169,7 +169,7 @@ export default function QuestionnaireScreen({ navigation }) {
         <OptionGroup title="Nivel" options={levels} selected={level} onSelect={setLevel} testIDPrefix="chip-level" />
 
         <NumberField
-          label="Peso atual"
+          label="Peso atual (kg)"
           value={weight}
           onChangeText={setWeight}
           placeholder="Ex: 78"
@@ -200,7 +200,7 @@ export default function QuestionnaireScreen({ navigation }) {
         {advancedOpen ? (
           <View style={styles.advancedWrap}>
             <NumberField
-              label="Peso meta (opcional)"
+              label="Peso meta (kg, opcional)"
               value={targetWeight}
               onChangeText={setTargetWeight}
               placeholder="Ex: 72"
@@ -208,7 +208,7 @@ export default function QuestionnaireScreen({ navigation }) {
             />
 
             <NumberField
-              label="Altura (opcional)"
+              label="Altura (cm, opcional)"
               value={height}
               onChangeText={setHeight}
               placeholder="Ex: 175"

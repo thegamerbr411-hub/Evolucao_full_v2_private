@@ -1,10 +1,14 @@
 // backend/middleware/auth.js
 import jwt from 'jsonwebtoken'
 
-const SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-prod'
+const SECRET = String(process.env.JWT_SECRET || '').trim()
 
 export const authMiddleware = (req, res, next) => {
   try {
+    if (!SECRET) {
+      return res.status(500).json({ error: 'JWT_SECRET not configured' })
+    }
+
     const header = req.headers.authorization
 
     if (!header || !header.startsWith('Bearer ')) {
@@ -22,8 +26,15 @@ export const authMiddleware = (req, res, next) => {
 }
 
 export const generateToken = (user) => {
+  if (!SECRET) {
+    throw new Error('JWT_SECRET not configured')
+  }
+
+  const role = user?.role === 'admin' ? 'admin' : 'user'
+  const isAdmin = Boolean(user?.isAdmin || role === 'admin')
+
   return jwt.sign(
-    { id: user.id, email: user.email, name: user.name },
+    { id: user.id, email: user.email, name: user.name, role, isAdmin },
     SECRET,
     { expiresIn: '7d' }
   )

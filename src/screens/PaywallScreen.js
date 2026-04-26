@@ -74,7 +74,7 @@ export default function PaywallScreen({ navigation, route }) {
   }, [source, featureKey, canStartTrial, copyVariant, timingExperimentKey, timingVariant]);
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView testID="screen-paywall" contentContainerStyle={styles.container}>
       <Text style={styles.badge}>EVOLUCAO PRO</Text>
       <ScreenHeader title="Seu personal com IA" subtitle="Treine e evolua com inteligencia real." />
 
@@ -126,9 +126,10 @@ export default function PaywallScreen({ navigation, route }) {
 
       {canStartTrial ? (
         <PrimaryButton
+          testID="btn-paywall-trial"
           title="Comecar gratis agora"
           style={styles.ctaButton}
-          onPress={() => {
+          onPress={async () => {
             trackEvent('paywall_clicked', {
               source,
               featureKey,
@@ -146,16 +147,19 @@ export default function PaywallScreen({ navigation, route }) {
               timingExperimentKey,
               timingVariant,
             });
-            startProTrial();
-            navigation.goBack();
+            const result = await startProTrial();
+            if (result?.ok !== false) {
+              navigation.goBack();
+            }
           }}
         />
       ) : null}
 
       <SecondaryButton
+        testID="btn-paywall-pro"
         title="Ja sou PRO"
         style={styles.trialButton}
-        onPress={() => {
+        onPress={async () => {
           trackEvent('paywall_clicked', {
             source,
             featureKey,
@@ -173,8 +177,10 @@ export default function PaywallScreen({ navigation, route }) {
             timingExperimentKey,
             timingVariant,
           });
-          activateProPlan();
-          navigation.goBack();
+          const result = await activateProPlan();
+          if (result?.ok !== false) {
+            navigation.goBack();
+          }
         }}
       />
 

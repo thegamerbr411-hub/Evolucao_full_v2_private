@@ -59,7 +59,7 @@ export const ExerciseSetCard = ({
         {display ? (
           <Text style={styles.displayText}>{display}</Text>
         ) : (
-          <Text style={styles.placeholderText}>Registre sua série</Text>
+          <Text style={styles.placeholderText}>Registre sua primeira série</Text>
         )}
       </View>
 

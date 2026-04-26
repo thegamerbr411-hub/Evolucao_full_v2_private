@@ -1,0 +1,38 @@
+{
+  "phase": "meio",
+  "completedAt": "2026-04-17T18:59:54.310Z",
+  "screenshots": [
+    "meio-water-action",
+    "overlay-meio-water-action-none-visible",
+    "meio-workout-hub",
+    "meio-nutrition-entry",
+    "overlay-meio-nutrition-entry-none-visible",
+    "meio-coach-interaction",
+    "audit-meio-home-top",
+    "audit-meio-home-mid",
+    "audit-meio-home-end",
+    "audit-meio-treino-top",
+    "audit-meio-treino-mid",
+    "audit-meio-treino-end",
+    "audit-meio-nutricao-top",
+    "audit-meio-nutricao-mid",
+    "audit-meio-nutricao-end",
+    "audit-meio-coach-top",
+    "audit-meio-coach-mid",
+    "audit-meio-coach-end",
+    "audit-meio-social-top",
+    "audit-meio-social-mid",
+    "audit-meio-social-end",
+    "audit-meio-perfil-top",
+    "audit-meio-perfil-mid",
+    "audit-meio-perfil-end"
+  ],
+  "workflow": [
+    "audit-meio-home:ok",
+    "audit-meio-treino:ok",
+    "audit-meio-nutricao:ok",
+    "audit-meio-coach:ok",
+    "audit-meio-social:ok",
+    "audit-meio-perfil:ok"
+  ]
+}

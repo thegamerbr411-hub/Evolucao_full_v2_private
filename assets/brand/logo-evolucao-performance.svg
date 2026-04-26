@@ -1,0 +1,31 @@
+<svg width="1024" height="320" viewBox="0 0 1024 320" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="64" y1="24" x2="960" y2="296" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#041A2D"/>
+      <stop offset="1" stop-color="#0A2D3E"/>
+    </linearGradient>
+    <linearGradient id="mark" x1="110" y1="70" x2="290" y2="250" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#00D9A3"/>
+      <stop offset="1" stop-color="#25B7FF"/>
+    </linearGradient>
+    <linearGradient id="spark" x1="180" y1="72" x2="290" y2="72" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFC64D"/>
+      <stop offset="1" stop-color="#FF8A3D"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="8" y="8" width="1008" height="304" rx="44" fill="url(#bg)"/>
+
+  <g transform="translate(72,48)">
+    <rect x="0" y="0" width="240" height="224" rx="38" fill="#0D2234"/>
+    <path d="M40 174L92 132L132 150L192 88" stroke="url(#mark)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M180 72H214V106" stroke="url(#spark)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M214 72L168 118" stroke="url(#spark)" stroke-width="12" stroke-linecap="round"/>
+    <circle cx="92" cy="132" r="12" fill="#00D9A3"/>
+    <circle cx="132" cy="150" r="12" fill="#25B7FF"/>
+    <circle cx="192" cy="88" r="12" fill="#FFC64D"/>
+  </g>
+
+  <text x="360" y="148" fill="#F3F8FF" font-size="78" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-weight="800" letter-spacing="1.2">EVOLUCAO</text>
+  <text x="360" y="204" fill="#97B8CF" font-size="30" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-weight="600" letter-spacing="0.8">Progress | Performance | Consistencia</text>
+</svg>

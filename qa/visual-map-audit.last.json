@@ -1,0 +1,23 @@
+{
+  "completedAt": "2026-04-18T03:41:32.299Z",
+  "visited": [
+    "attached:attached-safe-home-dashboard",
+    "attached:attached-safe-loading-home",
+    "attached:attached-safe-treino-entry",
+    "attached:attached-safe-workout-card",
+    "attached:attached-safe-coach-entry",
+    "attached:attached-safe-chat-widget",
+    "attached:attached-safe-nutricao-entry",
+    "attached:attached-safe-food-card",
+    "attached:attached-safe-social-entry",
+    "attached:attached-safe-ranking-card",
+    "attached:attached-safe-modal-popup",
+    "attached:attached-safe-error-state"
+  ],
+  "arrozAppearedAsExercise": false,
+  "notes": [
+    "sync-disabled",
+    "mode:attached-safe",
+    "attached-safe-minimal-skip-interactions"
+  ]
+}

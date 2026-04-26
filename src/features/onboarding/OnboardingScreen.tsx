@@ -293,7 +293,7 @@ const styles = StyleSheet.create({
   },
   celebration: {
     alignItems: 'center',
-    marginBottommarginBottom: 40,
+    marginBottom: 40,
   },
   celebrationEmoji: {
     fontSize: 80,

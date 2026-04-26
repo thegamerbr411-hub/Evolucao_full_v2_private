@@ -24,9 +24,9 @@ export const ExerciseCard = React.memo(function ExerciseCard({
       set={setItem}
       index={index}
       simpleMode={simpleMode}
-      onChange={(field, value) => onChangeSet(exercise.name, index, field, value)}
-      onComplete={() => onCompleteSet(exercise.name, index)}
-      testIDs={testIDs(index)}
+      onChange={(field, value) => typeof onChangeSet === 'function' && onChangeSet(exercise.name, index, field, value)}
+      onComplete={() => typeof onCompleteSet === 'function' && onCompleteSet(exercise.name, index)}
+      testIDs={typeof testIDs === 'function' ? testIDs(index) : {}}
     />
   ), [exercise.name, onChangeSet, onCompleteSet, simpleMode, testIDs]);
 

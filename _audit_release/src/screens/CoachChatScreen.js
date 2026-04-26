@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -275,23 +275,23 @@ function buildPainSafetyLine(pain = '') {
 function getUrgencyStyles(level) {
   if (level === 'alta') {
     return {
-      borderColor: '#EF4444',
-      backgroundColor: '#2B1717',
+      borderColor: colors.danger,
+      backgroundColor: 'rgba(239,68,68,0.14)',
       badge: 'Alta urgencia',
     };
   }
 
   if (level === 'media') {
     return {
-      borderColor: '#F59E0B',
-      backgroundColor: '#2D2415',
+      borderColor: colors.warning,
+      backgroundColor: 'rgba(250,204,21,0.12)',
       badge: 'Urgencia moderada',
     };
   }
 
   return {
-    borderColor: '#22C55E',
-    backgroundColor: '#15271B',
+    borderColor: colors.success,
+    backgroundColor: colors.successMuted,
     badge: 'Sob controle',
   };
 }
@@ -312,6 +312,24 @@ export default function CoachChatScreen({ navigation }) {
     addWaterIntake,
     user,
   } = useApp();
+  const safeHistory = Array.isArray(history) ? history : [];
+  const safeWorkoutLogs = Array.isArray(workoutLogs) ? workoutLogs : [];
+  const safeUserRoutines = Array.isArray(userRoutines) ? userRoutines : [];
+  const getDailyMacroTargetsSafe = typeof getDailyMacroTargets === 'function' ? getDailyMacroTargets : () => ({});
+  const getSmartWorkoutRecommendationSafe = typeof getSmartWorkoutRecommendation === 'function'
+    ? getSmartWorkoutRecommendation
+    : () => ({
+      title: 'Treino de consistencia',
+      justification: 'Execute o treino principal do dia.',
+      trainedThisWeek: 0,
+      weeklyTarget: Math.max(1, Number(profile?.trainingDaysPerWeek || 3)),
+      isBehindWeek: true,
+    });
+  const getTodayFoodLogSafe = typeof getTodayFoodLog === 'function' ? getTodayFoodLog : () => [];
+  const getWorkoutGamificationSafe = typeof getWorkoutGamification === 'function' ? getWorkoutGamification : () => ({});
+  const buildDailyCoachStateSafe = typeof buildDailyCoachState === 'function' ? buildDailyCoachState : () => ({ done: {}, missing: {} });
+  const buildCoachMessageSafe = typeof buildCoachMessage === 'function' ? buildCoachMessage : () => ({});
+  const addWaterIntakeSafe = typeof addWaterIntake === 'function' ? addWaterIntake : () => ({ ok: false });
   const [input, setInput] = useState('');
   const [coachCard, setCoachCard] = useState({
     doneText: '',
@@ -330,6 +348,7 @@ export default function CoachChatScreen({ navigation }) {
     isPerfectDay: false,
   });
   const [actionFeedback, setActionFeedback] = useState('');
+  const [showCoachDetails, setShowCoachDetails] = useState(false);
   const [optimisticWaterDelta, setOptimisticWaterDelta] = useState(0);
   const [memory, setMemory] = useState({
     lastUserIntent: null,
@@ -384,8 +403,8 @@ export default function CoachChatScreen({ navigation }) {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   }, []);
 
-  const todayHistory = history.find((item) => item.date === today) || {};
-  const macroTargets = getDailyMacroTargets();
+  const todayHistory = safeHistory.find((item) => item.date === today) || {};
+  const macroTargets = getDailyMacroTargetsSafe();
   const context = {
     proteinToday: Number(todayHistory?.protein || 0),
     proteinTarget: Number(macroTargets?.protein || 0),
@@ -398,11 +417,11 @@ export default function CoachChatScreen({ navigation }) {
     waterToday: Math.max(0, Number(context.waterToday || 0) + Number(optimisticWaterDelta || 0)),
   }), [context.proteinToday, context.proteinTarget, context.waterToday, context.waterTarget, optimisticWaterDelta]);
 
-  const smart = getSmartWorkoutRecommendation();
-  const workoutGamification = getWorkoutGamification();
-  const trainedToday = workoutLogs.some((item) => item.date === today);
-  const todayMeals = getTodayFoodLog();
-  const weakMeals = todayMeals.filter((meal) => meal.quality?.level === 'weak_protein').length;
+  const smart = getSmartWorkoutRecommendationSafe() || {};
+  const workoutGamification = getWorkoutGamificationSafe();
+  const trainedToday = safeWorkoutLogs.some((item) => item.date === today);
+  const todayMeals = getTodayFoodLogSafe();
+  const weakMeals = (Array.isArray(todayMeals) ? todayMeals : []).filter((meal) => meal.quality?.level === 'weak_protein').length;
   const dayPeriod = getDayPeriod();
   const currentPain = String(profile?.currentPain || profile?.pain || 'nenhuma dor informada');
   const smartInsight = useMemo(() => generateCoachInsight({
@@ -414,14 +433,14 @@ export default function CoachChatScreen({ navigation }) {
     weeklyDone: smart.trainedThisWeek,
     weeklyTarget: smart.weeklyTarget,
     weakMeals,
-    hasRoutine: Array.isArray(userRoutines) && userRoutines.length > 0,
+    hasRoutine: safeUserRoutines.length > 0,
     goal: profile?.goal,
     level: profile?.level,
     pain: currentPain,
-  }), [trainedToday, effectiveContext.proteinToday, effectiveContext.proteinTarget, effectiveContext.waterToday, effectiveContext.waterTarget, smart.trainedThisWeek, smart.weeklyTarget, weakMeals, userRoutines, profile?.goal, profile?.level, currentPain]);
+  }), [trainedToday, effectiveContext.proteinToday, effectiveContext.proteinTarget, effectiveContext.waterToday, effectiveContext.waterTarget, smart.trainedThisWeek, smart.weeklyTarget, weakMeals, safeUserRoutines, profile?.goal, profile?.level, currentPain]);
 
-  const refreshCoachCard = () => {
-    const state = buildDailyCoachState({
+  const refreshCoachCard = useCallback(() => {
+    const state = buildDailyCoachStateSafe({
       protein: effectiveContext.proteinToday,
       proteinTarget: effectiveContext.proteinTarget,
       water: effectiveContext.waterToday,
@@ -430,8 +449,18 @@ export default function CoachChatScreen({ navigation }) {
       weeklyTarget: smart.weeklyTarget,
       didWorkoutToday: trainedToday,
     });
-    setCoachCard(buildCoachMessage(state));
-  };
+    const nextCard = buildCoachMessageSafe(state);
+    if (nextCard && typeof nextCard === 'object') {
+      setCoachCard((prev) => ({
+        ...prev,
+        ...nextCard,
+        quickActions: {
+          ...prev.quickActions,
+          ...(nextCard.quickActions || {}),
+        },
+      }));
+    }
+  }, [effectiveContext.proteinToday, effectiveContext.proteinTarget, effectiveContext.waterToday, effectiveContext.waterTarget, smart.trainedThisWeek, smart.weeklyTarget, trainedToday, buildDailyCoachStateSafe, buildCoachMessageSafe]);
 
   useEffect(() => {
     refreshCoachCard();
@@ -618,7 +647,7 @@ export default function CoachChatScreen({ navigation }) {
     const ml = Number(coachCard.quickActions?.waterQuickMl || 0);
     if (ml > 0) {
       setOptimisticWaterDelta((prev) => Number(prev || 0) + ml);
-      addWaterIntake(ml);
+      addWaterIntakeSafe(ml);
       rememberAction(`water_${ml}`);
       setActionFeedback(`Boa, +${ml}ml registrado 💧`);
       setMessages((prev) => [
@@ -656,14 +685,14 @@ export default function CoachChatScreen({ navigation }) {
   const openRoutines = () => {
     rememberAction('routines_open');
     setActionFeedback('Perfeito. Ajuste sua rotina direto no hub de treino.');
-    navigation.navigate('Treinos');
+    navigation.navigate('Treino');
   };
 
   const urgencyUI = getUrgencyStyles(coachCard.urgencyLevel);
 
   return (
     <SafeAreaView testID="screen-coach" style={styles.container} edges={['top']}>
-      <ScreenHeader title="Conversa com o Personal/Nutri" subtitle="Conversa orientada pelo seu treino, água e macros do dia." />
+      <ScreenHeader title="Coach Diario" subtitle="Conversa orientada pelo seu treino, agua e macros do dia." />
 
       <AppCard style={[styles.coachCard, { borderColor: urgencyUI.borderColor, backgroundColor: urgencyUI.backgroundColor }]}> 
         <Text style={styles.urgencyBadge}>{urgencyUI.badge}</Text>
@@ -675,11 +704,18 @@ export default function CoachChatScreen({ navigation }) {
 
         <Text style={styles.coachTitle}>Agora</Text>
         <Text style={styles.coachAction}>{coachCard.action}</Text>
-        <Text style={styles.smartInsightLine}>Prioridade IA: {smartInsight.priority} | {smartInsight.summary}</Text>
-        {smartInsight.profileLine ? <Text style={styles.supportLine}>{smartInsight.profileLine}</Text> : null}
-        {(smartInsight.actions || []).slice(0, 2).map((action) => (
-          <Text key={action} style={styles.supportLine}>• {action}</Text>
-        ))}
+        <TouchableOpacity style={styles.detailsToggle} onPress={() => setShowCoachDetails((prev) => !prev)}>
+          <Text style={styles.detailsToggleText}>{showCoachDetails ? 'Ocultar detalhes IA' : 'Ver detalhes IA'}</Text>
+        </TouchableOpacity>
+        {showCoachDetails ? (
+          <>
+            <Text style={styles.smartInsightLine}>Prioridade IA: {smartInsight.priority} | {smartInsight.summary}</Text>
+            {smartInsight.profileLine ? <Text style={styles.supportLine}>{smartInsight.profileLine}</Text> : null}
+            {(smartInsight.actions || []).slice(0, 2).map((action) => (
+              <Text key={action} style={styles.supportLine}>• {action}</Text>
+            ))}
+          </>
+        ) : null}
         <Text style={styles.progressLine}>Progresso do dia: {coachCard.completedGoals || 0}/{coachCard.totalGoals || 3} metas</Text>
         {coachCard.isPerfectDay ? <Text style={styles.perfectDayLine}>Dia perfeito 🔥</Text> : null}
         {actionFeedback ? <Text style={styles.feedbackLine}>{actionFeedback}</Text> : null}
@@ -733,7 +769,7 @@ const styles = StyleSheet.create({
   },
   chatBox: {
     flex: 1,
-    backgroundColor: colors.card,
+    backgroundColor: colors.cardElevated,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.border,
@@ -744,7 +780,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   urgencyBadge: {
-    color: '#F3F4F6',
+    color: colors.textPrimary,
     fontSize: 11,
     fontWeight: '800',
     textTransform: 'uppercase',
@@ -768,8 +804,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
   },
+  detailsToggle: {
+    alignSelf: 'flex-start',
+    marginTop: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  detailsToggleText: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '700',
+  },
   progressLine: {
-    color: '#BFDBFE',
+    color: colors.secondary,
     fontSize: 12,
     fontWeight: '700',
     marginTop: 4,
@@ -787,13 +838,13 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   feedbackLine: {
-    color: '#FDE68A',
+    color: colors.warning,
     fontSize: 12,
     fontWeight: '700',
     marginTop: 4,
   },
   supportLine: {
-    color: '#D9E7F5',
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: '700',
     marginTop: 4,
@@ -827,7 +878,9 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 4,
   },
   coachBubble: {
-    backgroundColor: '#141922',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignSelf: 'flex-start',
     borderBottomLeftRadius: 4,
   },
@@ -853,7 +906,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: '#141922',
+    backgroundColor: colors.surface,
     color: colors.textPrimary,
     paddingHorizontal: 12,
     fontSize: 14,
@@ -867,7 +920,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   sendText: {
-    color: '#000000',
+    color: colors.textInverse,
     fontWeight: '800',
   },
 });

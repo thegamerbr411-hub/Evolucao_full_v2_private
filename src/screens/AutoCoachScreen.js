@@ -107,9 +107,32 @@ export default function AutoCoachScreen({ navigation }) {
   const [appliedIds, setAppliedIds] = useState([]);
   const [missionFeedback, setMissionFeedback] = useState('');
 
-  const score = useMemo(() => getPerformanceScore(), [getPerformanceScore]);
-  const coach = useMemo(() => getAutoCoachSuggestions(), [getAutoCoachSuggestions]);
-  const missions = useMemo(() => getDailyMissions(), [getDailyMissions]);
+  const score = useMemo(() => {
+    const raw = getPerformanceScore?.() || {};
+    return {
+      score: Number(raw.score || 0),
+      label: String(raw.label || 'Sem dados suficientes'),
+      training: Number(raw.training || 0),
+      maxTraining: Number(raw.maxTraining || 100),
+      diet: Number(raw.diet || 0),
+      maxDiet: Number(raw.maxDiet || 100),
+      consistency: Number(raw.consistency || 0),
+      maxConsistency: Number(raw.maxConsistency || 100),
+    };
+  }, [getPerformanceScore]);
+  const coach = useMemo(() => {
+    const raw = getAutoCoachSuggestions?.() || {};
+    return {
+      hasData: Boolean(raw.hasData),
+      message: String(raw.message || 'Sem dados suficientes para sugerir ajustes agora.'),
+      applied: raw.applied || null,
+      suggestions: Array.isArray(raw.suggestions) ? raw.suggestions : [],
+    };
+  }, [getAutoCoachSuggestions]);
+  const missions = useMemo(() => {
+    const raw = getDailyMissions?.();
+    return Array.isArray(raw) ? raw : [];
+  }, [getDailyMissions]);
 
   const handleApply = useCallback((payload, id) => {
     applyMacroOverride(payload);

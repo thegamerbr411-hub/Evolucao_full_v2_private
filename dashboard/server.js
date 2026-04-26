@@ -46,6 +46,20 @@ const {
   recordAppliedFix,
   upsertBug,
 } = require('./src/server/storage');
+const {
+  analyzeSubmission,
+  validateSubmissionPayload,
+} = require('./src/server/catalogAnalyzer');
+const {
+  createSubmission,
+  listSubmissions,
+  getSubmission,
+  approveSubmission,
+  rejectSubmission,
+  getOfficialCatalog,
+  getOfficialTitles,
+  getPendingTitles,
+} = require('./src/server/catalog');
 
 const PORT = Number(process.env.PORT || 3000);
 const BUGS_CACHE_TTL_MS = Number(process.env.BUGS_CACHE_TTL_MS || 5000);
@@ -523,6 +537,46 @@ function createApp() {
     });
   }));
 
+  // Subscription management (MVP: persisted in-memory, replace with DB for production)
+  const subscriptionStore = new Map()
+
+  app.post('/api/subscription/activate', requireAppApiKey, requireUserContext, asyncRoute(async (req, res) => {
+    const { type = 'trial' } = req.body || {}
+    if (!['trial', 'pro'].includes(String(type))) {
+      return res.status(400).json({ ok: false, error: 'invalid_subscription_type' })
+    }
+    const trialDays = 7
+    const proDays = 30
+    const daysToAdd = type === 'trial' ? trialDays : proDays
+    const now = Date.now()
+    const expiry = now + daysToAdd * 24 * 60 * 60 * 1000
+    const entry = {
+      userId: req.userId,
+      plan: type === 'trial' ? 'trial' : 'pro',
+      isProActive: true,
+      isPro: true,
+      proExpiry: expiry,
+      activatedAt: new Date(now).toISOString(),
+    }
+    subscriptionStore.set(req.userId, entry)
+    return res.json({ ok: true, data: entry })
+  }))
+
+  app.get('/api/subscription/status', requireAppApiKey, requireUserContext, asyncRoute(async (req, res) => {
+    const entry = subscriptionStore.get(req.userId) || null
+    const now = Date.now()
+    const isActive = entry && entry.proExpiry && Number(entry.proExpiry) > now
+    return res.json({
+      ok: true,
+      data: {
+        isPro: Boolean(isActive),
+        isProActive: Boolean(isActive),
+        plan: isActive ? entry.plan : 'free',
+        proExpiry: entry?.proExpiry || null,
+      },
+    })
+  }))
+
   app.post('/api/log', auth.validateJWT, auth.validateClient, asyncRoute(async (req, res) => {
     const normalized = normalizeIncomingLog({
       ...(req.body || {}),
@@ -533,7 +587,7 @@ function createApp() {
 
     bugsCache.clear(`bugs:${clientId}:`);
 
-    if (Number(bug?.count || 0) > 10 && bug?.severity === 'HIGH') {
+    if (!bug?.synthetic && Number(bug?.count || 0) > 10 && bug?.severity === 'HIGH') {
       console.log('[alert]', JSON.stringify({
         clientId,
         count: bug.count,
@@ -977,6 +1031,111 @@ function createApp() {
       required,
     });
   }));
+
+  // ── Catalog routes ────────────────────────────────────────────────────────
+
+  // POST /api/catalog/submit — qualquer cliente autenticado pode submeter
+  app.post('/api/catalog/submit', auth.authenticateClient, asyncRoute(async (req, res) => {
+    const validation = validateSubmissionPayload(req.body || {});
+    if (!validation.valid) {
+      return res.status(400).json({ ok: false, errors: validation.errors });
+    }
+
+    const payload = {
+      ...validation.payload,
+      createdBy: String(req.auth?.clientId || req.auth?.user || validation.payload.createdBy || 'admin'),
+      source: validation.payload.source || 'dashboard',
+    };
+
+    const existingTitles = [...getOfficialTitles(), ...getPendingTitles()];
+    const analysis = analyzeSubmission(payload, existingTitles);
+
+    if (analysis.isDuplicate) {
+      return res.status(409).json({
+        ok: false,
+        error: 'Já existe item com este título no catálogo (oficial ou pendente).',
+        analysis,
+      });
+    }
+
+    const submission = createSubmission({ ...payload, analysis });
+    return res.status(201).json({
+      ok: true,
+      submission,
+      analysis,
+      reviewHint: analysis.isValid
+        ? 'Submissão válida, aguardando revisão de admin.'
+        : 'Submissão pendente com alertas de qualidade. Revise antes de aprovar.',
+    });
+  }));
+
+  // GET /api/catalog/pending — somente admin
+  app.get('/api/catalog/pending', auth.authenticateAdmin, asyncRoute(async (_req, res) => {
+    const items = listSubmissions({ status: 'pending', limit: 200 });
+    return res.json({ ok: true, items });
+  }));
+
+  // GET /api/catalog/official — leitura pública (somente itens aprovados)
+  app.get('/api/catalog/official', asyncRoute(async (req, res) => {
+    const type = req.query.type || null;
+    const catalog = getOfficialCatalog(type ? { type } : {});
+    return res.json({ ok: true, ...catalog });
+  }));
+
+  // GET /api/catalog/all — admin lista todas as submissions (qualquer status)
+  app.get('/api/catalog/all', auth.authenticateAdmin, asyncRoute(async (req, res) => {
+    const status = req.query.status || null;
+    const limit = Math.min(Number(req.query.limit) || 200, 500);
+    const items = listSubmissions({ status: status || null, limit });
+    return res.json({ ok: true, items });
+  }));
+
+  // POST /api/catalog/:id/approve — somente admin
+  app.post('/api/catalog/:id/approve', auth.authenticateAdmin, asyncRoute(async (req, res) => {
+    const { id } = req.params;
+    if (!id || !/^sub-\d+-[0-9a-f]+$/.test(id)) {
+      return res.status(400).json({ ok: false, error: 'ID de submissão inválido.' });
+    }
+
+    const submission = getSubmission(id);
+    if (!submission) {
+      return res.status(404).json({ ok: false, error: 'Submissão não encontrada.' });
+    }
+    if (submission.status !== 'pending') {
+      return res.status(409).json({ ok: false, error: `Submissão já foi ${submission.status}.` });
+    }
+
+    const reviewedBy = String(req.auth?.user || 'admin');
+    const approved = approveSubmission(id, { reviewedBy });
+    return res.json({ ok: true, submission: approved });
+  }));
+
+  // POST /api/catalog/:id/reject — somente admin
+  app.post('/api/catalog/:id/reject', auth.authenticateAdmin, asyncRoute(async (req, res) => {
+    const { id } = req.params;
+    if (!id || !/^sub-\d+-[0-9a-f]+$/.test(id)) {
+      return res.status(400).json({ ok: false, error: 'ID de submissão inválido.' });
+    }
+
+    const submission = getSubmission(id);
+    if (!submission) {
+      return res.status(404).json({ ok: false, error: 'Submissão não encontrada.' });
+    }
+    if (submission.status !== 'pending') {
+      return res.status(409).json({ ok: false, error: `Submissão já foi ${submission.status}.` });
+    }
+
+    const rejectionReason = String((req.body || {}).reason || 'Recusado pelo administrador.').trim().slice(0, 300);
+    if (!rejectionReason) {
+      return res.status(400).json({ ok: false, error: 'Motivo de recusa é obrigatório.' });
+    }
+
+    const reviewedBy = String(req.auth?.user || 'admin');
+    const rejected = rejectSubmission(id, { reviewedBy, rejectionReason });
+    return res.json({ ok: true, submission: rejected });
+  }));
+
+  // ── End catalog routes ────────────────────────────────────────────────────
 
   app.use(express.static(path.join(__dirname, 'public')));
   app.get('/', (_req, res) => {

@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { EXERCISE_NAMES_V2 } from '../data/exerciseLibraryV2';
+import { getExerciseByName, getExerciseFilters, searchExercises } from '../data/exercises.js';
 import { fuzzySearchExercises } from '../services/fuzzySearch';
 import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { colors, spacing } from '../theme';
@@ -34,12 +35,15 @@ function toTestId(value) {
 }
 
 function getConfidenceVisual(confidence) {
-  if (confidence === 'alta') {
-    return '🟢 alta';
+  // confidence pode ser string ('alta','media','baixa') ou número (0.0–1.0)
+  const num = Number(confidence);
+  if (!Number.isNaN(num)) {
+    if (num >= 0.8) return '🟢 alta';
+    if (num >= 0.5) return '🟡 media';
+    return '🔴 baixa';
   }
-  if (confidence === 'media') {
-    return '🟡 media';
-  }
+  if (confidence === 'alta') return '🟢 alta';
+  if (confidence === 'media') return '🟡 media';
   return '🔴 baixa';
 }
 
@@ -62,6 +66,8 @@ export default function RoutinesScreen({ navigation }) {
 
   const [routineName, setRoutineName] = useState('');
   const [exerciseQuery, setExerciseQuery] = useState('');
+  const [muscleFilter, setMuscleFilter] = useState('all');
+  const [equipmentFilter, setEquipmentFilter] = useState('all');
   const [builderExercises, setBuilderExercises] = useState([]);
   const [editingRoutineId, setEditingRoutineId] = useState(null);
 
@@ -73,17 +79,37 @@ export default function RoutinesScreen({ navigation }) {
     return Array.from(new Set([...QUICK_EXERCISES, ...EXERCISE_NAMES_V2, ...base]));
   }, [getExerciseCatalog]);
   const routineTemplates = useMemo(() => getWorkoutTemplates(), [getWorkoutTemplates]);
+  const exerciseFilters = useMemo(() => getExerciseFilters(), []);
+  const safeTodayRoutine = Array.isArray(todayRoutine) ? todayRoutine : [];
+  const safeRoutineTemplates = Array.isArray(routineTemplates) ? routineTemplates : [];
+  const safeUserRoutines = Array.isArray(userRoutines) ? userRoutines : [];
+  const safeMuscles = Array.isArray(exerciseFilters?.muscles) ? exerciseFilters.muscles : [];
+  const safeEquipments = Array.isArray(exerciseFilters?.equipments) ? exerciseFilters.equipments : [];
 
   const filteredCatalog = useMemo(() => {
     const query = normalizeText(exerciseQuery);
-    const mergedCatalog = exerciseCatalog;
+    const premium = searchExercises({
+      query,
+      muscle: muscleFilter,
+      equipment: equipmentFilter,
+    }).map((item) => item.name);
 
-    if (!query) {
-      return mergedCatalog.slice(0, 12);
-    }
+    const fallback = query
+      ? fuzzySearchExercises(query, exerciseCatalog, 20)
+      : exerciseCatalog.slice(0, 20);
 
-    return fuzzySearchExercises(query, mergedCatalog, 20).slice(0, 12);
-  }, [exerciseCatalog, exerciseQuery]);
+    return Array.from(new Set([...premium, ...fallback]))
+      .slice(0, 12)
+      .map((name) => {
+        const detail = getExerciseByName(name);
+        return {
+          name,
+          thumbnail: detail?.thumbnail || null,
+          muscle: detail?.musclePrimary?.[0] || detail?.muscleSecondary?.[0] || 'geral',
+          equipment: detail?.equipment || 'livre',
+        };
+      });
+  }, [exerciseCatalog, exerciseQuery, muscleFilter, equipmentFilter]);
 
   const addExerciseToBuilder = (exerciseName) => {
     const safeName = String(exerciseName || '').trim();
@@ -187,6 +213,10 @@ export default function RoutinesScreen({ navigation }) {
     navigation.navigate('Workout', { workoutId: routine.id });
   };
 
+  const openExerciseDetail = (exercise) => {
+    navigation.navigate('ExerciseDetail', { exercise });
+  };
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -199,7 +229,7 @@ export default function RoutinesScreen({ navigation }) {
         <Text style={styles.cardTitle}>Templates prontos</Text>
         <Text style={styles.recommendationSub}>Inicie com 1 toque e depois personalize.</Text>
         <View style={styles.chipsWrap}>
-          {routineTemplates.map((template) => (
+          {safeRoutineTemplates.map((template) => (
             <TouchableOpacity
               key={template.key}
               style={styles.chip}
@@ -224,7 +254,7 @@ export default function RoutinesScreen({ navigation }) {
         <Text style={styles.recommendationMain}>🔥 Hoje e {smart.title}. Foco nisso.</Text>
         <Text style={styles.recommendationSub}>Confianca: {getConfidenceVisual(smart.confidence)} · Semana: {smart.trainedThisWeek}/{smart.weeklyTarget}</Text>
         <Text style={styles.recommendationSub}>{smart.urgencyMessage}</Text>
-        {todayRoutine.map((item) => (
+        {safeTodayRoutine.map((item) => (
           <Text key={item.id} style={styles.line}>• {item.name} ({item.sets}x{item.reps})</Text>
         ))}
         <PrimaryButton title="Salvar como treino proprio" onPress={saveRecommendedAsOwn} style={styles.primaryButton} />
@@ -264,12 +294,64 @@ export default function RoutinesScreen({ navigation }) {
           style={styles.input}
         />
 
-        {filteredCatalog.length === 0 ? <Text style={styles.empty}>Nenhum exercicio encontrado. Tente "leg press" ou "agachamento".</Text> : null}
+        <Text style={styles.helperText}>Filtrar por musculo:</Text>
         <View style={styles.chipsWrap}>
-          {filteredCatalog.map((item) => (
-            <TouchableOpacity testID={`chip-routine-catalog-${toTestId(item)}`} key={item} style={styles.chip} onPress={() => addExerciseToBuilder(item)}>
-              <Text style={styles.chipText}>{item}</Text>
+          <TouchableOpacity
+            style={[styles.filterChip, muscleFilter === 'all' ? styles.filterChipActive : null]}
+            onPress={() => setMuscleFilter('all')}
+          >
+            <Text style={[styles.filterChipText, muscleFilter === 'all' ? styles.filterChipTextActive : null]}>Todos</Text>
+          </TouchableOpacity>
+          {safeMuscles.slice(0, 8).map((item) => (
+            <TouchableOpacity
+              key={`muscle-${item}`}
+              style={[styles.filterChip, muscleFilter === item ? styles.filterChipActive : null]}
+              onPress={() => setMuscleFilter(item)}
+            >
+              <Text style={[styles.filterChipText, muscleFilter === item ? styles.filterChipTextActive : null]}>{item.replace(/_/g, ' ')}</Text>
             </TouchableOpacity>
+          ))}
+        </View>
+
+        <Text style={styles.helperText}>Filtrar por equipamento:</Text>
+        <View style={styles.chipsWrap}>
+          <TouchableOpacity
+            style={[styles.filterChip, equipmentFilter === 'all' ? styles.filterChipActive : null]}
+            onPress={() => setEquipmentFilter('all')}
+          >
+            <Text style={[styles.filterChipText, equipmentFilter === 'all' ? styles.filterChipTextActive : null]}>Todos</Text>
+          </TouchableOpacity>
+          {safeEquipments.map((item) => (
+            <TouchableOpacity
+              key={`equipment-${item}`}
+              style={[styles.filterChip, equipmentFilter === item ? styles.filterChipActive : null]}
+              onPress={() => setEquipmentFilter(item)}
+            >
+              <Text style={[styles.filterChipText, equipmentFilter === item ? styles.filterChipTextActive : null]}>{item.replace(/_/g, ' ')}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {filteredCatalog.length === 0 ? <Text style={styles.empty}>Nenhum exercicio encontrado. Tente "leg press" ou "agachamento".</Text> : null}
+        <View style={styles.catalogList}>
+          {filteredCatalog.map((item) => (
+            <View key={item.name} style={styles.catalogCard}>
+              <View style={styles.catalogInfoRow}>
+                {item.thumbnail ? <Image source={{ uri: item.thumbnail }} style={styles.catalogThumb} /> : <View style={styles.catalogThumbFallback} />}
+                <View style={styles.catalogTextWrap}>
+                  <Text style={styles.catalogName}>{item.name}</Text>
+                  <Text style={styles.catalogMeta}>{item.muscle.replace(/_/g, ' ')} · {item.equipment.replace(/_/g, ' ')}</Text>
+                </View>
+              </View>
+              <View style={styles.catalogActions}>
+                <TouchableOpacity testID={`chip-routine-catalog-${toTestId(item.name)}`} style={styles.catalogAddButton} onPress={() => addExerciseToBuilder(item.name)}>
+                  <Text style={styles.catalogAddButtonText}>Adicionar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.catalogDetailButton} onPress={() => openExerciseDetail(item)}>
+                  <Text style={styles.catalogDetailButtonText}>Detalhes</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           ))}
         </View>
 
@@ -302,12 +384,12 @@ export default function RoutinesScreen({ navigation }) {
 
       <AppCard>
         <Text style={styles.cardTitle}>Minhas rotinas</Text>
-        {userRoutines.length === 0 ? <Text style={styles.empty}>Nenhuma rotina salva ainda.</Text> : null}
-        {userRoutines.map((routine) => (
+        {safeUserRoutines.length === 0 ? <Text style={styles.empty}>Nenhuma rotina salva ainda.</Text> : null}
+        {safeUserRoutines.map((routine) => (
           <View testID={`card-routine-${toTestId(routine.name || routine.id)}`} key={routine.id} style={styles.savedRoutineCard}>
             <Text style={styles.savedRoutineTitle}>{routine.name}</Text>
             <Text style={styles.recommendationSub}>{routine.frequency}x por semana</Text>
-            {routine.exercises.map((item, index) => (
+            {(Array.isArray(routine?.exercises) ? routine.exercises : []).map((item, index) => (
               <View key={`${routine.id}-${String(typeof item === 'string' ? item : item?.name)}-${index}`} style={styles.builderRow}>
                 <Text style={styles.line}>• {typeof item === 'string' ? item : item?.name}</Text>
                 <View style={styles.actionsRow}>
@@ -440,6 +522,105 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: 12,
     fontWeight: '700',
+  },
+  filterChip: {
+    borderWidth: 1,
+    borderColor: '#2A3448',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: '#111722',
+  },
+  filterChipActive: {
+    borderColor: '#3D8BFF',
+    backgroundColor: '#11243F',
+  },
+  filterChipText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'capitalize',
+  },
+  filterChipTextActive: {
+    color: '#D7E8FF',
+  },
+  catalogList: {
+    gap: 8,
+    marginBottom: 8,
+  },
+  catalogCard: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    backgroundColor: '#101722',
+    padding: 10,
+    gap: 8,
+  },
+  catalogInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  catalogThumb: {
+    width: 46,
+    height: 46,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: '#0c1118',
+  },
+  catalogThumbFallback: {
+    width: 46,
+    height: 46,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: '#0c1118',
+  },
+  catalogTextWrap: {
+    flex: 1,
+  },
+  catalogName: {
+    color: colors.textPrimary,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  catalogMeta: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    marginTop: 2,
+    fontWeight: '600',
+    textTransform: 'capitalize',
+  },
+  catalogActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  catalogAddButton: {
+    flex: 1,
+    borderRadius: 8,
+    backgroundColor: '#225FA8',
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  catalogAddButtonText: {
+    color: '#E7F2FF',
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  catalogDetailButton: {
+    flex: 1,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: 8,
+    alignItems: 'center',
+    backgroundColor: '#162131',
+  },
+  catalogDetailButtonText: {
+    color: colors.textSecondary,
+    fontWeight: '700',
+    fontSize: 12,
   },
   quickChip: {
     borderWidth: 1,
