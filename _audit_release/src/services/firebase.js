@@ -1,5 +1,6 @@
 import { getApp, getApps, initializeApp } from 'firebase/app';
-import { getAuth, initializeAuth } from 'firebase/auth';
+import { getAuth, getReactNativePersistence, initializeAuth } from 'firebase/auth';
+import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 import { getFirestore } from 'firebase/firestore';
 import { getFunctions } from 'firebase/functions';
 
@@ -38,13 +39,12 @@ function createAuthInstance() {
   }
 
   try {
-    return getAuth(app);
+    return initializeAuth(app, {
+      persistence: getReactNativePersistence(ReactNativeAsyncStorage),
+    });
   } catch {
-    try {
-      return initializeAuth(app);
-    } catch {
-      return null;
-    }
+    // Auth já inicializado, retorna a instância existente
+    return getAuth(app);
   }
 }
 

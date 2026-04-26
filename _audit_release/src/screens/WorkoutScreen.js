@@ -304,6 +304,7 @@ export default function WorkoutScreen({ navigation, route }) {
   }, [user?.id, workout]);
 
   const selectedWorkoutId = String(route?.params?.workoutId || '').trim();
+  const selectedWorkout = selectedWorkoutId ? getUserRoutineById(selectedWorkoutId) : null;
 
   const addExercise = (exercise) => {
     setWorkout(prev => ({
@@ -1737,8 +1738,9 @@ export default function WorkoutScreen({ navigation, route }) {
           scrollEnabled={false}
           keyExtractor={(item, index) => String(item?.id || `${item?.name || 'exercise'}-${index}`)}
           renderItem={({ item: exercise, index: exerciseIndex }) => {
+          try {
           const plannedSets = Number(setCountByExercise[exercise.name] || exercise.sets || 3);
-          const setProgress = getExerciseSetProgress(exercise.name, plannedSets);
+          const setProgress = typeof getExerciseSetProgress === 'function' ? getExerciseSetProgress(exercise.name, plannedSets) : { completedSets: 0, totalSets: plannedSets, nextSet: 1, isDone: false };
           const isActive = exerciseIndex === activeExerciseIndex;
           const todaySets = workoutLogs
             .filter((item) => item.date === todayKey && isSameExerciseLog(item, exercise.name) && (item.mode || 'guided') !== 'free')
@@ -2106,6 +2108,10 @@ export default function WorkoutScreen({ navigation, route }) {
               {!isActive ? <Text style={styles.inactiveHint}>Toque para focar • {setProgress.completedSets}/{setProgress.totalSets} series</Text> : null}
             </TouchableOpacity>
           );
+          } catch (err) {
+            console.error('[WorkoutScreen renderItem crash]', err?.message, err?.stack);
+            return null;
+          }
           }}
         />
 

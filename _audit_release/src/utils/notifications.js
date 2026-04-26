@@ -191,9 +191,9 @@ export async function scheduleCreatineReminder({ hour = 9, minute = 0 } = {}) {
         sound: Platform.OS === 'ios' ? 'default' : undefined,
       },
       trigger: {
+        type: Notifications.SchedulableTriggerInputTypes?.DAILY ?? 'daily',
         hour: normalizedHour,
         minute: normalizedMinute,
-        repeats: true,
       },
     });
 

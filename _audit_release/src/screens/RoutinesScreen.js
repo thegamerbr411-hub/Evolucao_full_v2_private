@@ -35,12 +35,15 @@ function toTestId(value) {
 }
 
 function getConfidenceVisual(confidence) {
-  if (confidence === 'alta') {
-    return '🟢 alta';
+  // confidence pode ser string ('alta','media','baixa') ou número (0.0–1.0)
+  const num = Number(confidence);
+  if (!Number.isNaN(num)) {
+    if (num >= 0.8) return '🟢 alta';
+    if (num >= 0.5) return '🟡 media';
+    return '🔴 baixa';
   }
-  if (confidence === 'media') {
-    return '🟡 media';
-  }
+  if (confidence === 'alta') return '🟢 alta';
+  if (confidence === 'media') return '🟡 media';
   return '🔴 baixa';
 }
 

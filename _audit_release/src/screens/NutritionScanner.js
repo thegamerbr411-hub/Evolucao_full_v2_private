@@ -1,9 +1,10 @@
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { useNotifications } from '../hooks';
 import { useApp } from '../context/AppContext';
 import { SCREENS, trackAppError, trackEvent } from '../utils/analytics';
@@ -75,6 +76,24 @@ export default function NutritionScanner({ navigation, route }) {
   const [lastClosedDayKey, setLastClosedDayKey] = useState('');
   const closeDayCtaSeenRef = useRef('');
   const proteinTargetPerMeal = 30;
+
+  // Reseta estado transitório quando o usuário sai da tela (troca de aba ou navega).
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        setMealDraftItems([]);
+        setQuickMealItems([]);
+        setQuickMealText('');
+        setResult(null);
+        setSelectedFood(null);
+        setMealFeedback('');
+        setManualText('');
+        setPhotoHintText('');
+        setPortionFactor(1);
+        setSearchQuery('');
+      };
+    }, [])
+  );
 
   const showSuccessToast = (message) => {
     if (!message) {
@@ -668,6 +687,10 @@ export default function NutritionScanner({ navigation, route }) {
         foodKey: item.foodKey,
         label: item.label,
         quantity: item.quantity,
+        calories: Math.round(Number(item.calories || 0) * Number(item.quantity || 1)),
+        protein: Math.round(Number(item.protein || 0) * Number(item.quantity || 1)),
+        carbs: Math.round(Number(item.carbs || 0) * Number(item.quantity || 1)),
+        fats: Math.round(Number(item.fats || 0) * Number(item.quantity || 1)),
       })),
       loggedAt,
     });
@@ -730,8 +753,27 @@ export default function NutritionScanner({ navigation, route }) {
     const now = new Date();
     const loggedAt = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
+    const resolvedDraftItems = mealDraftItems.map((item) => {
+      const food = safeSearchFoodCatalog(item.label).find(
+        (entry) =>
+          (item.foodId && entry.id === item.foodId) ||
+          (item.foodKey && entry.key === item.foodKey)
+      ) || getFoodByLabel(item.label);
+      const qty = Number(item.quantity || 1);
+      return {
+        foodId: item.foodId,
+        foodKey: item.foodKey,
+        label: item.label,
+        quantity: qty,
+        calories: Math.round(Number(food?.calories || 0) * qty),
+        protein: Math.round(Number(food?.protein || 0) * qty),
+        carbs: Math.round(Number(food?.carbs || 0) * qty),
+        fats: Math.round(Number(food?.fats || 0) * qty),
+      };
+    });
+
     const result = addFoodLogEntriesBatch({
-      items: mealDraftItems,
+      items: resolvedDraftItems,
       loggedAt,
     });
 
@@ -789,30 +831,6 @@ export default function NutritionScanner({ navigation, route }) {
       prefillCarbs: Math.round(mealDraftTotals.carbs),
       prefillFats: Math.round(mealDraftTotals.fats),
     };
-
-    if (!safeHasFeatureAccess('weekly_macros')) {
-      const paywallPayload = {
-        featureKey: 'weekly_macros',
-        source: paywallTimingVariant === 'B' ? 'post_food_analysis' : 'post_food',
-        message: 'Voce registrou sua refeicao, mas ainda nao sabe se bateu sua meta semanal. Veja isso no PRO.',
-        paywallExperiment: {
-          key: PAYWALL_TIMING_EXPERIMENT_KEY,
-          variant: paywallTimingVariant,
-        },
-      };
-
-      if (paywallTimingVariant === 'B') {
-        navigateWithTracking('AnaliseDia', {
-          ...analysisPayload,
-          postValuePaywall: paywallPayload,
-          paywallExperiment: paywallPayload.paywallExperiment,
-        }, 'post_food_analysis_then_paywall');
-        return;
-      }
-
-      navigateWithTracking('Paywall', paywallPayload, 'post_food_paywall');
-      return;
-    }
 
     navigateWithTracking('AnaliseDia', analysisPayload, 'post_food_day_analysis');
   };

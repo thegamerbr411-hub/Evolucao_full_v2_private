@@ -85,13 +85,25 @@ export default function ProfileScreen({ navigation }) {
   }), [historySummary.trainedDays, historySummary.avgProtein, macroTargets?.protein, plan?.waterLitersPerDay, trainingDays, profile?.trainingDaysPerWeek, userRoutines, goal, level, currentPain]);
 
   const saveProfile = () => {
+    const parsedDays = Math.round(Number(String(trainingDays || '3').replace(',', '.')));
+    if (!parsedDays || parsedDays < 1 || parsedDays > 7) {
+      Alert.alert('Frequencia invalida', 'Informe entre 1 e 7 dias por semana.');
+      return;
+    }
+    const parsedWeight = Number(String(currentWeight || '70').replace(',', '.'));
+    if (!parsedWeight || parsedWeight < 30 || parsedWeight > 300) {
+      Alert.alert('Peso invalido', 'Informe um peso entre 30 e 300 kg.');
+      return;
+    }
+    const parsedTargetWeight = Number(String(targetWeight || '70').replace(',', '.'));
+    const parsedHeight = Number(String(height || '170').replace(',', '.'));
     const result = updateProfileSettings({
       goal,
       level,
-      trainingDaysPerWeek: Number(trainingDays || 3),
-      currentWeight: Number(currentWeight || 0),
-      targetWeight: Number(targetWeight || 0),
-      height: Number(height || 170),
+      trainingDaysPerWeek: parsedDays,
+      currentWeight: parsedWeight,
+      targetWeight: parsedTargetWeight || parsedWeight,
+      height: parsedHeight || 170,
       currentPain,
     });
 
@@ -215,44 +227,45 @@ export default function ProfileScreen({ navigation }) {
         <Text style={styles.metric}>User ID atual: {String(user?.id || 'local')}</Text>
         <Text style={styles.metric}>Role: {String(user?.role || 'user')}</Text>
         <Text style={styles.metric}>Google OAuth: {googleConfigured ? 'configurado' : 'nao configurado'}</Text>
-        <PrimaryButton
-          testID="btn-profile-google-login"
-          title={googleLoading ? 'Conectando Google...' : 'Entrar com Google'}
-          onPress={() => {
-            if (googleLoading || !googleConfigured) {
-              if (!googleConfigured) {
-                Alert.alert('Google nao configurado', 'Defina EXPO_PUBLIC_GOOGLE_CLIENT_ID ou as variaveis EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID, EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID e EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID para login real.');
-              }
-              return;
-            }
-            promptAsync().catch(() => {
-              Alert.alert('Falha no login', 'Nao foi possivel abrir o fluxo do Google.');
-            });
-          }}
-        />
-        <SecondaryButton
-          testID="btn-profile-google-logout"
-          title={logoutLoading ? 'Trocando conta...' : 'Desconectar e usar identidade local'}
-          onPress={async () => {
-            if (logoutLoading) {
-              return;
-            }
+        {googleConfigured ? (
+          <>
+            <PrimaryButton
+              testID="btn-profile-google-login"
+              title={googleLoading ? 'Conectando Google...' : 'Entrar com Google'}
+              onPress={() => {
+                if (googleLoading) return;
+                promptAsync().catch(() => {
+                  Alert.alert('Falha no login', 'Nao foi possivel abrir o fluxo do Google.');
+                });
+              }}
+            />
+            <SecondaryButton
+              testID="btn-profile-google-logout"
+              title={logoutLoading ? 'Trocando conta...' : 'Desconectar e usar identidade local'}
+              onPress={async () => {
+                if (logoutLoading) {
+                  return;
+                }
 
-            setLogoutLoading(true);
-            try {
-              await logoutGoogleSession();
-              const localIdentity = await getOrCreateUserIdentity();
-              await saveUserIdentity({ userId: localIdentity.userId, source: 'local' });
-              setQaRuntimeAuth({ userId: localIdentity.userId });
-              setUser((prev) => ({ ...prev, id: localIdentity.userId, role: 'user' }));
-              Alert.alert('Conta local ativa', 'Sessao Google encerrada neste dispositivo.');
-            } finally {
-              setLogoutLoading(false);
-            }
-          }}
-          style={styles.secondaryButton}
-        />
-        {!request && googleConfigured ? <Text style={styles.metric}>Preparando provedor Google...</Text> : null}
+                setLogoutLoading(true);
+                try {
+                  await logoutGoogleSession();
+                  const localIdentity = await getOrCreateUserIdentity();
+                  await saveUserIdentity({ userId: localIdentity.userId, source: 'local' });
+                  setQaRuntimeAuth({ userId: localIdentity.userId });
+                  setUser((prev) => ({ ...prev, id: localIdentity.userId, role: 'user' }));
+                  Alert.alert('Conta local ativa', 'Sessao Google encerrada neste dispositivo.');
+                } finally {
+                  setLogoutLoading(false);
+                }
+              }}
+              style={styles.secondaryButton}
+            />
+            {!request ? <Text style={styles.metric}>Preparando provedor Google...</Text> : null}
+          </>
+        ) : (
+          <Text style={styles.metric}>Login Google nao disponivel neste build. Configure EXPO_PUBLIC_GOOGLE_CLIENT_ID para habilitar.</Text>
+        )}
       </AppCard>
 
       <AppCard>

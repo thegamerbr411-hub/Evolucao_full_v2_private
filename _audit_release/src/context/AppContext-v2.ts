@@ -518,6 +518,13 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       justification: remaining > 0
         ? `Faltam ${remaining} treino(s) para fechar sua meta semanal.`
         : 'Meta semanal concluida. Mantenha execucao para consolidar progresso.',
+      urgencyMessage: remaining > 2
+        ? 'Voce esta atrasado na semana — vale um treino mais curto hoje.'
+        : remaining === 1
+        ? 'Mais um treino e voce fecha a semana!'
+        : remaining === 0
+        ? 'Meta semanal atingida 🎉'
+        : '',
       trainedThisWeek,
       weeklyTarget,
       isBehindWeek: remaining > 0,
@@ -863,7 +870,13 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       getExerciseHistorySnapshot: () => [],
       getExercisesByMuscleGroup: () => [],
       getFreeWorkoutSuggestions: () => [],
-      getWorkoutTemplates: () => [],
+      getWorkoutTemplates: () => [
+        { key: 'fullBody', name: 'Full Body' },
+        { key: 'upper', name: 'Superior' },
+        { key: 'lower', name: 'Inferior' },
+        { key: 'push', name: 'Push' },
+        { key: 'pull', name: 'Pull' },
+      ],
 
       getUserRoutines: () => (Array.isArray(userRoutines) ? userRoutines : []),
       getUserRoutineById: (id) => (Array.isArray(userRoutines) ? userRoutines : []).find((r) => r.id === id),
@@ -900,10 +913,56 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       startProTrial: subscriptionDomain.startProTrial,
       activateProPlan: subscriptionDomain.activateProPlan,
       addWaterIntake,
-      createRoutineFromTemplate: () => {},
-      saveTodayWorkoutAsRoutine: () => {},
-      reorderUserRoutineExercises: () => {},
-      duplicateUserRoutine: () => {},
+      createRoutineFromTemplate: ({ templateKey, frequency } = {}) => {
+        const templates = {
+          fullBody: { name: 'Full Body', exercises: [{ name: 'Agachamento Livre' }, { name: 'Supino Reto Barra' }, { name: 'Remada Curvada Barra' }] },
+          upper: { name: 'Superior', exercises: [{ name: 'Supino Reto Barra' }, { name: 'Puxada Frontal Polia' }, { name: 'Desenvolvimento Militar Halter' }] },
+          lower: { name: 'Inferior', exercises: [{ name: 'Agachamento Livre' }, { name: 'Leg Press' }, { name: 'Stiff' }] },
+          push: { name: 'Push', exercises: [{ name: 'Supino Reto Barra' }, { name: 'Desenvolvimento Militar Halter' }, { name: 'Triceps Polia' }] },
+          pull: { name: 'Pull', exercises: [{ name: 'Puxada Frontal Polia' }, { name: 'Remada Curvada Barra' }, { name: 'Rosca Direta Barra' }] },
+        };
+        const template = templates[templateKey as string];
+        if (!template) {
+          return { ok: false, message: 'Template nao encontrado.' };
+        }
+        const routine = { id: `routine-${Date.now()}`, name: template.name, exercises: template.exercises };
+        appStore.updateUserRoutines((routines) => [routine, ...(Array.isArray(routines) ? routines : [])]);
+        return { ok: true, routine };
+      },
+      saveTodayWorkoutAsRoutine: ({ name, frequency } = {} as any) => {
+        const todayExercises = getTodayWorkout();
+        if (!todayExercises.length) {
+          return { ok: false, message: 'Nenhum treino definido para hoje.' };
+        }
+        const routine = {
+          id: `routine-${Date.now()}`,
+          name: String(name || 'Minha Rotina'),
+          exercises: todayExercises.map((e: any) => ({ name: e.name, sets: e.sets, reps: e.reps })),
+        };
+        appStore.updateUserRoutines((routines) => [routine, ...(Array.isArray(routines) ? routines : [])]);
+        return { ok: true, routine };
+      },
+      reorderUserRoutineExercises: ({ routineId, from, to } = {} as any) => {
+        appStore.updateUserRoutines((routines) => {
+          const safeRoutines = Array.isArray(routines) ? routines : [];
+          return safeRoutines.map((r) => {
+            if (r.id !== routineId) return r;
+            const exercises = Array.isArray(r.exercises) ? [...r.exercises] : [];
+            const [moved] = exercises.splice(from, 1);
+            exercises.splice(to, 0, moved);
+            return { ...r, exercises };
+          });
+        });
+        return { ok: true };
+      },
+      duplicateUserRoutine: (id: string) => {
+        const safeRoutines = Array.isArray(userRoutines) ? userRoutines : [];
+        const source = safeRoutines.find((r) => r.id === id);
+        if (!source) return { ok: false, message: 'Rotina nao encontrada.' };
+        const copy = { ...source, id: `routine-${Date.now()}`, name: `${source.name} (copia)` };
+        appStore.updateUserRoutines((routines) => [copy, ...(Array.isArray(routines) ? routines : [])]);
+        return { ok: true, routine: copy };
+      },
     }),
     [
       profile,

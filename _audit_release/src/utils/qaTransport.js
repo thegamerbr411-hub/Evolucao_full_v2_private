@@ -1,17 +1,33 @@
 import axios from 'axios';
+import { Platform } from 'react-native';
 
 export const QA_LOCAL_HEADER = 'x-qa-local';
 export const QA_CLIENT_ID_HEADER = 'x-qa-client-id';
 
 const extra = {};
 const DEFAULT_TIMEOUT_MS = 3000;
-const BASE_URL = String(
+
+function normalizeBaseUrl(value) {
+  const raw = String(value || '').trim().replace(/\/$/, '');
+  if (!raw) {
+    return raw;
+  }
+
+  // Emulador Android nao enxerga localhost do host; usa 10.0.2.2
+  if (Platform.OS === 'android') {
+    return raw.replace(/^http:\/\/localhost(?=[:/]|$)/i, 'http://10.0.2.2');
+  }
+
+  return raw;
+}
+
+const BASE_URL = normalizeBaseUrl(
   (typeof process !== 'undefined' ? process?.env?.EXPO_PUBLIC_QA_API_BASE_URL : '')
   || (typeof process !== 'undefined' ? process?.env?.EXPO_PUBLIC_API_BASE_URL : '')
   || extra.qaApiBaseUrl
   || extra.logApiBaseUrl
   || 'https://evolucao-api-dou2.onrender.com'
-).trim().replace(/\/$/, '');
+);
 const DEFAULT_CLIENT_ID = String(
   extra.qaClientId
   || (typeof process !== 'undefined' ? process?.env?.EXPO_PUBLIC_QA_CLIENT_ID : '')
@@ -119,6 +135,7 @@ export function setQaRuntimeAuth(partial = {}) {
 
 export async function postToAvailableQaHost(endpoint, payload, options = {}) {
   const timeout = Number(options.timeoutMs || DEFAULT_TIMEOUT_MS);
+  const silentFailure = Boolean(options.silentFailure);
   const headers = buildQaHeaders(options.headers);
   const url = buildUrl(endpoint);
 
@@ -137,7 +154,9 @@ export async function postToAvailableQaHost(endpoint, payload, options = {}) {
       status: response.status,
     };
   } catch (error) {
-    if (typeof __DEV__ !== 'undefined' && __DEV__) console.log('[API ERROR]', url, String(error?.message || error || 'unknown_error'));
+    if (!silentFailure && typeof __DEV__ !== 'undefined' && __DEV__) {
+      console.log('[API ERROR]', url, String(error?.message || error || 'unknown_error'));
+    }
     return {
       ok: false,
       baseURL: BASE_URL,
@@ -176,7 +195,7 @@ export async function getFromAvailableQaHost(endpoint, options = {}) {
 }
 
 export function fireAndForgetQaPost(endpoint, payload, options = {}) {
-  postToAvailableQaHost(endpoint, payload, options).catch(() => {
+  postToAvailableQaHost(endpoint, payload, { ...options, silentFailure: true }).catch(() => {
     // observabilidade nunca bloqueia o app
   });
 }

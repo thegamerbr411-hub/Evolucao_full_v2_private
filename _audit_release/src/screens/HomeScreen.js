@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   ScrollView,
@@ -90,6 +90,7 @@ export default function HomeScreen({ navigation }) {
   const { nutritionLogs, plan } = useNutritionStore();
   const { getTodayWorkout, getTodayWorkoutSummary, addWaterIntake } = useApp();
   const [waterFeedback, setWaterFeedback] = useState(false);
+  const waterDebounceRef = useRef(null);
 
   const todayKey = useMemo(() => getTodayKey(), []);
 
@@ -117,11 +118,17 @@ export default function HomeScreen({ navigation }) {
     [todayLogs],
   );
 
-  const macroTargets = useMemo(() => ({
-    calories: plan?.caloriesPerDay || 2000,
-    protein: 140,
-    carbs: 220,
-  }), [plan]);
+  const macroTargets = useMemo(() => {
+    const caloriesPerDay = Number(plan?.caloriesPerDay || 2000);
+    // Usa distribuição padrão: 30% proteína, 40% carbo, 30% gordura
+    const protein = Math.round((caloriesPerDay * 0.30) / 4);
+    const carbs = Math.round((caloriesPerDay * 0.40) / 4);
+    return {
+      calories: caloriesPerDay,
+      protein,
+      carbs,
+    };
+  }, [plan]);
 
   const caloriesPct = macroTargets.calories > 0
     ? Math.min(Math.round((todayCalories / macroTargets.calories) * 100), 100)
@@ -286,9 +293,13 @@ export default function HomeScreen({ navigation }) {
             testID="btn-add-agua"
             style={qaStyles.btn}
             onPress={() => {
+              if (waterDebounceRef.current) return;
               try { addWaterIntake?.(300); } catch { /* ignore */ }
               setWaterFeedback(true);
-              setTimeout(() => setWaterFeedback(false), 3000);
+              waterDebounceRef.current = setTimeout(() => {
+                setWaterFeedback(false);
+                waterDebounceRef.current = null;
+              }, 3000);
             }}
           >
             <Text style={[qaStyles.label, { fontSize: 20 }]}>💧</Text>
