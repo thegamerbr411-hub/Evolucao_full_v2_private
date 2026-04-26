@@ -30,6 +30,13 @@ jobs:
       - name: Validate release mirror drift
         run: npm run audit:release:check
 
+      - name: Validate EXPO_TOKEN secret
+        run: |
+          if [ -z "${{ secrets.EXPO_TOKEN }}" ]; then
+            echo "EXPO_TOKEN ausente. Configure em: Settings > Secrets and variables > Actions"
+            exit 1
+          fi
+
       - name: Setup Expo and EAS
         uses: expo/expo-github-action@v8
         with:
@@ -68,5 +75,5 @@ jobs:
             Commit: ${{ github.sha }}
             EAS Build ID: ${{ steps.eas_build.outputs.build_id }}
             EAS Build URL: ${{ steps.eas_build.outputs.build_url }}
-          prerelease: true
+          prerelease: false
           files: ${{ steps.download_apk.outputs.apk_name }}
