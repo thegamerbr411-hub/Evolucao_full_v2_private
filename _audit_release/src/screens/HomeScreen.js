@@ -229,13 +229,15 @@ export default function HomeScreen({ navigation }) {
 
   const macroTargets = useMemo(() => {
     const caloriesPerDay = Number(plan?.caloriesPerDay || 2000);
-    // Usa distribuição padrão: 30% proteína, 40% carbo, 30% gordura
+    // Distribuição padrão: 30% proteína, 40% carbo, 30% gordura
     const protein = Math.round((caloriesPerDay * 0.30) / 4);
     const carbs = Math.round((caloriesPerDay * 0.40) / 4);
+    const fat = Math.round((caloriesPerDay * 0.30) / 9);
     return {
       calories: caloriesPerDay,
       protein,
       carbs,
+      fat,
     };
   }, [plan]);
 
@@ -386,7 +388,7 @@ export default function HomeScreen({ navigation }) {
             <MacroRing
               label="Gor"
               value={Math.round(todayLogs.reduce((a, l) => a + Number(l.fats || 0), 0))}
-              target={Math.round(macroTargets.calories * 0.03)}
+              target={macroTargets.fat}
               color={colors.warning}
             />
           </View>
