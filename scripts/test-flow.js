@@ -56,6 +56,9 @@ async function run() {
         message: 'qa smoke log',
         screen: 'SmokeFlow',
         stack: 'Error: qa smoke',
+        synthetic: true,
+        syntheticTag: 'qa_smoke',
+        syntheticReason: 'qa_validation_signal',
       },
       {
         headers: buildQaHeaders(),

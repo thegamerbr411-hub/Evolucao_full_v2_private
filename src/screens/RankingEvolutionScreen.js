@@ -61,6 +61,18 @@ export default function RankingEvolutionScreen({ navigation }) {
     [ranking, safeUserId]
   );
 
+  const xpRemaining = useMemo(() => {
+    const apiRemaining = Number(myStats?.xpToNextLevel);
+    if (Number.isFinite(apiRemaining) && apiRemaining > 0) {
+      return apiRemaining;
+    }
+
+    const fallback = Number(myStats?.xpNeeded || 0) - Number(myStats?.xpInLevel || 0);
+    return Math.max(0, Number.isFinite(fallback) ? fallback : 0);
+  }, [myStats]);
+
+  const showGoalFallback = xpRemaining <= 0 && Number(myStats?.xp || localGamification?.xp || 0) <= 0;
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <ScreenHeader title="Ranking e Evolucao" subtitle="Suba de liga, acompanhe XP e pressione o topo." />
@@ -71,7 +83,11 @@ export default function RankingEvolutionScreen({ navigation }) {
         <Text style={styles.line}>XP total: {Number(myStats?.xp || localGamification?.xp || 0)}</Text>
         <Text style={styles.line}>Streak: {Number(myStats?.streak || localGamification?.streakDays || 0)} dias</Text>
         <Text style={styles.line}>Liga: {String(myStats?.league || myRow?.league || 'bronze').toUpperCase()}</Text>
-        <Text style={styles.goal}>Faltam {Math.max(0, Number(myStats?.xpNeeded || 0) - Number(myStats?.xpInLevel || 0))} XP para o proximo nivel.</Text>
+        <Text style={styles.goal}>
+          {showGoalFallback
+            ? 'Progresso de nivel em sincronizacao. Continue registrando treinos.'
+            : `Faltam ${xpRemaining} XP para o proximo nivel.`}
+        </Text>
       </AppCard>
 
       <AppCard>

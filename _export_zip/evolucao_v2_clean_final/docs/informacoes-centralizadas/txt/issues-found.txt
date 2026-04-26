@@ -1,6 +1,0 @@
-ISSUES/LIMITACOES ATUAIS
-
-1) Redis/Workers ativos dependem de deploy Render com REDIS_URL provisionado.
-2) URL publica final de producao depende do deploy e dominio atribuido no Render.
-3) E2E attached full suite pode apresentar ruido de cleanup do Detox; cenarios criticos estao estaveis.
-4) Alguns fluxos de retest usam fallback local para ambiente dev quando nao ha URL publica.

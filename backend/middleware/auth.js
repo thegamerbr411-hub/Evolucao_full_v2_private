@@ -30,8 +30,11 @@ export const generateToken = (user) => {
     throw new Error('JWT_SECRET not configured')
   }
 
+  const role = user?.role === 'admin' ? 'admin' : 'user'
+  const isAdmin = Boolean(user?.isAdmin || role === 'admin')
+
   return jwt.sign(
-    { id: user.id, email: user.email, name: user.name },
+    { id: user.id, email: user.email, name: user.name, role, isAdmin },
     SECRET,
     { expiresIn: '7d' }
   )

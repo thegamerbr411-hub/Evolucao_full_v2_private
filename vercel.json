@@ -1,0 +1,39 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "dashboard/server.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "dashboard/server.js"
+    },
+    {
+      "src": "/health",
+      "dest": "dashboard/server.js"
+    },
+    {
+      "src": "/ready",
+      "dest": "dashboard/server.js"
+    },
+    {
+      "src": "/login",
+      "dest": "dashboard/server.js"
+    },
+    {
+      "src": "/token/(.*)",
+      "dest": "dashboard/server.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "dashboard/server.js"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production",
+    "ENABLE_QA_LOCAL_BYPASS": "0"
+  }
+}

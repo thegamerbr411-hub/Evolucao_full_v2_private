@@ -123,12 +123,12 @@ export async function postToAvailableQaHost(endpoint, payload, options = {}) {
   const url = buildUrl(endpoint);
 
   try {
-    console.log('[API]', url, payload);
+    if (typeof __DEV__ !== 'undefined' && __DEV__) console.log('[API]', url, payload);
     const response = await axios.post(url, payload, {
       headers,
       timeout,
     });
-    console.log('[API RESPONSE]', response.data);
+    if (typeof __DEV__ !== 'undefined' && __DEV__) console.log('[API RESPONSE]', response.data);
 
     return {
       ok: true,
@@ -137,7 +137,7 @@ export async function postToAvailableQaHost(endpoint, payload, options = {}) {
       status: response.status,
     };
   } catch (error) {
-    console.log('[API ERROR]', url, String(error?.message || error || 'unknown_error'));
+    if (typeof __DEV__ !== 'undefined' && __DEV__) console.log('[API ERROR]', url, String(error?.message || error || 'unknown_error'));
     return {
       ok: false,
       baseURL: BASE_URL,
@@ -152,12 +152,12 @@ export async function getFromAvailableQaHost(endpoint, options = {}) {
   const url = buildUrl(endpoint);
 
   try {
-    console.log('[API]', url, null);
+    if (typeof __DEV__ !== 'undefined' && __DEV__) console.log('[API]', url, null);
     const response = await axios.get(url, {
       headers,
       timeout,
     });
-    console.log('[API RESPONSE]', response.data);
+    if (typeof __DEV__ !== 'undefined' && __DEV__) console.log('[API RESPONSE]', response.data);
 
     return {
       ok: true,
@@ -166,7 +166,7 @@ export async function getFromAvailableQaHost(endpoint, options = {}) {
       status: response.status,
     };
   } catch (error) {
-    console.log('[API ERROR]', url, String(error?.message || error || 'unknown_error'));
+    if (typeof __DEV__ !== 'undefined' && __DEV__) console.log('[API ERROR]', url, String(error?.message || error || 'unknown_error'));
     return {
       ok: false,
       baseURL: BASE_URL,

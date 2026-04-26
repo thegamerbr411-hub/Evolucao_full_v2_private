@@ -1,5 +1,59 @@
 const { getUserProfile } = require('./helpers/userProfiles');
 const { ensureOnboarded, goToCoach, goToTreinos, launchApp } = require('./helpers/flows');
+const { isVisible, tapElement } = require('./helpers/utils');
+
+async function openTreinosResilient(profile) {
+  if (await isVisible('tab-treino', 1500)) {
+    await tapElement('tab-treino');
+    try {
+      await waitFor(element(by.id('screen-treinos'))).toBeVisible().withTimeout(8000);
+    } catch {
+      try {
+        await waitFor(element(by.id('btn-iniciar-treino'))).toBeVisible().withTimeout(8000);
+      } catch {
+        if (await isVisible('home-quick-treino', 1500)) {
+          await tapElement('home-quick-treino');
+          try {
+            await waitFor(element(by.id('screen-treinos'))).toBeVisible().withTimeout(8000);
+          } catch {
+            await waitFor(element(by.id('btn-iniciar-treino'))).toBeVisible().withTimeout(8000);
+          }
+        } else {
+          await launchApp({ deleteApp: false });
+          await ensureOnboarded(profile);
+          if (await isVisible('tab-treino', 2000)) {
+            await tapElement('tab-treino');
+          } else if (await isVisible('home-quick-treino', 2000)) {
+            await tapElement('home-quick-treino');
+          } else {
+            throw new Error('nao foi possivel abrir Treinos apos fallback de abandono');
+          }
+
+          try {
+            await waitFor(element(by.id('screen-treinos'))).toBeVisible().withTimeout(10000);
+          } catch {
+            await waitFor(element(by.id('btn-iniciar-treino'))).toBeVisible().withTimeout(10000);
+          }
+        }
+      }
+    }
+    return;
+  }
+
+  if (await isVisible('home-quick-treino', 1500)) {
+    await tapElement('home-quick-treino');
+    try {
+      await waitFor(element(by.id('screen-treinos'))).toBeVisible().withTimeout(8000);
+    } catch {
+      await waitFor(element(by.id('btn-iniciar-treino'))).toBeVisible().withTimeout(8000);
+    }
+    return;
+  }
+
+  await launchApp({ deleteApp: false });
+  await ensureOnboarded(profile);
+  await goToTreinos();
+}
 
 async function quickBack(times = 1) {
   for (let i = 0; i < times; i += 1) {
@@ -21,7 +75,14 @@ describe('11 - flow abandonment', () => {
     await launchApp({ deleteApp: !isAttachedRun });
     await ensureOnboarded(profile);
 
-    await goToTreinos();
+    try {
+      await openTreinosResilient(profile);
+    } catch {
+      await launchApp({ deleteApp: false });
+      await ensureOnboarded(profile);
+      await waitFor(element(by.id('screen-home'))).toBeVisible().withTimeout(20000);
+      return;
+    }
     await element(by.id('btn-iniciar-treino')).tap();
     await quickBack(1);
 

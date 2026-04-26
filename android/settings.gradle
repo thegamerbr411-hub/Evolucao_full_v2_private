@@ -22,6 +22,8 @@ plugins {
   id("expo-autolinking-settings")
 }
 
+expoAutolinking.projectRoot = settingsDir.parentFile
+
 extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
   if (System.getenv('EXPO_USE_COMMUNITY_AUTOLINKING') == '1') {
     ex.autolinkLibrariesFromCommand()
@@ -36,6 +38,25 @@ rootProject.name = 'Evolucao'
 expoAutolinking.useExpoVersionCatalog()
 
 include ':app'
-include ':detox'
-project(':detox').projectDir = new File(rootProject.projectDir, '../node_modules/detox/android/detox')
+
+def nitroModulesDir = new File(rootDir, '../node_modules/react-native-nitro-modules/android')
+if (nitroModulesDir.exists()) {
+  include ':react-native-nitro-modules'
+  project(':react-native-nitro-modules').projectDir = nitroModulesDir
+}
+
+// Detox deve ser incluido apenas em debug/test — nunca no build release.
+// Auto-deteccao pelo nome da task (assembleRelease, bundleRelease).
+// Override manual: export DETOX_ENABLED=0 para forcas exclusao.
+def _releaseTaskRequested = gradle.startParameter.taskNames.any { name ->
+    name.toLowerCase().contains('release') && !name.toLowerCase().contains('test')
+}
+def _detoxEnabled = !_releaseTaskRequested && System.getenv('DETOX_ENABLED') != '0'
+gradle.ext.detoxEnabled = _detoxEnabled
+
+if (_detoxEnabled) {
+    include ':detox'
+    project(':detox').projectDir = new File(rootProject.projectDir, '../node_modules/detox/android/detox')
+}
+
 includeBuild(expoAutolinking.reactNativeGradlePlugin)

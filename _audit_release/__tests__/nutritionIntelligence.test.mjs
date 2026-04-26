@@ -10,13 +10,14 @@ test('nutrição inteligente cria alimento por texto livre', () => {
   assert.ok(parsed.totals.protein > 0);
 });
 
-test('parseNutritionLabel extrai macros e fallback quando faltam dados', () => {
+test('parseNutritionLabel extrai macros e sinaliza quando faltam dados', () => {
   const parsed = parseNutritionLabel('calorias 140 carboidratos 12 proteina 15 gorduras totais 3 sodio 95');
   assert.equal(parsed.calories, 140);
   assert.equal(parsed.carbs, 12);
   assert.equal(parsed.protein, 15);
+  assert.equal(parsed.insufficientData, false);
 
-  const fallback = parseNutritionLabel('imagem sem texto claro');
-  assert.ok(fallback.fallback);
-  assert.ok(fallback.calories > 0);
+  const lowData = parseNutritionLabel('imagem sem texto claro');
+  assert.equal(lowData.fallback, false);
+  assert.equal(lowData.insufficientData, true);
 });

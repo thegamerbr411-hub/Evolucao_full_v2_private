@@ -2,6 +2,12 @@ const path = require('path');
 const fs = require('fs');
 const { execFileSync } = require('child_process');
 
+const DETOX_STAGE_DIR = process.env.DETOX_APK_STAGE_DIR
+  || (process.platform === 'win32' ? 'C:\\detox-bin' : '/tmp/detox-bin');
+if (!fs.existsSync(DETOX_STAGE_DIR)) {
+  fs.mkdirSync(DETOX_STAGE_DIR, { recursive: true });
+}
+
 const inferredSdkRoot = path.join(process.env.LOCALAPPDATA || '', 'Android', 'Sdk');
 if (!process.env.ANDROID_SDK_ROOT && fs.existsSync(inferredSdkRoot)) {
   process.env.ANDROID_SDK_ROOT = inferredSdkRoot;
@@ -38,13 +44,23 @@ function getFirstAttachedDevice() {
   }
 }
 
-const androidDebugBinary = path.join('android', 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk');
-const androidTestBinary = path.join('android', 'app', 'build', 'outputs', 'apk', 'androidTest', 'debug', 'app-debug-androidTest.apk');
+const androidDebugBinary = path.join(DETOX_STAGE_DIR, 'app-debug.apk');
+const androidTestBinary = path.join(DETOX_STAGE_DIR, 'app-debug-androidTest.apk');
+const androidReleaseBinary = path.join(DETOX_STAGE_DIR, 'app-release.apk');
+const androidReleaseTestBinary = path.join(DETOX_STAGE_DIR, 'app-release-androidTest.apk');
 const jestBinary = process.platform === 'win32'
   ? path.join('node_modules', '.bin', 'jest.cmd')
   : path.join('node_modules', '.bin', 'jest');
 
 module.exports = {
+  behavior: {
+    init: {
+      exposeGlobals: true,
+    },
+    cleanup: {
+      shutdownDevice: false,
+    },
+  },
   testRunner: {
     args: {
       $0: jestBinary,
@@ -59,13 +75,13 @@ module.exports = {
       type: 'android.apk',
       binaryPath: androidDebugBinary,
       testBinaryPath: androidTestBinary,
-      build: 'cd android && gradlew.bat assembleDebug assembleAndroidTest -DtestBuildType=debug',
+      build: 'cd android && gradlew.bat assembleDebug assembleAndroidTest -DtestBuildType=debug && node ..\\scripts\\stage-detox-apks.js --configuration=debug',
     },
     'android.release': {
       type: 'android.apk',
-      binaryPath: 'android/app/build/outputs/apk/release/app-release.apk',
-      testBinaryPath: 'android/app/build/outputs/apk/androidTest/release/app-release-androidTest.apk',
-      build: 'cd android && gradlew.bat assembleRelease assembleAndroidTest -DtestBuildType=release',
+      binaryPath: androidReleaseBinary,
+      testBinaryPath: androidReleaseTestBinary,
+      build: 'cd android && gradlew.bat assembleRelease assembleAndroidTest -DtestBuildType=release && node ..\\scripts\\stage-detox-apks.js --configuration=release',
     },
   },
   devices: {
@@ -73,7 +89,7 @@ module.exports = {
       type: 'android.emulator',
       device: {
         // Prefer available AVDs used in this workspace; can still be overridden via DETOX_AVD_NAME.
-        avdName: process.env.DETOX_AVD_NAME || 'Detox_API_34',
+        avdName: process.env.DETOX_AVD_NAME || 'Detox_Stable_34',
       },
     },
     attached: {
@@ -107,7 +123,7 @@ module.exports = {
       },
       screenshot: {
         shouldTakeAutomaticSnapshots: true,
-        keepOnlyFailedTestsArtifacts: true,
+        keepOnlyFailedTestsArtifacts: false,
       },
       video: {
         enabled: false,

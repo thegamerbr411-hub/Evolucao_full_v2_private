@@ -17,12 +17,16 @@ function scoreColor(score) {
 }
 
 export default function WeeklyInsightScreen() {
-  const { getWeeklySummary, getWeeklyInsight, getAutoAdjustmentSuggestion, applyAutoPlanAdjustment } = useApp();
+  const { getWeeklySummary, getWeeklyInsight, getAutoAdjustmentSuggestion, applyAutoPlanAdjustment, getRecentHistory } = useApp();
   const [applyMessage, setApplyMessage] = useState('');
 
   const summary = useMemo(() => getWeeklySummary(), [getWeeklySummary]);
   const insight = useMemo(() => getWeeklyInsight(), [getWeeklyInsight]);
   const adjustment = useMemo(() => getAutoAdjustmentSuggestion(), [getAutoAdjustmentSuggestion, insight]);
+  const outOfTargetDays = useMemo(() => {
+    const recent = typeof getRecentHistory === 'function' ? getRecentHistory() : [];
+    return recent.filter((item) => item.trained && item.status !== 'ok' && item.status !== 'indefinido').length;
+  }, [getRecentHistory]);
 
   const handleApply = () => {
     const result = applyAutoPlanAdjustment();
@@ -51,9 +55,9 @@ export default function WeeklyInsightScreen() {
 
       <AppCard>
         <Text style={styles.sectionTitle}>Resumo objetivo</Text>
-        <Text style={styles.line}>Media calorica: {summary.averageCalories || 0} kcal</Text>
+        <Text style={styles.line}>Media calorica: {summary.avgCals || 0} kcal</Text>
         <Text style={styles.line}>Dias treinados: {summary.trainedDays || 0}</Text>
-        <Text style={styles.line}>Dias fora da meta: {summary.outOfTargetDays || 0}</Text>
+        <Text style={styles.line}>Dias fora da meta: {outOfTargetDays}</Text>
       </AppCard>
 
       <AppCard>

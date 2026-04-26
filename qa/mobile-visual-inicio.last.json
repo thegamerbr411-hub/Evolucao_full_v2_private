@@ -1,0 +1,34 @@
+{
+  "phase": "inicio",
+  "completedAt": "2026-04-17T09:44:03.528Z",
+  "screenshots": [
+    "inicio-home-ready",
+    "audit-inicio-home-top",
+    "audit-inicio-home-mid",
+    "audit-inicio-home-end",
+    "audit-inicio-treino-top",
+    "audit-inicio-treino-mid",
+    "audit-inicio-treino-end",
+    "audit-inicio-nutricao-top",
+    "audit-inicio-nutricao-mid",
+    "audit-inicio-nutricao-end",
+    "audit-inicio-coach-top",
+    "audit-inicio-coach-mid",
+    "audit-inicio-coach-end",
+    "audit-inicio-social-top",
+    "audit-inicio-social-mid",
+    "audit-inicio-social-end",
+    "audit-inicio-perfil-top",
+    "audit-inicio-perfil-mid",
+    "audit-inicio-perfil-end"
+  ],
+  "workflow": [
+    "first-screen:questionnaire-screen",
+    "audit-inicio-home:ok",
+    "audit-inicio-treino:ok",
+    "audit-inicio-nutricao:ok",
+    "audit-inicio-coach:ok",
+    "audit-inicio-social:ok",
+    "audit-inicio-perfil:ok"
+  ]
+}

@@ -43,8 +43,26 @@ function readStore() {
 function writeStore(store) {
   ensureArtifactsDir();
   const tempPath = `${SOCIAL_STORE_FILE}.tmp`;
-  fs.writeFileSync(tempPath, JSON.stringify(store, null, 2), 'utf-8');
-  fs.renameSync(tempPath, SOCIAL_STORE_FILE);
+  const payload = JSON.stringify(store, null, 2);
+  fs.writeFileSync(tempPath, payload, 'utf-8');
+
+  try {
+    fs.renameSync(tempPath, SOCIAL_STORE_FILE);
+  } catch (error) {
+    if (error && ['EPERM', 'EACCES', 'EBUSY', 'EXDEV'].includes(error.code)) {
+      fs.writeFileSync(SOCIAL_STORE_FILE, payload, 'utf-8');
+    } else {
+      throw error;
+    }
+  } finally {
+    if (fs.existsSync(tempPath)) {
+      try {
+        fs.unlinkSync(tempPath);
+      } catch {
+        // Best-effort cleanup.
+      }
+    }
+  }
 }
 
 function toDateKey(input = null) {
@@ -128,14 +146,21 @@ function addFriend(userId, friendUserId) {
     ensureUserFriends(store, safeFriendId);
 
     const hasFriend = store.friends[safeUserId].some((item) => item.friendId === safeFriendId);
-    if (!hasFriend) {
-      store.friends[safeUserId].push({
-        friendId: safeFriendId,
-        lastComparedAt: null,
-        lastFriendXp: 0,
-        lastUserXp: 0,
-      });
+    if (hasFriend) {
+      return {
+        ok: true,
+        alreadyAdded: true,
+        userId: safeUserId,
+        friendUserId: safeFriendId,
+      };
     }
+
+    store.friends[safeUserId].push({
+      friendId: safeFriendId,
+      lastComparedAt: null,
+      lastFriendXp: 0,
+      lastUserXp: 0,
+    });
 
     const hasReverseFriend = store.friends[safeFriendId].some((item) => item.friendId === safeUserId);
     if (!hasReverseFriend) {

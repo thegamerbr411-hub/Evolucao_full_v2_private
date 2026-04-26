@@ -1,5 +1,6 @@
 import { getCanonicalMuscleGroup } from '../../data/exerciseDatabase.js';
 import { getExerciseById } from '../../data/exerciseDatabase.js';
+import { listExerciseNames } from '../../data/exercises.js';
 
 export function getWeekBounds(dateKey) {
   const base = new Date(`${dateKey}T12:00:00`);
@@ -337,3 +338,160 @@ export function getNextWeightSuggestion({
     reason: shouldReduce ? 'Falhas recentes' : shouldIncrease ? 'Top reps atingido' : 'Manter para consolidar',
   };
 }
+
+export const WORKOUT_LIBRARY = {
+  fullBody: [
+    { name: 'Agachamento Livre', sets: 4, reps: '6-10' },
+    { name: 'Supino Reto Barra', sets: 4, reps: '6-10' },
+    { name: 'Remada Curvada Barra', sets: 3, reps: '8-12' },
+  ],
+  upper: [
+    { name: 'Supino Reto Barra', sets: 4, reps: '6-10' },
+    { name: 'Puxada Frontal Polia', sets: 4, reps: '8-12' },
+    { name: 'Desenvolvimento Militar Halter', sets: 3, reps: '8-12' },
+  ],
+  lower: [
+    { name: 'Agachamento Livre', sets: 4, reps: '6-10' },
+    { name: 'Leg Press', sets: 4, reps: '10-12' },
+    { name: 'Stiff', sets: 3, reps: '8-12' },
+  ],
+  push: [
+    { name: 'Supino Reto Barra', sets: 4, reps: '6-10' },
+    { name: 'Supino Inclinado Halter', sets: 3, reps: '8-12' },
+    { name: 'Triceps Testa Barra EZ', sets: 3, reps: '10-12' },
+  ],
+  pull: [
+    { name: 'Puxada Frontal Polia', sets: 4, reps: '8-12' },
+    { name: 'Remada Curvada Barra', sets: 4, reps: '8-12' },
+    { name: 'Rosca Direta Barra', sets: 3, reps: '10-12' },
+  ],
+  legs: [
+    { name: 'Agachamento Livre', sets: 4, reps: '6-10' },
+    { name: 'Levantamento Terra Romeno', sets: 4, reps: '8-10' },
+    { name: 'Panturrilha em Pe', sets: 4, reps: '12-20' },
+  ],
+};
+
+export const buildWeeklyUrgency = ({ trainedDays = 0, weeklyTarget = 3 } = {}) => {
+  const remaining = Math.max(0, Number(weeklyTarget || 3) - Number(trainedDays || 0));
+  if (remaining >= 3) return 'alta';
+  if (remaining >= 2) return 'media';
+  return remaining >= 1 ? 'baixa' : 'ok';
+};
+
+export const getTodayWorkoutUseCase = ({
+  workoutLogs = [],
+  weeklyTarget = 3,
+  trainingSplit,
+  pain = '',
+  todayKey,
+}) => getRecommendedWorkout({
+  workoutLogs,
+  weeklyTarget,
+  pain,
+  library: WORKOUT_LIBRARY,
+  catalog: getExerciseCatalogFromSources(),
+  todayKey,
+  trainingSplit,
+});
+
+export const getWorkoutBySplit = (split = '') => {
+  const value = normalize(split);
+  if (value.includes('superior') || value.includes('inferior')) return [...WORKOUT_LIBRARY.upper, ...WORKOUT_LIBRARY.lower];
+  if (value.includes('push') || value.includes('pull') || value.includes('legs')) return [...WORKOUT_LIBRARY.push, ...WORKOUT_LIBRARY.pull, ...WORKOUT_LIBRARY.legs];
+  if (value.includes('full')) return WORKOUT_LIBRARY.fullBody;
+  return WORKOUT_LIBRARY.fullBody;
+};
+
+export const getExerciseCatalogFromSources = () => {
+  const names = Object.values(WORKOUT_LIBRARY)
+    .flat()
+    .map((item) => item?.name)
+    .filter(Boolean);
+
+  const premium = listExerciseNames();
+  return Array.from(new Set([...premium, ...names]));
+};
+
+export const getWeeklyMacroSummary = (history = []) => {
+  const safe = Array.isArray(history) ? history : [];
+  if (!safe.length) return { avgProtein: 0, avgCalories: 0, days: 0 };
+  const total = safe.reduce((acc, item) => ({
+    protein: acc.protein + Number(item?.protein || 0),
+    calories: acc.calories + Number(item?.calories || 0),
+  }), { protein: 0, calories: 0 });
+  return {
+    avgProtein: Math.round(total.protein / safe.length),
+    avgCalories: Math.round(total.calories / safe.length),
+    days: safe.length,
+  };
+};
+
+export const getRecoveryInsightUseCase = (logs = []) => {
+  const recent = Array.isArray(logs) ? logs.slice(0, 7) : [];
+  const trained = recent.filter((item) => item?.trained || item?.completed).length;
+  return {
+    recoveryScore: Math.max(0, 100 - trained * 8),
+    recommendation: trained >= 5 ? 'priorize recuperacao ativa' : 'recuperacao adequada',
+  };
+};
+
+export const normalizeExerciseLabel = (value = '') => normalize(value).replace(/\s+/g, ' ').trim();
+
+export const resolveExerciseIdentity = (exerciseName = '', exerciseId = '') => ({
+  exerciseId: String(exerciseId || '').trim(),
+  normalizedName: normalizeExerciseLabel(exerciseName),
+});
+
+export const matchesExerciseLog = (log = {}, identity = {}) => {
+  if (!log || !identity) return false;
+  if (identity.exerciseId && String(log.exerciseId || '') === identity.exerciseId) return true;
+  return normalizeExerciseLabel(log.exerciseName || '') === identity.normalizedName;
+};
+
+export const filterLogsByExercise = (logs = [], identity = {}) =>
+  (Array.isArray(logs) ? logs : []).filter((item) => matchesExerciseLog(item, identity));
+
+export const isLowerBodyExercise = (exerciseName = '') => inferMuscleGroup(exerciseName) === 'perna';
+
+export const parseRepRange = (repRange = '8-12') => {
+  const [minRaw, maxRaw] = String(repRange).split('-');
+  const min = Number(minRaw || 8);
+  const max = Number(maxRaw || min || 12);
+  return { min, max };
+};
+
+export const getProgressionStep = (exerciseName = '') => (isLowerBodyExercise(exerciseName) ? 5 : 2.5);
+
+export const getExerciseTemplate = (exerciseName = '') =>
+  getExerciseCatalogFromSources().includes(exerciseName)
+    ? { name: exerciseName, sets: 3, reps: '8-12' }
+    : { name: exerciseName || 'Exercicio', sets: 3, reps: '8-12' };
+
+export const getDefaultStartingWeight = (exerciseName = '', level = 'iniciante') => {
+  const base = isLowerBodyExercise(exerciseName) ? 40 : 20;
+  if (String(level) === 'avancado') return base + 20;
+  if (String(level) === 'intermediario') return base + 10;
+  return base;
+};
+
+export const buildConfidence = ({ logsCount = 0, hasTemplate = false } = {}) => {
+  if (logsCount >= 5) return 0.95;
+  if (logsCount >= 2 || hasTemplate) return 0.8;
+  return 0.6;
+};
+
+export const detectPainFromDescription = (description = '') => {
+  const value = normalize(description);
+  if (value.includes('ombro')) return 'ombro';
+  if (value.includes('joelho')) return 'joelho';
+  if (value.includes('lombar') || value.includes('coluna')) return 'lombar';
+  return '';
+};
+
+export { inferMuscleGroup };
+
+export const resolveRoutineExerciseName = (exercise = {}) =>
+  String(exercise?.name || exercise?.nome || exercise || '').trim();
+
+export const buildRoutineId = (name = '', index = 0) => `${sanitizeIdToken(name || 'rotina')}-${Number(index || 0) + 1}`;

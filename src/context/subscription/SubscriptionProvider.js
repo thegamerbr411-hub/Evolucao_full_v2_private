@@ -8,6 +8,7 @@ import {
   withActivatedProPlan,
   withStartedProTrial,
 } from './subscriptionService';
+import api from '../../services/api';
 
 const SubscriptionContext = createContext(null);
 const SUBSCRIPTION_STORAGE_KEY = 'evolucao.subscription.v1';
@@ -61,12 +62,34 @@ export function SubscriptionProvider({ children }) {
     [monetization]
   );
 
-  const startProTrial = useCallback(() => {
+  const startProTrial = useCallback(async () => {
+    try {
+      const response = await api.post('/api/subscription/activate', { type: 'trial' });
+      if (!response?.data?.ok) {
+        console.warn('[SUBSCRIPTION] Backend recusou ativacao de trial.');
+        return { ok: false };
+      }
+    } catch (error) {
+      console.warn('[SUBSCRIPTION] Backend indisponivel para trial — bloqueado.', error?.message);
+      return { ok: false };
+    }
     setMonetization((prev) => withStartedProTrial(prev));
+    return { ok: true };
   }, []);
 
-  const activateProPlan = useCallback(() => {
+  const activateProPlan = useCallback(async () => {
+    try {
+      const response = await api.post('/api/subscription/activate', { type: 'pro' });
+      if (!response?.data?.ok) {
+        console.warn('[SUBSCRIPTION] Backend recusou ativacao PRO.');
+        return { ok: false };
+      }
+    } catch (error) {
+      console.warn('[SUBSCRIPTION] Backend indisponivel para PRO — bloqueado.', error?.message);
+      return { ok: false };
+    }
     setMonetization((prev) => withActivatedProPlan(prev));
+    return { ok: true };
   }, []);
 
   const resetSubscription = useCallback(() => {

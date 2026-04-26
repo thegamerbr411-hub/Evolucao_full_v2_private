@@ -27,6 +27,21 @@ function resolveExperimentVariant(seed = '') {
   return acc % 2 === 0 ? 'A' : 'B';
 }
 
+function formatQuantityLabel(quantity = 1, unit = 'x') {
+  const safeQty = Number(quantity || 1);
+  const safeUnit = String(unit || 'x').toLowerCase();
+
+  if (safeUnit === 'g' || safeUnit === 'ml') {
+    return `${safeQty}${safeUnit}`;
+  }
+
+  if (safeUnit === 'un' || safeUnit === 'unid' || safeUnit === 'unidade') {
+    return `${safeQty}un`;
+  }
+
+  return `${safeQty}x`;
+}
+
 export default function NutritionScanner({ navigation, route }) {
   const {
     estimateNutritionFromText,
@@ -577,6 +592,15 @@ export default function NutritionScanner({ navigation, route }) {
       ocrText: normalizedHint,
     });
 
+    if (parsedLabel.insufficientData) {
+      setResult({
+        ok: false,
+        source: 'photo_ocr',
+        message: 'Nao consegui ler dados suficientes da tabela. Envie mais texto da tabela (kcal, carboidratos, proteina e gorduras) para estimativa confiavel.',
+      });
+      return;
+    }
+
     const factor = Number(portionFactor || 1);
     const totals = {
       calories: Math.round(Number(parsedLabel.calories || 0) * factor),
@@ -585,9 +609,13 @@ export default function NutritionScanner({ navigation, route }) {
       fats: Math.round(Number(parsedLabel.fat || 0) * factor),
     };
 
-    const message = parsedLabel.fallback
-      ? 'OCR parcial: aplicamos fallback inteligente para salvar sem bloquear.'
-      : 'Tabela nutricional lida com sucesso.';
+    const confidenceLabel = parsedLabel.confidence === 'high'
+      ? 'alta'
+      : parsedLabel.confidence === 'medium'
+      ? 'media'
+      : 'baixa';
+
+    const message = `Tabela nutricional lida com confianca ${confidenceLabel}.`; 
 
     setResult({
       ok: true,
@@ -595,7 +623,7 @@ export default function NutritionScanner({ navigation, route }) {
       totals,
       items: [
         {
-          label: normalizedHint || 'Alimento escaneado',
+          label: parsedLabel.productName || normalizedHint || 'Alimento escaneado',
           quantity: 1,
         },
       ],
@@ -1153,7 +1181,7 @@ export default function NutritionScanner({ navigation, route }) {
                   }
                 }}
               >
-                <Text style={styles.chipActionText}>+ {item.label} ({item.quantity || 1}x)</Text>
+                <Text style={styles.chipActionText}>+ {item.label} ({formatQuantityLabel(item.quantity || 1, item.quantityUnit)})</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -1191,7 +1219,7 @@ export default function NutritionScanner({ navigation, route }) {
                   }
                 }}
               >
-                <Text style={styles.chipActionText}>+ {item.label} ({item.quantity || 1}x)</Text>
+                <Text style={styles.chipActionText}>+ {item.label} ({formatQuantityLabel(item.quantity || 1, item.quantityUnit)})</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -1213,7 +1241,7 @@ export default function NutritionScanner({ navigation, route }) {
               <Text style={styles.resultLine}>Carbo: {result.totals.carbs} g ({getMacroStatus(result.totals).carbs})</Text>
               <Text style={styles.resultLine}>Gordura: {result.totals.fats} g ({getMacroStatus(result.totals).fats})</Text>
               <Text style={styles.coachLine}>
-                Meta por refeicao: ~{proteinTargetPerMeal}g proteina -> {result.totals.protein >= proteinTargetPerMeal ? 'faixa boa' : 'abaixo do ideal'}
+                Meta por refeicao: ~{proteinTargetPerMeal}g proteina | {result.totals.protein >= proteinTargetPerMeal ? 'faixa boa' : 'abaixo do ideal'}
               </Text>
               <Text style={styles.coachLine}>Dica: use o catalogo acima para salvar no diario com horario.</Text>
             </>

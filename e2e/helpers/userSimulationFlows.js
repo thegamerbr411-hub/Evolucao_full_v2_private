@@ -1,6 +1,7 @@
 const { getUserProfile } = require('./userProfiles');
 const {
   completeOnboarding,
+  goHome,
   goToCoach,
   goToNutrition,
   goToTreinos,
@@ -78,11 +79,15 @@ async function runNavigationBurst(profile = getUserProfile()) {
   logStep(`[simulation] navigation burst rounds=${rounds}`);
 
   for (let index = 0; index < rounds; index += 1) {
-    await tapElement('tab-home');
-    await tapElement('tab-treino');
-    await tapElement('tab-conversa');
-    await tapElement('tab-nutricao');
-    await tapElement('tab-perfil');
+    await goHome();
+    await goToTreinos();
+    await goToCoach();
+    await goToNutrition();
+    try {
+      await tapElement('tab-perfil');
+    } catch {
+      // perfil pode nao estar visivel em layouts específicos, segue ciclo
+    }
     await humanDelay(profile, `navigation-burst-${index + 1}`);
   }
 

@@ -11,6 +11,7 @@ try {
 }
 
 const NOTIFICATION_STATE_KEY = 'evolucao.notifications.state.v1';
+const CREATINE_REMINDER_ID_KEY = 'evolucao.notifications.creatine.id.v1';
 const MAX_NOTIFICATIONS_PER_DAY = 2;
 
 let handlerConfigured = false;
@@ -155,4 +156,76 @@ export async function sendIntelligentNotification({
   await saveNotificationState(nextState);
 
   return { ok: true };
+}
+
+export async function scheduleCreatineReminder({ hour = 9, minute = 0 } = {}) {
+  if (!Notifications) {
+    return { ok: false, reason: 'notifications_module_unavailable' };
+  }
+
+  const normalizedHour = Math.min(23, Math.max(0, Number(hour || 9)));
+  const normalizedMinute = Math.min(59, Math.max(0, Number(minute || 0)));
+
+  const permission = await initializeNotifications();
+  if (!permission?.granted) {
+    return { ok: false, reason: permission?.reason || 'no_permission' };
+  }
+
+  const previousId = await AsyncStorage.getItem(CREATINE_REMINDER_ID_KEY).catch(() => null);
+  if (previousId) {
+    try {
+      await Notifications.cancelScheduledNotificationAsync(previousId);
+    } catch {
+      // Se o id antigo nao existir, segue com novo agendamento.
+    }
+  }
+
+  try {
+    const notificationId = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Hora da creatina',
+        body: 'Lembrete diario: tome sua creatina e mantenha consistencia.',
+        data: {
+          type: 'creatine_reminder',
+        },
+        sound: Platform.OS === 'ios' ? 'default' : undefined,
+      },
+      trigger: {
+        hour: normalizedHour,
+        minute: normalizedMinute,
+        repeats: true,
+      },
+    });
+
+    await AsyncStorage.setItem(CREATINE_REMINDER_ID_KEY, String(notificationId));
+
+    return {
+      ok: true,
+      notificationId,
+      hour: normalizedHour,
+      minute: normalizedMinute,
+    };
+  } catch {
+    return { ok: false, reason: 'schedule_failed' };
+  }
+}
+
+export async function cancelCreatineReminder() {
+  if (!Notifications) {
+    return { ok: false, reason: 'notifications_module_unavailable' };
+  }
+
+  const previousId = await AsyncStorage.getItem(CREATINE_REMINDER_ID_KEY).catch(() => null);
+  if (!previousId) {
+    return { ok: true, alreadyDisabled: true };
+  }
+
+  try {
+    await Notifications.cancelScheduledNotificationAsync(previousId);
+  } catch {
+    // Mantem retorno ok para evitar quebrar UX em inconsistencias de id.
+  }
+
+  await AsyncStorage.removeItem(CREATINE_REMINDER_ID_KEY).catch(() => {});
+  return { ok: true, alreadyDisabled: false };
 }

@@ -17,6 +17,12 @@ import { Swipeable } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNotifications, useNutrition, useWorkout } from '../hooks';
+import { updateStreak } from '../utils/streak';
+import { suggestNextWeight } from '../utils/suggestNextWeight';
+import { calcEvolution } from '../utils/calcEvolution';
+import { scheduleStreakPush } from '../utils/push';
+import StreakBar from '../components/StreakBar';
+import QuickExerciseRegister from '../components/QuickExerciseRegister';
 import { useApp } from '../context/AppContext';
 import { getCanonicalExerciseId, getCanonicalMuscleGroup } from '../data/exerciseDatabase';
 import { EXERCISE_NAMES_V2, getExerciseMetaByName } from '../data/exerciseLibraryV2';
@@ -298,6 +304,7 @@ export default function WorkoutScreen({ navigation, route }) {
   }, [user?.id, workout]);
 
   const selectedWorkoutId = String(route?.params?.workoutId || '').trim();
+  const selectedWorkout = selectedWorkoutId ? getUserRoutineById(selectedWorkoutId) : null;
 
   const addExercise = (exercise) => {
     setWorkout(prev => ({
@@ -311,6 +318,11 @@ export default function WorkoutScreen({ navigation, route }) {
       ]
     }));
   };
+
+  const openExerciseDetail = useCallback((exerciseName) => {
+    const detail = getExerciseMetaByName(exerciseName) || { name: exerciseName };
+    navigateWithTracking('ExerciseDetail', { exercise: detail }, 'open_exercise_detail');
+  }, [navigateWithTracking]);
 
   const updateSet = useCallback((exerciseIndex, setIndex, field, value) => {
     setWorkout((prev) => {
@@ -506,13 +518,18 @@ export default function WorkoutScreen({ navigation, route }) {
     }
 
     const safeRoutine = selectedRoutine.exercises
-      .map((item, index) => ({
-        id: String(item?.canonicalId || `${selectedRoutine.id}-exercise-${index + 1}`),
-        name: String(item?.name || '').trim(),
-        sets: Math.max(1, Number(item?.sets || 3)),
-        reps: String(item?.reps || '8-12'),
-        targetWeight: Number(item?.targetWeight || 0),
-      }))
+      .map((item, index) => {
+        const rawName = typeof item === 'string' ? item : item?.name;
+        const name = String(rawName || '').trim();
+
+        return {
+          id: String((typeof item === 'object' && item?.canonicalId) || `${selectedRoutine.id}-exercise-${index + 1}`),
+          name,
+          sets: Math.max(1, Number((typeof item === 'object' && item?.sets) || 3)),
+          reps: String((typeof item === 'object' && item?.reps) || '8-12'),
+          targetWeight: Number((typeof item === 'object' && item?.targetWeight) || 0),
+        };
+      })
       .filter((item) => item.name);
 
     if (!safeRoutine.length) {
@@ -1403,6 +1420,19 @@ export default function WorkoutScreen({ navigation, route }) {
 
     const delta = getWorkoutDelta(currentWorkout, previousWorkout);
 
+    // Atualiza streak no Firebase
+    let streak = 1;
+    let lastWorkout = todayKey;
+    if (user?.id) {
+      streak = await updateStreak(user.id);
+      lastWorkout = todayKey;
+    }
+
+    // Calcula evolução percentual
+    const prevWeight = previousLogs.length ? previousLogs.reduce((acc, item) => acc + (item.weight || 0), 0) / previousLogs.length : 0;
+    const currWeight = todaySessionLogs.length ? todaySessionLogs.reduce((acc, item) => acc + (item.weight || 0), 0) / todaySessionLogs.length : 0;
+    const evolution = calcEvolution(prevWeight, currWeight);
+
     try {
       trackEvent('workout_finish_manual', { guidedSets: todaySets, plannedSets: summary.plannedSets });
       trackEvent('workout_completed', {
@@ -1496,8 +1526,23 @@ export default function WorkoutScreen({ navigation, route }) {
         sessionDurationMinutes,
         volumeChangePct,
         sessionXp,
+        streak,
+        evolution,
+        prevWeight: Math.round(prevWeight),
+        currWeight: Math.round(currWeight),
       });
       setShowWorkoutSummary(true);
+
+      // Push inteligente
+      scheduleStreakPush(streak, lastWorkout);
+
+      // Navega para tela de pós-treino
+      navigation.navigate('WorkoutCompleteScreen', {
+        streak,
+        evolution,
+        prevWeight: Math.round(prevWeight),
+        currWeight: Math.round(currWeight),
+      });
     } catch (error) {
       logQaError(error, {
         action: 'finishWorkout',
@@ -1523,9 +1568,11 @@ export default function WorkoutScreen({ navigation, route }) {
   };
 
   const savePartialAndExit = () => {
+    setRestRunning(false);
+    setRestEndAt(null);
     const todaySets = workoutLogs.filter((item) => item.date === todayKey && (item.mode || 'guided') !== 'free').length;
     trackEvent('workout_partial_saved', { guidedSets: todaySets, plannedSets: summary.plannedSets });
-    navigation.goBack();
+    navigation.navigate('MainTabs', { screen: 'Treino' });
   };
 
   if (!allExercises.length) {
@@ -1537,11 +1584,13 @@ export default function WorkoutScreen({ navigation, route }) {
     );
   }
 
+  // Streak visual no topo
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={{ flex: 1 }}
     >
+      <StreakBar streak={workoutSummary?.streak || 1} />
       {saveSuccessVisible ? (
         <View testID="serie-salva-indicator" style={styles.savedFixedIndicator}>
           <Text style={styles.savedBannerText}>Serie salva</Text>
@@ -1572,7 +1621,28 @@ export default function WorkoutScreen({ navigation, route }) {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
       >
+
         <ScreenHeader title="Treino de hoje" subtitle="Fluxo rapido: preencher e salvar serie." />
+
+        {/* Registro rápido de exercício (UX 1 clique) */}
+        {activeExercise && (
+          <QuickExerciseRegister
+            exercise={activeExercise}
+            lastWeight={suggestNextWeight(getLastSetForExercise(activeExercise.name)?.weight)}
+            onRegister={async (weight) => {
+              // Salva exercício e feedback
+              saveWorkoutSet({
+                exerciseName: activeExercise.name,
+                weight,
+                reps: 10,
+                rpe: 8,
+                failed: false,
+              });
+              Vibration.vibrate(80);
+              showActionToast('Exercício registrado!');
+            }}
+          />
+        )}
 
         <SecondaryButton
           testID="btn-toggle-workout-mode"
@@ -1668,8 +1738,9 @@ export default function WorkoutScreen({ navigation, route }) {
           scrollEnabled={false}
           keyExtractor={(item, index) => String(item?.id || `${item?.name || 'exercise'}-${index}`)}
           renderItem={({ item: exercise, index: exerciseIndex }) => {
+          try {
           const plannedSets = Number(setCountByExercise[exercise.name] || exercise.sets || 3);
-          const setProgress = getExerciseSetProgress(exercise.name, plannedSets);
+          const setProgress = typeof getExerciseSetProgress === 'function' ? getExerciseSetProgress(exercise.name, plannedSets) : { completedSets: 0, totalSets: plannedSets, nextSet: 1, isDone: false };
           const isActive = exerciseIndex === activeExerciseIndex;
           const todaySets = workoutLogs
             .filter((item) => item.date === todayKey && isSameExerciseLog(item, exercise.name) && (item.mode || 'guided') !== 'free')
@@ -2037,6 +2108,10 @@ export default function WorkoutScreen({ navigation, route }) {
               {!isActive ? <Text style={styles.inactiveHint}>Toque para focar • {setProgress.completedSets}/{setProgress.totalSets} series</Text> : null}
             </TouchableOpacity>
           );
+          } catch (err) {
+            console.error('[WorkoutScreen renderItem crash]', err?.message, err?.stack);
+            return null;
+          }
           }}
         />
 
@@ -2057,9 +2132,14 @@ export default function WorkoutScreen({ navigation, route }) {
             keyExtractor={(item, index) => `${item}-${index}`}
             contentContainerStyle={styles.suggestionRow}
             renderItem={({ item }) => (
-              <TouchableOpacity style={styles.suggestionChip} onPress={() => setNewExerciseName(item)}>
-                <Text style={styles.suggestionChipText}>{item}</Text>
-              </TouchableOpacity>
+              <View style={styles.suggestionChipWrap}>
+                <TouchableOpacity style={styles.suggestionChip} onPress={() => setNewExerciseName(item)}>
+                  <Text style={styles.suggestionChipText}>{item}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.suggestionDetailButton} onPress={() => openExerciseDetail(item)}>
+                  <Text style={styles.suggestionDetailButtonText}>Detalhes</Text>
+                </TouchableOpacity>
+              </View>
             )}
           />
           <Text style={styles.addExerciseTitle}>Adicionar/substituir exercicio</Text>
@@ -2876,6 +2956,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
+  suggestionChipWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   suggestionChip: {
     borderWidth: 1,
     borderColor: colors.border,
@@ -2888,6 +2973,19 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontWeight: '700',
     fontSize: 12,
+  },
+  suggestionDetailButton: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: '#162233',
+  },
+  suggestionDetailButtonText: {
+    color: colors.textSecondary,
+    fontWeight: '700',
+    fontSize: 11,
   },
   actionRow: {
     flexDirection: 'row',

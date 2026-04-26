@@ -7,10 +7,16 @@
     "preview": {
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "DETOX_ENABLED": "0"
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "DETOX_ENABLED": "0"
+      }
     }
   }
 }

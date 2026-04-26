@@ -5,6 +5,7 @@ import { auth } from './firebase.js';
 import { logCriticalError } from './loggingService.js';
 import api from './api';
 import { useAuthStore } from '../stores/useAuthStore';
+import { setQaRuntimeAuth } from '../utils/qaTransport';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -46,6 +47,7 @@ export const logoutGoogleSession = async () => {
     if (auth?.currentUser) {
       await auth.signOut();
     }
+    setQaRuntimeAuth({ jwt: '', userId: '' });
     return { ok: true };
   } catch (error) {
     await logCriticalError('authService.logoutGoogleSession', error);
@@ -55,13 +57,9 @@ export const logoutGoogleSession = async () => {
 
 export const loginWithGoogleToken = async ({ idToken, accessToken }) => {
   if (!idToken) {
-    console.warn('[INTEGRATION][AUTH] Google idToken ausente.');
-    return {
-      id: null,
-      isAdmin: false,
-      role: 'user',
-      source: 'google_missing_token',
-    };
+    console.error('[INTEGRATION][AUTH] Google idToken ausente — login rejeitado.');
+    setQaRuntimeAuth({ jwt: '' });
+    throw new Error('AUTH_GOOGLE_IDTOKEN_MISSING');
   }
 
   try {
@@ -73,6 +71,7 @@ export const loginWithGoogleToken = async ({ idToken, accessToken }) => {
     const { accessToken: apiAccessToken, refreshToken, user } = backendResponse?.data || {};
     if (apiAccessToken && refreshToken) {
       await useAuthStore.getState().setToken(apiAccessToken, refreshToken);
+      setQaRuntimeAuth({ jwt: apiAccessToken });
     }
 
     if (user?.id) {
@@ -82,6 +81,7 @@ export const loginWithGoogleToken = async ({ idToken, accessToken }) => {
         name: String(user.name || 'Usuario'),
         avatar: user.avatar ? String(user.avatar) : undefined,
       });
+      setQaRuntimeAuth({ userId: String(user.id) });
     }
 
     console.log('[INTEGRATION][AUTH] Login Google backend OK.');
@@ -101,6 +101,8 @@ export const loginWithGoogleToken = async ({ idToken, accessToken }) => {
       const result = await signInWithCredential(auth, credential);
       const token = await getIdTokenResult(result.user, true);
 
+      setQaRuntimeAuth({ userId: String(result.user.uid) });
+
       return {
         id: result.user.uid,
         isAdmin: Boolean(token?.claims?.admin),
@@ -109,22 +111,11 @@ export const loginWithGoogleToken = async ({ idToken, accessToken }) => {
       };
     }
 
-    // Fallback funcional quando backend/Firebase ainda nao estiver totalmente configurado.
-    const pseudoId = String(idToken || accessToken || `google_${Date.now()}`).slice(0, 36);
-    return {
-      id: `google_${pseudoId.replace(/[^a-zA-Z0-9_-]/g, '')}`,
-      isAdmin: false,
-      role: 'user',
-      source: 'google_fallback',
-    };
+    // Nenhum provedor disponivel — rejeitar explicitamente.
+    throw new Error('AUTH_PROVIDERS_UNAVAILABLE');
   } catch (error) {
     await logCriticalError('authService.loginWithGoogleToken', error);
-    return {
-      id: null,
-      isAdmin: false,
-      role: 'user',
-      source: 'google_failed',
-    };
+    throw error;
   }
 };
 

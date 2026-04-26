@@ -1,0 +1,188 @@
+﻿{
+    "generatedAt":  "2026-04-17T10:08:12.8294570Z",
+    "sourceReports":  [
+                          "mobile-visual-inicio.last.json",
+                          "mobile-visual-meio.last.json",
+                          "mobile-visual-fim.last.json"
+                      ],
+    "totals":  {
+                   "screenshotsTotal":  61,
+                   "workflowEventsTotal":  19,
+                   "tabsExpected":  18,
+                   "tabsComplete":  18,
+                   "phasesCovered":  [
+                                         "inicio",
+                                         "meio",
+                                         "fim"
+                                     ],
+                   "overlaysOrPopupsCaptured":  1,
+                   "questionnairePersisted":  true
+               },
+    "coverage":  [
+                     {
+                         "phase":  "inicio",
+                         "tab":  "home",
+                         "ok":  true,
+                         "top":  true,
+                         "mid":  true,
+                         "end":  true,
+                         "complete":  true
+                     },
+                     {
+                         "phase":  "inicio",
+                         "tab":  "treino",
+                         "ok":  true,
+                         "top":  true,
+                         "mid":  true,
+                         "end":  true,
+                         "complete":  true
+                     },
+                     {
+                         "phase":  "inicio",
+                         "tab":  "nutricao",
+                         "ok":  true,
+                         "top":  true,
+                         "mid":  true,
+                         "end":  true,
+                         "complete":  true
+                     },
+                     {
+                         "phase":  "inicio",
+                         "tab":  "coach",
+                         "ok":  true,
+                         "top":  true,
+                         "mid":  true,
+                         "end":  true,
+                         "complete":  true
+                     },
+                     {
+                         "phase":  "inicio",
+                         "tab":  "social",
+                         "ok":  true,
+                         "top":  true,
+                         "mid":  true,
+                         "end":  true,
+                         "complete":  true
+                     },
+                     {
+                         "phase":  "inicio",
+                         "tab":  "perfil",
+                         "ok":  true,
+                         "top":  true,
+                         "mid":  true,
+                         "end":  true,
+                         "complete":  true
+                     },
+                     {
+                         "phase":  "meio",
+                         "tab":  "home",
+                         "ok":  true,
+                         "top":  true,
+                         "mid":  true,
+                         "end":  true,
+                         "complete":  true
+                     },
+                     {
+                         "phase":  "meio",
+                         "tab":  "treino",
+                         "ok":  true,
+                         "top":  true,
+                         "mid":  true,
+                         "end":  true,
+                         "complete":  true
+                     },
+                     {
+                         "phase":  "meio",
+                         "tab":  "nutricao",
+                         "ok":  true,
+                         "top":  true,
+                         "mid":  true,
+                         "end":  true,
+                         "complete":  true
+                     },
+                     {
+                         "phase":  "meio",
+                         "tab":  "coach",
+                         "ok":  true,
+                         "top":  true,
+                         "mid":  true,
+                         "end":  true,
+                         "complete":  true
+                     },
+                     {
+                         "phase":  "meio",
+                         "tab":  "social",
+                         "ok":  true,
+                         "top":  true,
+                         "mid":  true,
+                         "end":  true,
+                         "complete":  true
+                     },
+                     {
+                         "phase":  "meio",
+                         "tab":  "perfil",
+                         "ok":  true,
+                         "top":  true,
+                         "mid":  true,
+                         "end":  true,
+                         "complete":  true
+                     },
+                     {
+                         "phase":  "fim",
+                         "tab":  "home",
+                         "ok":  true,
+                         "top":  true,
+                         "mid":  true,
+                         "end":  true,
+                         "complete":  true
+                     },
+                     {
+                         "phase":  "fim",
+                         "tab":  "treino",
+                         "ok":  true,
+                         "top":  true,
+                         "mid":  true,
+                         "end":  true,
+                         "complete":  true
+                     },
+                     {
+                         "phase":  "fim",
+                         "tab":  "nutricao",
+                         "ok":  true,
+                         "top":  true,
+                         "mid":  true,
+                         "end":  true,
+                         "complete":  true
+                     },
+                     {
+                         "phase":  "fim",
+                         "tab":  "coach",
+                         "ok":  true,
+                         "top":  true,
+                         "mid":  true,
+                         "end":  true,
+                         "complete":  true
+                     },
+                     {
+                         "phase":  "fim",
+                         "tab":  "social",
+                         "ok":  true,
+                         "top":  true,
+                         "mid":  true,
+                         "end":  true,
+                         "complete":  true
+                     },
+                     {
+                         "phase":  "fim",
+                         "tab":  "perfil",
+                         "ok":  true,
+                         "top":  true,
+                         "mid":  true,
+                         "end":  true,
+                         "complete":  true
+                     }
+                 ],
+    "missing":  [
+
+                ]
+}

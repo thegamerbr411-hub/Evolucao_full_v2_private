@@ -1,4 +1,7 @@
 import { create } from 'zustand';
+import { getLocal, setLocal } from '../storage/mmkv';
+
+const USER_STORE_KEY = 'user.store.v1';
 
 export type User = {
   id: string | null;
@@ -13,7 +16,7 @@ export type Profile = {
   height: number;
   trainingDaysPerWeek: number;
   timezone?: string;
-  energy Level?: string;
+  energyLevel?: string;
   currentPain?: string;
 };
 
@@ -29,17 +32,36 @@ type UserStore = {
   setHydrated: (value: boolean) => void;
 };
 
+const persistUserState = (state: Pick<UserStore, 'user' | 'profile'>) => {
+  setLocal(USER_STORE_KEY, { user: state.user, profile: state.profile });
+};
+
+const initialPersistedState = getLocal(USER_STORE_KEY) || {};
+
 export const useUserStore = create<UserStore>((set) => ({
-  user: null,
-  profile: null,
+  user: initialPersistedState.user || null,
+  profile: initialPersistedState.profile || null,
   isHydrated: false,
 
-  setUser: (user) => set({ user }),
-  setProfile: (profile) => set({ profile }),
+  setUser: (user) =>
+    set((state) => {
+      persistUserState({ ...state, user });
+      return { user };
+    }),
+  setProfile: (profile) =>
+    set((state) => {
+      persistUserState({ ...state, profile });
+      return { profile };
+    }),
   updateProfile: (partial) =>
-    set((state) => ({
-      profile: state.profile ? { ...state.profile, ...partial } : null,
-    })),
-  logout: () => set({ user: null, profile: null }),
+    set((state) => {
+      const profile = state.profile ? { ...state.profile, ...partial } : null;
+      persistUserState({ ...state, profile });
+      return { profile };
+    }),
+  logout: () => {
+    setLocal(USER_STORE_KEY, { user: null, profile: null });
+    set({ user: null, profile: null });
+  },
   setHydrated: (value) => set({ isHydrated: value }),
 }));

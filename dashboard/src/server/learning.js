@@ -38,7 +38,24 @@ function writeLearningStore(store) {
   const payload = JSON.stringify(store, null, 2);
   const temp = `${LEARNING_FILE}.tmp`;
   fs.writeFileSync(temp, payload, 'utf-8');
-  fs.renameSync(temp, LEARNING_FILE);
+
+  try {
+    fs.renameSync(temp, LEARNING_FILE);
+  } catch (error) {
+    if (error && ['EPERM', 'EACCES', 'EBUSY', 'EXDEV'].includes(error.code)) {
+      fs.writeFileSync(LEARNING_FILE, payload, 'utf-8');
+    } else {
+      throw error;
+    }
+  } finally {
+    if (fs.existsSync(temp)) {
+      try {
+        fs.unlinkSync(temp);
+      } catch {
+        // Best-effort cleanup.
+      }
+    }
+  }
 }
 
 function getTenant(store, clientId) {

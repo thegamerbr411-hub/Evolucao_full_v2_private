@@ -4,6 +4,10 @@ function safeUserId(userId) {
   return String(userId || '').trim();
 }
 
+function getApiErrorCode(response) {
+  return String(response?.data?.error || response?.error || 'request_failed').trim();
+}
+
 export async function getSocialOverviewFromApi({ userId }) {
   const safe = safeUserId(userId);
   if (!safe) {
@@ -46,13 +50,17 @@ export async function addFriendFromApi({ userId, friendUserId }) {
     return { ok: false, error: 'invalid_friend_payload' };
   }
 
+  if (safeUserIdValue === safeFriendId) {
+    return { ok: false, error: 'cannot_add_self' };
+  }
+
   const response = await postToAvailableQaHost('/api/social/friends/add', {
     userId: safeUserIdValue,
     friendUserId: safeFriendId,
   });
 
   if (!response?.ok) {
-    return { ok: false, error: response?.error || 'request_failed' };
+    return { ok: false, error: getApiErrorCode(response) };
   }
 
   return { ok: true, data: response.data };
@@ -73,7 +81,7 @@ export async function createChallengeFromApi({ userId, title, target = 3, type =
   });
 
   if (!response?.ok) {
-    return { ok: false, error: response?.error || 'request_failed' };
+    return { ok: false, error: getApiErrorCode(response) };
   }
 
   return { ok: true, data: response.data };
@@ -91,7 +99,7 @@ export async function joinChallengeFromApi({ userId, challengeId }) {
   });
 
   if (!response?.ok) {
-    return { ok: false, error: response?.error || 'request_failed' };
+    return { ok: false, error: getApiErrorCode(response) };
   }
 
   return { ok: true, data: response.data };
@@ -111,7 +119,7 @@ export async function updateChallengeProgressFromApi({ userId, challengeId, prog
   });
 
   if (!response?.ok) {
-    return { ok: false, error: response?.error || 'request_failed' };
+    return { ok: false, error: getApiErrorCode(response) };
   }
 
   return { ok: true, data: response.data };

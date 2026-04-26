@@ -36,6 +36,10 @@ export default function HistoryScreen({ navigation }) {
 
   const recentHistory = useMemo(() => getRecentHistory(), [getRecentHistory]);
   const summary = useMemo(() => getWeeklySummary(), [getWeeklySummary]);
+  const outOfTargetDays = useMemo(
+    () => recentHistory.filter((item) => item.trained && item.status !== 'ok' && item.status !== 'indefinido').length,
+    [recentHistory]
+  );
   const selectedWorkout = useMemo(
     () => remoteWorkouts.find((item) => String(item.id) === String(selectedWorkoutId)) || null,
     [remoteWorkouts, selectedWorkoutId]
@@ -70,9 +74,9 @@ export default function HistoryScreen({ navigation }) {
 
       <AppCard>
         <Text style={styles.summaryTitle}>Resumo semanal</Text>
-        <Text style={styles.summaryLine}>Media de calorias: {summary.averageCalories || 0} kcal</Text>
+        <Text style={styles.summaryLine}>Media de calorias: {summary.avgCals || 0} kcal</Text>
         <Text style={styles.summaryLine}>Dias treinados: {summary.trainedDays || 0}</Text>
-        <Text style={styles.summaryLine}>Dias fora da meta: {summary.outOfTargetDays || 0}</Text>
+        <Text style={styles.summaryLine}>Dias fora da meta: {outOfTargetDays}</Text>
 
         <PrimaryButton title="IA analisar minha semana" onPress={() => navigation.navigate('Insights')} style={styles.button} />
       </AppCard>

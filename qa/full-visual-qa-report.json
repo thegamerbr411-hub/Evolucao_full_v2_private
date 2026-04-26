@@ -1,0 +1,38 @@
+{
+  "config": {
+    "cycles": 1,
+    "mobileOnly": true,
+    "skipZip": true,
+    "stabilityCycles": 0,
+    "webOnly": false
+  },
+  "completedAt": "2026-04-18T07:24:10.461Z",
+  "mobile": {
+    "failed": 1,
+    "passed": 0,
+    "total": 1
+  },
+  "rawResults": [
+    {
+      "cycleReport": {
+        "analyzeExitCode": 0,
+        "configuration": "android.attached.debug",
+        "exitCode": 1,
+        "finishedAt": "2026-04-18T07:24:10.453Z",
+        "persona": "iniciante",
+        "qaServerAutostarted": true,
+        "seed": "1776497048817-main-1",
+        "startedAt": "2026-04-18T07:24:09.039Z"
+      },
+      "exitCode": 1,
+      "index": 1,
+      "phase": "main",
+      "type": "mobile"
+    }
+  ],
+  "web": {
+    "failed": 0,
+    "passed": 0,
+    "total": 0
+  }
+}

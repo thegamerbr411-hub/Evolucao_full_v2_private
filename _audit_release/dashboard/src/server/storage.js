@@ -100,6 +100,8 @@ function normalizeBug(item = {}) {
     status,
     stack: sanitizeStack(item.stack),
     count,
+    synthetic: Boolean(item.synthetic),
+    syntheticReason: safeText(item.syntheticReason, ''),
     fixed: Boolean(item.fixed),
     fixedAt: safeText(item.fixedAt, ''),
     fixedBy: safeText(item.fixedBy, ''),
@@ -181,7 +183,24 @@ function writeJsonFileSync(filePath, value) {
   const payload = JSON.stringify(value, null, 2);
   const tempPath = `${filePath}.tmp`;
   fs.writeFileSync(tempPath, payload, 'utf-8');
-  fs.renameSync(tempPath, filePath);
+
+  try {
+    fs.renameSync(tempPath, filePath);
+  } catch (error) {
+    if (error && ['EPERM', 'EACCES', 'EBUSY', 'EXDEV'].includes(error.code)) {
+      fs.writeFileSync(filePath, payload, 'utf-8');
+    } else {
+      throw error;
+    }
+  } finally {
+    if (fs.existsSync(tempPath)) {
+      try {
+        fs.unlinkSync(tempPath);
+      } catch {
+        // Best-effort cleanup.
+      }
+    }
+  }
 }
 
 function readStoreSync() {
@@ -336,6 +355,8 @@ async function upsertBug(clientId, log) {
         severity: String(log.severity || current.severity || 'LOW').toUpperCase(),
         stack: sanitizeStack(log.stack || current.stack),
         status: current.status === 'closed' ? 'reopened' : (current.status || 'open'),
+        synthetic: Boolean(current.synthetic || log.synthetic),
+        syntheticReason: safeText(log.syntheticReason || current.syntheticReason, ''),
         count: Number(current.count || 0) + 1,
         lastOccurrence: nowIso,
         history: upsertHistory(current.history, today),
@@ -348,6 +369,8 @@ async function upsertBug(clientId, log) {
         severity: String(log.severity || 'LOW').toUpperCase(),
         status: 'open',
         stack: sanitizeStack(log.stack),
+        synthetic: Boolean(log.synthetic),
+        syntheticReason: safeText(log.syntheticReason, ''),
         count: 1,
         fixed: false,
         resolved: false,

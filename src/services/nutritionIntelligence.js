@@ -58,6 +58,7 @@ export function createFoodFromText(input = '') {
   pieces.forEach((piece) => {
     const quantityMatch = piece.match(/(\d+[\.,]?\d*)\s*(g|ml|x|un)?/i);
     const quantity = quantityMatch ? Math.max(0.1, toNumber(quantityMatch[1], 1)) : 1;
+    const quantityUnit = String(quantityMatch?.[2] || 'x').toLowerCase();
     const label = normalize(piece)
       .replace(/(\d+[\.,]?\d*)\s*(g|ml|x|un)?/ig, ' ')
       .replace(/\s+/g, ' ')
@@ -85,6 +86,7 @@ export function createFoodFromText(input = '') {
     entries.push({
       label: base.label,
       quantity,
+      quantityUnit,
       calories: Number((base.calories * factor).toFixed(1)),
       protein: Number((base.protein * factor).toFixed(1)),
       carbs: Number((base.carbs * factor).toFixed(1)),
@@ -114,45 +116,141 @@ export function parseNutritionLabel(image) {
 
   const text = normalize(rawText);
 
-  const extract = (labels) => {
+  const parseNumericValue = (value = '') => {
+    const normalized = String(value || '').replace(',', '.').trim();
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  const extractFirst = (labels) => {
     const pattern = new RegExp(`(?:${labels.join('|')})[^\\d]*(\\d+[\\.,]?\\d*)`, 'i');
     const match = text.match(pattern);
-    return match ? toNumber(match[1], 0) : 0;
+    return match ? parseNumericValue(match[1]) : 0;
   };
 
-  const parseFromRequiredPattern = (raw) => {
-    const extractRequired = (regex) => {
-      const match = String(raw || '').match(regex);
-      return match ? Number(match[1]) : 0;
-    };
+  const extractFromRows = (labels) => {
+    const lines = String(rawText || '')
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
 
-    return {
-      calories: extractRequired(/(\d+)\s*kcal/i),
-      carbs: extractRequired(/carboidratos\s*(\d+)/i),
-    };
+    const allKnownLabels = [
+      'kcal',
+      'calorias',
+      'valor energetico',
+      'energia',
+      'carboidratos',
+      'carboidrato',
+      'carbs',
+      'proteinas',
+      'proteina',
+      'protein',
+      'gorduras totais',
+      'gordura total',
+      'gorduras',
+      'fat',
+      'sodio',
+      'sodium',
+      'acucares totais',
+      'acucar',
+      'sugars',
+      'acucares adicionados',
+      'cafeina',
+      'caffeine',
+    ];
+    const labelPattern = new RegExp(`(?:${labels.join('|')})`, 'i');
+    const boundaryPattern = new RegExp(`(?:${allKnownLabels.join('|')})`, 'i');
+    const valuePattern = /(\d+[\.,]?\d*)\s*(kcal|g|mg|ml)?/gi;
+
+    for (const line of lines) {
+      if (!labelPattern.test(line)) {
+        continue;
+      }
+
+      const labelMatch = line.match(labelPattern);
+      if (!labelMatch || typeof labelMatch.index !== 'number') {
+        continue;
+      }
+
+      const afterLabel = line.slice(labelMatch.index + labelMatch[0].length);
+      const nextBoundaryIndex = afterLabel.search(boundaryPattern);
+      const segment = nextBoundaryIndex >= 0 ? afterLabel.slice(0, nextBoundaryIndex) : afterLabel;
+
+      const values = [];
+      let match;
+      while ((match = valuePattern.exec(segment)) !== null) {
+        values.push(parseNumericValue(match[1]));
+      }
+
+      if (!values.length) {
+        continue;
+      }
+
+      const hasReferenceColumns = /100\s*(g|ml)|por\s*100/i.test(line);
+      if (values.length >= 2 && hasReferenceColumns) {
+        return values[1];
+      }
+
+      return values[0];
+    }
+
+    return 0;
   };
 
-  const required = parseFromRequiredPattern(rawText);
+  const extractMacro = (labels) => extractFromRows(labels) || extractFirst(labels);
+
+  const detectProductName = () => {
+    const lines = String(rawText || '')
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    for (const line of lines.slice(0, 4)) {
+      const normalizedLine = normalize(line);
+      if (!normalizedLine) {
+        continue;
+      }
+      if (normalizedLine.includes('informacao nutricional') || normalizedLine.includes('tabela nutricional')) {
+        continue;
+      }
+      if (/\d/.test(line) && line.length < 6) {
+        continue;
+      }
+      return line;
+    }
+
+    return '';
+  };
+
+  const servingMatch = String(rawText || '').match(/por[cç][aã]o\s*de\s*(\d+[\.,]?\d*)\s*(g|ml)/i);
+  const serving = servingMatch
+    ? {
+        value: parseNumericValue(servingMatch[1]),
+        unit: String(servingMatch[2] || '').toLowerCase(),
+      }
+    : null;
 
   const parsed = {
-    calories: required.calories || extract(['kcal', 'calorias', 'energia']),
-    carbs: required.carbs || extract(['carboidratos', 'carboidrato', 'carbs']),
-    protein: extract(['proteinas', 'proteina', 'protein']),
-    fat: extract(['gorduras totais', 'gordura total', 'gorduras', 'fat']),
-    sodium: extract(['sodio', 'sodium']),
+    productName: detectProductName(),
+    serving,
+    calories: extractMacro(['kcal', 'calorias', 'valor energetico', 'energia']),
+    carbs: extractMacro(['carboidratos', 'carboidrato', 'carbs']),
+    protein: extractMacro(['proteinas', 'proteina', 'protein']),
+    fat: extractMacro(['gorduras totais', 'gordura total', 'gorduras', 'fat']),
+    sodium: extractMacro(['sodio', 'sodium']),
+    sugars: extractMacro(['acucares totais', 'acucar', 'sugars']),
+    addedSugars: extractMacro(['acucares adicionados']),
+    caffeine: extractMacro(['cafeina', 'caffeine']),
   };
 
-  if (!parsed.calories && !parsed.carbs && !parsed.protein && !parsed.fat) {
-    return {
-      ...parsed,
-      calories: 120,
-      carbs: 10,
-      protein: 12,
-      fat: 4,
-      sodium: parsed.sodium || 100,
-      fallback: true,
-    };
-  }
+  const extractedFields = ['calories', 'carbs', 'protein', 'fat'].filter((field) => Number(parsed[field] || 0) > 0).length;
+  const confidence = extractedFields >= 4 ? 'high' : extractedFields >= 2 ? 'medium' : 'low';
+  const insufficientData = extractedFields < 2;
 
-  return parsed;
+  return {
+    ...parsed,
+    confidence,
+    insufficientData,
+    fallback: false,
+  };
 }

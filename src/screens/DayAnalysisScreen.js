@@ -95,6 +95,7 @@ export default function DayAnalysisScreen({ navigation, route }) {
       protein: Number(protein),
       carbs: Number(carbs),
       fats: Number(fats),
+      trained: trainedToday,
       trainedToday,
     });
     setInsight(result);

@@ -181,12 +181,15 @@ function buildSummary(insights = []) {
 }
 
 function buildInsightsPayload(clientId, bugs = []) {
-  const insights = analyzeBatch(bugs);
+  const allBugs = Array.isArray(bugs) ? bugs : [];
+  const realBugs = allBugs.filter((item) => !item?.synthetic);
+  const insights = analyzeBatch(realBugs);
   return {
     clientId: String(clientId || 'default'),
     generatedAt: new Date().toISOString(),
     insights,
     summary: buildSummary(insights),
+    excludedSynthetic: Math.max(0, allBugs.length - realBugs.length),
     totalInsights: insights.length,
   };
 }

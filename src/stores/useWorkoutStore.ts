@@ -1,4 +1,7 @@
 import { create } from 'zustand';
+import { getLocal, setLocal } from '../storage/mmkv';
+
+const WORKOUT_STORE_KEY = 'workout.store.v1';
 
 export type WorkoutLog = {
   id: string;
@@ -38,10 +41,21 @@ type WorkoutStore = {
   updateExerciseTarget: (exerciseName: string, target: ExerciseTarget) => void;
 };
 
+const persistWorkoutState = (state: Pick<WorkoutStore, 'workoutLogs' | 'exerciseTargets'>) => {
+  setLocal(WORKOUT_STORE_KEY, {
+    workoutLogs: state.workoutLogs,
+    exerciseTargets: state.exerciseTargets,
+  });
+};
+
+const initialPersistedState = getLocal(WORKOUT_STORE_KEY) || {};
+
 export const useWorkoutStore = create<WorkoutStore>((set) => ({
   workout: { exercises: [] },
-  workoutLogs: [],
-  exerciseTargets: {},
+  workoutLogs: Array.isArray(initialPersistedState.workoutLogs) ? initialPersistedState.workoutLogs : [],
+  exerciseTargets: initialPersistedState.exerciseTargets && typeof initialPersistedState.exerciseTargets === 'object'
+    ? initialPersistedState.exerciseTargets
+    : {},
 
   setWorkout: (workout) => set({ workout }),
   addExercise: (exercise) =>
@@ -72,20 +86,36 @@ export const useWorkoutStore = create<WorkoutStore>((set) => ({
       return { workout: { ...state.workout, exercises: updated } };
     }),
   addWorkoutLog: (log) =>
-    set((state) => ({
-      workoutLogs: [log, ...state.workoutLogs],
-    })),
+    set((state) => {
+      const next = { ...state, workoutLogs: [log, ...state.workoutLogs] };
+      persistWorkoutState(next);
+      return next;
+    }),
   removeWorkoutLog: (id) =>
-    set((state) => ({
-      workoutLogs: state.workoutLogs.filter((log) => log.id !== id),
-    })),
-  setWorkoutLogs: (logs) => set({ workoutLogs: logs }),
-  setExerciseTargets: (targets) => set({ exerciseTargets: targets }),
+    set((state) => {
+      const next = { ...state, workoutLogs: state.workoutLogs.filter((l) => l.id !== id) };
+      persistWorkoutState(next);
+      return next;
+    }),
+  setWorkoutLogs: (logs) =>
+    set((state) => {
+      const next = { ...state, workoutLogs: logs };
+      persistWorkoutState(next);
+      return next;
+    }),
+  setExerciseTargets: (targets) =>
+    set((state) => {
+      const next = { ...state, exerciseTargets: targets };
+      persistWorkoutState(next);
+      return next;
+    }),
   updateExerciseTarget: (exerciseName, target) =>
-    set((state) => ({
-      exerciseTargets: {
-        ...state.exerciseTargets,
-        [exerciseName]: target,
-      },
-    })),
+    set((state) => {
+      const next = {
+        ...state,
+        exerciseTargets: { ...state.exerciseTargets, [exerciseName]: target },
+      };
+      persistWorkoutState(next);
+      return next;
+    }),
 }));
