@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { hasDetoxGlobals } = require('./runtime');
 
 const expoQaClientId = process.env['EXPO_PUBLIC_QA_CLIENT_ID'];
 const DEFAULT_CLIENT_ID = expoQaClientId || process.env.QA_CLIENT_ID || 'default';
@@ -52,6 +53,10 @@ async function humanDelay(persona, label = 'delay') {
 }
 
 async function isVisible(target, timeout = 1000) {
+  if (!hasDetoxGlobals()) {
+    return false;
+  }
+
   const matcher = typeof target === 'string' ? element(by.id(target)) : target;
   return withDetoxGuard(
     async () => {
@@ -64,6 +69,10 @@ async function isVisible(target, timeout = 1000) {
 }
 
 async function dismissBlockingSystemDialogs() {
+  if (!hasDetoxGlobals()) {
+    return false;
+  }
+
   const labels = [
     'Nao permitir',
     'Não permitir',
@@ -90,6 +99,10 @@ async function dismissBlockingSystemDialogs() {
 }
 
 async function waitForAny(ids, timeout = 15000) {
+  if (!hasDetoxGlobals()) {
+    throw new Error('Detox globals indisponiveis durante waitForAny.');
+  }
+
   const startedAt = Date.now();
 
   while (Date.now() - startedAt < timeout) {
@@ -108,6 +121,10 @@ async function waitForAny(ids, timeout = 15000) {
 }
 
 async function tapElement(id, timeout = 12000) {
+  if (!hasDetoxGlobals()) {
+    throw new Error('Detox globals indisponiveis durante tapElement.');
+  }
+
   const becameVisible = await withDetoxGuard(
     async () => {
       await waitFor(element(by.id(id))).toBeVisible().withTimeout(timeout);
@@ -160,6 +177,10 @@ async function tapElement(id, timeout = 12000) {
 }
 
 async function replaceInput(id, value, timeout = 12000) {
+  if (!hasDetoxGlobals()) {
+    throw new Error('Detox globals indisponiveis durante replaceInput.');
+  }
+
   const target = element(by.id(id));
 
   try {
@@ -391,6 +412,7 @@ module.exports = {
   countBugEntries,
   countBugOccurrences,
   countEventEntries,
+  dismissBlockingSystemDialogs,
   fetchHeatmap,
   hideKeyboardIfNeeded,
   humanDelay,

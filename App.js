@@ -39,7 +39,9 @@ class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, info) {
     logError(error, { screen: 'ErrorBoundary', extra: { componentStack: info?.componentStack } });
-    console.log('[ErrorBoundary] crash capturado:', error?.message);
+    if (__DEV__) {
+      console.log('[ErrorBoundary] crash capturado:', error?.message);
+    }
   }
 
   render() {
@@ -61,8 +63,10 @@ export default function App() {
   const [bootstrapReady, setBootstrapReady] = React.useState(false);
 
   React.useEffect(() => {
-    console.log('[APP_STARTED]', new Date().toISOString());
-    console.log('[BUILD_VERSION]', APP_VERSION, BUILD_VERSION);
+    if (__DEV__) {
+      console.log('[APP_STARTED]', new Date().toISOString());
+      console.log('[BUILD_VERSION]', APP_VERSION, BUILD_VERSION);
+    }
     initializeAnalyticsSession()
       .then(async (sessionId) => {
         const { dayKey, isFirstOpenOfDay } = await getAppOpenSessionMeta();
@@ -119,7 +123,9 @@ export default function App() {
                     id: `screen-${String(currentRoute).toLowerCase()}`,
                   },
                 });
-                console.log('[app-nav]', currentRoute);
+                if (__DEV__) {
+                  console.log('[app-nav]', currentRoute);
+                }
               }}
             >
               <RootNavigator />

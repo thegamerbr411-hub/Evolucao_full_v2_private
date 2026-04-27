@@ -33,6 +33,31 @@ export default function SocialScreen({ navigation }) {
 
   const userId = useMemo(() => String(user?.id || ''), [user?.id]);
   const currentUserRanking = useMemo(() => ranking.find((e) => e.isCurrentUser), [ranking]);
+  const nextRankingTarget = useMemo(() => {
+    if (!currentUserRanking || !Array.isArray(ranking) || !ranking.length) {
+      return null;
+    }
+
+    const sorted = ranking
+      .filter((entry) => Number.isFinite(Number(entry?.xp)))
+      .slice()
+      .sort((a, b) => Number(b.xp || 0) - Number(a.xp || 0));
+    const currentIndex = sorted.findIndex((entry) => entry.userId === currentUserRanking.userId);
+
+    if (currentIndex <= 0) {
+      return {
+        gap: 0,
+        label: 'Lideranca mantida. Continue registrando para ampliar vantagem.',
+      };
+    }
+
+    const previous = sorted[currentIndex - 1];
+    const gap = Math.max(0, Number(previous?.xp || 0) - Number(currentUserRanking?.xp || 0));
+    return {
+      gap,
+      label: `Faltam ${gap} XP para subir para #${currentIndex}.`,
+    };
+  }, [currentUserRanking, ranking]);
 
   // Ordenar ranking
   const topPlayers = useMemo(() => {
@@ -346,7 +371,7 @@ export default function SocialScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
+    <View testID="screen-social" style={styles.container}>
       <ScreenHeader title="Social" showBackButton={false} />
 
       {/* Tab Navigation */}
@@ -440,6 +465,17 @@ export default function SocialScreen({ navigation }) {
       <FlatList
         contentContainerStyle={styles.content}
         data={activeTab === 'feed' ? [{ id: 'feed' }] : [{ id: 'ranking' }]}
+        ListHeaderComponent={
+          <AppCard style={styles.retentionCard}>
+            <Text style={styles.retentionTitle}>Proxima meta de evolucao</Text>
+            <Text style={styles.retentionText}>
+              {nextRankingTarget?.label || 'Registre treinos para entrar no ranking da semana.'}
+            </Text>
+            <Text style={styles.retentionSubtext}>
+              Amigos ativos: {friends.length} • Feed recente: {recentPosts.length} posts
+            </Text>
+          </AppCard>
+        }
         renderItem={() => {
           if (activeTab === 'feed') return renderFeedTab();
           if (activeTab === 'ranking') return renderRankingTab();
@@ -518,6 +554,31 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
+  },
+
+  retentionCard: {
+    marginBottom: spacing.md,
+  },
+
+  retentionTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginBottom: 6,
+  },
+
+  retentionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 4,
+  },
+
+  retentionSubtext: {
+    fontSize: 12,
+    color: colors.textSecondary,
   },
 
   // FEED

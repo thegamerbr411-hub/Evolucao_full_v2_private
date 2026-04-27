@@ -561,7 +561,7 @@ export default function CoachChatScreen({ navigation }) {
     if (hour >= 20 && proteinLeft > 40) {
       triggerCandidates.push({
         key: 'night_high_protein_gap',
-        text: 'Noite: faltam mais de 40g de proteina. Se dormir assim, sua recuperacao piora.',
+        text: 'Noite: faltam mais de 40g de proteina. Se dormir assim, sua recuperacao pode ficar abaixo do ideal.',
       });
     }
 

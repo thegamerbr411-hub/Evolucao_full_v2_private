@@ -267,6 +267,7 @@ export default function HomeScreen({ navigation }) {
         showsVerticalScrollIndicator={false}
         testID="screen-home"
       >
+        <View testID="home-screen" style={{ width: 1, height: 1 }} />
         {/* ── HEADER HERO ── */}
         <View style={styles.hero}>
           <View style={styles.heroLeft}>

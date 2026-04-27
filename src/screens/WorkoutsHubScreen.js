@@ -109,7 +109,7 @@ export function WorkoutsHubView({ navigation, summary, todayWorkout, recommended
       {/* CTAs principais */}
       <PrimaryButton
         testID="btn-iniciar-treino"
-        title="COMEÇAR TREINO AGORA"
+        title="Iniciar treino"
         onPress={() => navigation.navigate('TreinoHoje')}
       />
 
