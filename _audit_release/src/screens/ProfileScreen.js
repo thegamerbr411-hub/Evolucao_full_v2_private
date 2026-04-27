@@ -74,7 +74,7 @@ export default function ProfileScreen({ navigation }) {
     trainedToday: historySummary.trainedDays > 0,
     protein: historySummary.avgProtein,
     proteinTarget: Number(macroTargets?.protein || 140),
-    water: Number(plan?.waterLitersPerDay || 0) * 700,
+    water: Number(plan?.waterLitersPerDay || 0) * 1000,
     waterTarget: Number(plan?.waterLitersPerDay || 0) * 1000,
     weeklyDone: historySummary.trainedDays,
     weeklyTarget: Number(trainingDays || profile?.trainingDaysPerWeek || 3),
@@ -224,9 +224,7 @@ export default function ProfileScreen({ navigation }) {
 
       <AppCard>
         <Text style={styles.cardLabel}>Conta</Text>
-        <Text style={styles.metric}>User ID atual: {String(user?.id || 'local')}</Text>
-        <Text style={styles.metric}>Role: {String(user?.role || 'user')}</Text>
-        <Text style={styles.metric}>Google OAuth: {googleConfigured ? 'configurado' : 'nao configurado'}</Text>
+        <Text style={styles.metric}>Status de acesso: {googleConfigured ? 'Google disponivel' : 'Modo local ativo'}</Text>
         {googleConfigured ? (
           <>
             <PrimaryButton
@@ -261,11 +259,17 @@ export default function ProfileScreen({ navigation }) {
               }}
               style={styles.secondaryButton}
             />
-            {!request ? <Text style={styles.metric}>Preparando provedor Google...</Text> : null}
+            {!request ? <Text style={styles.metric}>Preparando acesso Google...</Text> : null}
           </>
         ) : (
-          <Text style={styles.metric}>Login Google nao disponivel neste build. Configure EXPO_PUBLIC_GOOGLE_CLIENT_ID para habilitar.</Text>
+          <Text style={styles.metric}>Você pode usar o app normalmente no modo local. O login Google pode ser ativado em builds configurados.</Text>
         )}
+        {(__DEV__ ? true : false) ? (
+          <>
+            <Text style={styles.metric}>[DEV] User ID: {String(user?.id || 'local')}</Text>
+            <Text style={styles.metric}>[DEV] Role: {String(user?.role || 'user')}</Text>
+          </>
+        ) : null}
       </AppCard>
 
       <AppCard>

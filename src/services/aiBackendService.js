@@ -2,11 +2,14 @@ import { httpsCallable } from 'firebase/functions';
 import { functions } from './firebase.js';
 import { logCriticalError } from './loggingService.js';
 import { logEvent } from '../core/logger.js';
+import { parseWorkoutText } from './aiWorkoutParser';
 
 export const parseWorkout = async ({ userId, text, imageUri, userAiUsageToday = 0 }) => {
+  const localFallback = () => parseWorkoutText(text);
+
   try {
     if (!functions) {
-      return { name: 'Treino importado', exercises: [] };
+      return localFallback();
     }
     if (Number(userAiUsageToday || 0) > 5) {
       throw new Error('Limite diário atingido');
@@ -15,11 +18,17 @@ export const parseWorkout = async ({ userId, text, imageUri, userAiUsageToday = 
     const callable = httpsCallable(functions, 'parseWorkout');
     const response = await callable({ userId, text, imageUri });
     logEvent('ai_used');
-    return response?.data || { name: 'Treino importado', exercises: [] };
+
+    const parsed = response?.data;
+    if (Array.isArray(parsed?.exercises) && parsed.exercises.length > 0) {
+      return parsed;
+    }
+
+    return localFallback();
   } catch (error) {
     await logCriticalError('aiBackendService.parseWorkout', error, {
       userId: String(userId || ''),
     });
-    return { name: 'Treino importado', exercises: [] };
+    return localFallback();
   }
 };

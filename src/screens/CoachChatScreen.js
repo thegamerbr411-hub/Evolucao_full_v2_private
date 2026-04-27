@@ -293,24 +293,24 @@ function buildPainSafetyLine(pain = '') {
 function getUrgencyStyles(level) {
   if (level === 'alta') {
     return {
-      borderColor: colors.danger,
-      backgroundColor: 'rgba(239,68,68,0.14)',
-      badge: 'Alta urgencia',
+      borderColor: colors.warning,
+      backgroundColor: colors.warningMuted,
+      badge: 'Foco do dia',
     };
   }
 
   if (level === 'media') {
     return {
-      borderColor: colors.warning,
-      backgroundColor: 'rgba(250,204,21,0.12)',
-      badge: 'Urgencia moderada',
+      borderColor: colors.secondary,
+      backgroundColor: colors.secondaryMuted,
+      badge: 'Ajuste recomendado',
     };
   }
 
   return {
     borderColor: colors.success,
     backgroundColor: colors.successMuted,
-    badge: 'Sob controle',
+    badge: 'Bom ritmo',
   };
 }
 

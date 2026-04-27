@@ -5,6 +5,7 @@
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
     "start": "expo start",
+    "start:android:stable": "powershell -ExecutionPolicy Bypass -File scripts/start-expo-android-stable.ps1",
     "backend": "npm --prefix backend run start",
     "dashboard": "npm --prefix dashboard run start",
     "test:basic": "node scripts/test-basic.js",
@@ -13,6 +14,8 @@
     "start:dev-client:tunnel": "expo start --dev-client --tunnel",
     "start:rn": "react-native start",
     "android": "expo run:android",
+    "release:apk": "powershell -ExecutionPolicy Bypass -File scripts/release-local-install.ps1 -NoInstall",
+    "release:install": "powershell -ExecutionPolicy Bypass -File scripts/release-local-install.ps1",
     "android:rn": "react-native run-android",
     "android:fix-run": "powershell -ExecutionPolicy Bypass -File scripts/fix-and-run-android.ps1",
     "ios": "expo run:ios",

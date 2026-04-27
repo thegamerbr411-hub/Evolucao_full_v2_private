@@ -35,14 +35,17 @@ export async function onWorkoutCompleted(payload: CompletedWorkoutPayload) {
   try {
     const socialStore = useSocialStore.getState();
     const result = await processSocialWorkoutCompletion(payload);
+    const isDev = typeof __DEV__ !== 'undefined' && __DEV__;
 
-    console.log('[SOCIAL_ENGAGEMENT] 🔥 Treino concluído:', {
-      username: payload.username,
-      volume: payload.totalVolume,
-      xpGained: result.xpGained,
-      source: result.source,
-      position: socialStore.getUserPosition(payload.userId),
-    });
+    if (isDev) {
+      console.log('[SOCIAL_ENGAGEMENT] Treino concluido:', {
+        username: payload.username,
+        volume: payload.totalVolume,
+        xpGained: result.xpGained,
+        source: result.source,
+        position: socialStore.getUserPosition(payload.userId),
+      });
+    }
 
     return {
       success: true,
@@ -51,7 +54,9 @@ export async function onWorkoutCompleted(payload: CompletedWorkoutPayload) {
       source: result.source,
     };
   } catch (error) {
-    console.error('[SOCIAL_ENGAGEMENT] Erro ao processar treino:', error);
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      console.error('[SOCIAL_ENGAGEMENT] Erro ao processar treino:', error);
+    }
     return {
       success: false,
       error,
@@ -67,10 +72,14 @@ export async function initializeSocialData(userId: string) {
   try {
     const hydrated = await hydrateSocialFromBackend(userId);
 
-    console.log('[SOCIAL_ENGAGEMENT] Social inicializado para:', userId, 'backend:', hydrated);
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      console.log('[SOCIAL_ENGAGEMENT] Social inicializado para:', userId, 'backend:', hydrated);
+    }
     return hydrated;
   } catch (error) {
-    console.error('[SOCIAL_ENGAGEMENT] Erro ao inicializar:', error);
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      console.error('[SOCIAL_ENGAGEMENT] Erro ao inicializar:', error);
+    }
     return false;
   }
 }

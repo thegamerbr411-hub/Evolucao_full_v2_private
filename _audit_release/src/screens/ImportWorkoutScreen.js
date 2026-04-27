@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { parseWorkout } from '../services/aiBackendService';
 import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
@@ -7,6 +7,7 @@ import { colors, spacing } from '../theme';
 
 export default function ImportWorkoutScreen({ navigation }) {
   const [input, setInput] = useState('');
+  const [feedback, setFeedback] = useState({ type: 'idle', text: '' });
   const { setWorkout, user } = useApp();
 
   const handleImport = async () => {
@@ -16,12 +17,15 @@ export default function ImportWorkoutScreen({ navigation }) {
       userAiUsageToday: Number(user?.aiUsage?.count || 0),
     });
     if (!parsed.exercises.length) {
-      Alert.alert('Sem exercicios', 'Cole um treino com exercicios reconheciveis.');
+      setFeedback({
+        type: 'error',
+        text: 'Nao conseguimos reconhecer exercicios no texto. Tente linhas como: Supino inclinado 4 de 10.',
+      });
       return;
     }
 
     setWorkout(parsed);
-    Alert.alert('Treino importado', 'Treino aplicado com sucesso.');
+    setFeedback({ type: 'success', text: `Treino importado com ${parsed.exercises.length} exercicio(s).` });
     navigation.navigate('Workout');
   };
 
@@ -38,6 +42,11 @@ export default function ImportWorkoutScreen({ navigation }) {
           multiline
           style={styles.input}
         />
+        {feedback.text ? (
+          <Text style={[styles.feedbackText, feedback.type === 'error' ? styles.feedbackError : styles.feedbackSuccess]}>
+            {feedback.text}
+          </Text>
+        ) : null}
         <PrimaryButton title="Importar treino" onPress={handleImport} />
         <SecondaryButton title="Voltar" onPress={() => navigation.goBack()} style={styles.secondary} />
       </AppCard>
@@ -72,5 +81,16 @@ const styles = StyleSheet.create({
   },
   secondary: {
     marginTop: spacing.sm,
+  },
+  feedbackText: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: spacing.md,
+  },
+  feedbackError: {
+    color: colors.warning,
+  },
+  feedbackSuccess: {
+    color: colors.success,
   },
 });

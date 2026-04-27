@@ -35,6 +35,34 @@ Guia unico para operar, validar e evoluir o projeto com base na arquitetura atua
 - Sem erros novos de lint/sintaxe nos arquivos alterados.
 - Sem aumento de acoplamento com contexto legado.
 
+## Como rodar (operacional)
+- App em modo Expo: `npm start`
+- App Android com heap estavel (evita OOM do Metro): `npm run start:android:stable`
+- Build release + install no device conectado: `npm run release:install`
+- Build release sem instalar (APK fixo): `npm run release:apk`
+
+## Como testar (operacional)
+- Smoke backend: `npm run test:basic`
+- Testes principais: `npm test`
+- Integracao social: `node --test __tests__/socialUxVariations.integration.test.mjs`
+- Detox emulador: `npm run detox:test`
+- Detox device conectado: `npm run detox:test:attached`
+
+## Build e artefatos
+- APK release local: `build-output/app-release.apk`
+- Build Android nativo: `android/app/build/outputs/apk/release/app-release.apk`
+- Zip limpo final: `evolucao_v2_clean_final.zip`
+
+## Dependencias externas
+- Google OAuth (opcional por build): quando ausente, app deve manter fluxo local sem quebra.
+- Firebase/Functions (opcional): parser de treino possui fallback local resiliente.
+- Backend QA/API: quando indisponivel, social/hidratacao usam fallback offline controlado.
+
+## Bloqueios conhecidos (estado real)
+- Suite Detox visual (mapa completo) com falha de detecção de tela inicial em [e2e/helpers/flows.js](e2e/helpers/flows.js).
+- Pode ocorrer disputa de sessao Detox em attached (`app is already connected to the session`).
+- Warning de compatibilidade Expo SDK 55 com pacotes levemente abaixo da versao esperada.
+
 ## Convenções operacionais
 - Mudanca pequena e focada por arquivo.
 - Nao alterar UI global sem necessidade de produto.
