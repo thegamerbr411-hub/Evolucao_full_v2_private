@@ -273,6 +273,19 @@ export default function WorkoutScreen({ navigation, route }) {
   const [xpFloatValue, setXpFloatValue] = useState('+20 XP');
   const [showSuccessFlash, setShowSuccessFlash] = useState(false);
 
+  // BLOCO 4: Progresso Visual - Smooth progress bar animation
+  const progressFillAnim = useRef(new Animated.Value(0)).current;
+
+  // BLOCO 4: Animar progress bar quando completion rate mudar
+  useEffect(() => {
+    const targetValue = Math.max(2, Math.round(Number(summary?.completionRate || 0) * 100));
+    Animated.timing(progressFillAnim, {
+      toValue: targetValue,
+      duration: 500,
+      useNativeDriver: false,
+    }).start();
+  }, [summary?.completionRate, progressFillAnim]);
+
   useEffect(() => {
     loadWorkout().then((data) => {
       if (data) setWorkout(data);
@@ -1845,8 +1858,19 @@ export default function WorkoutScreen({ navigation, route }) {
           <Text style={styles.progressHeaderText}>Treino: {Math.round(Number(summary.completionRate || 0) * 100)}% concluido</Text>
           <Text style={styles.streakText}>🔥 {Number(gamification.streakDays || 0)} dias seguidos</Text>
         </View>
+        {/* BLOCO 4: Progresso Visual - Smooth animated fill */}
         <View style={styles.progressTrack}>
-          <View style={[styles.progressFill, { width: `${Math.max(2, Math.round(Number(summary.completionRate || 0) * 100))}%` }]} />
+          <Animated.View
+            style={[
+              styles.progressFill,
+              {
+                width: progressFillAnim.interpolate({
+                  inputRange: [0, 100],
+                  outputRange: ['0%', '100%'],
+                }),
+              },
+            ]}
+          />
         </View>
 
         {actionFeedback ? (
@@ -3410,6 +3434,20 @@ const styles = StyleSheet.create({
     marginTop: 8,
     color: '#8FA5CB',
     fontSize: 12,
+  },
+  
+  // BLOCO 4: Progresso Visual
+  progressTrack: {
+    height: 8,
+    backgroundColor: colors.border,
+    borderRadius: radius.pill,
+    overflow: 'hidden',
+    marginBottom: spacing.md,
+  },
+  progressFill: {
+    height: 8,
+    backgroundColor: colors.primary,
+    borderRadius: radius.pill,
   },
   
   // BLOCO 1: Animação + Recompensa
