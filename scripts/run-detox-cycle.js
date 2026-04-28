@@ -492,6 +492,93 @@ function runAnalyze(env) {
   });
 }
 
+function resolveFallbackTarget(failedTarget, baseEnv) {
+  if (!failedTarget || !failedTarget.mode) {
+    return null;
+  }
+
+  const failedConfiguration = String(failedTarget.configuration || '');
+  const tryToKeepVariant = (nextMode) => {
+    if (!failedConfiguration) {
+      return '';
+    }
+    if (nextMode === 'emulator') {
+      return failedConfiguration.replace('.attached.', '.emulator.');
+    }
+    if (nextMode === 'attached') {
+      return failedConfiguration.replace('.emulator.', '.attached.');
+    }
+    return '';
+  };
+
+  if (failedTarget.mode === 'attached') {
+    const avds = findAvailableAvds();
+    const accelReady = hasEmulatorAcceleration(baseEnv);
+    if (!avds.length || !accelReady) {
+      return null;
+    }
+
+    return {
+      configuration: tryToKeepVariant('emulator') || 'android.emulator.debug',
+      env: { DETOX_AVD_NAME: avds[0] },
+      mode: 'emulator',
+      selected: avds[0],
+      fallbackFrom: failedTarget.mode,
+    };
+  }
+
+  if (failedTarget.mode === 'emulator') {
+    const attachedDevices = findAttachedAndroidDevices(baseEnv);
+    if (!attachedDevices.length) {
+      return null;
+    }
+
+    return {
+      configuration: tryToKeepVariant('attached') || 'android.attached.debug',
+      env: { DETOX_ADB_NAME: attachedDevices[0] },
+      mode: 'attached',
+      selected: attachedDevices[0],
+      fallbackFrom: failedTarget.mode,
+    };
+  }
+
+  return null;
+}
+
+function buildDetoxArgs(configuration, testPattern, testFile) {
+  const args = ['detox', 'test', '--configuration', configuration];
+
+  if (testPattern) {
+    args.push('--testNamePattern', testPattern);
+  }
+
+  if (String(process.env.DETOX_HEADLESS || '').trim() === '1') {
+    args.push('--headless');
+  }
+
+  if (String(process.env.DETOX_CLEANUP || '1').trim() !== '0') {
+    args.push('--cleanup');
+  }
+
+  // Keep attached runs isolated by default; forcing --reuse has caused
+  // Detox session collisions ("app is already connected to the session").
+  const shouldReuse = String(process.env.DETOX_REUSE_APP || '').trim() === '1';
+  if (shouldReuse) {
+    args.push('--reuse');
+  }
+
+  if (String(process.env.DETOX_RECORD_LOGS || '').trim()) {
+    args.push('--record-logs', String(process.env.DETOX_RECORD_LOGS).trim());
+  }
+
+  if (testFile) {
+    // Forward directly to Jest to avoid loading unrelated suites in loop mode.
+    args.push('--', '--runTestsByPath', testFile);
+  }
+
+  return args;
+}
+
 async function main() {
   ensureArtifactsDir();
 
@@ -502,7 +589,8 @@ async function main() {
   let androidEnv = resolveAndroidEnv(process.env);
   let target = null;
   let configuration = String(process.env.DETOX_CONFIGURATION || '').trim() || 'android.emulator.debug';
-  let args = ['detox', 'test', '--configuration', configuration];
+  const attempts = [];
+  let finalExitCode = 1;
 
   const startedAt = new Date().toISOString();
   const allowNoTarget = parseBoolean(process.env.DETOX_ALLOW_NO_TARGET, false);
@@ -511,52 +599,53 @@ async function main() {
 
   try {
     target = resolveDetoxRuntimeTarget(androidEnv);
-    configuration = target.configuration;
-    args = ['detox', 'test', '--configuration', configuration];
-
-    if (testPattern) {
-      args.push('--testNamePattern', testPattern);
-    }
-
-    if (String(process.env.DETOX_HEADLESS || '').trim() === '1') {
-      args.push('--headless');
-    }
-
-    if (String(process.env.DETOX_CLEANUP || '1').trim() !== '0') {
-      args.push('--cleanup');
-    }
-
-    // Keep attached runs isolated by default; forcing --reuse has caused
-    // Detox session collisions ("app is already connected to the session").
-    const shouldReuse = String(process.env.DETOX_REUSE_APP || '').trim() === '1';
-    if (shouldReuse) {
-      args.push('--reuse');
-    }
-
-    if (String(process.env.DETOX_RECORD_LOGS || '').trim()) {
-      args.push('--record-logs', String(process.env.DETOX_RECORD_LOGS).trim());
-    }
-
-    if (testFile) {
-      // Forward directly to Jest to avoid loading unrelated suites in loop mode.
-      args.push('--', '--runTestsByPath', testFile);
-    }
-
     qaServer = await ensureQaServer();
-    await ensureBackendHealthForAttached(target);
-    ensureAttachedDeviceAwake(target, androidEnv);
-    ensureAttachedAppInstalled(target, configuration, androidEnv);
-    if (String(process.env.DETOX_PREFLIGHT_FOREGROUND || '0').trim() === '1') {
-      ensureAttachedAppForeground(target, androidEnv);
-    }
-    console.log(`[detox-cycle] configuration=${configuration} mode=${target.mode} target=${target.selected || 'default'} persona=${persona} seed=${seed}`);
+    const fallbackEnabled = parseBoolean(process.env.DETOX_FALLBACK_ON_FAILURE, true);
 
-    const exitCode = await runDetox(args, {
-      ...androidEnv,
-      ...target.env,
-      QA_PERSONA: persona,
-      QA_SEED: seed,
-    });
+    const runAttempt = async (currentTarget, reason = 'primary') => {
+      configuration = currentTarget.configuration;
+      await ensureBackendHealthForAttached(currentTarget);
+      ensureAttachedDeviceAwake(currentTarget, androidEnv);
+      ensureAttachedAppInstalled(currentTarget, configuration, androidEnv);
+      if (String(process.env.DETOX_PREFLIGHT_FOREGROUND || '0').trim() === '1') {
+        ensureAttachedAppForeground(currentTarget, androidEnv);
+      }
+
+      console.log(
+        `[detox-cycle] attempt=${attempts.length + 1} reason=${reason} configuration=${configuration} mode=${currentTarget.mode} target=${currentTarget.selected || 'default'} persona=${persona} seed=${seed}`
+      );
+
+      const attemptExitCode = await runDetox(buildDetoxArgs(configuration, testPattern, testFile), {
+        ...androidEnv,
+        ...currentTarget.env,
+        QA_PERSONA: persona,
+        QA_SEED: seed,
+      });
+
+      attempts.push({
+        attempt: attempts.length + 1,
+        configuration,
+        mode: currentTarget.mode,
+        target: currentTarget.selected || 'default',
+        reason,
+        exitCode: attemptExitCode,
+      });
+
+      return attemptExitCode;
+    };
+
+    finalExitCode = await runAttempt(target, 'primary');
+
+    if (finalExitCode !== 0 && fallbackEnabled) {
+      const fallbackTarget = resolveFallbackTarget(target, androidEnv);
+      if (fallbackTarget) {
+        console.warn(
+          `[detox-cycle] primary_failed_exit=${finalExitCode}; retrying with fallback mode=${fallbackTarget.mode} target=${fallbackTarget.selected || 'default'}`
+        );
+        target = fallbackTarget;
+        finalExitCode = await runAttempt(target, `fallback_from_${fallbackTarget.fallbackFrom}`);
+      }
+    }
 
     analyzeExitCode = await runAnalyze({
       ...process.env,
@@ -569,7 +658,8 @@ async function main() {
         {
           analyzeExitCode,
           configuration,
-          exitCode,
+          exitCode: finalExitCode,
+          attempts,
           finishedAt: new Date().toISOString(),
           persona,
           qaServerAutostarted: Boolean(qaServer?.started),
@@ -582,7 +672,7 @@ async function main() {
       'utf-8'
     );
 
-    process.exit(exitCode);
+    process.exit(finalExitCode);
   } catch (error) {
     const errorMessage = String(error?.message || error || 'unknown_error');
     const isNoTargetError = errorMessage.includes('detox_target_not_available');
@@ -601,6 +691,7 @@ async function main() {
           analyzeExitCode,
           configuration,
           exitCode: shouldSkip ? 0 : 1,
+          attempts,
           finishedAt: new Date().toISOString(),
           persona,
           qaServerAutostarted: Boolean(qaServer?.started),

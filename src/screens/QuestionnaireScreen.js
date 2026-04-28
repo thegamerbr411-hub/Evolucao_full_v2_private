@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -9,7 +8,7 @@ import {
   View,
 } from 'react-native';
 import { useApp } from '../context/AppContext';
-import { AppCard, PrimaryButton, ScreenHeader } from '../components/ui';
+import { AnimatedToast, AppCard, PrimaryButton, ScreenHeader } from '../components/ui';
 import { colors, radius, spacing, typography } from '../theme';
 import { logError } from '../utils/errorLogger';
 
@@ -82,14 +81,9 @@ export default function QuestionnaireScreen({ navigation }) {
   const [targetWeight, setTargetWeight] = useState('');
   const [height, setHeight] = useState('');
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
 
   const handleSubmit = () => {
-    console.log('[ONBOARDING_SUBMIT_ATTEMPT]', {
-      daysPerWeek,
-      goal,
-      level,
-      weight,
-    });
     const currentWeight = Number(String(weight || '').replace(',', '.'));
     const trainingDaysValue = Number(daysPerWeek);
     const safeTargetWeight = Number(String(targetWeight || weight || '').replace(',', '.'));
@@ -110,7 +104,7 @@ export default function QuestionnaireScreen({ navigation }) {
         severity: 'low',
         extra: { currentWeight },
       });
-      Alert.alert('Dados invalidos', 'Informe um peso atual valido.');
+      setToastMessage('Dados invalidos. Informe um peso atual valido.');
       return;
     }
 
@@ -120,7 +114,7 @@ export default function QuestionnaireScreen({ navigation }) {
         severity: 'low',
         extra: { trainingDaysPerWeek: trainingDaysValue },
       });
-      Alert.alert('Dados invalidos', 'Escolha de 2 a 7 dias por semana.');
+      setToastMessage('Dados invalidos. Escolha de 2 a 7 dias por semana.');
       return;
     }
 
@@ -130,17 +124,12 @@ export default function QuestionnaireScreen({ navigation }) {
         severity: 'low',
         extra: { height: safeHeight, targetWeight: safeTargetWeight },
       });
-      Alert.alert('Dados invalidos', 'Ajuste peso meta e altura nas opcoes avancadas.');
+      setToastMessage('Dados invalidos. Ajuste peso meta e altura nas opcoes avancadas.');
       return;
     }
 
     try {
       saveQuestionnaire(payload);
-      console.log('[ONBOARDING_COMPLETED]', {
-        goal,
-        level,
-        trainingDaysPerWeek: payload.trainingDaysPerWeek,
-      });
       navigation.reset({
         index: 0,
         routes: [{ name: 'MainTabs' }],
@@ -151,7 +140,7 @@ export default function QuestionnaireScreen({ navigation }) {
         severity: 'medium',
         extra: { action: 'saveQuestionnaire' },
       });
-      Alert.alert('Erro ao salvar', 'Nao foi possivel concluir o questionario agora. Tente novamente.');
+      setToastMessage('Erro ao salvar. Nao foi possivel concluir o questionario agora.');
     }
   };
 
@@ -161,6 +150,7 @@ export default function QuestionnaireScreen({ navigation }) {
       contentContainerStyle={styles.container}
       keyboardShouldPersistTaps="handled"
     >
+      <AnimatedToast message={toastMessage} onHide={() => setToastMessage('')} />
       <View testID="questionnaire-screen">
       <ScreenHeader title="Comece em 30 segundos" subtitle="So o essencial para criar seu plano." />
 

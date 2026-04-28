@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
@@ -38,57 +38,86 @@ function getMessageVariant(options, seed) {
 }
 
 function detectIntents(message) {
-  const text = String(message || '').toLowerCase();
-  const intents = [];
-  const machineKeywords = [
-    'supino maquina',
-    'maquina de peito',
-    'chest press',
-    'puxador',
-    'lat pulldown',
-    'graviton',
-    'seated row',
-    'remada maquina',
-    'shoulder press',
-    'triceps maquina',
-  ];
+  const text = String(message || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
 
-  const pushIntent = (intent) => {
-    if (!intents.includes(intent)) {
-      intents.push(intent);
-    }
-  };
+  if (!text) {
+    return ['unknown'];
+  }
 
-  if (text.includes('madrugada') || text.includes('treinei tarde') || text.includes('treinei de madrugada')) {
-    pushIntent('late_workout');
-  }
-  if (text.includes('nao consegui treinar') || text.includes('não consegui treinar') || text.includes('nao treinei')) {
-    pushIntent('missed_workout');
-  }
-  if (text.includes('comi ') || text.includes('comi') || text.includes('pao') || text.includes('pão') || text.includes('ovo') || text.includes('proteina') || text.includes('proteína') || text.includes('comida') || text.includes('refeicao') || text.includes('refeição')) {
-    pushIntent('nutrition');
-  }
-  if (text.includes('bebi pouca') || text.includes('bebi pouco') || text.includes('agua') || text.includes('água') || text.includes('hidrat')) {
-    pushIntent('hydration');
-  }
-  if (text.includes('me monta uma rotina') || text.includes('monta rotina') || text.includes('rotina') || text.includes('semana') || text.includes('planejar') || text.includes('planejamento')) {
-    pushIntent('routine');
-  }
   if (
+    text === 'oi' ||
+    text === 'ola' ||
+    text.startsWith('oi ') ||
+    text.startsWith('ola ') ||
+    text.includes('bom dia') ||
+    text.includes('boa tarde') ||
+    text.includes('boa noite')
+  ) {
+    return ['greeting'];
+  }
+
+  if (
+    text.includes('ajuda') ||
+    text.includes('help') ||
+    text.includes('socorro') ||
+    text.includes('como funciona') ||
+    text.includes('o que voce faz') ||
+    text.includes('o que voce pode fazer')
+  ) {
+    return ['help'];
+  }
+
+  if (
+    text.includes('progresso') ||
+    text.includes('evolucao') ||
+    text.includes('como estou') ||
+    text.includes('resultado') ||
+    text.includes('nivel') ||
+    text.includes('xp')
+  ) {
+    return ['progress'];
+  }
+
+  if (
+    text.includes('proteina') ||
+    text.includes('comi') ||
+    text.includes('refeicao') ||
+    text.includes('agua') ||
+    text.includes('hidrat') ||
+    text.includes('dieta') ||
+    text.includes('nutri') ||
+    text.includes('whey') ||
+    text.includes('ovo')
+  ) {
+    return ['nutrition'];
+  }
+
+  if (
+    text.includes('criar treino') ||
+    text.includes('montar treino') ||
+    text.includes('iniciar treino') ||
     text.includes('treino') ||
+    text.includes('rotina') ||
+    text.includes('semana') ||
+    text.includes('nao consegui treinar') ||
+    text.includes('nao treinei') ||
+    text.includes('treinei tarde') ||
+    text.includes('madrugada') ||
     text.includes('carga') ||
     text.includes('exercicio') ||
-    text.includes('exercício') ||
-    machineKeywords.some((keyword) => text.includes(keyword))
+    text.includes('series') ||
+    text.includes('supino') ||
+    text.includes('agachamento') ||
+    text.includes('remada')
   ) {
-    pushIntent('training');
+    return ['workout'];
   }
 
-  if (!intents.length) {
-    pushIntent('general');
-  }
-
-  return intents;
+  return ['unknown'];
 }
 
 function buildExerciseRecognitionLine(message = '') {
@@ -194,79 +223,95 @@ function getCoachReply(message, context, turnIndex, memory) {
   const intents = detectIntents(message);
   const intent = intents[0];
   const seed = String(message || '').length + turnIndex;
-  const transitionText = getTransitionMessage(memory.lastUserIntent, intent, context);
+  const normalizedMessage = String(message || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
 
-  if (transitionText) {
-    return transitionText;
-  }
-
-  if (intents.length > 1) {
-    return getCoachMultiIntentReply(intents, context);
-  }
-
-  if (intent === 'missed_workout') {
-    const intro = getMessageVariant([
-      'Acontece. O importante e proteger a consistencia da semana.',
-      'Sem drama. Um dia ruim nao precisa virar semana ruim.',
-      'Tranquilo, a gente corrige sem exagerar no volume.'
+  if (intent === 'greeting') {
+    return getMessageVariant([
+      'Oi. Tamo junto hoje. Quer foco em treino, proteina ou agua?',
+      'Fala. Me diz seu foco agora que eu te passo a ação direta.',
+      'Boa. Vamos resolver o próximo passo do seu dia.'
     ], seed);
-    return `${intro} Hoje voce esta em ${context.smart.trainedThisWeek}/${context.smart.weeklyTarget} treinos na semana. ${context.smart.isBehindWeek ? 'Minha sugestao: treino curto de 20-30min hoje para nao ficar para tras.' : 'Voce ainda esta no ritmo. Podemos fazer mobilidade ou treino leve.'}`;
   }
 
-  if (intent === 'late_workout') {
+  if (intent === 'workout' && (normalizedMessage.includes('nao consegui treinar') || normalizedMessage.includes('nao treinei'))) {
     const intro = getMessageVariant([
-      'Boa disciplina. Treinar de madrugada conta e muito.',
-      'Excelente compromisso. Mesmo fora do horario padrao, treino feito vale.',
-      'Mandou bem em manter consistencia ate de madrugada.'
+      'Acontece. Um dia ruim nao define sua semana.',
+      'Sem culpa. Agora a gente ajusta e segue.',
+      'Relaxa, ainda da para fechar a semana forte.'
     ], seed);
-    return `${intro} Hoje priorize recuperacao: agua, refeicao proteica e sono de qualidade para consolidar o treino.`;
+    return `${intro} Você está em ${context.smart.trainedThisWeek}/${context.smart.weeklyTarget} treinos. ${context.smart.isBehindWeek ? 'Faz 25 minutos hoje e salva o ritmo.' : 'Hoje pode ser treino leve ou mobilidade.'}`;
+  }
+
+  if (intent === 'workout' && (normalizedMessage.includes('madrugada') || normalizedMessage.includes('treinei tarde'))) {
+    const intro = getMessageVariant([
+      'Mandou bem. Treino feito fora de hora também conta.',
+      'Excelente disciplina. Você não quebrou a sequência.',
+      'Boa. Fez o que precisava ser feito.'
+    ], seed);
+    return `${intro} Agora fecha com água, proteína e sono bom.`;
   }
 
   if (intent === 'nutrition') {
     const intro = getMessageVariant([
-      'Boa, vamos direto no que fecha sua meta.',
-      'Perfeito, vamos otimizar sua proxima refeicao.',
-      'Fechou, foco em nutricao inteligente agora.'
+      'Fechou. Vamos resolver isso agora.',
+      'Boa. Próxima refeição decide seu dia.',
+      'Perfeito. Foco em proteína agora.'
     ], seed);
     const proteinGap = Math.max(0, context.proteinTarget - context.proteinToday);
-    const weakMealsHint = context.weakMeals > 0 ? `Voce teve ${context.weakMeals} refeicoes fracas em proteina hoje.` : 'Suas refeicoes estao em boa direcao.';
-    return `${intro} Hoje voce esta com ${context.proteinToday}/${context.proteinTarget}g de proteina. ${weakMealsHint} ${proteinGap > 0 ? `Faltam ${proteinGap}g - sugiro 1 fonte forte agora (frango, ovos ou whey).` : 'Meta batida. Mantenha esse padrao no jantar.'}`;
+    return `${intro} Hoje você está em ${context.proteinToday}/${context.proteinTarget}g. ${proteinGap > 0 ? `Faltam ${proteinGap}g. Um whey ou ovos já resolvem fácil.` : 'Meta batida. Só manter no jantar.'}`;
   }
 
-  if (intent === 'hydration') {
+    if (normalizedMessage.includes('agua') || normalizedMessage.includes('hidrat')) {
+      const intro = getMessageVariant([
+        'Boa chamada. Agua muda sua energia na hora.',
+        'Perfeito. Isso impacta treino e recuperacao.',
+        'Vamos ajustar rapido e seguir.'
+      ], seed);
+      const gap = Math.max(0, context.waterTarget - context.waterToday);
+      return `${intro} Você está em ${context.waterToday}/${context.waterTarget}ml. ${gap > 0 ? `Faltam ${gap}ml. Toma +300ml agora.` : 'Meta batida. So manter.'}`;
+    }
+
     const intro = getMessageVariant([
-      'Hidratacao mexe direto com performance no treino.',
-      'Boa chamada, agua muda energia e recuperacao.',
-      'Excelente ponto, vamos ajustar isso rapido.'
+      'Fechou. Vamos resolver isso agora.',
+      'Boa. Proxima refeicao decide seu dia.',
+      'Perfeito. Foco em proteina agora.'
     ], seed);
-    const gap = Math.max(0, context.waterTarget - context.waterToday);
-    return `${intro} Seu status agora: ${context.waterToday}/${context.waterTarget}ml. ${gap > 0 ? `Faltam ${gap}ml. Faz +300ml agora e mais +300ml no proximo bloco do dia.` : 'Meta de agua batida. So manter.'}`;
+    const proteinGap = Math.max(0, context.proteinTarget - context.proteinToday);
+    return `${intro} Hoje você está em ${context.proteinToday}/${context.proteinTarget}g. ${proteinGap > 0 ? `Faltam ${proteinGap}g. Um whey ou ovos ja resolvem facil.` : 'Meta batida. So manter no jantar.'}`;
   }
 
-  if (intent === 'routine') {
-    const intro = getMessageVariant([
-      'Vamos montar uma semana que voce consiga cumprir.',
-      'Plano bom e plano executavel.',
-      'Bora organizar sem sobrecarregar.'
-    ], seed);
-    return `${intro} Seu alvo atual e ${context.smart.weeklyTarget} treinos/semana e voce fez ${context.smart.trainedThisWeek}. ${context.smart.isBehindWeek ? 'Prioridade: 2 sessoes curtas nos proximos 3 dias.' : 'Prioridade: manter frequencia e aumentar qualidade das series.'}`;
-  }
+  if (intent === 'workout') {
+    if (normalizedMessage.includes('rotina') || normalizedMessage.includes('semana') || normalizedMessage.includes('planejar')) {
+      const intro = getMessageVariant([
+        'Vamos simplificar sua semana.',
+        'Plano bom e plano que voce cumpre.',
+        'Bora organizar sem complicar.'
+      ], seed);
+      return `${intro} Meta: ${context.smart.weeklyTarget} treinos. Você fez ${context.smart.trainedThisWeek}. ${context.smart.isBehindWeek ? 'Proxima acao: 2 sessoes curtas nos proximos 3 dias.' : 'Proxima acao: manter frequencia e caprichar na execucao.'}`;
+    }
 
-  if (intent === 'training') {
     const intro = getMessageVariant([
-      'Treino bom e o que voce executa com consistencia.',
-      'Vamos tornar seu treino de hoje objetivo.',
-      'Perfeito, foco em decisao pratica de treino.'
+      'Hoje é dia de fazer o básico bem feito.',
+      'Vamos direto no treino que traz resultado.',
+      'Foco total: execução limpa e ritmo alto.'
     ], seed);
     const recognitionLine = buildExerciseRecognitionLine(message);
-    return `${intro} Recomendacao atual: ${context.smart.title}. ${context.smart.justification} ${context.trainedToday ? 'Voce ja treinou hoje, entao foque em recuperacao e alimentacao.' : 'Se puder, inicia com os exercicios principais primeiro.'} ${recognitionLine}`.trim();
+    return `${intro} ${context.smart.title}. ${context.trainedToday ? 'Como já treinou hoje, fecha recuperação e proteína.' : 'Comece pelos exercícios principais agora.'} ${recognitionLine}`.trim();
   }
 
-  return getMessageVariant([
-    `Voce ainda pode melhorar seu dia agora: treino, proteina ou rotina. Status de proteina: ${context.proteinToday}/${context.proteinTarget}g.`,
-    `Hora de agir no proximo passo: treino, nutricao ou hidratacao. Agua atual: ${context.waterToday}/${context.waterTarget}ml.`,
-    `Prioridade agora: treino do dia e depois fechar proteina. Semana em ${context.smart.trainedThisWeek}/${context.smart.weeklyTarget}.`
-  ], seed);
+  if (intent === 'progress') {
+    return `Seu dia está em ${context.smart.trainedThisWeek}/${context.smart.weeklyTarget} treinos da semana. Proteína: ${context.proteinToday}/${context.proteinTarget}g. Próxima ação: ${context.trainedToday ? 'fechar água e proteína' : 'iniciar treino agora'}.`;
+  }
+
+  if (intent === 'help') {
+    const nextAction = context.trainedToday ? 'fechar agua e proteina' : 'iniciar treino de hoje';
+    return `Eu te ajudo com foco em treino, nutricao e progresso. Se quiser, me diga: "montar treino", "quanto falta de proteina" ou "como esta meu progresso". Agora, sua melhor acao e ${nextAction}.`;
+  }
+
+  return 'Nao entendi, pode explicar melhor?';
 }
 
 function buildPainSafetyLine(pain = '') {
@@ -312,6 +357,21 @@ function getUrgencyStyles(level) {
     backgroundColor: colors.successMuted,
     badge: 'Bom ritmo',
   };
+}
+
+function toCoachShortText(message) {
+  const raw = String(message || '').trim();
+  if (!raw) {
+    return '';
+  }
+
+  const lines = raw
+    .split(/\n+|(?<=[.!?])\s+/)
+    .map((part) => String(part || '').trim())
+    .filter(Boolean)
+    .slice(0, 3);
+
+  return lines.join('\n');
 }
 
 export default function CoachChatScreen({ navigation }) {
@@ -626,21 +686,28 @@ export default function CoachChatScreen({ navigation }) {
       weakMeals,
     };
     const baseReply = getCoachReply(trimmed, liveContext, messages.length, memory);
-    const contextInsight = smartInsight?.summary ? `Insight: ${smartInsight.summary}` : '';
-    const painSafety = (intent === 'training' || intent === 'routine' || intent === 'late_workout')
+    const contextInsight = (intent === 'workout' || intent === 'progress' || intent === 'nutrition') && smartInsight?.summary
+      ? `Insight: ${smartInsight.summary}`
+      : '';
+    const painSafety = intent === 'workout'
       ? buildPainSafetyLine(currentPain)
       : '';
 
     let tunedReply = baseReply;
     const recentActions = Array.isArray(memory.lastActions) ? memory.lastActions.slice(-4).join(' ') : '';
-    if (recentActions.includes('water') && intent === 'hydration') {
+    if (recentActions.includes('water') && intent === 'nutrition' && normalizedMessage.includes('agua')) {
       tunedReply = 'Ja foi feito: voce adicionou agua recentemente. Falta: manter ritmo em blocos menores. Agora: apenas +100ml na proxima hora.';
+    }
+
+    let composedMessage = [tunedReply, contextInsight, painSafety].filter(Boolean).join(' ');
+    if (!/agora:|iniciar treino|registrar refeicao|beber|abrir/i.test(composedMessage)) {
+      composedMessage = `${composedMessage} Agora: toque em Iniciar treino ou Registrar refeicao.`;
     }
 
     const coachMessage = {
       id: `c-${Date.now()}`,
       role: 'coach',
-      text: [tunedReply, contextInsight, painSafety].filter(Boolean).join(' '),
+      text: toCoachShortText(composedMessage),
     };
 
     if (coachMessage.text === memory.lastCoachMessage) {
@@ -710,6 +777,11 @@ export default function CoachChatScreen({ navigation }) {
 
   return (
     <SafeAreaView testID="screen-coach" style={styles.container} edges={['top']}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.flex}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
+      >
       <ScreenHeader title="Coach Diario" subtitle="Conversa orientada pelo seu treino, agua e macros do dia." />
 
       <AppCard style={[styles.coachCard, { borderColor: urgencyUI.borderColor, backgroundColor: urgencyUI.backgroundColor }]}> 
@@ -753,7 +825,7 @@ export default function CoachChatScreen({ navigation }) {
         keyExtractor={(item, index) => String(item?.id || index)}
         renderItem={({ item: message }) => (
           <View testID={message.role === 'user' ? 'message-user' : 'message-coach'} style={[styles.bubble, message.role === 'user' ? styles.userBubble : styles.coachBubble]}>
-            <Text style={[styles.bubbleText, message.role === 'user' ? styles.userText : styles.coachText]}>{message.text}</Text>
+            <Text style={[styles.bubbleText, message.role === 'user' ? styles.userText : styles.coachText]}>{message.role === 'coach' ? toCoachShortText(message.text) : message.text}</Text>
           </View>
         )}
       />
@@ -766,14 +838,15 @@ export default function CoachChatScreen({ navigation }) {
           onSubmitEditing={sendMessage}
           returnKeyType="send"
           blurOnSubmit={false}
-          placeholder="Ex: Não consegui treinar hoje"
-          placeholderTextColor="#7A8B99"
+          placeholder="Pergunte ao seu coach..."
+          placeholderTextColor={colors.textMuted}
           style={styles.input}
         />
         <TouchableOpacity testID="btn-chat-send" style={styles.sendButton} onPress={sendMessage}>
           <Text style={styles.sendText}>Enviar</Text>
         </TouchableOpacity>
       </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -784,6 +857,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     paddingTop: spacing.md,
     paddingHorizontal: spacing.lg,
+  },
+  flex: {
+    flex: 1,
   },
   chatBox: {
     flex: 1,
@@ -876,6 +952,8 @@ const styles = StyleSheet.create({
   },
   quickMainBtn: {
     minWidth: 110,
+    backgroundColor: colors.success,
+    borderColor: colors.success,
   },
   quickBtn: {
     minWidth: 88,

@@ -25,7 +25,7 @@ export const colors = {
   text: '#FFFFFF',
   textPrimary: '#F8FAFC',
   textSecondary: '#94A3B8',
-  textMuted: '#4B5563',
+  textMuted: '#64748B',
   textInverse: '#0B0B0F',
 
   // Semântico

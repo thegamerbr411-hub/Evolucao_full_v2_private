@@ -205,6 +205,7 @@ export default function HomeScreen({ navigation }) {
 
   const streak = gamification?.streakDays || 0;
   const xp = gamification?.xp || 0;
+  const isNewUser = xp === 0 && streak === 0;
   const level = Math.floor(xp / XP_PER_LEVEL) + 1;
   const xpInLevel = xp % XP_PER_LEVEL;
   const xpPct = Math.round((xpInLevel / XP_PER_LEVEL) * 100);
@@ -258,7 +259,12 @@ export default function HomeScreen({ navigation }) {
   const workoutDone = (workoutSummary?.guidedSets || 0) > 0;
 
   const greeting = getGreeting();
-  const userName = profile?.goal ? '' : '';
+  const waterTargetMl = Math.round(Number(plan?.waterLitersPerDay || 3) * 1000);
+  const waterTodayMl = Math.round(todayLogs.reduce((a, l) => a + Number(l.waterMl || 0), 0));
+  const proteinTarget = Math.round(Number(macroTargets?.protein || 120));
+  const missionTitle = todayWorkout.length > 0
+    ? `Treino de hoje: ${todayWorkout[0]?.name || 'Sessao principal'}`
+    : 'Treino de hoje: Sessao principal';
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -268,186 +274,60 @@ export default function HomeScreen({ navigation }) {
         testID="screen-home"
       >
         <View testID="home-screen" style={{ width: 1, height: 1 }} />
-        {/* ── HEADER HERO ── */}
-        <View style={styles.hero}>
-          <View style={styles.heroLeft}>
-            <Text style={styles.greeting}>{greeting} 👋</Text>
-            <Text style={styles.heroSubtitle}>Pronto para evoluir hoje?</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.streakBadge}
-            onPress={() => navigation.navigate('Historico')}
-          >
-            <Text style={styles.streakFire}>🔥</Text>
-            <Text style={styles.streakNum}>{streak}</Text>
-            <Text style={styles.streakLabel}>dias</Text>
-          </TouchableOpacity>
+        <View style={styles.dailyTopCard}>
+          <Text style={styles.greeting}>{greeting}</Text>
+          <Text style={styles.dailyTopTitle}>🔥 Dia {Math.max(1, Number(streak || 0))} de sequência</Text>
+          <Text style={styles.dailyTopXp}>+{Math.max(0, Number(workoutSummary?.sessionXp || 120))} XP hoje</Text>
         </View>
 
-        {/* ── XP LEVEL CARD ── */}
-        <View testID="home-ready" style={styles.xpCard}>
-          <View style={styles.xpRow}>
-            <View style={styles.xpLeft}>
-              <Text style={styles.xpLevelBadge}>Nv. {level}</Text>
-              <Text style={styles.xpValue}>{xp} XP</Text>
-            </View>
-            <Text style={styles.xpPct}>{xpPct}%</Text>
-          </View>
-          <View style={styles.xpTrack}>
-            <View style={[styles.xpFill, { width: `${xpPct}%` }]} />
-          </View>
-          <Text style={styles.xpHint}>{XP_PER_LEVEL - xpInLevel} XP para o próximo nível</Text>
+        <View testID="home-ready" style={styles.missionMainCard}>
+          <Text style={styles.missionEyebrow}>MISSAO PRINCIPAL</Text>
+          <Text style={styles.missionMainTitle}>{missionTitle}</Text>
         </View>
-
-        {/* ── TREINO DE HOJE ── */}
-        <TouchableOpacity
-          style={[styles.workoutCard, workoutDone && styles.workoutCardDone]}
-          onPress={() => navigation.navigate('TreinoHoje')}
-          activeOpacity={0.85}
-        >
-          <View style={styles.workoutCardLeft}>
-            <Ionicons
-              name={workoutDone ? 'checkmark-circle' : 'barbell-outline'}
-              size={28}
-              color={workoutDone ? colors.success : colors.primary}
-            />
-            <View style={{ marginLeft: spacing.sm }}>
-              <Text style={styles.workoutCardTitle}>
-                {workoutDone ? 'Treino concluído!' : 'Treino de hoje'}
-              </Text>
-              <Text style={styles.workoutCardSub}>
-                {workoutDone
-                  ? `${workoutSummary.guidedSets} séries registradas`
-                  : todayWorkout.length > 0
-                    ? `${todayWorkout.length} exercícios planejados`
-                    : 'Toque para iniciar'}
-              </Text>
-            </View>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-        </TouchableOpacity>
 
         <TouchableOpacity
           testID="home-main-cta"
-          style={styles.mainCta}
+          style={styles.mainMissionCta}
           onPress={() => navigation.navigate('TreinoHoje')}
-          activeOpacity={0.9}
+          activeOpacity={0.92}
         >
-          <Ionicons name="flash" size={18} color={colors.textInverse} />
-          <Text style={styles.mainCtaText}>{workoutDone ? 'VER TREINO DE HOJE' : 'COMEÇAR TREINO AGORA'}</Text>
+          <Text style={styles.mainMissionCtaText}>▶ COMEÇAR TREINO</Text>
         </TouchableOpacity>
 
-        {/* ── PROGRESSO SEMANAL ── */}
-        <WeeklyProgress
-          streak={streak}
-          onPress={() => navigation.navigate('Historico')}
-        />
+        <View style={styles.progressCard}>
+          <Text style={styles.progressTitle}>PROGRESSO DO DIA</Text>
+          <Text style={styles.progressLine}>Treino: {workoutDone ? '✅' : '⬜'}</Text>
+          <Text style={styles.progressLine}>Proteina: {Math.round(todayProtein)}/{proteinTarget}g</Text>
+          <Text style={styles.progressLine}>Agua: {(waterTodayMl / 1000).toFixed(1)}L / {(waterTargetMl / 1000).toFixed(1)}L</Text>
+        </View>
 
-        {/* ── MACROS DO DIA ── */}
-        <View style={styles.macroCard}>
-          <View style={styles.macroHeader}>
-            <Text style={styles.sectionTitle}>NUTRIÇÃO HOJE</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Scanner')}>
-              <Text style={styles.macroAction}>+ Adicionar</Text>
+        <View style={styles.quickCard}>
+          <Text style={styles.quickTitle}>ACOES RAPIDAS</Text>
+          <View style={styles.quickActionsDailyRow}>
+            <TouchableOpacity
+              testID="home-quick-nutricao"
+              style={styles.quickDailyButton}
+              onPress={() => navigation.navigate('Scanner')}
+            >
+              <Text style={styles.quickDailyButtonText}>+ Registrar refeicao</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              testID="btn-add-agua"
+              style={styles.quickDailyButton}
+              onPress={() => {
+                if (waterDebounceRef.current) return;
+                try { addWaterIntake?.(300); } catch { /* ignore */ }
+                setWaterFeedback(true);
+                waterDebounceRef.current = setTimeout(() => {
+                  setWaterFeedback(false);
+                  waterDebounceRef.current = null;
+                }, 3000);
+              }}
+            >
+              <Text style={styles.quickDailyButtonText}>+ Beber agua</Text>
             </TouchableOpacity>
           </View>
-
-          {/* Barra de calorias */}
-          <View style={styles.calRow}>
-            <Text style={styles.calValue}>{todayCalories}</Text>
-            <Text style={styles.calSep}>/</Text>
-            <Text style={styles.calTarget}>{macroTargets.calories} kcal</Text>
-            <View style={{ flex: 1 }} />
-            <Text style={styles.calPct}>{caloriesPct}%</Text>
-          </View>
-          <View style={styles.calTrack}>
-            <View
-              style={[
-                styles.calFill,
-                { width: `${caloriesPct}%` },
-                caloriesPct >= 100 && styles.calFillOver,
-              ]}
-            />
-          </View>
-
-          {/* Macros row */}
-          <View style={styles.macrosRow}>
-            <MacroRing
-              label="Prot"
-              value={Math.round(todayProtein)}
-              target={macroTargets.protein}
-              color={colors.secondary}
-            />
-            <View style={styles.macroDivider} />
-            <MacroRing
-              label="Carb"
-              value={Math.round(todayCarbs)}
-              target={macroTargets.carbs}
-              color={colors.accent}
-            />
-            <View style={styles.macroDivider} />
-            <MacroRing
-              label="Gor"
-              value={Math.round(todayLogs.reduce((a, l) => a + Number(l.fats || 0), 0))}
-              target={macroTargets.fat}
-              color={colors.warning}
-            />
-          </View>
-        </View>
-
-        {/* ── AÇÕES RÁPIDAS ── */}
-        <Text style={styles.sectionTitleStandalone}>ACESSOS ESSENCIAIS</Text>
-        <View style={styles.quickActionsRow}>
-          <QuickAction
-            icon="restaurant"
-            label="Registrar refeição"
-            testID="home-quick-nutricao"
-            onPress={() => navigation.navigate('Scanner')}
-          />
-          <QuickAction
-            icon="chatbubbles"
-            label="Coach"
-            testID="home-quick-coach"
-            onPress={() => navigation.navigate('Coach', {})}
-          />
-          <TouchableOpacity
-            testID="btn-add-agua"
-            style={qaStyles.btn}
-            onPress={() => {
-              if (waterDebounceRef.current) return;
-              try { addWaterIntake?.(300); } catch { /* ignore */ }
-              setWaterFeedback(true);
-              waterDebounceRef.current = setTimeout(() => {
-                setWaterFeedback(false);
-                waterDebounceRef.current = null;
-              }, 3000);
-            }}
-          >
-            <Text style={[qaStyles.label, { fontSize: 20 }]}>💧</Text>
-            <Text style={qaStyles.label}>+300ml</Text>
-          </TouchableOpacity>
-        </View>
-        {waterFeedback && (
-          <Text testID="feedback-add-agua" style={styles.waterFeedback}>+300ml adicionados 💧</Text>
-        )}
-
-        {/* ── ACESSO RÁPIDO ── */}
-        <Text style={styles.sectionTitleStandalone}>OUTRAS OPÇÕES</Text>
-        <View style={styles.shortcutsGrid}>
-          <TouchableOpacity
-            style={styles.shortcutItem}
-            onPress={() => navigation.navigate('Historico')}
-          >
-            <Ionicons name="calendar-outline" size={22} color={colors.secondary} />
-            <Text style={styles.shortcutLabel}>Histórico</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.shortcutItem}
-            onPress={() => navigation.navigate('Rotinas')}
-          >
-            <Ionicons name="repeat-outline" size={22} color={colors.accent} />
-            <Text style={styles.shortcutLabel}>Rotinas</Text>
-          </TouchableOpacity>
+          {waterFeedback ? <Text testID="feedback-add-agua" style={styles.waterFeedback}>+300ml adicionados 💧</Text> : null}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -460,10 +340,108 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   container: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
+    paddingHorizontal: 20,
+    paddingTop: 20,
     paddingBottom: spacing.xxl + spacing.lg,
-    gap: spacing.md,
+    gap: 20,
+  },
+  dailyTopCard: {
+    borderRadius: 14,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+    gap: 6,
+  },
+  dailyTopTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: colors.textPrimary,
+  },
+  dailyTopXp: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.success,
+  },
+  missionMainCard: {
+    borderRadius: 14,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.cardElevated,
+    gap: 8,
+  },
+  missionMainTitle: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: colors.textPrimary,
+    lineHeight: 30,
+  },
+  mainMissionCta: {
+    borderRadius: 14,
+    backgroundColor: colors.success,
+    minHeight: 72,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  mainMissionCtaText: {
+    color: '#052e20',
+    fontSize: 22,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  progressCard: {
+    borderRadius: 14,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+    gap: 6,
+  },
+  progressTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 4,
+  },
+  progressLine: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  quickCard: {
+    borderRadius: 14,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+  },
+  quickTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 12,
+  },
+  quickActionsDailyRow: {
+    gap: 10,
+  },
+  quickDailyButton: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    backgroundColor: colors.surface,
+  },
+  quickDailyButtonText: {
+    color: colors.textPrimary,
+    fontSize: 15,
+    fontWeight: '800',
   },
   waterFeedback: {
     color: colors.primary,
@@ -502,6 +480,14 @@ const styles = StyleSheet.create({
   streakFire: { fontSize: 22 },
   streakNum: { fontSize: 20, fontWeight: '800', color: colors.warning, letterSpacing: -0.5 },
   streakLabel: { fontSize: 10, fontWeight: '600', color: colors.textMuted, textTransform: 'uppercase' },
+  streakIdentity: {
+    fontSize: 11,
+    color: colors.textMuted,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginTop: 2,
+  },
 
   // XP CARD
   xpCard: {
@@ -576,7 +562,8 @@ const styles = StyleSheet.create({
   mainCta: {
     backgroundColor: colors.primary,
     borderRadius: radius.md,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.lg,
+    minHeight: 64,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
@@ -586,9 +573,50 @@ const styles = StyleSheet.create({
   },
   mainCtaText: {
     color: colors.textInverse,
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '800',
     letterSpacing: 0.4,
+  },
+  missionCard: {
+    backgroundColor: colors.cardElevated,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  missionEyebrow: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.primary,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  missionTitle: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: colors.textPrimary,
+    letterSpacing: -0.2,
+  },
+  missionText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  missionSecondary: {
+    alignSelf: 'flex-start',
+    marginTop: spacing.xs,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    backgroundColor: colors.surface,
+  },
+  missionSecondaryText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '700',
   },
 
   // MACRO CARD

@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { EXERCISE_NAMES_V2 } from '../data/exerciseLibraryV2';
 import { getExerciseByName, getExerciseFilters, searchExercises } from '../data/exercises.js';
 import { fuzzySearchExercises } from '../services/fuzzySearch';
-import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
+import { AnimatedToast, AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { colors, spacing } from '../theme';
 
 const QUICK_EXERCISES = [
@@ -70,6 +70,7 @@ export default function RoutinesScreen({ navigation }) {
   const [equipmentFilter, setEquipmentFilter] = useState('all');
   const [builderExercises, setBuilderExercises] = useState([]);
   const [editingRoutineId, setEditingRoutineId] = useState(null);
+  const [toastMessage, setToastMessage] = useState('');
 
   const todayRoutine = useMemo(() => getTodayWorkout(), [getTodayWorkout]);
   const smart = useMemo(() => getSmartWorkoutRecommendation(), [getSmartWorkoutRecommendation]);
@@ -159,11 +160,11 @@ export default function RoutinesScreen({ navigation }) {
       });
 
       if (!result.ok) {
-        Alert.alert('Nao foi possivel atualizar', result.message);
+        setToastMessage(`Nao foi possivel atualizar: ${String(result?.message || 'erro desconhecido')}`);
         return;
       }
 
-      Alert.alert('Rotina atualizada', 'Sua rotina foi atualizada com sucesso.');
+      setToastMessage('Rotina atualizada com sucesso.');
       resetBuilder();
       return;
     }
@@ -175,11 +176,11 @@ export default function RoutinesScreen({ navigation }) {
     });
 
     if (!result.ok) {
-      Alert.alert('Nao foi possivel salvar', result.message);
+      setToastMessage(`Nao foi possivel salvar: ${String(result?.message || 'erro desconhecido')}`);
       return;
     }
 
-    Alert.alert('Rotina criada', 'Sua rotina foi salva em Minhas Rotinas.');
+    setToastMessage('Rotina criada e salva em Minhas Rotinas.');
     resetBuilder();
   };
 
@@ -200,11 +201,11 @@ export default function RoutinesScreen({ navigation }) {
     });
 
     if (!result.ok) {
-      Alert.alert('Nao foi possivel salvar', result.message);
+      setToastMessage(`Nao foi possivel salvar: ${String(result?.message || 'erro desconhecido')}`);
       return;
     }
 
-    Alert.alert('Rotina salva', 'A recomendacao de hoje foi salva em Minhas Rotinas.');
+    setToastMessage('Rotina recomendada salva em Minhas Rotinas.');
   };
 
   const startRoutine = (routine) => {
@@ -222,6 +223,7 @@ export default function RoutinesScreen({ navigation }) {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={{ flex: 1 }}
     >
+    <AnimatedToast message={toastMessage} onHide={() => setToastMessage('')} />
     <ScrollView testID="screen-routines" contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}>
       <ScreenHeader title="Rotinas" subtitle="Controle total: recomendadas e criadas por voce no mesmo padrao." />
 
@@ -239,7 +241,7 @@ export default function RoutinesScreen({ navigation }) {
                   frequency: Number(profile?.trainingDaysPerWeek || 3),
                 });
                 if (!result.ok) {
-                  Alert.alert('Nao foi possivel criar', result.message);
+                  setToastMessage(`Nao foi possivel criar: ${String(result?.message || 'erro desconhecido')}`);
                 }
               }}
             >
@@ -424,7 +426,7 @@ export default function RoutinesScreen({ navigation }) {
                 onPress={() => {
                   const result = deleteUserRoutine(routine.id);
                   if (!result.ok) {
-                    Alert.alert('Erro', result.message);
+                    setToastMessage(`Erro: ${String(result?.message || 'falha ao excluir rotina')}`);
                   }
                 }}
               >

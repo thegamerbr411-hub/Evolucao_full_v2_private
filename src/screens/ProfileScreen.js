@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useApp } from '../context/AppContext';
-import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
+import { AnimatedToast, AppCard, AppInput, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { generateCoachInsight } from '../services/coachInsight';
 import { colors, spacing } from '../theme';
 import { APP_VERSION } from '../utils/appVersion';
@@ -50,6 +50,7 @@ export default function ProfileScreen({ navigation }) {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
   const [creatineLoading, setCreatineLoading] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
   const { request, promptAsync, response } = useGoogleAuth();
   const googleConfigured = isGoogleAuthConfigured();
 
@@ -70,6 +71,18 @@ export default function ProfileScreen({ navigation }) {
     };
   }, [history]);
 
+  const totalWorkouts = useMemo(
+    () => history.filter((item) => Boolean(item?.trained)).length,
+    [history]
+  );
+
+  const weightEvolution = useMemo(() => {
+    const current = Number(profile?.currentWeight || currentWeight || 0);
+    const target = Number(profile?.targetWeight || targetWeight || current);
+    const diff = Number((target - current).toFixed(1));
+    return { current, target, diff };
+  }, [profile?.currentWeight, profile?.targetWeight, currentWeight, targetWeight]);
+
   const profileCoach = useMemo(() => generateCoachInsight({
     trainedToday: historySummary.trainedDays > 0,
     protein: historySummary.avgProtein,
@@ -87,12 +100,12 @@ export default function ProfileScreen({ navigation }) {
   const saveProfile = () => {
     const parsedDays = Math.round(Number(String(trainingDays || '3').replace(',', '.')));
     if (!parsedDays || parsedDays < 1 || parsedDays > 7) {
-      Alert.alert('Frequencia invalida', 'Informe entre 1 e 7 dias por semana.');
+      setToastMessage('Frequencia invalida. Informe entre 1 e 7 dias por semana.');
       return;
     }
     const parsedWeight = Number(String(currentWeight || '70').replace(',', '.'));
     if (!parsedWeight || parsedWeight < 30 || parsedWeight > 300) {
-      Alert.alert('Peso invalido', 'Informe um peso entre 30 e 300 kg.');
+      setToastMessage('Peso invalido. Informe um peso entre 30 e 300 kg.');
       return;
     }
     const parsedTargetWeight = Number(String(targetWeight || '70').replace(',', '.'));
@@ -108,11 +121,11 @@ export default function ProfileScreen({ navigation }) {
     });
 
     if (!result.ok) {
-      Alert.alert('Nao foi possivel salvar', result.message);
+      setToastMessage(`Nao foi possivel salvar: ${String(result?.message || 'erro desconhecido')}`);
       return;
     }
 
-    Alert.alert('Perfil atualizado', 'Suas configuracoes ja estao valendo no coach e nas rotinas.');
+    setToastMessage('Perfil atualizado. Configuracoes ativas no coach e nas rotinas.');
   };
 
   React.useEffect(() => {
@@ -131,16 +144,16 @@ export default function ProfileScreen({ navigation }) {
         });
 
         if (!loggedUser?.id) {
-          Alert.alert('Falha no login', 'Nao foi possivel concluir o login Google.');
+          setToastMessage('Falha no login. Nao foi possivel concluir o login Google.');
           return;
         }
 
         await saveUserIdentity({ userId: loggedUser.id, source: loggedUser.source || 'google' });
         setQaRuntimeAuth({ userId: loggedUser.id });
         setUser((prev) => ({ ...prev, id: loggedUser.id, role: loggedUser.role || 'user' }));
-        Alert.alert('Login concluido', 'Conta Google conectada com sucesso.');
+        setToastMessage('Login concluido. Conta Google conectada com sucesso.');
       } catch (error) {
-        Alert.alert('Erro no login', String(error?.message || 'Nao foi possivel autenticar com Google.'));
+        setToastMessage(`Erro no login: ${String(error?.message || 'Nao foi possivel autenticar com Google.')}`);
       } finally {
         setGoogleLoading(false);
       }
@@ -151,7 +164,17 @@ export default function ProfileScreen({ navigation }) {
 
   return (
     <ScrollView testID="screen-perfil" contentContainerStyle={styles.container}>
+      <AnimatedToast message={toastMessage} onHide={() => setToastMessage('')} />
       <ScreenHeader title="Perfil" subtitle="Centro de controle da sua estrategia e evolucao." />
+
+      <AppCard>
+        <Text style={styles.cardLabel}>Seu progresso</Text>
+        <Text style={styles.metric}>Peso: {weightEvolution.current}kg {weightEvolution.diff < 0 ? `↓ ${Math.abs(weightEvolution.diff)}kg` : weightEvolution.diff > 0 ? `↑ ${weightEvolution.diff}kg` : '→ estável'}</Text>
+        <Text style={styles.metric}>Treinos: {totalWorkouts} feitos</Text>
+        <Text style={styles.metric}>Sequencia: {Number(gamification?.streakDays || 0)} dias</Text>
+      </AppCard>
+
+      <Text style={styles.sectionHeading}>Configurações</Text>
 
       <AppCard>
         <Text style={styles.cardLabel}>Meta principal</Text>
@@ -176,28 +199,50 @@ export default function ProfileScreen({ navigation }) {
       </AppCard>
 
       <AppCard>
-        <Text style={styles.cardLabel}>Frequencia semanal</Text>
-        <TextInput value={trainingDays} onChangeText={setTrainingDays} keyboardType="numeric" style={styles.input} />
+        <AppInput
+          label="Frequencia semanal"
+          value={trainingDays}
+          onChangeText={setTrainingDays}
+          keyboardType="numeric"
+        />
       </AppCard>
 
       <AppCard>
-        <Text style={styles.cardLabel}>Peso atual (kg)</Text>
-        <TextInput testID="input-profile-current-weight" value={currentWeight} onChangeText={setCurrentWeight} keyboardType="numeric" style={styles.input} />
+        <AppInput
+          label="Peso atual (kg)"
+          testID="input-profile-current-weight"
+          value={currentWeight}
+          onChangeText={setCurrentWeight}
+          keyboardType="numeric"
+        />
       </AppCard>
 
       <AppCard>
-        <Text style={styles.cardLabel}>Peso alvo (kg)</Text>
-        <TextInput value={targetWeight} onChangeText={setTargetWeight} keyboardType="numeric" style={styles.input} />
+        <AppInput
+          label="Peso alvo (kg)"
+          value={targetWeight}
+          onChangeText={setTargetWeight}
+          keyboardType="numeric"
+        />
       </AppCard>
 
       <AppCard>
-        <Text style={styles.cardLabel}>Altura (cm)</Text>
-        <TextInput value={height} onChangeText={setHeight} keyboardType="numeric" style={styles.input} />
+        <AppInput
+          label="Altura (cm)"
+          value={height}
+          onChangeText={setHeight}
+          keyboardType="numeric"
+        />
       </AppCard>
 
       <AppCard>
-        <Text style={styles.cardLabel}>Dor / limitação atual</Text>
-        <TextInput value={currentPain} onChangeText={setCurrentPain} placeholder="Ex: ombro direito" placeholderTextColor="#8FA5CB" style={styles.input} />
+        <AppInput
+          label="Dor / limitação atual"
+          value={currentPain}
+          onChangeText={setCurrentPain}
+          placeholder="Ex: ombro direito"
+          autoCapitalize="sentences"
+        />
       </AppCard>
 
       <AppCard>
@@ -224,7 +269,7 @@ export default function ProfileScreen({ navigation }) {
 
       <AppCard>
         <Text style={styles.cardLabel}>Conta</Text>
-        <Text style={styles.metric}>Status de acesso: {googleConfigured ? 'Google disponivel' : 'Modo local ativo'}</Text>
+        <Text style={styles.metric}>Sincronize sua conta para manter seu progresso seguro em qualquer dispositivo.</Text>
         {googleConfigured ? (
           <>
             <PrimaryButton
@@ -233,7 +278,7 @@ export default function ProfileScreen({ navigation }) {
               onPress={() => {
                 if (googleLoading) return;
                 promptAsync().catch(() => {
-                  Alert.alert('Falha no login', 'Nao foi possivel abrir o fluxo do Google.');
+                  setToastMessage('Falha no login. Nao foi possivel abrir o fluxo do Google.');
                 });
               }}
             />
@@ -252,7 +297,7 @@ export default function ProfileScreen({ navigation }) {
                   await saveUserIdentity({ userId: localIdentity.userId, source: 'local' });
                   setQaRuntimeAuth({ userId: localIdentity.userId });
                   setUser((prev) => ({ ...prev, id: localIdentity.userId, role: 'user' }));
-                  Alert.alert('Conta local ativa', 'Sessao Google encerrada neste dispositivo.');
+                  setToastMessage('Conta local ativa. Sessao Google encerrada neste dispositivo.');
                 } finally {
                   setLogoutLoading(false);
                 }
@@ -262,14 +307,9 @@ export default function ProfileScreen({ navigation }) {
             {!request ? <Text style={styles.metric}>Preparando acesso Google...</Text> : null}
           </>
         ) : (
-          <Text style={styles.metric}>Você pode usar o app normalmente no modo local. O login Google pode ser ativado em builds configurados.</Text>
+          <Text style={styles.metric}>Conecte sua conta Google para sincronizar dados entre dispositivos.</Text>
         )}
-        {(__DEV__ ? true : false) ? (
-          <>
-            <Text style={styles.metric}>[DEV] User ID: {String(user?.id || 'local')}</Text>
-            <Text style={styles.metric}>[DEV] Role: {String(user?.role || 'user')}</Text>
-          </>
-        ) : null}
+
       </AppCard>
 
       <AppCard>
@@ -285,10 +325,10 @@ export default function ProfileScreen({ navigation }) {
             try {
               const result = await scheduleCreatineReminder({ hour: 9, minute: 0 });
               if (!result?.ok) {
-                Alert.alert('Nao foi possivel ativar', 'Verifique a permissao de notificacoes no dispositivo.');
+                setToastMessage('Nao foi possivel ativar. Verifique a permissao de notificacoes no dispositivo.');
                 return;
               }
-              Alert.alert('Lembrete ativo', 'Creatina diaria agendada para 09:00.');
+              setToastMessage('Lembrete ativo. Creatina diaria agendada para 09:00.');
             } finally {
               setCreatineLoading(false);
             }
@@ -303,7 +343,7 @@ export default function ProfileScreen({ navigation }) {
             setCreatineLoading(true);
             try {
               await cancelCreatineReminder();
-              Alert.alert('Lembrete desativado', 'O lembrete diario de creatina foi removido.');
+              setToastMessage('Lembrete desativado. O lembrete diario de creatina foi removido.');
             } finally {
               setCreatineLoading(false);
             }
@@ -321,9 +361,7 @@ export default function ProfileScreen({ navigation }) {
         ))}
       </AppCard>
 
-      {(__DEV__ ? true : false) ? (
-        <PrimaryButton title="Abrir Debug Metrics" onPress={() => navigation.navigate('DebugMetrics')} />
-      ) : null}
+
       <PrimaryButton testID="btn-profile-save" title="Salvar perfil" onPress={saveProfile} />
       <Text style={styles.versionText}>Versao do app: v{APP_VERSION}</Text>
     </ScrollView>
@@ -345,6 +383,15 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.6,
     marginBottom: 6,
+  },
+  sectionHeading: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginTop: 2,
+    marginBottom: -2,
   },
   chipsRow: {
     flexDirection: 'row',

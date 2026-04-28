@@ -85,7 +85,6 @@ export function WorkoutsHubView({ navigation, summary, todayWorkout, recommended
           )}
         </View>
         <Text style={styles.recommendedWorkout}>{safeRecommended.title}</Text>
-        <Text style={styles.recommendedSource}>Fonte: {recommendationSource}</Text>
         {decisionReasons.map((reason, index) => {
           if (index > 1) {
             return null;

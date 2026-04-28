@@ -1,10 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   FlatList,
+  Share,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
   RefreshControl,
@@ -14,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { useSocialStore } from '../stores/useSocialStore';
 import { colors, spacing } from '../theme';
-import { AppCard, ScreenHeader } from '../components/ui';
+import { AnimatedToast, AppCard, ScreenHeader } from '../components/ui';
 import { trackEvent } from '../utils/analytics';
 import { getSocialOverviewFromApi, addFriendFromApi } from '../services/socialApiService';
 
@@ -24,15 +23,29 @@ const RANK_MEDALS = {
   3: '🥉',
 };
 
+const DEMO_RANKING = [
+  { userId: 'demo-1', username: 'João', xp: 1240, streak: 7, position: 1 },
+  { userId: 'demo-2', username: 'Maria', xp: 980, streak: 4, position: 2 },
+  { userId: 'demo-3', username: 'Carlos', xp: 720, streak: 9, position: 3 },
+  { userId: 'demo-4', username: 'Ana', xp: 640, streak: 3, position: 4 },
+  { userId: 'demo-5', username: 'Lucas', xp: 510, streak: 5, position: 5 },
+];
+
 export default function SocialScreen({ navigation }) {
   const { user } = useApp();
   const { feed, ranking, friends, addFriend, removeFriend, isFriend } = useSocialStore();
   const [activeTab, setActiveTab] = useState('feed'); // 'feed' | 'ranking'
   const [loading, setLoading] = useState(false);
-  const [friendInput, setFriendInput] = useState('');
+  const [positionDeltaText, setPositionDeltaText] = useState('');
+  const [toastMessage, setToastMessage] = useState('');
+  const [pendingRemoveFriendId, setPendingRemoveFriendId] = useState('');
+  const previousPositionRef = useRef(null);
 
   const userId = useMemo(() => String(user?.id || ''), [user?.id]);
-  const currentUserRanking = useMemo(() => ranking.find((e) => e.isCurrentUser), [ranking]);
+  const currentUserRanking = useMemo(
+    () => ranking.find((e) => e.isCurrentUser) || ranking.find((e) => String(e?.userId || '') === userId) || null,
+    [ranking, userId]
+  );
   const nextRankingTarget = useMemo(() => {
     if (!currentUserRanking || !Array.isArray(ranking) || !ranking.length) {
       return null;
@@ -61,11 +74,41 @@ export default function SocialScreen({ navigation }) {
 
   // Ordenar ranking
   const topPlayers = useMemo(() => {
-    return ranking.slice(0, 10).map((entry, idx) => ({
+    const real = ranking.slice(0, 10).map((entry, idx) => ({
       ...entry,
       position: idx + 1,
     }));
+    if (real.length > 0) {
+      return real;
+    }
+    return DEMO_RANKING;
   }, [ranking]);
+
+  const isUsingDemoData = topPlayers.length > 0 && topPlayers[0]?.userId?.startsWith('demo-');
+
+  useEffect(() => {
+    const currentPosition = Number(currentUserRanking?.position || 0);
+    if (currentPosition <= 0) {
+      return;
+    }
+
+    const previousPosition = Number(previousPositionRef.current || 0);
+    if (previousPosition > 0 && previousPosition !== currentPosition) {
+      const delta = previousPosition - currentPosition;
+      if (delta > 0) {
+        setPositionDeltaText(`Você subiu ${delta} ${delta === 1 ? 'posição' : 'posições'} hoje 🔥`);
+      } else {
+        const lost = Math.abs(delta);
+        setPositionDeltaText(`Você caiu ${lost} ${lost === 1 ? 'posição' : 'posições'} hoje. Bora recuperar.`);
+      }
+    } else if (!positionDeltaText) {
+      setPositionDeltaText(currentPosition === 1
+        ? 'Você está no topo. Defenda a liderança hoje.'
+        : `Você está em #${currentPosition}. Próximo alvo: subir 1 posição.`);
+    }
+
+    previousPositionRef.current = currentPosition;
+  }, [currentUserRanking?.position, positionDeltaText]);
 
   // Feed filtrado (mostrar posts recentes)
   const recentPosts = useMemo(() => {
@@ -91,48 +134,37 @@ export default function SocialScreen({ navigation }) {
     }
   };
 
-  const handleAddFriend = () => {
-    const trimmedId = String(friendInput || '').trim();
-    if (!trimmedId) {
-      Alert.alert('Informe o ID', 'Digite o user ID do amigo');
-      return;
+  const handleInviteFriend = async () => {
+    try {
+      await Share.share({
+        message: 'Estou usando o Evolução para melhorar meu treino! Baixe agora e vamos competir juntos: https://evolucaoapp.com',
+        title: 'Convidar amigo para o Evolução',
+      });
+      trackEvent('friend_invite_shared', { screen: 'SocialScreen' });
+    } catch (_) {
+      // ignore cancel
     }
-
-    if (trimmedId === userId) {
-      Alert.alert('Ops!', 'Você não pode adicionar a si mesmo');
-      setFriendInput('');
-      return;
-    }
-
-    addFriend(trimmedId);
-    trackEvent('friend_added', {
-      screen: 'SocialScreen',
-      meta: { friendId: trimmedId },
-    });
-
-    Alert.alert('Sucesso!', `${trimmedId} adicionado aos amigos`);
-    setFriendInput('');
   };
 
   const handleRemoveFriend = (friendId) => {
-    Alert.alert(
-      'Remover amigo?',
-      'Você não será mais competidor desse amigo',
-      [
-        { text: 'Cancelar', onPress: () => {}, style: 'cancel' },
-        {
-          text: 'Remover',
-          onPress: () => {
-            removeFriend(friendId);
-            trackEvent('friend_removed', {
-              screen: 'SocialScreen',
-              meta: { friendId },
-            });
-          },
-          style: 'destructive',
-        },
-      ]
-    );
+    const safeFriendId = String(friendId || '');
+    if (!safeFriendId) {
+      return;
+    }
+
+    if (pendingRemoveFriendId === safeFriendId) {
+      removeFriend(safeFriendId);
+      setPendingRemoveFriendId('');
+      setToastMessage('Amigo removido da competicao.');
+      trackEvent('friend_removed', {
+        screen: 'SocialScreen',
+        meta: { friendId: safeFriendId },
+      });
+      return;
+    }
+
+    setPendingRemoveFriendId(safeFriendId);
+    setToastMessage('Toque novamente no amigo para confirmar a remocao.');
   };
 
   // RENDERIZAR FEED
@@ -294,6 +326,8 @@ export default function SocialScreen({ navigation }) {
                   ? '🔥 Você é o líder!'
                   : `👉 ${currentUserRanking.position} lugar`}
               </Text>
+              {positionDeltaText ? <Text style={styles.positionDeltaText}>{positionDeltaText}</Text> : null}
+              {nextRankingTarget?.label ? <Text style={styles.nextTargetText}>{nextRankingTarget.label}</Text> : null}
             </View>
           </View>
         </View>
@@ -301,6 +335,9 @@ export default function SocialScreen({ navigation }) {
 
       {/* Top 10 Ranking */}
       <Text style={styles.rankingTitle}>🏆 Top 10</Text>
+      {isUsingDemoData && (
+        <Text style={styles.demoHint}>Complete seu primeiro treino para entrar no ranking real</Text>
+      )}
       <FlatList
         data={topPlayers}
         renderItem={renderRankingEntry}
@@ -317,30 +354,10 @@ export default function SocialScreen({ navigation }) {
 
     return (
       <View style={styles.friendsContainer}>
-        <View style={styles.addFriendSection}>
-          <Text style={styles.sectionTitle}>Adicionar Amigo</Text>
-          <View style={styles.addFriendInput}>
-            <Ionicons
-              name="search"
-              size={18}
-              color={colors.textSecondary}
-              style={styles.inputIcon}
-            />
-            <TextInput
-              style={styles.inputField}
-              placeholder="User ID do amigo"
-              placeholderTextColor={colors.textSecondary}
-              value={friendInput}
-              onChangeText={setFriendInput}
-            />
-            <TouchableOpacity
-              onPress={handleAddFriend}
-              style={styles.addButton}
-            >
-              <Ionicons name="add-circle" size={24} color={colors.primary} />
-            </TouchableOpacity>
-          </View>
-        </View>
+        <TouchableOpacity style={styles.inviteButton} onPress={handleInviteFriend}>
+          <Ionicons name="share-social-outline" size={20} color={colors.primary} />
+          <Text style={styles.inviteButtonText}>Convidar amigo</Text>
+        </TouchableOpacity>
 
         {friendsList.length > 0 ? (
           <>
@@ -372,6 +389,13 @@ export default function SocialScreen({ navigation }) {
 
   return (
     <View testID="screen-social" style={styles.container}>
+      <AnimatedToast
+        message={toastMessage}
+        onHide={() => {
+          setToastMessage('');
+          setPendingRemoveFriendId('');
+        }}
+      />
       <ScreenHeader title="Social" showBackButton={false} />
 
       {/* Tab Navigation */}
@@ -703,6 +727,14 @@ const styles = StyleSheet.create({
     marginVertical: spacing.md,
   },
 
+  demoHint: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: spacing.sm,
+    fontStyle: 'italic',
+  },
+
   currentUserCard: {
     backgroundColor: `${colors.primary}15`,
     borderRadius: 12,
@@ -746,6 +778,17 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 4,
   },
+  positionDeltaText: {
+    fontSize: 13,
+    color: colors.primary,
+    fontWeight: '800',
+    marginTop: 6,
+  },
+  nextTargetText: {
+    fontSize: 11,
+    color: colors.textMuted,
+    marginTop: 4,
+  },
 
   rankingCard: {
     flexDirection: 'row',
@@ -758,8 +801,10 @@ const styles = StyleSheet.create({
   },
 
   rankingCardMe: {
-    backgroundColor: `${colors.primary}10`,
-    borderLeftWidth: 3,
+    backgroundColor: `${colors.primary}14`,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderLeftWidth: 4,
     borderLeftColor: colors.primary,
   },
 
@@ -828,8 +873,24 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
 
-  addFriendSection: {
+  inviteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: colors.primaryMuted,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
     marginBottom: spacing.lg,
+  },
+
+  inviteButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.primary,
   },
 
   sectionTitle: {
@@ -838,31 +899,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: spacing.md,
     textTransform: 'uppercase',
-  },
-
-  addFriendInput: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    borderRadius: 8,
-    paddingHorizontal: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-
-  inputIcon: {
-    marginRight: spacing.sm,
-  },
-
-  inputField: {
-    flex: 1,
-    paddingVertical: spacing.md,
-    color: colors.text,
-    fontSize: 14,
-  },
-
-  addButton: {
-    padding: spacing.sm,
   },
 
   // EMPTY STATE

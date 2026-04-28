@@ -1,9 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp } from '../context/AppContext';
 import { createMission, giveXP, removeXP } from '../services/adminService';
-import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
+import { AnimatedToast, AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { colors, spacing } from '../theme';
 import { postToAvailableQaHost, setQaRuntimeAuth } from '../utils/qaTransport';
 
@@ -18,12 +18,14 @@ export default function AdminScreen() {
   const [missionTitle, setMissionTitle] = useState('');
   const [missionReward, setMissionReward] = useState('50');
   const [authLoading, setAuthLoading] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
 
   const isAdmin = useMemo(() => user?.role === 'admin', [user?.role]);
 
   if (!isAdmin) {
     return (
       <View style={styles.container}>
+        <AnimatedToast message={toastMessage} onHide={() => setToastMessage('')} />
         <ScreenHeader title="Admin" subtitle="Area restrita. Entre com credenciais de admin." />
         <Text style={styles.denied}>Acesso negado</Text>
         <AppCard>
@@ -49,16 +51,16 @@ export default function AdminScreen() {
 
                 const token = String(response?.data?.token || '').trim();
                 if (!response?.ok || !token) {
-                  Alert.alert('Falha no login', response?.error || response?.data?.error || 'Credenciais invalidas ou admin nao configurado no Render.');
+                  setToastMessage(`Falha no login: ${response?.error || response?.data?.error || 'Credenciais invalidas ou admin nao configurado no Render.'}`);
                   return;
                 }
 
                 await AsyncStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, token);
                 setQaRuntimeAuth({ jwt: token });
                 setUser((prev) => ({ ...prev, role: 'admin' }));
-                Alert.alert('Acesso liberado', 'Sessao admin ativa neste dispositivo.');
+                setToastMessage('Acesso liberado. Sessao admin ativa neste dispositivo.');
               } catch (error) {
-                Alert.alert('Erro', String(error?.message || 'Falha ao autenticar admin.'));
+                setToastMessage(`Erro: ${String(error?.message || 'Falha ao autenticar admin.')}`);
               } finally {
                 setAuthLoading(false);
               }
@@ -71,12 +73,12 @@ export default function AdminScreen() {
             onPress={async () => {
               const token = String((await AsyncStorage.getItem(ADMIN_TOKEN_STORAGE_KEY)) || '').trim();
               if (!token) {
-                Alert.alert('Sem sessao salva', 'Nao ha token admin salvo neste dispositivo.');
+                setToastMessage('Sem sessao salva. Nao ha token admin salvo neste dispositivo.');
                 return;
               }
               setQaRuntimeAuth({ jwt: token });
               setUser((prev) => ({ ...prev, role: 'admin' }));
-              Alert.alert('Sessao restaurada', 'Token admin aplicado com sucesso.');
+              setToastMessage('Sessao restaurada. Token admin aplicado com sucesso.');
             }}
           />
         </AppCard>
@@ -86,6 +88,7 @@ export default function AdminScreen() {
 
   return (
     <View style={styles.container}>
+      <AnimatedToast message={toastMessage} onHide={() => setToastMessage('')} />
       <ScreenHeader title="Admin" subtitle="Controle de XP e missoes." />
 
       <AppCard>
@@ -100,9 +103,9 @@ export default function AdminScreen() {
           onPress={async () => {
             try {
               await giveXP(userId, Number(xp));
-              Alert.alert('Sucesso', 'XP adicionado.');
+              setToastMessage('Sucesso. XP adicionado.');
             } catch (error) {
-              Alert.alert('Erro', 'Falha ao dar XP.');
+              setToastMessage('Erro. Falha ao dar XP.');
             }
           }}
         />
@@ -112,9 +115,9 @@ export default function AdminScreen() {
           onPress={async () => {
             try {
               await removeXP(userId, Number(xp));
-              Alert.alert('Sucesso', 'XP removido.');
+              setToastMessage('Sucesso. XP removido.');
             } catch (error) {
-              Alert.alert('Erro', 'Falha ao remover XP.');
+              setToastMessage('Erro. Falha ao remover XP.');
             }
           }}
           style={styles.secondary}
@@ -129,7 +132,7 @@ export default function AdminScreen() {
           title="Criar missao local"
           onPress={() => {
             const mission = createMission(missionTitle, Number(missionReward));
-            Alert.alert('Missao criada', `${mission.title} (+${mission.rewardXP} XP)`);
+            setToastMessage(`Missao criada: ${mission.title} (+${mission.rewardXP} XP)`);
           }}
         />
       </AppCard>

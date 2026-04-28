@@ -2,13 +2,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useNotifications } from '../hooks';
 import { useApp } from '../context/AppContext';
 import { SCREENS, trackAppError, trackEvent } from '../utils/analytics';
-import { AnimatedToast, AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
+import { AnimatedToast, AppCard, AppInput, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { colors, spacing } from '../theme';
 import { createFoodFromText, parseNutritionLabel } from '../services/nutritionIntelligence';
 import { logError } from '../utils/errorLogger';
@@ -70,6 +70,7 @@ export default function NutritionScanner({ navigation, route }) {
   const [selectedFood, setSelectedFood] = useState(null);
   const [mealFeedback, setMealFeedback] = useState('');
   const [toastMessage, setToastMessage] = useState('');
+  const simpleNutritionMode = true;
   const [foodSavedIndicatorVisible, setFoodSavedIndicatorVisible] = useState(false);
   const [mealDraftItems, setMealDraftItems] = useState([]);
   const [favoriteFoodKeys, setFavoriteFoodKeys] = useState([]);
@@ -874,22 +875,25 @@ export default function NutritionScanner({ navigation, route }) {
     }, 'nutrition_one_tap_close');
   };
 
+  const proteinProgress = Number(dailyMacroTargets?.protein || 0) > 0
+    ? Math.min(1, Number(todayProtein || 0) / Number(dailyMacroTargets?.protein || 1))
+    : 0;
+
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
       <AnimatedToast message={toastMessage} onHide={() => setToastMessage('')} />
-      <ScrollView testID="screen-nutricao" contentContainerStyle={styles.container}>
-      <ScreenHeader title="Nutricao" subtitle="Registre refeições com horario. Texto e foto ficam como apoio." />
+      <ScrollView testID="screen-nutricao" contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <ScreenHeader title="Nutrição" subtitle="Registre em 5 segundos." />
 
+      <Text style={styles.sectionSeparator}>O que você comeu?</Text>
       <AppCard style={styles.card}>
-        <Text style={styles.cardTitle}>Registrar refeição em 5 segundos</Text>
-        <Text style={styles.feedbackText}>O que você comeu?</Text>
-        <TextInput
+        <Text style={styles.cardTitle}>Registro rápido</Text>
+        <AppInput
           testID="input-alimento-nome"
           value={quickMealText}
           onChangeText={setQuickMealText}
-          placeholder="Ex: arroz + frango + feijão"
-          placeholderTextColor="#8AA2C7"
-          style={styles.searchInput}
+          placeholder="Ex: arroz e frango"
+          autoCapitalize="sentences"
         />
         <View style={styles.chipsWrap}>
           {COMMON_QUICK_ADDS.map((entry) => (
@@ -898,15 +902,7 @@ export default function NutritionScanner({ navigation, route }) {
             </TouchableOpacity>
           ))}
         </View>
-        <View style={styles.chipsWrap}>
-          {quickAutocomplete.map((food) => (
-            <TouchableOpacity key={`auto-${food.key}`} style={styles.chipAction} onPress={() => applyAutocompleteToQuickText(food.label)}>
-              <Text style={styles.chipActionText}>{food.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
         <PrimaryButton testID="btn-adicionar-alimento" title="Montar refeição" onPress={buildQuickMeal} style={styles.primaryButton} />
-        <Text style={styles.gapHint}>Proteína hoje: {Math.round(todayProtein)}g • faltam {proteinGapToday}g</Text>
 
         {quickMealItems.length ? (
           <View style={styles.quickPreviewWrap}>
@@ -935,6 +931,17 @@ export default function NutritionScanner({ navigation, route }) {
       </AppCard>
 
       <AppCard style={styles.card}>
+        <Text style={styles.cardTitle}>Progresso de proteína</Text>
+        <View style={styles.simpleMacroTrack}>
+          <View style={[styles.simpleMacroFill, { width: `${Math.round(proteinProgress * 100)}%` }]} />
+        </View>
+        <Text style={styles.simpleMacroText}>{Math.round(todayProtein)}g / {Math.round(Number(dailyMacroTargets?.protein || 120))}g</Text>
+      </AppCard>
+
+      {!simpleNutritionMode ? (
+      <>
+
+      <AppCard style={styles.card}>
         <Text style={styles.cardTitle}>Coach nutricional do dia</Text>
         <Text testID="calorias-total-inline" style={styles.feedbackText}>Calorias hoje: {Math.round(todayCalories)} kcal</Text>
         <Text style={[styles.feedbackTitle, nutritionFeedback?.tone === 'warning' ? styles.feedbackWarning : nutritionFeedback?.tone === 'success' ? styles.feedbackSuccess : null]}>
@@ -952,6 +959,8 @@ export default function NutritionScanner({ navigation, route }) {
         </AppCard>
       ) : null}
 
+      {/* ── SEÇÃO 2: RESUMO DO DIA ── */}
+      <Text style={styles.sectionSeparator}>2 — HOJE</Text>
       <AppCard style={styles.card}>
         <Text style={styles.cardTitle}>Hoje</Text>
         <Text testID="calorias-total" style={styles.logMeta}>{Math.round(todayCalories)} kcal</Text>
@@ -973,6 +982,8 @@ export default function NutritionScanner({ navigation, route }) {
 
       {SHOW_ADVANCED_NUTRITION ? (
       <>
+      {/* ── SEÇÃO 3: MONTAGEM E CATÁLOGO ── */}
+      <Text style={styles.sectionSeparator}>3 — BUSCA E MONTAGEM</Text>
       <AppCard style={styles.card}>
         <Text style={styles.cardTitle}>Top fuel da semana</Text>
         <Text style={styles.foodsSummaryMeta}>
@@ -1018,18 +1029,19 @@ export default function NutritionScanner({ navigation, route }) {
           ]}
         >
           {recoveryInsight?.title || 'Insight indisponível'}
+        </>
+        ) : null}
         </Text>
         <Text style={styles.crossInsightText}>{recoveryInsight?.message || ''}</Text>
       </AppCard>
 
       <AppCard style={styles.card}>
         <Text style={styles.cardTitle}>Catalogo local</Text>
-        <TextInput
+        <AppInput
           value={searchQuery}
           onChangeText={setSearchQuery}
           placeholder="Busque por alimento"
-          placeholderTextColor="#8AA2C7"
-          style={styles.searchInput}
+          autoCapitalize="none"
         />
 
         <View style={styles.foodList}>
@@ -1120,14 +1132,13 @@ export default function NutritionScanner({ navigation, route }) {
 
       <AppCard style={styles.card}>
         <Text style={styles.cardTitle}>Estimativa por texto</Text>
-        <TextInput
+        <AppInput
           testID="text-input-food"
           value={manualText}
           onChangeText={setManualText}
           placeholder="Digite alimentos e quantidades (ex: 1 pão, 2 ovos, 100g frango)"
-          placeholderTextColor="#8AA2C7"
           multiline
-          style={styles.inputArea}
+          autoCapitalize="sentences"
         />
 
         <View style={styles.fractionRow}>
@@ -1209,13 +1220,12 @@ export default function NutritionScanner({ navigation, route }) {
       {SHOW_PHOTO_BETA ? (
       <AppCard style={styles.card}>
         <Text style={styles.cardTitle}>Foto do prato (beta)</Text>
-        <TextInput
+        <AppInput
           value={photoHintText}
           onChangeText={setPhotoHintText}
           placeholder="Descreva o prato da foto: arroz, feijao, frango"
-          placeholderTextColor="#8AA2C7"
           multiline
-          style={styles.inputArea}
+          autoCapitalize="sentences"
         />
         <View style={styles.photoButtonRow}>
           <SecondaryButton title="Tirar foto" style={styles.secondaryButton} onPress={() => runPhotoEstimate('camera')} />
@@ -1286,6 +1296,16 @@ const styles = StyleSheet.create({
   },
   card: {
     marginBottom: spacing.md,
+  },
+  sectionSeparator: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textMuted,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
+    paddingLeft: 2,
   },
   cardTitle: {
     color: colors.textPrimary,
@@ -1374,6 +1394,8 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     marginTop: 10,
+    backgroundColor: colors.success,
+    borderColor: colors.success,
   },
   secondaryButton: {
     marginTop: 10,
@@ -1466,6 +1488,24 @@ const styles = StyleSheet.create({
     marginTop: 8,
     color: '#A7F3D0',
     fontSize: 12,
+    fontWeight: '800',
+  },
+  simpleMacroTrack: {
+    marginTop: 8,
+    height: 14,
+    borderRadius: 999,
+    backgroundColor: colors.border,
+    overflow: 'hidden',
+  },
+  simpleMacroFill: {
+    height: 14,
+    borderRadius: 999,
+    backgroundColor: colors.success,
+  },
+  simpleMacroText: {
+    marginTop: 8,
+    color: colors.textPrimary,
+    fontSize: 16,
     fontWeight: '800',
   },
   quickPreviewWrap: {

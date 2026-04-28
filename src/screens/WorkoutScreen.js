@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   Animated,
   KeyboardAvoidingView,
   FlatList,
@@ -55,7 +54,7 @@ function getTodayKeyLocal() {
   return `${year}-${month}-${day}`;
 }
 
-function SetField({ value, onChangeText, placeholder, inputRef, testID }) {
+function SetField({ value, onChangeText, placeholder, inputRef, testID, returnKeyType = 'done', onSubmitEditing }) {
   return (
     <TextInput
       ref={inputRef}
@@ -63,6 +62,8 @@ function SetField({ value, onChangeText, placeholder, inputRef, testID }) {
       keyboardType="numeric"
       value={value}
       onChangeText={onChangeText}
+      returnKeyType={returnKeyType}
+      onSubmitEditing={onSubmitEditing}
       placeholder={placeholder}
       placeholderTextColor={colors.textSecondary}
       style={styles.setField}
@@ -254,6 +255,7 @@ export default function WorkoutScreen({ navigation, route }) {
   const scrollRef = useRef(null);
   const exercisePositionsRef = useRef({});
   const setFieldRefs = useRef({});
+  const xpPulseAnim = useRef(new Animated.Value(0)).current;
   const setInteractionStartRef = useRef({});
   const postWorkoutTriggeredRef = useRef(false);
   const lastCountdownTickRef = useRef(null);
@@ -649,12 +651,26 @@ export default function WorkoutScreen({ navigation, route }) {
       return;
     }
 
+    xpPulseAnim.setValue(0);
+    Animated.sequence([
+      Animated.timing(xpPulseAnim, {
+        toValue: 1,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+      Animated.timing(xpPulseAnim, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
     const timeoutId = setTimeout(() => {
       setXpFeedback('');
     }, 2200);
 
     return () => clearTimeout(timeoutId);
-  }, [xpFeedback]);
+  }, [xpFeedback, xpPulseAnim]);
 
   useEffect(() => {
     if (summary.completionRate < 1) {
@@ -738,6 +754,41 @@ export default function WorkoutScreen({ navigation, route }) {
 
     return targetKey === logKey;
   };
+
+  const buildUnifiedSetRows = useCallback((exerciseName, plannedSets) => {
+    const safePlannedSets = Math.max(1, Number(plannedSets || 1));
+    const persistedSets = workoutLogs
+      .filter((item) => item.date === todayKey && isSameExerciseLog(item, exerciseName) && (item.mode || 'guided') !== 'free')
+      .slice(0, safePlannedSets);
+    const draftRows = draftSetsByExercise[exerciseName] || [];
+
+    return Array.from({ length: safePlannedSets }).map((_, index) => {
+      const saved = persistedSets[index] || null;
+      const draft = draftRows[index] || { weight: '', reps: '', rpe: '8' };
+
+      if (saved) {
+        return {
+          id: `${exerciseName}-saved-${index}`,
+          index,
+          done: true,
+          saved,
+          weight: String(saved.weight || ''),
+          reps: String(saved.reps || ''),
+          rpe: String(saved.rpe || '8'),
+        };
+      }
+
+      return {
+        id: `${exerciseName}-draft-${index}`,
+        index,
+        done: false,
+        saved: null,
+        weight: String(draft.weight || ''),
+        reps: String(draft.reps || ''),
+        rpe: String(draft.rpe || '8'),
+      };
+    });
+  }, [draftSetsByExercise, isSameExerciseLog, todayKey, workoutLogs]);
 
   const suggestedExercises = useMemo(() => {
     const query = normalizeText(exerciseQuery);
@@ -958,7 +1009,7 @@ export default function WorkoutScreen({ navigation, route }) {
         severity: 'low',
         extra: { expectedSetIndex: nextIndex, receivedSetIndex: setIndex },
       });
-      Alert.alert('Ordem das series', `Salve primeiro a serie ${nextIndex + 1}.`);
+      showActionToast(`Salve primeiro a serie ${nextIndex + 1}.`);
       return;
     }
 
@@ -969,7 +1020,7 @@ export default function WorkoutScreen({ navigation, route }) {
         severity: 'low',
         extra: { exerciseName: exercise.name, weight: row.weight, reps: row.reps },
       });
-      Alert.alert('Dados invalidos', 'Preencha peso e repeticoes validas.');
+      showActionToast('Preencha peso e repeticoes validas.');
       return;
     }
 
@@ -988,7 +1039,7 @@ export default function WorkoutScreen({ navigation, route }) {
         severity: 'low',
         extra: { exerciseName: exercise.name, reason: result.message },
       });
-      Alert.alert('Dados invalidos', result.message);
+      showActionToast(result.message);
       return;
     }
 
@@ -1023,7 +1074,13 @@ export default function WorkoutScreen({ navigation, route }) {
     setXpFeedback('+10 XP');
     success();
 
-    showActionToast(`Serie ${setIndex + 1}/${plannedSets} concluida 🔥`);
+    const tone = (setIndex + 1) % 3;
+    const personality = tone === 0
+      ? 'Mais uma série. Bora 🔥'
+      : tone === 1
+        ? 'Cadência forte. Continua ⚡'
+        : 'Execução limpa. Segue 🚀';
+    showActionToast(`${personality} • ${setIndex + 1}/${plannedSets}`);
 
     if (result.isNewLoadPR) {
       const safeDelta = Number(result.prWeightDelta || 0);
@@ -1073,7 +1130,7 @@ export default function WorkoutScreen({ navigation, route }) {
   const removeSavedSet = (exerciseName, setIndex) => {
     const result = removeTodayWorkoutSet({ exerciseName, setIndex, mode: 'guided' });
     if (!result.ok) {
-      Alert.alert('Nao foi possivel remover', result.message);
+      showActionToast(result.message || 'Nao foi possivel remover a serie.');
       return;
     }
     Vibration.vibrate(40);
@@ -1090,7 +1147,7 @@ export default function WorkoutScreen({ navigation, route }) {
 
     const removed = removeTodayWorkoutSet({ exerciseName, setIndex, mode: 'guided' });
     if (!removed.ok) {
-      Alert.alert('Nao foi possivel editar', removed.message);
+      showActionToast(removed.message || 'Nao foi possivel editar a serie.');
       return;
     }
 
@@ -1148,7 +1205,7 @@ export default function WorkoutScreen({ navigation, route }) {
         severity: 'low',
         extra: { exerciseName, plannedSets },
       });
-      Alert.alert('Limite minimo', 'Cada exercicio precisa de pelo menos 1 serie.');
+      showActionToast('Cada exercicio precisa de pelo menos 1 serie.');
       return;
     }
 
@@ -1161,7 +1218,7 @@ export default function WorkoutScreen({ navigation, route }) {
         severity: 'low',
         extra: { exerciseName, plannedSets, savedSets: todaySets.length },
       });
-      Alert.alert('Remova primeiro', 'A ultima serie ja foi salva. Exclua ela antes de reduzir o total.');
+      showActionToast('A ultima serie ja foi salva. Exclua ela antes de reduzir o total.');
       return;
     }
 
@@ -1186,7 +1243,7 @@ export default function WorkoutScreen({ navigation, route }) {
     if (setIndex < todaySets.length) {
       const result = removeTodayWorkoutSet({ exerciseName, setIndex, mode: 'guided' });
       if (!result.ok) {
-        Alert.alert('Nao foi possivel remover', result.message);
+        showActionToast(result.message || 'Nao foi possivel remover a serie.');
         return;
       }
       Vibration.vibrate(40);
@@ -1220,7 +1277,7 @@ export default function WorkoutScreen({ navigation, route }) {
         severity: 'low',
         extra: { typedName, sets, reps },
       });
-      Alert.alert('Dados invalidos', 'Informe nome e quantidade de series validas para o exercicio.');
+      showActionToast('Informe nome e quantidade de series validas para o exercicio.');
       return;
     }
 
@@ -1230,7 +1287,7 @@ export default function WorkoutScreen({ navigation, route }) {
         severity: 'low',
         extra: { typedName, safeName },
       });
-      Alert.alert('Exercicio nao encontrado', 'Tente buscar pelo nome aproximado na lista de sugestoes.');
+      showActionToast('Tente buscar pelo nome aproximado na lista de sugestoes.');
       return;
     }
 
@@ -1240,7 +1297,7 @@ export default function WorkoutScreen({ navigation, route }) {
         severity: 'low',
         extra: { exerciseName: safeName },
       });
-      Alert.alert('Exercicio ja existe', 'Esse exercicio ja esta no treino de hoje.');
+      showActionToast('Esse exercicio ja esta no treino de hoje.');
       return;
     }
 
@@ -1270,7 +1327,7 @@ export default function WorkoutScreen({ navigation, route }) {
         severity: 'low',
         extra: { typedName },
       });
-      Alert.alert('Escolha um exercicio', 'Selecione um exercicio da lista para substituir.');
+      showActionToast('Selecione um exercicio da lista para substituir.');
       return;
     }
 
@@ -1280,7 +1337,7 @@ export default function WorkoutScreen({ navigation, route }) {
         severity: 'low',
         extra: { typedName, safeName },
       });
-      Alert.alert('Escolha da lista', 'Selecione um exercicio existente na lista de sugestoes.');
+      showActionToast('Selecione um exercicio existente na lista de sugestoes.');
       return;
     }
 
@@ -1330,7 +1387,7 @@ export default function WorkoutScreen({ navigation, route }) {
         severity: 'low',
         extra: { exerciseName: safeName, exerciseCount: allExercises.length },
       });
-      Alert.alert('Minimo de exercicios', 'O treino precisa ter ao menos 1 exercicio.');
+      showActionToast('O treino precisa ter ao menos 1 exercicio.');
       return;
     }
 
@@ -1506,8 +1563,7 @@ export default function WorkoutScreen({ navigation, route }) {
 
           if (engagementResult.success) {
             const position = engagementResult.position;
-            const motivationalMsg = getEngagementMessage(position, engagementResult.xpGained);
-            console.log('[WORKOUT_SCREEN] 🎯 Social:', motivationalMsg);
+            showActionToast(getEngagementMessage(position, engagementResult.xpGained));
           }
         } catch (engagementError) {
           console.error('[WORKOUT_SCREEN] Erro ao atualizar social:', engagementError);
@@ -1531,6 +1587,7 @@ export default function WorkoutScreen({ navigation, route }) {
         prevWeight: Math.round(prevWeight),
         currWeight: Math.round(currWeight),
       });
+      setXpFeedback(`+${Math.max(0, Math.round(sessionXp))} XP`);
       setShowWorkoutSummary(true);
 
       // Push inteligente
@@ -1543,8 +1600,11 @@ export default function WorkoutScreen({ navigation, route }) {
         prevWeight: Math.round(prevWeight),
         currWeight: Math.round(currWeight),
         exerciseCount,
+        plannedExercises: allExercises.length,
         sessionDurationMinutes,
         totalSets: todaySets,
+        totalVolume,
+        sessionXp,
       });
     } catch (error) {
       logQaError(error, {
@@ -1554,7 +1614,7 @@ export default function WorkoutScreen({ navigation, route }) {
         extra: { todaySets, totalVolume },
       });
       setSyncStatusMessage('Falha de sincronizacao. Treino mantido localmente.');
-      Alert.alert('Sincronizacao pendente', 'Nao conseguimos enviar agora. Seu treino ficou salvo e sera sincronizado depois.');
+      showActionToast('Nao conseguimos enviar agora. Seu treino ficou salvo e sera sincronizado depois.');
     } finally {
       setIsSavingWorkout(false);
     }
@@ -1591,6 +1651,15 @@ export default function WorkoutScreen({ navigation, route }) {
       </View>
     );
   }
+
+  const focusRenderData = simpleMode
+    ? [{
+      ...allExercises[activeExerciseIndex],
+      __originalIndex: activeExerciseIndex,
+    }].filter((item) => Boolean(item?.id || item?.name))
+    : allExercises;
+
+  const nextExerciseName = allExercises[activeExerciseIndex + 1]?.name || '';
 
   // Streak visual no topo
   return (
@@ -1633,7 +1702,7 @@ export default function WorkoutScreen({ navigation, route }) {
         <ScreenHeader title="Treino de hoje" subtitle="Fluxo rapido: preencher e salvar serie." />
 
         {/* Registro rápido de exercício (UX 1 clique) */}
-        {activeExercise && (
+        {!simpleMode && activeExercise ? (
           <QuickExerciseRegister
             exercise={activeExercise}
             lastWeight={suggestNextWeight(getLastSetForExercise(activeExercise.name)?.weight)}
@@ -1650,7 +1719,7 @@ export default function WorkoutScreen({ navigation, route }) {
               showActionToast('Exercício registrado!');
             }}
           />
-        )}
+        ) : null}
 
         <SecondaryButton
           testID="btn-toggle-workout-mode"
@@ -1664,14 +1733,7 @@ export default function WorkoutScreen({ navigation, route }) {
           <Text style={styles.metaText}>Nivel {gamification.level} · XP {gamification.xp}</Text>
         </View>
 
-        {setSpeedStats.count > 0 ? (
-          <View style={styles.uxSpeedWrap}>
-            <Text style={styles.uxSpeedLabel}>Tempo medio por serie: {setSpeedStats.avgMs}ms</Text>
-            <Text style={setSpeedStats.avgMs < 4000 ? styles.uxSpeedGood : styles.uxSpeedWarn}>
-              {setSpeedStats.avgMs < 4000 ? 'Rapido ⚡ meta <4s' : 'Lento • ajuste para <4s'}
-            </Text>
-          </View>
-        ) : null}
+
 
         <View style={styles.progressHeaderWrap}>
           <Text style={styles.progressHeaderText}>Treino: {Math.round(Number(summary.completionRate || 0) * 100)}% concluido</Text>
@@ -1708,10 +1770,32 @@ export default function WorkoutScreen({ navigation, route }) {
           </Animated.View>
         ) : null}
 
-        {xpFeedback ? <Text style={styles.xpFeedback}>{xpFeedback}</Text> : null}
+        {xpFeedback ? (
+          <Animated.View
+            style={[
+              styles.xpFeedbackWrap,
+              {
+                transform: [
+                  {
+                    scale: xpPulseAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [1, 1.08],
+                    }),
+                  },
+                ],
+                opacity: xpPulseAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.92, 1],
+                }),
+              },
+            ]}
+          >
+            <Text style={styles.xpFeedback}>{xpFeedback}</Text>
+          </Animated.View>
+        ) : null}
         {restDoneMessage ? <Text style={styles.restDoneMessage}>{restDoneMessage}</Text> : null}
 
-        <View style={styles.presetRow}>
+        {!simpleMode ? <View style={styles.presetRow}>
           {[30, 60, 120].map((value) => (
             <TouchableOpacity
               key={value}
@@ -1739,14 +1823,23 @@ export default function WorkoutScreen({ navigation, route }) {
           <TouchableOpacity testID="btn-start-rest-manual" style={styles.manualRestBtn} onPress={() => startRestTimer(restPreset)}>
             <Text style={styles.manualRestText}>Descanso</Text>
           </TouchableOpacity>
-        </View>
+        </View> : null}
+
+        {simpleMode && nextExerciseName ? (
+          <View style={styles.nextExerciseCard}>
+            <Text style={styles.nextExerciseLabel}>Proximo:</Text>
+            <Text style={styles.nextExerciseText}>{nextExerciseName}</Text>
+          </View>
+        ) : null}
 
         <FlatList
-          data={allExercises}
+          data={focusRenderData}
           scrollEnabled={false}
           keyExtractor={(item, index) => String(item?.id || `${item?.name || 'exercise'}-${index}`)}
-          renderItem={({ item: exercise, index: exerciseIndex }) => {
+          renderItem={({ item: exercise, index: renderIndex }) => {
           try {
+          const providedIndex = Number(exercise?.__originalIndex);
+          const exerciseIndex = Number.isFinite(providedIndex) ? providedIndex : renderIndex;
           const plannedSets = Number(setCountByExercise[exercise.name] || exercise.sets || 3);
           const setProgress = typeof getExerciseSetProgress === 'function' ? getExerciseSetProgress(exercise.name, plannedSets) : { completedSets: 0, totalSets: plannedSets, nextSet: 1, isDone: false };
           const isActive = exerciseIndex === activeExerciseIndex;
@@ -1754,7 +1847,7 @@ export default function WorkoutScreen({ navigation, route }) {
             .filter((item) => item.date === todayKey && isSameExerciseLog(item, exercise.name) && (item.mode || 'guided') !== 'free')
             .slice(0, plannedSets);
 
-          const draftRows = draftSetsByExercise[exercise.name] || [];
+          const unifiedSetRows = buildUnifiedSetRows(exercise.name, plannedSets);
           const exerciseId = getCanonicalExerciseId(exercise.name) || undefined;
           const historySnapshot = getExerciseHistorySnapshot(exercise.name, 5, exerciseId);
           const progression = getExerciseProgressionSuggestion(exercise.name, exerciseId);
@@ -1786,27 +1879,13 @@ export default function WorkoutScreen({ navigation, route }) {
             : 0;
 
           if (simpleMode) {
-            const mergedSets = Array.from({ length: plannedSets }).map((_, index) => {
-              const saved = todaySets[index];
-              const draft = draftRows[index] || { weight: '', reps: '', rpe: '8' };
-              if (saved) {
-                return {
-                  id: `${exercise.id}-saved-${index}`,
-                  weight: String(saved.weight || ''),
-                  reps: String(saved.reps || ''),
-                  rpe: String(saved.rpe || ''),
-                  done: true,
-                };
-              }
-
-              return {
-                id: `${exercise.id}-draft-${index}`,
-                weight: String(draft.weight || ''),
-                reps: String(draft.reps || ''),
-                rpe: String(draft.rpe || '8'),
-                done: false,
-              };
-            });
+            const mergedSets = unifiedSetRows.map((row) => ({
+              id: `${exercise.id}-${row.done ? 'saved' : 'draft'}-${row.index}`,
+              weight: row.weight,
+              reps: row.reps,
+              rpe: row.rpe,
+              done: row.done,
+            }));
 
             const lastSetLabel = lastSet
               ? `${lastSet.weight || 0}kg x ${lastSet.reps || 0}`
@@ -1873,7 +1952,6 @@ export default function WorkoutScreen({ navigation, route }) {
                 <View style={styles.prCard}>
                   <View style={styles.prCardHeader}>
                     <Text style={styles.prCardTitle}>Recorde pessoal</Text>
-                    <Text style={styles.prCardBadge}>{exerciseId ? 'ID canonico' : 'Fallback nome'}</Text>
                   </View>
                   <Text style={styles.prCardWeight}>{prWeight || 0}kg</Text>
                   <Text style={styles.prCardMeta}>
@@ -1942,18 +2020,19 @@ export default function WorkoutScreen({ navigation, route }) {
                 </View>
               ) : null}
 
-              {isActive ? <Text style={styles.controlHint}>Controles: + serie, - serie e 🗑️ por serie.</Text> : null}
+              {isActive ? <Text style={styles.controlHint}>Fluxo automatico: preencha, confirme e siga para a proxima serie.</Text> : null}
               {isActive ? <Text testID="series-salvas-total" style={styles.controlHint}>Series salvas: {todaySets.length}</Text> : null}
 
-              {Array.from({ length: plannedSets }).map((_, setIndex) => {
-                const saved = todaySets[setIndex];
-                const draft = draftRows[setIndex] || { weight: '', reps: '', rpe: '8' };
+              {unifiedSetRows.map((row) => {
+                const setIndex = row.index;
+                const saved = row.saved;
+                const draft = { weight: row.weight, reps: row.reps, rpe: row.rpe };
                 const canSave = setIndex === todaySets.length;
                 const suggestedWeight = suggestedWeightByExercise[exercise.name] || '';
 
                 return (
                   <Animated.View
-                    key={`${exercise.id}-set-${setIndex}`}
+                    key={`${exercise.id}-set-${row.id}`}
                     style={[
                       styles.setRow,
                       savedSetPulseKey === `${exercise.name}-${setIndex}` ? styles.setRowSavedPulse : null,
@@ -2012,6 +2091,8 @@ export default function WorkoutScreen({ navigation, route }) {
                               value={draft.weight}
                               onChangeText={(text) => setDraftField(exercise.name, setIndex, 'weight', text)}
                               placeholder={suggestedWeight ? `${suggestedWeight}kg` : 'kg'}
+                              returnKeyType="next"
+                              onSubmitEditing={() => focusSetField(exercise.name, setIndex, 'reps')}
                               testID={isActive && setIndex === 0 ? 'input-peso' : `input-peso-${exercise.id}-${setIndex}`}
                               inputRef={(ref) => {
                                 setFieldRefs.current[getSetFieldKey(exercise.name, setIndex, 'weight')] = ref;
@@ -2021,6 +2102,12 @@ export default function WorkoutScreen({ navigation, route }) {
                               value={draft.reps}
                               onChangeText={(text) => setDraftField(exercise.name, setIndex, 'reps', text)}
                               placeholder="reps"
+                              returnKeyType="done"
+                              onSubmitEditing={() => {
+                                if (canSave) {
+                                  saveSetLine(exercise, exerciseIndex, setIndex);
+                                }
+                              }}
                               testID={isActive && setIndex === 0 ? 'input-reps' : `input-reps-${exercise.id}-${setIndex}`}
                               inputRef={(ref) => {
                                 setFieldRefs.current[getSetFieldKey(exercise.name, setIndex, 'reps')] = ref;
@@ -2079,21 +2166,13 @@ export default function WorkoutScreen({ navigation, route }) {
                           </View>
 
                           {isActive ? (
-                            <View style={[styles.rowActionsInline, canSave ? styles.rowActionsInlineCurrent : null]}>
-                              <TouchableOpacity
-                                style={[styles.inlineBtn, styles.inlineBtnGood, !canSave ? styles.inlineBtnDisabled : null]}
-                                testID={isActive && setIndex === 0 ? 'btn-salvar-serie' : `btn-salvar-serie-${exercise.id}-${setIndex}`}
-                                onPress={() => canSave && saveSetLine(exercise, exerciseIndex, setIndex)}
-                              >
-                                <Text style={styles.inlineBtnText}>✔ Concluir</Text>
-                              </TouchableOpacity>
-                              <TouchableOpacity
-                                style={styles.inlineBtnRemove}
-                                onPress={() => removeDraftSet(exercise.name, setIndex)}
-                              >
-                                <Text style={styles.inlineBtnText}>🗑️</Text>
-                              </TouchableOpacity>
-                            </View>
+                            <TouchableOpacity
+                              style={[styles.inlineBtn, styles.inlineBtnGood, !canSave ? styles.inlineBtnDisabled : null]}
+                              testID={isActive && setIndex === 0 ? 'btn-salvar-serie' : `btn-salvar-serie-${exercise.id}-${setIndex}`}
+                              onPress={() => canSave && saveSetLine(exercise, exerciseIndex, setIndex)}
+                            >
+                              <Text style={styles.inlineBtnText}>✔ Concluir série</Text>
+                            </TouchableOpacity>
                           ) : null}
                         </>
                       )}
@@ -2105,10 +2184,7 @@ export default function WorkoutScreen({ navigation, route }) {
               {isActive ? (
                 <View style={styles.setActionsRow}>
                   <TouchableOpacity style={styles.addSetButton} onPress={() => addSetToExercise(exercise.name)}>
-                    <Text style={styles.addSetButtonText}>+ Adicionar serie</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.removeLastSetButton} onPress={() => removeLastSetFromExercise(exercise.name)}>
-                    <Text style={styles.addSetButtonText}>- Remover ultima</Text>
+                    <Text style={styles.addSetButtonText}>+ Série extra</Text>
                   </TouchableOpacity>
                 </View>
               ) : null}
@@ -2123,7 +2199,7 @@ export default function WorkoutScreen({ navigation, route }) {
           }}
         />
 
-        <AppCard style={styles.addExerciseCard}>
+        {!simpleMode ? <AppCard style={styles.addExerciseCard}>
           <Text style={styles.addExerciseTitle}>Selecionar exercicio existente</Text>
           <TextInput
             value={exerciseQuery}
@@ -2180,13 +2256,13 @@ export default function WorkoutScreen({ navigation, route }) {
           </View>
           <View style={styles.actionRow}>
             <TouchableOpacity testID="btn-adicionar-exercicio-workout" style={styles.addExerciseButton} onPress={addExerciseToWorkout}>
-              <Text style={styles.addExerciseButtonText}>+ Adicionar exercicio</Text>
+              <Text style={styles.addExerciseButtonText}>+ Adicionar</Text>
             </TouchableOpacity>
             <TouchableOpacity testID="btn-substituir-exercicio-workout" style={styles.replaceExerciseButton} onPress={replaceActiveExercise}>
-              <Text style={styles.addExerciseButtonText}>Substituir exercicio</Text>
+              <Text style={styles.replaceExerciseButtonText}>Substituir</Text>
             </TouchableOpacity>
           </View>
-        </AppCard>
+        </AppCard> : null}
 
         <View style={styles.finishCard}>
           <Text style={styles.finishHintText}>Feche em 1 toque: {Number(summary?.guidedSets || 0)}/{Number(summary?.plannedSets || 0)} series concluidas.</Text>
@@ -2387,9 +2463,19 @@ const styles = StyleSheet.create({
   },
   xpFeedback: {
     color: colors.success,
-    fontSize: 12,
-    fontWeight: '800',
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: 0.2,
+  },
+  xpFeedbackWrap: {
+    alignSelf: 'flex-start',
     marginBottom: 8,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: colors.success,
+    backgroundColor: colors.successMuted,
   },
   restDoneMessage: {
     color: colors.success,
@@ -2459,13 +2545,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   exerciseCardActive: {
-    backgroundColor: '#1D355F',
-    borderColor: '#7CB8FF',
+    backgroundColor: colors.cardElevated,
+    borderColor: colors.primary,
     transform: [{ scale: 1.015 }],
-    shadowColor: '#5FA9FF',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.24,
-    shadowRadius: 12,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
     elevation: 3,
   },
   exerciseCardMuted: {
@@ -2482,21 +2568,21 @@ const styles = StyleSheet.create({
   },
   lastWorkoutSticky: {
     borderWidth: 1,
-    borderColor: '#365A8D',
+    borderColor: colors.border,
     borderRadius: 10,
-    backgroundColor: '#14253F',
+    backgroundColor: colors.surface,
     paddingHorizontal: 10,
     paddingVertical: 7,
     marginBottom: 8,
   },
   lastWorkoutStickyTitle: {
-    color: '#93C5FD',
+    color: colors.textMuted,
     fontSize: 10,
     fontWeight: '800',
     textTransform: 'uppercase',
   },
   lastWorkoutStickyValue: {
-    color: '#E0ECFF',
+    color: colors.textPrimary,
     fontSize: 13,
     fontWeight: '800',
   },
@@ -2519,24 +2605,24 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   progressionLine: {
-    color: '#A7F3D0',
+    color: colors.primary,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '700',
     marginBottom: 4,
   },
   progressionMetaLine: {
-    color: '#BFDBFE',
+    color: colors.textSecondary,
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '600',
     marginBottom: 8,
   },
   prCard: {
     borderWidth: 1,
-    borderColor: '#4A6EA3',
+    borderColor: colors.border,
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 8,
-    backgroundColor: '#122238',
+    backgroundColor: colors.surface,
     marginBottom: 8,
   },
   prCardHeader: {
@@ -2546,31 +2632,27 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   prCardTitle: {
-    color: '#CFE4FF',
+    color: colors.textMuted,
     fontSize: 11,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-  },
-  prCardBadge: {
-    color: '#93C5FD',
-    fontSize: 10,
     fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   prCardWeight: {
-    color: '#FCD34D',
+    color: colors.warning,
     fontSize: 22,
     fontWeight: '900',
   },
   prCardMeta: {
-    color: '#BFDBFE',
+    color: colors.textSecondary,
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   smallChip: {
-    backgroundColor: '#1B2840',
-    color: '#CFE4FF',
+    backgroundColor: colors.surface,
+    color: colors.textSecondary,
     borderWidth: 1,
-    borderColor: '#365A8D',
+    borderColor: colors.border,
     borderRadius: 999,
     overflow: 'hidden',
     paddingHorizontal: 9,
@@ -2580,27 +2662,27 @@ const styles = StyleSheet.create({
   },
   substituteBtn: {
     borderWidth: 1,
-    borderColor: '#60A5FA',
+    borderColor: colors.border,
     borderRadius: 999,
     paddingHorizontal: 9,
     paddingVertical: 3,
-    backgroundColor: '#172A45',
+    backgroundColor: colors.surface,
   },
   substituteBtnText: {
-    color: '#BFDBFE',
+    color: colors.textSecondary,
     fontSize: 11,
     fontWeight: '800',
   },
   substitutePanel: {
     borderWidth: 1,
-    borderColor: '#365A8D',
+    borderColor: colors.border,
     borderRadius: 10,
     padding: 8,
-    backgroundColor: '#141E2E',
+    backgroundColor: colors.surface,
     marginBottom: 8,
   },
   substituteTitle: {
-    color: '#BFDBFE',
+    color: colors.textSecondary,
     fontSize: 11,
     fontWeight: '800',
     textTransform: 'uppercase',
@@ -2613,14 +2695,14 @@ const styles = StyleSheet.create({
   },
   substituteChip: {
     borderWidth: 1,
-    borderColor: '#4B6C96',
+    borderColor: colors.border,
     borderRadius: 999,
     paddingHorizontal: 9,
     paddingVertical: 5,
-    backgroundColor: '#1B2B44',
+    backgroundColor: colors.card,
   },
   substituteChipText: {
-    color: '#E2E8F0',
+    color: colors.textPrimary,
     fontSize: 11,
     fontWeight: '700',
   },
@@ -2660,15 +2742,16 @@ const styles = StyleSheet.create({
   },
   setField: {
     flex: 1,
-    minWidth: 84,
+    minWidth: 110,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 12,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 16,
     backgroundColor: '#141922',
     color: colors.textPrimary,
-    fontSize: 15,
+    fontSize: 22,
+    fontWeight: '800',
   },
   rpeWrap: {
     borderWidth: 1,
@@ -2711,44 +2794,49 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   rowActionsInline: {
-    flexDirection: 'row',
-    gap: 6,
-    marginTop: 2,
+    marginTop: 4,
   },
-  rowActionsInlineCurrent: {
-    borderWidth: 1,
-    borderColor: '#55A4FF',
-    borderRadius: 8,
-    padding: 4,
-    backgroundColor: '#1C3E6A',
-  },
+  rowActionsInlineCurrent: {},
   inlineBtn: {
-    borderRadius: 8,
-    paddingHorizontal: 9,
-    paddingVertical: 10,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
   inlineBtnGood: {
-    backgroundColor: '#28A765',
-    flex: 1,
+    backgroundColor: colors.success,
   },
   inlineBtnDisabled: {
-    opacity: 0.45,
-  },
-  inlineBtnRemove: {
-    backgroundColor: '#7F1D1D',
-    borderRadius: 8,
-    paddingHorizontal: 9,
-    paddingVertical: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 44,
+    opacity: 0.35,
   },
   inlineBtnText: {
-    color: '#FFFFFF',
+    color: colors.textInverse,
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  nextExerciseCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 10,
+  },
+  nextExerciseLabel: {
+    color: colors.textMuted,
     fontSize: 11,
     fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  nextExerciseText: {
+    color: colors.textPrimary,
+    fontSize: 17,
+    fontWeight: '800',
+    marginTop: 2,
   },
   suggestButton: {
     borderWidth: 1,
@@ -2782,9 +2870,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 8,
-    backgroundColor: '#141922',
+    backgroundColor: colors.successMuted,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.success,
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 11,
@@ -2811,9 +2899,9 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
   },
   removeSetBtnText: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   swipeActionsWrap: {
     flexDirection: 'row',
@@ -2823,7 +2911,9 @@ const styles = StyleSheet.create({
   },
   swipeEditBtn: {
     borderRadius: 8,
-    backgroundColor: '#1F4D7A',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
     paddingHorizontal: 12,
     paddingVertical: 10,
     alignItems: 'center',
@@ -2831,28 +2921,30 @@ const styles = StyleSheet.create({
   },
   swipeDeleteBtn: {
     borderRadius: 8,
-    backgroundColor: '#7F1D1D',
+    backgroundColor: colors.dangerMuted,
+    borderWidth: 1,
+    borderColor: colors.danger,
     paddingHorizontal: 12,
     paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   savedSetText: {
-    color: '#EAF2FF',
+    color: colors.textPrimary,
     fontSize: 13,
     fontWeight: '700',
   },
   savedSetHint: {
-    color: '#8FB1DD',
+    color: colors.textMuted,
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   historyWrap: {
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 10,
     padding: 8,
-    backgroundColor: '#141922',
+    backgroundColor: colors.surface,
     marginBottom: 8,
   },
   historyTitle: {
@@ -2864,9 +2956,9 @@ const styles = StyleSheet.create({
   },
   sparklineWrap: {
     borderWidth: 1,
-    borderColor: '#3A5C86',
+    borderColor: colors.border,
     borderRadius: 8,
-    backgroundColor: '#101926',
+    backgroundColor: colors.background,
     paddingHorizontal: 8,
     paddingVertical: 8,
   },
@@ -2933,27 +3025,17 @@ const styles = StyleSheet.create({
   addSetButton: {
     flex: 1,
     marginTop: 4,
-    backgroundColor: '#2D4F80',
+    backgroundColor: 'transparent',
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#5F89C4',
+    borderColor: colors.border,
     alignItems: 'center',
     paddingVertical: 10,
   },
   addSetButtonText: {
-    color: '#F2F7FF',
-    fontWeight: '800',
+    color: colors.textSecondary,
+    fontWeight: '700',
     fontSize: 13,
-  },
-  removeLastSetButton: {
-    flex: 1,
-    marginTop: 4,
-    backgroundColor: '#7F1D1D',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#B75A5A',
-    alignItems: 'center',
-    paddingVertical: 10,
   },
   addExerciseCard: {
     marginTop: 8,
@@ -3009,7 +3091,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#DCFCE7',
   },
   savedBannerText: {
-    color: '#166534',
+    color: colors.success,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -3025,7 +3107,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderRadius: 14,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: colors.successMuted,
+    borderWidth: 1,
+    borderColor: colors.success,
   },
   restFloatingCard: {
     position: 'absolute',
@@ -3033,33 +3117,34 @@ const styles = StyleSheet.create({
     right: 16,
     zIndex: 25,
     borderWidth: 1,
-    borderColor: '#2F7A5B',
-    backgroundColor: '#123429',
+    borderColor: colors.primary,
+    backgroundColor: colors.card,
     borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 9,
     minWidth: 148,
-    shadowColor: '#000000',
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 4,
   },
   restFloatingLabel: {
-    color: '#9DE2C2',
+    color: colors.textMuted,
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '700',
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   restFloatingValue: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 24,
     fontWeight: '900',
     marginTop: 2,
     marginBottom: 6,
   },
   restFloatingValueDanger: {
-    color: '#FCD34D',
+    color: colors.warning,
   },
   restFloatingActions: {
     flexDirection: 'row',
@@ -3067,29 +3152,33 @@ const styles = StyleSheet.create({
   },
   restFloatingSecondary: {
     flex: 1,
-    backgroundColor: '#1F5D45',
+    backgroundColor: colors.surface,
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 6,
   },
   restFloatingSecondaryText: {
-    color: '#E5F8EE',
+    color: colors.textSecondary,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   restFloatingDanger: {
     flex: 1,
-    backgroundColor: '#7F1D1D',
+    backgroundColor: colors.surface,
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 6,
   },
   restFloatingDangerText: {
-    color: '#FFFFFF',
+    color: colors.textSecondary,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   addExerciseTitle: {
     color: colors.textPrimary,
@@ -3105,7 +3194,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 10,
-    backgroundColor: '#141922',
+    backgroundColor: colors.surface,
     color: colors.textPrimary,
     paddingHorizontal: 10,
     paddingVertical: 10,
@@ -3129,10 +3218,17 @@ const styles = StyleSheet.create({
   },
   replaceExerciseButton: {
     flex: 1,
-    backgroundColor: colors.secondary,
+    backgroundColor: 'transparent',
     borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: 'center',
     paddingVertical: 11,
+  },
+  replaceExerciseButtonText: {
+    color: colors.textSecondary,
+    fontWeight: '700',
+    fontSize: 14,
   },
   finishCard: {
     marginTop: 12,
@@ -3180,23 +3276,23 @@ const styles = StyleSheet.create({
   },
   postWorkoutNutritionWrap: {
     borderWidth: 1,
-    borderColor: '#365A8D',
+    borderColor: colors.border,
     borderRadius: 10,
-    backgroundColor: '#14253F',
+    backgroundColor: colors.surface,
     paddingHorizontal: 10,
     paddingVertical: 8,
     marginBottom: 8,
   },
   postWorkoutNutritionTitle: {
-    color: '#BFDBFE',
+    color: colors.textPrimary,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '800',
     marginBottom: 4,
   },
   postWorkoutNutritionText: {
-    color: '#E2E8F0',
+    color: colors.textSecondary,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   inactiveHint: {
     marginTop: 8,

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useApp } from '../context/AppContext';
-import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
+import { AnimatedToast, AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { colors, spacing } from '../theme';
 import {
   addFriendFromApi,
@@ -20,6 +20,7 @@ export default function SocialChallengesScreen() {
   const [challengeTarget, setChallengeTarget] = useState('3');
   const [progressInput, setProgressInput] = useState('1');
   const [selectedMetric, setSelectedMetric] = useState('xp');
+  const [toastMessage, setToastMessage] = useState('');
 
   const myUserId = useMemo(() => String(user?.id || '').trim(), [user?.id]);
 
@@ -32,7 +33,7 @@ export default function SocialChallengesScreen() {
     setLoading(false);
 
     if (!result?.ok) {
-      Alert.alert('Social indisponivel', 'Nao foi possivel carregar o painel social agora.');
+      setToastMessage('Social indisponivel. Nao foi possivel carregar o painel social agora.');
       return;
     }
 
@@ -87,13 +88,13 @@ export default function SocialChallengesScreen() {
   const onAddFriend = async () => {
     const friendUserId = String(friendInput || '').trim();
     if (!friendUserId) {
-      Alert.alert('Informe o ID', 'Digite o user ID do amigo.');
+      setToastMessage('Informe o ID do amigo.');
       return;
     }
 
     const result = await addFriendFromApi({ userId: myUserId, friendUserId });
     if (!result?.ok) {
-      Alert.alert('Falha', mapSocialError(result?.error));
+      setToastMessage(`Falha: ${mapSocialError(result?.error)}`);
       return;
     }
 
@@ -105,7 +106,7 @@ export default function SocialChallengesScreen() {
     const title = String(challengeTitle || '').trim();
     const target = Number(challengeTarget || 3);
     if (!title || !Number.isFinite(target) || target <= 0) {
-      Alert.alert('Dados invalidos', 'Informe titulo e meta validos.');
+      setToastMessage('Dados invalidos. Informe titulo e meta validos.');
       return;
     }
 
@@ -117,7 +118,7 @@ export default function SocialChallengesScreen() {
     });
 
     if (!result?.ok) {
-      Alert.alert('Falha', mapSocialError(result?.error));
+      setToastMessage(`Falha: ${mapSocialError(result?.error)}`);
       return;
     }
 
@@ -127,7 +128,7 @@ export default function SocialChallengesScreen() {
   const onJoinChallenge = async (challengeId) => {
     const result = await joinChallengeFromApi({ userId: myUserId, challengeId });
     if (!result?.ok) {
-      Alert.alert('Falha', mapSocialError(result?.error));
+      setToastMessage(`Falha: ${mapSocialError(result?.error)}`);
       return;
     }
 
@@ -137,7 +138,7 @@ export default function SocialChallengesScreen() {
   const onUpdateProgress = async (challengeId) => {
     const progress = Number(progressInput || 0);
     if (!Number.isFinite(progress) || progress < 0) {
-      Alert.alert('Valor invalido', 'Informe um progresso numerico valido.');
+      setToastMessage('Valor invalido. Informe um progresso numerico valido.');
       return;
     }
 
@@ -148,7 +149,7 @@ export default function SocialChallengesScreen() {
     });
 
     if (!result?.ok) {
-      Alert.alert('Falha', mapSocialError(result?.error));
+      setToastMessage(`Falha: ${mapSocialError(result?.error)}`);
       return;
     }
 
@@ -156,7 +157,8 @@ export default function SocialChallengesScreen() {
   };
 
   return (
-    <ScrollView testID="screen-social" contentContainerStyle={styles.container}>
+    <ScrollView testID="screen-social-challenges" contentContainerStyle={styles.container}>
+      <AnimatedToast message={toastMessage} onHide={() => setToastMessage('')} />
       <ScreenHeader title="Social e Desafios" subtitle="Amigos, ranking e desafios semanais." />
 
       <AppCard>

@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -16,7 +15,7 @@ import { useApp } from '../context/AppContext';
 import { getExerciseByName, getExerciseFilters, searchExercises } from '../data/exercises.js';
 import { matchNutritionToken } from '../data/nutritionDatabase';
 import { logError } from '../utils/errorLogger';
-import { AppCard, PrimaryButton, ScreenHeader } from '../components/ui';
+import { AnimatedToast, AppCard, PrimaryButton, ScreenHeader } from '../components/ui';
 import { colors, spacing, radius, typography } from '../theme';
 
 const CATEGORIES = [
@@ -61,6 +60,7 @@ function toTestId(value) {
 }
 
 export default function FreeWorkoutScreen({ navigation }) {
+  const [toastMessage, setToastMessage] = useState('');
   const {
     saveFreeWorkoutSet,
     getExerciseCatalog,
@@ -137,7 +137,7 @@ export default function FreeWorkoutScreen({ navigation }) {
     const nutritionHit = matchNutritionToken(name);
     const exerciseHit = getExerciseByName(name);
     if (nutritionHit && !exerciseHit) {
-      Alert.alert('Entrada inválida', 'Esse item parece um alimento. No treino livre, adicione apenas exercícios.');
+      setToastMessage('Entrada invalida. Esse item parece alimento; adicione apenas exercicios.');
       return;
     }
 
@@ -167,7 +167,7 @@ export default function FreeWorkoutScreen({ navigation }) {
     if (restSeconds <= 0) {
       setRestRunning(false);
       Vibration.vibrate(450);
-      Alert.alert('Descanso concluido', 'Pode fazer o proximo set.');
+      setToastMessage('Descanso concluido. Pode fazer o proximo set.');
       return;
     }
 
@@ -199,7 +199,7 @@ export default function FreeWorkoutScreen({ navigation }) {
         screen: 'FreeWorkout',
         severity: 'low',
       });
-      Alert.alert('Sem exercicios', 'Adicione ao menos 1 exercicio para salvar sua rotina.');
+      setToastMessage('Sem exercicios. Adicione ao menos 1 exercicio para salvar sua rotina.');
       return;
     }
 
@@ -215,11 +215,11 @@ export default function FreeWorkoutScreen({ navigation }) {
         severity: 'low',
         extra: { reason: result.message },
       });
-      Alert.alert('Nao foi possivel salvar', result.message);
+      setToastMessage(`Nao foi possivel salvar: ${String(result?.message || 'erro desconhecido')}`);
       return;
     }
 
-    Alert.alert('Rotina criada', 'Seu treino livre foi salvo em Minhas Rotinas.');
+    setToastMessage('Rotina criada e salva em Minhas Rotinas.');
     navigation.navigate('Rotinas');
   };
 
@@ -238,7 +238,7 @@ export default function FreeWorkoutScreen({ navigation }) {
         severity: 'low',
         extra: { exerciseName, reason: result.message, failed },
       });
-      Alert.alert('Dados invalidos', result.message);
+      setToastMessage(`Dados invalidos: ${String(result?.message || 'verifique os campos')}`);
       return;
     }
 
@@ -258,6 +258,7 @@ export default function FreeWorkoutScreen({ navigation }) {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={{ flex: 1 }}
     >
+      <AnimatedToast message={toastMessage} onHide={() => setToastMessage('')} />
       <ScrollView
         testID="screen-free-workout"
         contentContainerStyle={styles.container}

@@ -1,4 +1,5 @@
 export { AppCard } from './AppCard';
+export { AppInput } from './AppInput';
 export { PrimaryButton } from './PrimaryButton';
 export { SecondaryButton } from './SecondaryButton';
 export { MetricText } from './MetricText';
