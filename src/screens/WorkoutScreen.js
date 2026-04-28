@@ -264,6 +264,14 @@ export default function WorkoutScreen({ navigation, route }) {
   const rowPulseAnim = useRef(new Animated.Value(0)).current;
   const didHydrateWorkoutDraftsRef = useRef(false);
   const sessionStartedAtRef = useRef(Date.now());
+  
+  // BLOCO 1: Animação + Recompensa
+  const xpFloatAnimY = useRef(new Animated.Value(0)).current;
+  const xpFloatOpacity = useRef(new Animated.Value(1)).current;
+  const successFlashAnim = useRef(new Animated.Value(0)).current;
+  const [showXpFloat, setShowXpFloat] = useState(false);
+  const [xpFloatValue, setXpFloatValue] = useState('+20 XP');
+  const [showSuccessFlash, setShowSuccessFlash] = useState(false);
 
   useEffect(() => {
     loadWorkout().then((data) => {
@@ -1090,6 +1098,45 @@ export default function WorkoutScreen({ navigation, route }) {
 
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
+    // BLOCO 1: Animação + Recompensa no set salvo
+    // 1. XP flutuante (subindo + fade out)
+    setXpFloatValue('+20 XP');
+    setShowXpFloat(true);
+    xpFloatAnimY.setValue(0);
+    xpFloatOpacity.setValue(1);
+    Animated.parallel([
+      Animated.timing(xpFloatAnimY, {
+        toValue: -80,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(xpFloatOpacity, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setShowXpFloat(false);
+    });
+
+    // 2. Flash verde (success feedback visual)
+    setShowSuccessFlash(true);
+    successFlashAnim.setValue(0);
+    Animated.timing(successFlashAnim, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: false,
+    }).start(() => {
+      Animated.timing(successFlashAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: false,
+      }).start(() => {
+        setShowSuccessFlash(false);
+      });
+    });
+
+    // Pulse animation na linha salva
     setSavedSetPulseKey(`${exercise.name}-${setIndex}`);
     rowPulseAnim.setValue(0);
     Animated.sequence([
@@ -1689,6 +1736,37 @@ export default function WorkoutScreen({ navigation, route }) {
             </TouchableOpacity>
           </View>
         </View>
+      ) : null}
+
+      {/* BLOCO 1: XP flutuante (sobe e desaparece) */}
+      {showXpFloat ? (
+        <Animated.View
+          style={[
+            styles.xpFloatingContainer,
+            {
+              transform: [{ translateY: xpFloatAnimY }],
+              opacity: xpFloatOpacity,
+            },
+          ]}
+        >
+          <Text style={styles.xpFloatingText}>{xpFloatValue}</Text>
+        </Animated.View>
+      ) : null}
+
+      {/* BLOCO 1: Flash verde (success visual feedback) */}
+      {showSuccessFlash ? (
+        <Animated.View
+          style={[
+            styles.successFlashOverlay,
+            {
+              backgroundColor: successFlashAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: ['rgba(74, 222, 128, 0)', 'rgba(74, 222, 128, 0.3)'],
+              }),
+            },
+          ]}
+          pointerEvents="none"
+        />
       ) : null}
 
       <ScrollView
@@ -3298,5 +3376,34 @@ const styles = StyleSheet.create({
     marginTop: 8,
     color: '#8FA5CB',
     fontSize: 12,
+  },
+  
+  // BLOCO 1: Animação + Recompensa
+  xpFloatingContainer: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    marginLeft: -40,
+    zIndex: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    pointerEvents: 'none',
+  },
+  xpFloatingText: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: colors.primary,
+    textShadowColor: 'rgba(74, 222, 128, 0.5)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 6,
+  },
+  successFlashOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 100,
+    pointerEvents: 'none',
   },
 });

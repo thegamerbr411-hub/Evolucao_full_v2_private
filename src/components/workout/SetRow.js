@@ -1,8 +1,31 @@
-import React, { memo } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { memo, useRef } from 'react';
+import { Animated, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors, radius, spacing } from '../../theme';
 
 export const SetRow = memo(function SetRow({ set, index, onChange, onComplete, simpleMode, testIDs }) {
+  const buttonScaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePress = () => {
+    // Animação de escala: 1 → 0.92 → 1 (200ms total)
+    Animated.sequence([
+      Animated.timing(buttonScaleAnim, {
+        toValue: 0.92,
+        duration: 80,
+        useNativeDriver: true,
+      }),
+      Animated.timing(buttonScaleAnim, {
+        toValue: 1,
+        duration: 120,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Chama callback original
+    if (typeof onComplete === 'function') {
+      onComplete();
+    }
+  };
+
   return (
     <View style={styles.row}>
       <Text style={styles.index}>{index + 1}</Text>
@@ -38,13 +61,21 @@ export const SetRow = memo(function SetRow({ set, index, onChange, onComplete, s
         />
       ) : null}
 
-      <TouchableOpacity
-        testID={testIDs?.done}
-        onPress={onComplete}
-        style={[styles.button, set?.done ? styles.buttonDone : null]}
+      <Animated.View
+        style={[
+          {
+            transform: [{ scale: buttonScaleAnim }],
+          },
+        ]}
       >
-        <Text style={styles.buttonText}>✔</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          testID={testIDs?.done}
+          onPress={handlePress}
+          style={[styles.button, set?.done ? styles.buttonDone : null]}
+        >
+          <Text style={styles.buttonText}>✔</Text>
+        </TouchableOpacity>
+      </Animated.View>
     </View>
   );
 });
