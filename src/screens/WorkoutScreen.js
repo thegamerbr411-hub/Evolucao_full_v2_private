@@ -1244,6 +1244,34 @@ export default function WorkoutScreen({ navigation, route }) {
     }));
   };
 
+  // BLOCO 2: Auto-fill + Submit handlers
+  const handleSetSubmitWeight = (exerciseName, setIndex) => {
+    // Auto-fill com peso anterior se este set estiver vazio
+    const currentRows = draftSetsByExercise[exerciseName] || [];
+    const currentRow = currentRows[setIndex] || {};
+    
+    // Se peso está vazio E set anterior tem peso, auto-fill
+    if (!String(currentRow.weight || '').trim() && setIndex > 0) {
+      const prevRow = currentRows[setIndex - 1];
+      if (prevRow?.weight) {
+        setDraftField(exerciseName, setIndex, 'weight', String(prevRow.weight));
+      }
+    }
+  };
+
+  const handleSetSubmitReps = (exerciseName, setIndex) => {
+    // Similar auto-fill para reps
+    const currentRows = draftSetsByExercise[exerciseName] || [];
+    const currentRow = currentRows[setIndex] || {};
+    
+    if (!String(currentRow.reps || '').trim() && setIndex > 0) {
+      const prevRow = currentRows[setIndex - 1];
+      if (prevRow?.reps) {
+        setDraftField(exerciseName, setIndex, 'reps', String(prevRow.reps));
+      }
+    }
+  };
+
   const removeLastSetFromExercise = (exerciseName) => {
     const plannedSets = Number(setCountByExercise[exerciseName] || 0);
     if (plannedSets <= 1) {
@@ -2170,7 +2198,11 @@ export default function WorkoutScreen({ navigation, route }) {
                               onChangeText={(text) => setDraftField(exercise.name, setIndex, 'weight', text)}
                               placeholder={suggestedWeight ? `${suggestedWeight}kg` : 'kg'}
                               returnKeyType="next"
-                              onSubmitEditing={() => focusSetField(exercise.name, setIndex, 'reps')}
+                              onSubmitEditing={() => {
+                                // BLOCO 2: Auto-fill peso anterior
+                                handleSetSubmitWeight(exercise.name, setIndex);
+                                focusSetField(exercise.name, setIndex, 'reps');
+                              }}
                               testID={isActive && setIndex === 0 ? 'input-peso' : `input-peso-${exercise.id}-${setIndex}`}
                               inputRef={(ref) => {
                                 setFieldRefs.current[getSetFieldKey(exercise.name, setIndex, 'weight')] = ref;
@@ -2182,6 +2214,8 @@ export default function WorkoutScreen({ navigation, route }) {
                               placeholder="reps"
                               returnKeyType="done"
                               onSubmitEditing={() => {
+                                // BLOCO 2: Auto-fill reps anterior + auto-submit em simpleMode
+                                handleSetSubmitReps(exercise.name, setIndex);
                                 if (canSave) {
                                   saveSetLine(exercise, exerciseIndex, setIndex);
                                 }
