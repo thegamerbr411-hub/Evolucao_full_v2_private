@@ -38,18 +38,20 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
+    // BLOCO 5: UI Premium - Subtle shadows increased
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 4,
   },
   cardElevated: {
     backgroundColor: colors.cardElevated,
     borderColor: colors.border,
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 6,
+    // BLOCO 5: Premium elevated shadows
+    shadowOpacity: 0.28,
+    shadowRadius: 20,
+    elevation: 8,
   },
   cardAccent: {
     borderColor: colors.primary,

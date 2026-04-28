@@ -2408,28 +2408,44 @@ export default function WorkoutScreen({ navigation, route }) {
         </View>
 
         {showWorkoutSummary ? (
-          <AppCard style={styles.summaryCard}>
-            <Text style={styles.summaryTitle}>🔥 Treino concluido!</Text>
-            <Text style={styles.summaryLine}>Exercicios: {Number(workoutSummary?.exerciseCount || 0)}</Text>
-            <Text style={styles.summaryLine}>Series: {Number(workoutSummary?.totalSets || 0)}</Text>
-            <Text style={styles.summaryLine}>Volume: {Math.round(Number(workoutSummary?.totalVolume || 0))}kg</Text>
-            <Text style={styles.summaryLine}>Hoje voce levantou {Math.round(Number(workoutSummary?.totalVolume || 0))}kg ({Number(workoutSummary?.volumeChangePct || 0) >= 0 ? '+' : ''}{Number(workoutSummary?.volumeChangePct || 0)}%)</Text>
-            <Text style={styles.summaryLine}>1RM estimado: {Number(workoutSummary?.estimated1RM || 0)}kg</Text>
-            <Text style={styles.summaryLine}>sRPE: {Number(workoutSummary?.sRpeLoad || 0)} ({Number(workoutSummary?.sessionDurationMinutes || 0)}min)</Text>
-            <Text style={styles.summaryLine}>+{Number(workoutSummary?.sessionXp || 0)} XP</Text>
-            <Text style={styles.summaryLine}>+{Number(workoutSummary?.setsDiff || 0)} series vs ultimo treino</Text>
-            <Text style={styles.summaryLine}>+{Number(workoutSummary?.loadDiff || 0)}kg vs ultimo treino</Text>
-            {Number(workoutSummary?.loadDiff || 0) > 0 ? (
-              <Text style={styles.summaryPositive}>Evolucao vs ultima sessao</Text>
-            ) : null}
-            <View style={styles.postWorkoutNutritionWrap}>
-              <Text style={styles.postWorkoutNutritionTitle}>Agora: +{Math.max(0, Number(postWorkoutNutritionFeedback?.missingProtein || 0))}g proteina recomendado</Text>
-              <Text style={styles.postWorkoutNutritionText}>{postWorkoutNutritionFeedback?.suggestion || 'Sugestao indisponivel'}</Text>
-            </View>
-            <PrimaryButton title="Voltar para Home" onPress={closeWorkoutSummary} style={styles.finishButton} />
-            <SecondaryButton title="Ver historico" onPress={goToHistoryAfterWorkout} style={styles.partialButton} />
-            <SecondaryButton title="Ver evolucao" onPress={goToEvolution} style={styles.partialButton} />
-          </AppCard>
+          <Animated.View style={{ opacity: fadeAnim }}>
+            <AppCard style={styles.summaryCard}>
+              {/* BLOCO 6: Dopamina máxima - Grande XP display */}
+              <View style={styles.summaryXpSection}>
+                <Text style={styles.summaryXpLabel}>Você ganhou</Text>
+                <Text style={styles.summaryXpValue}>+{Number(workoutSummary?.sessionXp || 0)}</Text>
+                <Text style={styles.summaryXpUnit}>XP</Text>
+              </View>
+
+              <Text style={styles.summaryTitle}>🔥 Treino concluido!</Text>
+
+              {/* BLOCO 6: Melhor hierarquia - Cards espaçados */}
+              <View style={styles.summaryStatsGroup}>
+                <Text style={styles.summaryStatLabel}>Volume Total</Text>
+                <Text style={styles.summaryStatValue}>{Math.round(Number(workoutSummary?.totalVolume || 0))}kg</Text>
+              </View>
+
+              <View style={styles.summaryStatsGroup}>
+                <Text style={styles.summaryStatLabel}>Series</Text>
+                <Text style={styles.summaryStatValue}>{Number(workoutSummary?.totalSets || 0)}</Text>
+              </View>
+
+              <View style={styles.summaryStatsGroup}>
+                <Text style={styles.summaryStatLabel}>1RM Estimado</Text>
+                <Text style={styles.summaryStatValue}>{Number(workoutSummary?.estimated1RM || 0)}kg</Text>
+              </View>
+
+              <View style={styles.postWorkoutNutritionWrap}>
+                <Text style={styles.postWorkoutNutritionTitle}>Próximo passo: +{Math.max(0, Number(postWorkoutNutritionFeedback?.missingProtein || 0))}g proteina</Text>
+                <Text style={styles.postWorkoutNutritionText}>{postWorkoutNutritionFeedback?.suggestion || 'Sugestao indisponivel'}</Text>
+              </View>
+
+              {/* BLOCO 6: CTAs claras - Continue amanhã + Ver progresso */}
+              <PrimaryButton title="✅ Continue amanhã" onPress={closeWorkoutSummary} style={styles.finishButton} />
+              <SecondaryButton title="📈 Ver progresso" onPress={goToEvolution} style={styles.partialButton} />
+              <SecondaryButton title="📋 Histórico" onPress={goToHistoryAfterWorkout} style={styles.partialButton} />
+            </AppCard>
+          </Animated.View>
         ) : null}
       </ScrollView>
     </KeyboardAvoidingView>
@@ -3392,10 +3408,70 @@ const styles = StyleSheet.create({
   summaryCard: {
     marginBottom: 24,
   },
+  // BLOCO 6: Dopamina máxima - XP grande + melhor layout
+  summaryXpSection: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.lg,
+    paddingBottom: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  summaryXpLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  summaryXpValue: {
+    fontSize: 48,
+    fontWeight: '900',
+    color: colors.primary,
+    lineHeight: 56,
+  },
+  summaryXpUnit: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+  },
+  summaryStatsGroup: {
+    marginBottom: spacing.md,
+    paddingBottom: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  summaryStatLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: spacing.xs,
+  },
+  summaryStatValue: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: colors.textPrimary,
+  },
   summaryTitle: {
     fontSize: 16,
     fontWeight: '800',
     color: colors.textPrimary,
+    marginBottom: spacing.lg,
+  },
+  summaryLine: {
+    color: colors.textPrimary,
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  summaryPositive: {
+    color: colors.success,
+    fontSize: 13,
+    fontWeight: '800',
     marginBottom: 8,
   },
   summaryLine: {
