@@ -37,6 +37,39 @@ function getMessageVariant(options, seed) {
   return options[Math.abs(seed) % options.length];
 }
 
+// BLOCO 7: Coach Evoluído - Max 2-3 linhas + ações claras
+function toCoachShortText(text) {
+  if (!text || typeof text !== 'string') return '';
+  
+  // Split by period + space to get sentences
+  const sentences = text.split('. ').slice(0, 2);
+  let short = sentences.join('. ');
+  if (sentences.length === 2) short += '.';
+  
+  // Max 140 chars to fit ~2-3 lines on mobile
+  if (short.length > 140) {
+    short = short.substring(0, 137) + '...';
+  }
+  
+  return short;
+}
+
+// Extract action suggestions from coach message
+function extractCoachAction(text) {
+  if (!text || typeof text !== 'string') return null;
+  
+  const actions = [];
+  const lower = text.toLowerCase();
+  
+  if (lower.includes('treino')) actions.push({ label: '💪 Iniciar treino', intent: 'training' });
+  if (lower.includes('proteina') || lower.includes('refeicao')) actions.push({ label: '🍗 Registrar refeição', intent: 'nutrition' });
+  if (lower.includes('agua') || lower.includes('hidrat')) actions.push({ label: '💧 Beber agua', intent: 'water' });
+  if (lower.includes('rotina') || lower.includes('semana')) actions.push({ label: '📋 Ver rotina', intent: 'routine' });
+  if (lower.includes('progresso') || lower.includes('evolucao')) actions.push({ label: '📊 Ver progresso', intent: 'progress' });
+  
+  return actions.length ? actions.slice(0, 2) : null; // Max 2 action buttons
+}
+
 function detectIntents(message) {
   const text = String(message || '')
     .normalize('NFD')
@@ -823,11 +856,31 @@ export default function CoachChatScreen({ navigation }) {
         contentContainerStyle={styles.chatContent}
         data={messages}
         keyExtractor={(item, index) => String(item?.id || index)}
-        renderItem={({ item: message }) => (
-          <View testID={message.role === 'user' ? 'message-user' : 'message-coach'} style={[styles.bubble, message.role === 'user' ? styles.userBubble : styles.coachBubble]}>
-            <Text style={[styles.bubbleText, message.role === 'user' ? styles.userText : styles.coachText]}>{message.role === 'coach' ? toCoachShortText(message.text) : message.text}</Text>
-          </View>
-        )}
+        renderItem={({ item: message }) => {
+          const actionSuggestions = message.role === 'coach' ? extractCoachAction(message.text) : null;
+          
+          return (
+            <View testID={message.role === 'user' ? 'message-user' : 'message-coach'} style={[styles.bubble, message.role === 'user' ? styles.userBubble : styles.coachBubble]}>
+              <Text style={[styles.bubbleText, message.role === 'user' ? styles.userText : styles.coachText]}>{message.role === 'coach' ? toCoachShortText(message.text) : message.text}</Text>
+              
+              {/* BLOCO 7: Coach Evoluído - Botões de ação rápida */}
+              {actionSuggestions && actionSuggestions.length > 0 ? (
+                <View style={styles.coachActionButtons}>
+                  {actionSuggestions.map((action, idx) => (
+                    <TouchableOpacity key={idx} style={styles.coachActionButton} onPress={() => {
+                      if (action.intent === 'training') openWorkout();
+                      else if (action.intent === 'nutrition') openNutrition();
+                      else if (action.intent === 'water') addWaterQuick();
+                      else if (action.intent === 'routine') openRoutines();
+                    }}>
+                      <Text style={styles.coachActionButtonText}>{action.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : null}
+            </View>
+          );
+        }}
       />
 
       <View style={styles.inputRow}>
@@ -990,6 +1043,24 @@ const styles = StyleSheet.create({
   },
   coachText: {
     color: colors.textPrimary,
+  },
+  // BLOCO 7: Coach Evoluído - Action buttons após mensagem
+  coachActionButtons: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+    flexWrap: 'wrap',
+  },
+  coachActionButton: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    backgroundColor: colors.primary,
+    borderRadius: 6,
+  },
+  coachActionButtonText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.background,
   },
   inputRow: {
     flexDirection: 'row',
