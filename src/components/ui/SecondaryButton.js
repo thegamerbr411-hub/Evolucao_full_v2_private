@@ -1,9 +1,30 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { Animated, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { colors, radius, spacing } from '../../theme';
 import { trackEvent } from '../../utils/analytics';
 
 export function SecondaryButton({ title, onPress, style, testID }) {
+  // BLOCO 3: Microinterações - Button press feedback
+  const scaleAnim = React.useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = React.useCallback(() => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.97,
+      speed: 40,
+      bounciness: 8,
+      useNativeDriver: true,
+    }).start();
+  }, [scaleAnim]);
+
+  const handlePressOut = React.useCallback(() => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      speed: 30,
+      bounciness: 6,
+      useNativeDriver: true,
+    }).start();
+  }, [scaleAnim]);
+
   const handlePress = React.useCallback(() => {
     trackEvent('tap', {
       screen: 'ui',
@@ -22,9 +43,11 @@ export function SecondaryButton({ title, onPress, style, testID }) {
   }, [onPress, testID, title]);
 
   return (
-    <TouchableOpacity testID={testID} onPress={handlePress} style={[styles.button, style]}>
-      <Text style={styles.text}>{title}</Text>
-    </TouchableOpacity>
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      <TouchableOpacity testID={testID} onPress={handlePress} onPressIn={handlePressIn} onPressOut={handlePressOut} style={[styles.button, style]}>
+        <Text style={styles.text}>{title}</Text>
+      </TouchableOpacity>
+    </Animated.View>
   );
 }
 

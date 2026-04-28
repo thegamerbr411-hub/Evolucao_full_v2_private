@@ -1,20 +1,32 @@
-import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import React, { useRef, useEffect } from 'react';
+import { Animated, StyleSheet, View } from 'react-native';
 import { colors, radius, spacing } from '../../theme';
 
 export function AppCard({ children, style, testID, elevated = false, accent = false }) {
+  // BLOCO 3: Microinterações - Fade-in entrance animation
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 280,
+      useNativeDriver: true,
+    }).start();
+  }, [fadeAnim]);
+
   return (
-    <View
+    <Animated.View
       testID={testID}
       style={[
         styles.card,
         elevated && styles.cardElevated,
         accent && styles.cardAccent,
         style,
+        { opacity: fadeAnim },
       ]}
     >
       {children}
-    </View>
+    </Animated.View>
   );
 }
 
