@@ -30,7 +30,7 @@ import { calculate1RM, calculateSRPE, calculateVolume, getProgression } from '..
 import { findBestFuzzyMatch, fuzzySearchExercises } from '../services/fuzzySearch';
 import { loadWorkout, saveWorkout } from '../services/storage';
 import { loadWorkoutCloud, saveWorkoutCloud } from '../services/cloudWorkoutService';
-import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
+import { AppCard, CustomKeypad, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { ExerciseCard } from '../components/workout/ExerciseCard';
 import { colors, spacing, radius } from '../theme';
 import { logEvent } from '../core/logger';
@@ -55,20 +55,18 @@ function getTodayKeyLocal() {
   return `${year}-${month}-${day}`;
 }
 
-function SetField({ value, onChangeText, placeholder, inputRef, testID, returnKeyType = 'done', onSubmitEditing }) {
+function SetField({ value, placeholder, testID, onPress, focused }) {
   return (
-    <TextInput
-      ref={inputRef}
+    <TouchableOpacity
       testID={testID}
-      keyboardType="numeric"
-      value={value}
-      onChangeText={onChangeText}
-      returnKeyType={returnKeyType}
-      onSubmitEditing={onSubmitEditing}
-      placeholder={placeholder}
-      placeholderTextColor={colors.textSecondary}
-      style={styles.setField}
-    />
+      onPress={onPress}
+      style={[styles.setField, focused ? styles.setFieldActive : null]}
+      activeOpacity={0.85}
+    >
+      <Text style={[styles.setFieldText, !String(value || '').trim() ? styles.setFieldPlaceholder : null]}>
+        {String(value || '').trim() ? String(value) : String(placeholder || '')}
+      </Text>
+    </TouchableOpacity>
   );
 }
 
@@ -149,6 +147,7 @@ function findBestCatalogMatch(catalog = [], query = '') {
 
 export default function WorkoutScreen({ navigation, route }) {
   const { workout, setWorkout, user, plan, getUserRoutineById } = useApp();
+  const workoutApi = useWorkout() || {};
   const {
     getTodayWorkout,
     prepareTodayWorkoutTargets,
@@ -165,7 +164,7 @@ export default function WorkoutScreen({ navigation, route }) {
     getWorkoutGamification,
     getWorkoutDelta,
     workoutLogs,
-  } = useWorkout();
+  } = workoutApi;
   const { getNutritionFeedback } = useNutrition();
   const { hasFeatureAccess } = useNotifications();
 
@@ -212,6 +211,15 @@ export default function WorkoutScreen({ navigation, route }) {
   const [syncStatusMessage, setSyncStatusMessage] = useState('');
   const [setSpeedStats, setSetSpeedStats] = useState({ avgMs: 0, lastMs: 0, count: 0 });
   const [simpleMode, setSimpleMode] = useState(true);
+  const [showCoachDetailsByExercise, setShowCoachDetailsByExercise] = useState({});
+  const [keypadState, setKeypadState] = useState({
+    visible: false,
+    exerciseName: '',
+    exerciseIndex: -1,
+    setIndex: -1,
+    field: 'weight',
+    value: '',
+  });
 
   const finishButtonTitle = useMemo(() => {
     if (isSavingWorkout) {
@@ -227,7 +235,31 @@ export default function WorkoutScreen({ navigation, route }) {
     return 'Finalizar treino';
   }, [isSavingWorkout, summary?.guidedSets, summary?.plannedSets]);
 
-  const postWorkoutNutritionFeedback = getNutritionFeedback({ trainedToday: true });
+  const postWorkoutNutritionFeedback = typeof getNutritionFeedback === 'function'
+    ? getNutritionFeedback({ trainedToday: true })
+    : { suggestion: '', missingProtein: 0 };
+
+  const safeGetExerciseSetProgress = (...args) => (
+    typeof getExerciseSetProgress === 'function'
+      ? (getExerciseSetProgress(...args) || { completedSets: 0, totalSets: Number(args?.[1] || 0), nextSet: 1, isDone: false })
+      : { completedSets: 0, totalSets: Number(args?.[1] || 0), nextSet: 1, isDone: false }
+  );
+
+  const safeGetExerciseHistorySnapshot = (...args) => (
+    typeof getExerciseHistorySnapshot === 'function' ? (getExerciseHistorySnapshot(...args) || []) : []
+  );
+
+  const safeGetExerciseProgressionSuggestion = (...args) => (
+    typeof getExerciseProgressionSuggestion === 'function'
+      ? (getExerciseProgressionSuggestion(...args) || { suggestedWeight: 0, message: '' })
+      : { suggestedWeight: 0, message: '' }
+  );
+
+  const safeGetExerciseProgress = (...args) => (
+    typeof getExerciseProgress === 'function'
+      ? (getExerciseProgress(...args) || { bestWeight: 0 })
+      : { bestWeight: 0 }
+  );
 
   const navigateWithTracking = (target, params, action) => {
     trackEvent('navigation_triggered', {
@@ -383,7 +415,9 @@ export default function WorkoutScreen({ navigation, route }) {
   }, [setWorkout]);
 
   useEffect(() => {
-    prepareTodayWorkoutTargets();
+    if (typeof prepareTodayWorkoutTargets === 'function') {
+      prepareTodayWorkoutTargets();
+    }
     logEvent('workout_start', {
       screen: SCREENS.WORKOUT,
       source: 'WorkoutScreen',
@@ -953,6 +987,38 @@ export default function WorkoutScreen({ navigation, route }) {
 
   const normalizeNumericInput = (value) => String(value || '').replace(',', '.').trim();
 
+  const openKeypadForField = (exercise, exerciseIndex, setIndex, field, currentValue) => {
+    setKeypadState({
+      visible: true,
+      exerciseName: String(exercise?.name || ''),
+      exerciseIndex,
+      setIndex,
+      field,
+      value: String(currentValue || ''),
+    });
+  };
+
+  const closeKeypad = () => {
+    setKeypadState((prev) => ({ ...prev, visible: false }));
+  };
+
+  const confirmKeypad = () => {
+    const { exerciseName, setIndex, field, value, exerciseIndex } = keypadState;
+    if (exerciseName && setIndex >= 0 && field) {
+      setDraftField(exerciseName, setIndex, field, value);
+      if (field === 'reps') {
+        const plannedSets = Number(setCountByExercise[exerciseName] || allExercises?.[exerciseIndex]?.sets || 3);
+        const canSave = setIndex === (workoutLogs
+          .filter((item) => item.date === todayKey && isSameExerciseLog(item, exerciseName) && (item.mode || 'guided') !== 'free')
+          .slice(0, plannedSets).length);
+        if (canSave && exerciseIndex >= 0) {
+          saveSetLine(allExercises[exerciseIndex], exerciseIndex, setIndex);
+        }
+      }
+    }
+    closeKeypad();
+  };
+
   const showActionToast = (message) => {
     setActionFeedback(message);
     actionFeedbackAnim.setValue(0);
@@ -1040,7 +1106,7 @@ export default function WorkoutScreen({ navigation, route }) {
     for (let index = currentIndex + 1; index < allExercises.length; index += 1) {
       const item = allExercises[index];
       const plannedSets = Number(setCountByExercise[item.name] || item.sets || 3);
-      const progress = getExerciseSetProgress(item.name, plannedSets);
+      const progress = safeGetExerciseSetProgress(item.name, plannedSets);
       if (!progress.isDone) {
         setActiveExerciseIndex(index);
         return;
@@ -1050,7 +1116,7 @@ export default function WorkoutScreen({ navigation, route }) {
     for (let index = 0; index < allExercises.length; index += 1) {
       const item = allExercises[index];
       const plannedSets = Number(setCountByExercise[item.name] || item.sets || 3);
-      const progress = getExerciseSetProgress(item.name, plannedSets);
+      const progress = safeGetExerciseSetProgress(item.name, plannedSets);
       if (!progress.isDone) {
         setActiveExerciseIndex(index);
         return;
@@ -1083,6 +1149,11 @@ export default function WorkoutScreen({ navigation, route }) {
         extra: { exerciseName: exercise.name, weight: row.weight, reps: row.reps },
       });
       showActionToast('Preencha peso e repeticoes validas.');
+      return;
+    }
+
+    if (typeof saveWorkoutSet !== 'function') {
+      showActionToast('Motor de treino indisponivel no momento.');
       return;
     }
 
@@ -1214,7 +1285,7 @@ export default function WorkoutScreen({ navigation, route }) {
 
     startRestTimer();
 
-    const currentProgress = getExerciseSetProgress(exercise.name, plannedSets);
+    const currentProgress = safeGetExerciseSetProgress(exercise.name, plannedSets);
     const nextCompleted = currentProgress.completedSets + 1;
     const nextSetIndex = setIndex + 1;
 
@@ -1881,13 +1952,15 @@ export default function WorkoutScreen({ navigation, route }) {
             lastWeight={suggestNextWeight(getLastSetForExercise(activeExercise.name)?.weight)}
             onRegister={async (weight) => {
               // Salva exercício e feedback
-              saveWorkoutSet({
+              if (typeof saveWorkoutSet === 'function') {
+                saveWorkoutSet({
                 exerciseName: activeExercise.name,
                 weight,
                 reps: 10,
                 rpe: 8,
                 failed: false,
-              });
+                });
+              }
               Vibration.vibrate(80);
               showActionToast('Exercício registrado!');
             }}
@@ -2025,7 +2098,7 @@ export default function WorkoutScreen({ navigation, route }) {
           const providedIndex = Number(exercise?.__originalIndex);
           const exerciseIndex = Number.isFinite(providedIndex) ? providedIndex : renderIndex;
           const plannedSets = Number(setCountByExercise[exercise.name] || exercise.sets || 3);
-          const setProgress = typeof getExerciseSetProgress === 'function' ? getExerciseSetProgress(exercise.name, plannedSets) : { completedSets: 0, totalSets: plannedSets, nextSet: 1, isDone: false };
+          const setProgress = safeGetExerciseSetProgress(exercise.name, plannedSets);
           const isActive = exerciseIndex === activeExerciseIndex;
           const todaySets = workoutLogs
             .filter((item) => item.date === todayKey && isSameExerciseLog(item, exercise.name) && (item.mode || 'guided') !== 'free')
@@ -2033,9 +2106,9 @@ export default function WorkoutScreen({ navigation, route }) {
 
           const unifiedSetRows = buildUnifiedSetRows(exercise.name, plannedSets);
           const exerciseId = getCanonicalExerciseId(exercise.name) || undefined;
-          const historySnapshot = getExerciseHistorySnapshot(exercise.name, 5, exerciseId);
-          const progression = getExerciseProgressionSuggestion(exercise.name, exerciseId);
-          const exerciseProgress = getExerciseProgress(exercise.name, exerciseId);
+          const historySnapshot = safeGetExerciseHistorySnapshot(exercise.name, 5, exerciseId);
+          const progression = safeGetExerciseProgressionSuggestion(exercise.name, exerciseId);
+          const exerciseProgress = safeGetExerciseProgress(exercise.name, exerciseId);
           const lastSet = getLastSetForExercise(exercise.name);
           const lastWeight = Number(lastSet?.weight || 0);
           const suggestedWeightNumber = Number(progression?.suggestedWeight || 0);
@@ -2125,72 +2198,86 @@ export default function WorkoutScreen({ navigation, route }) {
               </View>
 
               <Text style={styles.progressHint}>
-                Ultimo: {lastSet?.weight || 0}kg x {lastSet?.reps || 0} · Melhor: {getExerciseProgress(exercise.name).bestWeight || 0}kg
+                Ultimo: {lastSet?.weight || 0}kg x {lastSet?.reps || 0} · Melhor: {safeGetExerciseProgress(exercise.name).bestWeight || 0}kg
               </Text>
-              <Text style={styles.progressionLine}>
-                Hoje: {suggestedWeightNumber || 0}kg {weightDelta > 0 ? `( +${weightDelta}kg )` : weightDelta < 0 ? `( ${weightDelta}kg )` : '( manter )'}
-              </Text>
-              <Text style={styles.progressionMetaLine}>
-                Meta hoje: {progression?.message || 'Consolidar tecnica e repetir carga com qualidade.'}
-              </Text>
-
               {isActive ? (
-                <View style={styles.prCard}>
-                  <View style={styles.prCardHeader}>
-                    <Text style={styles.prCardTitle}>Recorde pessoal</Text>
-                  </View>
-                  <Text style={styles.prCardWeight}>{prWeight || 0}kg</Text>
-                  <Text style={styles.prCardMeta}>
-                    {prGap > 0
-                      ? `Faltam ${prGap}kg para bater o PR hoje.`
-                      : 'Carga sugerida em faixa de recorde. Hora de atacar!'}
-                  </Text>
-                </View>
+                <TouchableOpacity
+                  style={styles.coachHintToggle}
+                  onPress={() => setShowCoachDetailsByExercise((prev) => ({
+                    ...prev,
+                    [exercise.id]: !prev?.[exercise.id],
+                  }))}
+                >
+                  <Text style={styles.coachHintToggleText}>ℹ Dica do Coach</Text>
+                </TouchableOpacity>
               ) : null}
 
-              {isActive && historySnapshot.length ? (
-                <View style={styles.historyWrap}>
-                  <Text style={styles.historyTitle}>Evolucao (ultimas 5 cargas)</Text>
-                  <View style={styles.sparklineWrap}>
-                    <View style={styles.sparklineCanvas}>
-                      {sparklineSegments.map((segment) => (
-                        <View
-                          key={segment.key}
-                          style={[
-                            styles.sparklineSegment,
-                            {
-                              left: segment.left,
-                              top: segment.top,
-                              width: segment.width,
-                              transform: [{ rotate: `${segment.angle}deg` }],
-                              backgroundColor: segment.rising ? '#4ADE80' : '#93C5FD',
-                            },
-                          ]}
-                        />
-                      ))}
-                      {sparklinePoints.map((point, index) => (
-                        <View
-                          key={`${exercise.id}-point-${index}`}
-                          style={[
-                            styles.sparklinePoint,
-                            {
-                              left: point.x - 3,
-                              top: point.y - 3,
-                              backgroundColor: index === sparklinePoints.length - 1 ? '#FCD34D' : '#93C5FD',
-                            },
-                          ]}
-                        />
-                      ))}
+              {isActive && showCoachDetailsByExercise?.[exercise.id] ? (
+                <>
+                  <Text style={styles.progressionLine}>
+                    Hoje: {suggestedWeightNumber || 0}kg {weightDelta > 0 ? `( +${weightDelta}kg )` : weightDelta < 0 ? `( ${weightDelta}kg )` : '( manter )'}
+                  </Text>
+                  <Text style={styles.progressionMetaLine}>
+                    Meta hoje: {progression?.message || 'Consolidar tecnica e repetir carga com qualidade.'}
+                  </Text>
+
+                  <View style={styles.prCard}>
+                    <View style={styles.prCardHeader}>
+                      <Text style={styles.prCardTitle}>Recorde pessoal</Text>
                     </View>
-                    <View style={styles.sparklineFooter}>
-                      {historySnapshot.map((entry, index) => (
-                        <Text key={`${exercise.id}-legend-${entry.date}-${index}`} style={styles.sparklineLabel}>
-                          {entry.date.slice(5)} {entry.weight}kg
-                        </Text>
-                      ))}
-                    </View>
+                    <Text style={styles.prCardWeight}>{prWeight || 0}kg</Text>
+                    <Text style={styles.prCardMeta}>
+                      {prGap > 0
+                        ? `Faltam ${prGap}kg para bater o PR hoje.`
+                        : 'Carga sugerida em faixa de recorde. Hora de atacar!'}
+                    </Text>
                   </View>
-                </View>
+
+                  {historySnapshot.length ? (
+                    <View style={styles.historyWrap}>
+                      <Text style={styles.historyTitle}>Evolucao (ultimas 5 cargas)</Text>
+                      <View style={styles.sparklineWrap}>
+                        <View style={styles.sparklineCanvas}>
+                          {sparklineSegments.map((segment) => (
+                            <View
+                              key={segment.key}
+                              style={[
+                                styles.sparklineSegment,
+                                {
+                                  left: segment.left,
+                                  top: segment.top,
+                                  width: segment.width,
+                                  transform: [{ rotate: `${segment.angle}deg` }],
+                                  backgroundColor: segment.rising ? '#4ADE80' : '#93C5FD',
+                                },
+                              ]}
+                            />
+                          ))}
+                          {sparklinePoints.map((point, index) => (
+                            <View
+                              key={`${exercise.id}-point-${index}`}
+                              style={[
+                                styles.sparklinePoint,
+                                {
+                                  left: point.x - 3,
+                                  top: point.y - 3,
+                                  backgroundColor: index === sparklinePoints.length - 1 ? '#FCD34D' : '#93C5FD',
+                                },
+                              ]}
+                            />
+                          ))}
+                        </View>
+                        <View style={styles.sparklineFooter}>
+                          {historySnapshot.map((entry, index) => (
+                            <Text key={`${exercise.id}-legend-${entry.date}-${index}`} style={styles.sparklineLabel}>
+                              {entry.date.slice(5)} {entry.weight}kg
+                            </Text>
+                          ))}
+                        </View>
+                      </View>
+                    </View>
+                  ) : null}
+                </>
               ) : null}
 
               {isActive && showSubstitutePicker ? (
@@ -2206,7 +2293,6 @@ export default function WorkoutScreen({ navigation, route }) {
                 </View>
               ) : null}
 
-              {isActive ? <Text style={styles.controlHint}>Fluxo automatico: preencha, confirme e siga para a proxima serie.</Text> : null}
               {isActive ? <Text testID="series-salvas-total" style={styles.controlHint}>Series salvas: {todaySets.length}</Text> : null}
 
               {unifiedSetRows.map((row) => {
@@ -2275,35 +2361,27 @@ export default function WorkoutScreen({ navigation, route }) {
                           <View style={styles.setInputRow}>
                             <SetField
                               value={draft.weight}
-                              onChangeText={(text) => setDraftField(exercise.name, setIndex, 'weight', text)}
                               placeholder={suggestedWeight ? `${suggestedWeight}kg` : 'kg'}
-                              returnKeyType="next"
-                              onSubmitEditing={() => {
-                                // BLOCO 2: Auto-fill peso anterior
-                                handleSetSubmitWeight(exercise.name, setIndex);
-                                focusSetField(exercise.name, setIndex, 'reps');
-                              }}
                               testID={isActive && canSave ? 'input-weight' : `input-weight-${exercise.id}-${setIndex}`}
-                              inputRef={(ref) => {
-                                setFieldRefs.current[getSetFieldKey(exercise.name, setIndex, 'weight')] = ref;
-                              }}
+                              focused={
+                                keypadState.visible
+                                && keypadState.exerciseName === exercise.name
+                                && keypadState.setIndex === setIndex
+                                && keypadState.field === 'weight'
+                              }
+                              onPress={() => openKeypadForField(exercise, exerciseIndex, setIndex, 'weight', draft.weight)}
                             />
                             <SetField
                               value={draft.reps}
-                              onChangeText={(text) => setDraftField(exercise.name, setIndex, 'reps', text)}
                               placeholder="reps"
-                              returnKeyType="done"
-                              onSubmitEditing={() => {
-                                // BLOCO 2: Auto-fill reps anterior + auto-submit em simpleMode
-                                handleSetSubmitReps(exercise.name, setIndex);
-                                if (canSave) {
-                                  saveSetLine(exercise, exerciseIndex, setIndex);
-                                }
-                              }}
                               testID={isActive && canSave ? 'input-reps' : `input-reps-${exercise.id}-${setIndex}`}
-                              inputRef={(ref) => {
-                                setFieldRefs.current[getSetFieldKey(exercise.name, setIndex, 'reps')] = ref;
-                              }}
+                              focused={
+                                keypadState.visible
+                                && keypadState.exerciseName === exercise.name
+                                && keypadState.setIndex === setIndex
+                                && keypadState.field === 'reps'
+                              }
+                              onPress={() => openKeypadForField(exercise, exerciseIndex, setIndex, 'reps', draft.reps)}
                             />
                           </View>
                           <View style={styles.setMetaRow}>
@@ -2511,6 +2589,20 @@ export default function WorkoutScreen({ navigation, route }) {
           </Animated.View>
         ) : null}
       </ScrollView>
+
+      <CustomKeypad
+        visible={keypadState.visible}
+        title={keypadState.field === 'weight' ? 'Peso (kg)' : 'Repeticoes'}
+        value={keypadState.value}
+        onChange={(nextValue) => {
+          setKeypadState((prev) => ({ ...prev, value: nextValue }));
+          if (keypadState.exerciseName && keypadState.setIndex >= 0) {
+            setDraftField(keypadState.exerciseName, keypadState.setIndex, keypadState.field, nextValue);
+          }
+        }}
+        onClose={closeKeypad}
+        onConfirm={confirmKeypad}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -2985,6 +3077,35 @@ const styles = StyleSheet.create({
     backgroundColor: '#141922',
     color: colors.textPrimary,
     fontSize: 22,
+    fontWeight: '800',
+  },
+  setFieldActive: {
+    borderColor: colors.primary,
+    backgroundColor: '#0f2239',
+  },
+  setFieldText: {
+    color: colors.textPrimary,
+    fontSize: 22,
+    fontWeight: '800',
+    lineHeight: 28,
+  },
+  setFieldPlaceholder: {
+    color: colors.textSecondary,
+    fontWeight: '700',
+  },
+  coachHintToggle: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 999,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginBottom: 8,
+  },
+  coachHintToggleText: {
+    color: colors.textSecondary,
+    fontSize: 11,
     fontWeight: '800',
   },
   rpeWrap: {

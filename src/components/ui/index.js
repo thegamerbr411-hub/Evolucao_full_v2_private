@@ -6,3 +6,4 @@ export { MetricText } from './MetricText';
 export { ScreenHeader } from './ScreenHeader';
 export { AnimatedToast } from './AnimatedToast';
 export { ProgressItem } from './ProgressItem';
+export { default as CustomKeypad } from './CustomKeypad';

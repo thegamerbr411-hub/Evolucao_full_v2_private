@@ -17,25 +17,26 @@ export const ExerciseCard = React.memo(function ExerciseCard({
 }) {
   const [hasGifError, setHasGifError] = React.useState(false);
   const gifUri = exercise?.gif || getExerciseGifFallback();
+  const safeExerciseName = String(exercise?.name || '').trim();
 
   const renderSetItem = React.useCallback(({ item: setItem, index }) => (
     <SetRow
-      key={setItem.id || `${exercise.name}-${index}`}
+      key={setItem.id || `${safeExerciseName}-${index}`}
       set={setItem}
       index={index}
       simpleMode={simpleMode}
-      onChange={(field, value) => typeof onChangeSet === 'function' && onChangeSet(exercise.name, index, field, value)}
-      onComplete={() => typeof onCompleteSet === 'function' && onCompleteSet(exercise.name, index)}
+      onChange={(field, value) => typeof onChangeSet === 'function' && safeExerciseName && onChangeSet(safeExerciseName, index, field, value)}
+      onComplete={() => typeof onCompleteSet === 'function' && safeExerciseName && onCompleteSet(safeExerciseName, index)}
       testIDs={typeof testIDs === 'function' ? testIDs(setItem, index) : {}}
     />
-  ), [exercise.name, onChangeSet, onCompleteSet, simpleMode, testIDs]);
+  ), [onChangeSet, onCompleteSet, safeExerciseName, simpleMode, testIDs]);
 
   return (
     <AppCard>
       <View style={styles.headerRow}>
-        <Text style={styles.title}>{exercise.name}</Text>
+        <Text style={styles.title}>{safeExerciseName || 'Exercicio'}</Text>
         {onRemoveExercise ? (
-          <TouchableOpacity onPress={() => onRemoveExercise(exercise.name)}>
+          <TouchableOpacity onPress={() => typeof onRemoveExercise === 'function' && safeExerciseName && onRemoveExercise(safeExerciseName)}>
             <Text style={styles.removeExerciseText}>Remover</Text>
           </TouchableOpacity>
         ) : null}
@@ -56,11 +57,11 @@ export const ExerciseCard = React.memo(function ExerciseCard({
       <FlatList
         data={Array.isArray(exercise.sets) ? exercise.sets : []}
         scrollEnabled={false}
-        keyExtractor={(item, index) => String(item?.id || `${exercise.name}-${index}`)}
+        keyExtractor={(item, index) => String(item?.id || `${safeExerciseName}-${index}`)}
         renderItem={renderSetItem}
       />
 
-      <TouchableOpacity testID={testIDs?.addSet || 'btn-add-set'} onPress={() => onAddSet(exercise.name)} style={styles.addButton}>
+      <TouchableOpacity testID={testIDs?.addSet || 'btn-add-set'} onPress={() => typeof onAddSet === 'function' && safeExerciseName && onAddSet(safeExerciseName)} style={styles.addButton}>
         <Text style={styles.addText}>+ Serie</Text>
       </TouchableOpacity>
     </AppCard>

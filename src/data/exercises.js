@@ -605,6 +605,53 @@ export const EXERCISES = [
     commonMistakes: ['Arredondar lombar', 'Joelhos colapsando para dentro'],
     tags: ['quadriceps', 'pernas', 'maquina', 'hack squat'],
   }),
+
+  // ─── EXPANSÃO MASSIVA — PADRÃO ACADEMIA (BLOCO 1) ───────────────────────
+  // PEITO (chest)
+  createExercise({ name: 'Supino Reto Barra', primaryMuscle: MUSCLE_GROUPS.CHEST, secondaryMuscles: [MUSCLE_GROUPS.SHOULDERS, MUSCLE_GROUPS.TRICEPS], equipment: 'barra', category: 'compound', movementPattern: 'horizontal_push', tags: ['supino', 'peito', 'barra'] }),
+  createExercise({ name: 'Supino Reto Halter', primaryMuscle: MUSCLE_GROUPS.CHEST, secondaryMuscles: [MUSCLE_GROUPS.SHOULDERS, MUSCLE_GROUPS.TRICEPS], equipment: 'halter', category: 'compound', movementPattern: 'horizontal_push', tags: ['supino', 'peito', 'halter'] }),
+  createExercise({ name: 'Supino Inclinado Barra', primaryMuscle: MUSCLE_GROUPS.CHEST, secondaryMuscles: [MUSCLE_GROUPS.SHOULDERS, MUSCLE_GROUPS.TRICEPS], equipment: 'barra', category: 'compound', movementPattern: 'incline_press', tags: ['supino', 'inclinado', 'barra'] }),
+  createExercise({ name: 'Crossover Polia Alta', primaryMuscle: MUSCLE_GROUPS.CHEST, secondaryMuscles: [MUSCLE_GROUPS.SHOULDERS], equipment: 'cabo', category: 'isolation', movementPattern: 'horizontal_adduction', tags: ['crossover', 'polia', 'peito'] }),
+  createExercise({ name: 'Crossover Polia Baixa', primaryMuscle: MUSCLE_GROUPS.CHEST, secondaryMuscles: [MUSCLE_GROUPS.SHOULDERS], equipment: 'cabo', category: 'isolation', movementPattern: 'horizontal_adduction', tags: ['crossover', 'polia', 'peito'] }),
+  createExercise({ name: 'Voador (Peck Deck)', primaryMuscle: MUSCLE_GROUPS.CHEST, secondaryMuscles: [MUSCLE_GROUPS.SHOULDERS], equipment: 'maquina', category: 'isolation', movementPattern: 'horizontal_adduction', tags: ['voador', 'peck deck', 'peito'] }),
+  createExercise({ name: 'Crucifixo Reto Halter', primaryMuscle: MUSCLE_GROUPS.CHEST, secondaryMuscles: [MUSCLE_GROUPS.SHOULDERS], equipment: 'halter', category: 'isolation', movementPattern: 'horizontal_adduction', tags: ['crucifixo', 'halter', 'peito'] }),
+
+  // COSTAS (back)
+  createExercise({ name: 'Puxada Frontal', primaryMuscle: MUSCLE_GROUPS.BACK, secondaryMuscles: [MUSCLE_GROUPS.BICEPS], equipment: 'cabo', category: 'compound', movementPattern: 'vertical_pull', tags: ['puxada', 'costas'] }),
+  createExercise({ name: 'Remada Curvada Barra', primaryMuscle: MUSCLE_GROUPS.BACK, secondaryMuscles: [MUSCLE_GROUPS.BICEPS], equipment: 'barra', category: 'compound', movementPattern: 'horizontal_pull', tags: ['remada', 'barra', 'costas'] }),
+  createExercise({ name: 'Remada Baixa Polia', primaryMuscle: MUSCLE_GROUPS.BACK, secondaryMuscles: [MUSCLE_GROUPS.BICEPS], equipment: 'cabo', category: 'compound', movementPattern: 'horizontal_pull', tags: ['remada', 'polia', 'costas'] }),
+  createExercise({ name: 'Remada Baixa Triangulo', primaryMuscle: MUSCLE_GROUPS.BACK, secondaryMuscles: [MUSCLE_GROUPS.BICEPS], equipment: 'cabo', category: 'compound', movementPattern: 'horizontal_pull', tags: ['remada', 'triangulo', 'costas'] }),
+  createExercise({ name: 'Pulldown', primaryMuscle: MUSCLE_GROUPS.BACK, secondaryMuscles: [MUSCLE_GROUPS.BICEPS], equipment: 'cabo', category: 'isolation', movementPattern: 'shoulder_extension', tags: ['pulldown', 'costas'] }),
+  createExercise({ name: 'Remada Unilateral (Serrote)', primaryMuscle: MUSCLE_GROUPS.BACK, secondaryMuscles: [MUSCLE_GROUPS.BICEPS], equipment: 'halter', category: 'compound', movementPattern: 'horizontal_pull', tags: ['remada', 'serrote', 'costas'] }),
+  createExercise({ name: 'Barra Fixa', primaryMuscle: MUSCLE_GROUPS.BACK, secondaryMuscles: [MUSCLE_GROUPS.BICEPS, MUSCLE_GROUPS.CORE], equipment: 'peso_corporal', category: 'compound', movementPattern: 'vertical_pull', tags: ['barra fixa', 'costas'] }),
+
+  // OMBROS (shoulders)
+  createExercise({ name: 'Desenvolvimento Maquina', primaryMuscle: MUSCLE_GROUPS.SHOULDERS, secondaryMuscles: [MUSCLE_GROUPS.TRICEPS], equipment: 'maquina', category: 'compound', movementPattern: 'vertical_push', tags: ['ombro', 'desenvolvimento', 'maquina'] }),
+  createExercise({ name: 'Elevacao Lateral Polia', primaryMuscle: MUSCLE_GROUPS.SHOULDERS, secondaryMuscles: [], equipment: 'cabo', category: 'isolation', movementPattern: 'lateral_raise', tags: ['ombro', 'elevacao lateral', 'polia'] }),
+  createExercise({ name: 'Elevacao Frontal', primaryMuscle: MUSCLE_GROUPS.SHOULDERS, secondaryMuscles: [], equipment: 'halter', category: 'isolation', movementPattern: 'front_raise', tags: ['ombro', 'elevacao frontal'] }),
+  createExercise({ name: 'Crucifixo Inverso Maquina', primaryMuscle: MUSCLE_GROUPS.SHOULDERS, secondaryMuscles: [MUSCLE_GROUPS.BACK], equipment: 'maquina', category: 'isolation', movementPattern: 'reverse_fly', tags: ['ombro', 'posterior', 'crucifixo inverso'] }),
+  createExercise({ name: 'Crucifixo Inverso Polia', primaryMuscle: MUSCLE_GROUPS.SHOULDERS, secondaryMuscles: [MUSCLE_GROUPS.BACK], equipment: 'cabo', category: 'isolation', movementPattern: 'reverse_fly', tags: ['ombro', 'posterior', 'crucifixo inverso'] }),
+
+  // PERNAS / QUADRÍCEPS (legs)
+  createExercise({ name: 'Agachamento Bulgaro', primaryMuscle: MUSCLE_GROUPS.LEGS, secondaryMuscles: [MUSCLE_GROUPS.GLUTES, MUSCLE_GROUPS.CORE], equipment: 'halter', category: 'compound', movementPattern: 'split_squat', tags: ['pernas', 'quadriceps', 'bulgaro'] }),
+
+  // POSTERIOR (hamstrings)
+  createExercise({ name: 'Cadeira Abdutora', primaryMuscle: MUSCLE_GROUPS.HAMSTRINGS, secondaryMuscles: [MUSCLE_GROUPS.GLUTES], equipment: 'maquina', category: 'isolation', movementPattern: 'hip_abduction', tags: ['posterior', 'abdutora'] }),
+
+  // GLÚTEOS (glutes)
+  createExercise({ name: 'Elevacao de Pelvica', primaryMuscle: MUSCLE_GROUPS.GLUTES, secondaryMuscles: [MUSCLE_GROUPS.HAMSTRINGS, MUSCLE_GROUPS.CORE], equipment: 'barra', category: 'compound', movementPattern: 'hip_extension', tags: ['gluteo', 'hip thrust', 'elevacao pelvica'] }),
+  createExercise({ name: 'Coice na Polia', primaryMuscle: MUSCLE_GROUPS.GLUTES, secondaryMuscles: [MUSCLE_GROUPS.HAMSTRINGS], equipment: 'cabo', category: 'isolation', movementPattern: 'hip_extension', tags: ['gluteo', 'coice', 'polia'] }),
+
+  // BRAÇOS (biceps / triceps)
+  createExercise({ name: 'Rosca Direta Barra W', primaryMuscle: MUSCLE_GROUPS.BICEPS, secondaryMuscles: [], equipment: 'barra', category: 'isolation', movementPattern: 'elbow_flexion', tags: ['biceps', 'rosca direta', 'barra w'] }),
+  createExercise({ name: 'Rosca Martelo', primaryMuscle: MUSCLE_GROUPS.BICEPS, secondaryMuscles: [], equipment: 'halter', category: 'isolation', movementPattern: 'elbow_flexion', tags: ['biceps', 'rosca martelo'] }),
+  createExercise({ name: 'Rosca Scott', primaryMuscle: MUSCLE_GROUPS.BICEPS, secondaryMuscles: [], equipment: 'barra', category: 'isolation', movementPattern: 'elbow_flexion', tags: ['biceps', 'rosca scott'] }),
+  createExercise({ name: 'Triceps Polia Barra', primaryMuscle: MUSCLE_GROUPS.TRICEPS, secondaryMuscles: [], equipment: 'cabo', category: 'isolation', movementPattern: 'elbow_extension', tags: ['triceps', 'polia', 'barra'] }),
+  createExercise({ name: 'Triceps Testa', primaryMuscle: MUSCLE_GROUPS.TRICEPS, secondaryMuscles: [], equipment: 'barra', category: 'isolation', movementPattern: 'elbow_extension', tags: ['triceps', 'testa'] }),
+  createExercise({ name: 'Triceps Frances', primaryMuscle: MUSCLE_GROUPS.TRICEPS, secondaryMuscles: [], equipment: 'halter', category: 'isolation', movementPattern: 'elbow_extension', tags: ['triceps', 'frances'] }),
+
+  // PANTURRILHA (calves)
+  createExercise({ name: 'Panturrilha em Pe', primaryMuscle: MUSCLE_GROUPS.CALVES, secondaryMuscles: [], equipment: 'maquina', category: 'isolation', movementPattern: 'plantarflexion', tags: ['panturrilha', 'em pe'] }),
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────

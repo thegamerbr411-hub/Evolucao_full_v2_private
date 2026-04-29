@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { EXERCISE_NAMES_V2 } from '../data/exerciseLibraryV2.js';
@@ -74,6 +74,7 @@ export default function RoutinesScreen({ navigation }) {
   const [builderStep, setBuilderStep] = useState(1);
   const [editingRoutineId, setEditingRoutineId] = useState(null);
   const [toastMessage, setToastMessage] = useState('');
+  const [showCatalogModal, setShowCatalogModal] = useState(false);
 
   const todayRoutine = useMemo(() => getTodayWorkout(), [getTodayWorkout]);
   const smart = useMemo(() => getSmartWorkoutRecommendation(), [getSmartWorkoutRecommendation]);
@@ -318,86 +319,26 @@ export default function RoutinesScreen({ navigation }) {
         {builderStep === 2 ? (
           <>
             <Text style={styles.stepLabel}>2. Adicionar exercicios</Text>
-            <Text style={styles.helperText}>Selecione em lote e adicione de uma vez.</Text>
+            <Text style={styles.helperText}>Use o modal para pesquisar e selecionar em lote sem rolagem infinita.</Text>
+            <View style={styles.builderSelectionWrap}>
+              <Text style={styles.helperText}>Selecionados no modal: {selectedCatalogExercises.length}</Text>
+              <Text style={styles.helperText}>Na rotina agora: {builderExercises.length} exercicio(s).</Text>
+              <PrimaryButton
+                testID="btn-open-routine-catalog-modal"
+                title="Buscar e selecionar exercicios"
+                onPress={() => setShowCatalogModal(true)}
+                style={styles.primaryButton}
+              />
+            </View>
 
-            <View style={styles.chipsWrap}>
-              {QUICK_EXERCISES.map((item) => (
-                <TouchableOpacity
-                  testID={`chip-routine-quick-${toTestId(item)}`}
-                  key={`quick-${item}`}
-                  style={[styles.quickChip, selectedCatalogExercises.includes(item) ? styles.quickChipSelected : null]}
-                  onPress={() => toggleCatalogSelection(item)}
-                >
-                  <Text style={styles.quickChipText}>{item}</Text>
+            {builderExercises.map((item) => (
+              <View key={`selected-${item}`} style={styles.builderRow}>
+                <Text style={styles.line}>• {item}</Text>
+                <TouchableOpacity onPress={() => removeExerciseFromBuilder(item)}>
+                  <Text style={styles.removeText}>Remover</Text>
                 </TouchableOpacity>
-              ))}
-            </View>
-
-            <TextInput
-              testID="input-routine-search"
-              value={exerciseQuery}
-              onChangeText={setExerciseQuery}
-              placeholder="Buscar exercicio (ex: leg press)"
-              placeholderTextColor="#8FA5CB"
-              style={styles.input}
-            />
-
-            <Text style={styles.helperText}>Filtrar por musculo:</Text>
-            <View style={styles.chipsWrap}>
-              <TouchableOpacity
-                style={[styles.filterChip, muscleFilter === 'all' ? styles.filterChipActive : null]}
-                onPress={() => setMuscleFilter('all')}
-              >
-                <Text style={[styles.filterChipText, muscleFilter === 'all' ? styles.filterChipTextActive : null]}>Todos</Text>
-              </TouchableOpacity>
-              {safeMuscles.slice(0, 8).map((item) => (
-                <TouchableOpacity
-                  key={`muscle-${item}`}
-                  style={[styles.filterChip, muscleFilter === item ? styles.filterChipActive : null]}
-                  onPress={() => setMuscleFilter(item)}
-                >
-                  <Text style={[styles.filterChipText, muscleFilter === item ? styles.filterChipTextActive : null]}>{MUSCLE_GROUP_LABELS[item] || item.replace(/_/g, ' ')}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {filteredCatalog.length === 0 ? <Text style={styles.empty}>Nenhum exercicio encontrado. Tente "leg press" ou "agachamento".</Text> : null}
-            <View style={styles.catalogList}>
-              {filteredCatalog.map((item) => {
-                const selected = selectedCatalogExercises.includes(item.name);
-                return (
-                  <View key={item.name} style={[styles.catalogCard, selected ? styles.catalogCardSelected : null]}>
-                    <View style={styles.catalogInfoRow}>
-                      {item.thumbnail ? <Image source={{ uri: item.thumbnail }} style={styles.catalogThumb} /> : <View style={styles.catalogThumbFallback} />}
-                      <View style={styles.catalogTextWrap}>
-                        <Text style={styles.catalogName}>{item.name}</Text>
-                        <Text style={styles.catalogMeta}>{MUSCLE_GROUP_LABELS[item.muscle] || item.muscle.replace(/_/g, ' ')} · {item.equipment.replace(/_/g, ' ')}</Text>
-                      </View>
-                    </View>
-                    <View style={styles.catalogActions}>
-                      <TouchableOpacity
-                        testID={`chip-routine-catalog-${toTestId(item.name)}`}
-                        style={[styles.catalogAddButton, selected ? styles.catalogAddButtonSelected : null]}
-                        onPress={() => toggleCatalogSelection(item.name)}
-                      >
-                        <Text style={styles.catalogAddButtonText}>{selected ? 'Selecionado' : 'Selecionar'}</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.catalogDetailButton} onPress={() => openExerciseDetail(item)}>
-                        <Text style={styles.catalogDetailButtonText}>Detalhes</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
-
-            <PrimaryButton
-              testID="btn-routine-add-bulk"
-              title={`Adicionar ${selectedCatalogExercises.length} exercicio(s)`}
-              onPress={addSelectedCatalogToBuilder}
-              style={styles.primaryButton}
-            />
-            <Text style={styles.helperText}>Na rotina agora: {builderExercises.length} exercicio(s).</Text>
+              </View>
+            ))}
           </>
         ) : null}
 
@@ -517,6 +458,115 @@ export default function RoutinesScreen({ navigation }) {
           </View>
         ))}
       </AppCard>
+
+      <Modal
+        visible={showCatalogModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCatalogModal(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.bottomSheet}>
+            <Text style={styles.cardTitle}>Selecionar exercicios</Text>
+
+            <View style={styles.chipsWrap}>
+              {QUICK_EXERCISES.map((item) => (
+                <TouchableOpacity
+                  testID={`chip-routine-quick-${toTestId(item)}`}
+                  key={`quick-${item}`}
+                  style={[styles.quickChip, selectedCatalogExercises.includes(item) ? styles.quickChipSelected : null]}
+                  onPress={() => toggleCatalogSelection(item)}
+                >
+                  <Text style={styles.quickChipText}>{item}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TextInput
+              testID="input-routine-search"
+              value={exerciseQuery}
+              onChangeText={setExerciseQuery}
+              placeholder="Buscar exercicio (ex: leg press)"
+              placeholderTextColor="#8FA5CB"
+              style={styles.input}
+            />
+
+            <Text style={styles.helperText}>Filtrar por musculo:</Text>
+            <View style={styles.chipsWrap}>
+              <TouchableOpacity
+                style={[styles.filterChip, muscleFilter === 'all' ? styles.filterChipActive : null]}
+                onPress={() => setMuscleFilter('all')}
+              >
+                <Text style={[styles.filterChipText, muscleFilter === 'all' ? styles.filterChipTextActive : null]}>Todos</Text>
+              </TouchableOpacity>
+              {safeMuscles.slice(0, 8).map((item) => (
+                <TouchableOpacity
+                  key={`muscle-${item}`}
+                  style={[styles.filterChip, muscleFilter === item ? styles.filterChipActive : null]}
+                  onPress={() => setMuscleFilter(item)}
+                >
+                  <Text style={[styles.filterChipText, muscleFilter === item ? styles.filterChipTextActive : null]}>{MUSCLE_GROUP_LABELS[item] || item.replace(/_/g, ' ')}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <ScrollView style={styles.modalCatalogScroll} contentContainerStyle={styles.catalogList}>
+              {filteredCatalog.map((item) => {
+                const selected = selectedCatalogExercises.includes(item.name);
+                return (
+                  <View key={item.name} style={[styles.catalogCard, selected ? styles.catalogCardSelected : null]}>
+                    <View style={styles.catalogInfoRow}>
+                      {item.thumbnail ? <Image source={{ uri: item.thumbnail }} style={styles.catalogThumb} /> : <View style={styles.catalogThumbFallback} />}
+                      <View style={styles.catalogTextWrap}>
+                        <Text style={styles.catalogName}>{item.name}</Text>
+                        <Text style={styles.catalogMeta}>{MUSCLE_GROUP_LABELS[item.muscle] || item.muscle.replace(/_/g, ' ')} · {item.equipment.replace(/_/g, ' ')}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.catalogActions}>
+                      <TouchableOpacity
+                        testID={`chip-routine-catalog-${toTestId(item.name)}`}
+                        style={[styles.catalogAddButton, selected ? styles.catalogAddButtonSelected : null]}
+                        onPress={() => toggleCatalogSelection(item.name)}
+                      >
+                        <Text style={styles.catalogAddButtonText}>{selected ? 'Selecionado' : 'Selecionar'}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.catalogDetailButton} onPress={() => openExerciseDetail(item)}>
+                        <Text style={styles.catalogDetailButtonText}>Detalhes</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                );
+              })}
+            </ScrollView>
+
+            <View style={styles.bottomSheetActions}>
+              <SecondaryButton title="Fechar" onPress={() => setShowCatalogModal(false)} style={styles.secondaryButton} />
+              <PrimaryButton
+                testID="btn-routine-add-bulk"
+                title={`Adicionar ${selectedCatalogExercises.length} exercicio(s)`}
+                onPress={() => {
+                  addSelectedCatalogToBuilder();
+                  setShowCatalogModal(false);
+                }}
+                style={styles.primaryButton}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {builderStep === 2 && selectedCatalogExercises.length > 0 ? (
+        <TouchableOpacity
+          testID="fab-routine-add-bulk"
+          style={styles.batchFab}
+          onPress={() => {
+            addSelectedCatalogToBuilder();
+            setShowCatalogModal(false);
+          }}
+        >
+          <Text style={styles.batchFabText}>Adicionar {selectedCatalogExercises.length} exercicio(s)</Text>
+        </TouchableOpacity>
+      ) : null}
     </ScrollView>
     </KeyboardAvoidingView>
     </SafeAreaView>
@@ -786,5 +836,55 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontWeight: '700',
     fontSize: 12,
+  },
+  builderSelectionWrap: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    backgroundColor: '#111722',
+    padding: 10,
+    marginBottom: 8,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'flex-end',
+  },
+  bottomSheet: {
+    maxHeight: '86%',
+    backgroundColor: '#0f1622',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 16,
+  },
+  modalCatalogScroll: {
+    maxHeight: 360,
+  },
+  bottomSheetActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+  },
+  batchFab: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 18,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#2ea36f',
+    backgroundColor: '#1f7a57',
+    alignItems: 'center',
+    paddingVertical: 12,
+    zIndex: 40,
+  },
+  batchFabText: {
+    color: '#e8fff3',
+    fontSize: 13,
+    fontWeight: '900',
   },
 });
