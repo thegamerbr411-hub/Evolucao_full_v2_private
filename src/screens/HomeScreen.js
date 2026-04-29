@@ -326,7 +326,7 @@ export default function HomeScreen({ navigation }) {
         key: 'nutrition',
         testID: 'home-quick-nutricao',
         label: '+ Registrar refeicao',
-        onPress: () => navigation.navigate('Scanner'),
+        onPress: () => navigation.navigate('Nutricao'),
       },
       workout: {
         key: 'workout',
