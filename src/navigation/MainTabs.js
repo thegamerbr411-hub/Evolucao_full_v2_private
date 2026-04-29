@@ -30,15 +30,19 @@ export default function MainTabs() {
   const createTabButton = (testID, routeName) => {
     return function TabButton(props) {
       const handlePress = () => {
-        trackEvent('tap', {
-          screen: 'MainTabs',
-          meta: {
-            allowBurst: true,
-            domain: 'navigation',
-            id: testID,
-            routeName,
-          },
-        });
+        try {
+          trackEvent('tap', {
+            screen: 'MainTabs',
+            meta: {
+              allowBurst: true,
+              domain: 'navigation',
+              id: testID,
+              routeName,
+            },
+          });
+        } catch {
+          // Analytics nao pode bloquear a navegacao entre abas.
+        }
 
         if (typeof props.onPress === 'function') {
           props.onPress();

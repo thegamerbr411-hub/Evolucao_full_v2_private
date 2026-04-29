@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { Alert, AppState, InteractionManager, LogBox, View, Text } from 'react-native';
 import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NutritionProvider } from './src/context/NutritionContext';
@@ -16,9 +16,33 @@ import {
 import { logError } from './src/utils/errorLogger';
 import { shouldInjectQaAppError } from './src/utils/qaTransport';
 import { APP_VERSION, BUILD_VERSION } from './src/utils/appVersion';
+import {
+  initObservability,
+  endUserSession,
+  logRuntimeError,
+  markFeedbackPromptShown,
+  startUserSession,
+  shouldShowInAppFeedbackPrompt,
+  submitInAppFeedback,
+  trackScreenClose,
+  trackNavigationTransition,
+  trackScreenOpen,
+  trackScreenRenderDuration,
+} from './src/core/observability';
+
+if (typeof __DEV__ !== 'undefined' && __DEV__) {
+  // Detox pode ficar instavel quando o banner de warnings cobre a barra de abas.
+  LogBox.ignoreAllLogs(true);
+}
 
 if (typeof ErrorUtils !== 'undefined' && ErrorUtils.setGlobalHandler) {
   ErrorUtils.setGlobalHandler((error, isFatal) => {
+    logRuntimeError(error, {
+      screen: 'global',
+      source: 'global_handler',
+      severity: isFatal ? 'critical' : 'high',
+      isFatal,
+    });
     logError(error, {
       screen: 'global',
       extra: { isFatal },
@@ -38,6 +62,12 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, info) {
+    logRuntimeError(error, {
+      screen: 'ErrorBoundary',
+      source: 'render_crash',
+      severity: 'critical',
+      componentStack: info?.componentStack,
+    });
     logError(error, { screen: 'ErrorBoundary', extra: { componentStack: info?.componentStack } });
     if (__DEV__) {
       console.log('[ErrorBoundary] crash capturado:', error?.message);
@@ -60,9 +90,25 @@ class ErrorBoundary extends React.Component {
 export default function App() {
   const navigationRef = useNavigationContainerRef();
   const routeNameRef = React.useRef('');
+  const transitionStartedAtRef = React.useRef(Date.now());
+  const feedbackPromptVisibleRef = React.useRef(false);
   const [bootstrapReady, setBootstrapReady] = React.useState(false);
 
   React.useEffect(() => {
+    initObservability();
+    startUserSession('app_mount');
+
+    const appStateSub = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        startUserSession('app_foreground');
+        return;
+      }
+
+      if (nextState === 'inactive' || nextState === 'background') {
+        endUserSession(nextState === 'inactive' ? 'app_inactive' : 'app_background');
+      }
+    });
+
     if (__DEV__) {
       console.log('[APP_STARTED]', new Date().toISOString());
       console.log('[BUILD_VERSION]', APP_VERSION, BUILD_VERSION);
@@ -96,6 +142,11 @@ export default function App() {
         extra: { source: 'App.useEffect' },
       });
     }
+
+    return () => {
+      appStateSub?.remove?.();
+      endUserSession('app_unmount');
+    };
   }, []);
 
   return (
@@ -107,7 +158,19 @@ export default function App() {
               <NavigationContainer
               ref={navigationRef}
               onReady={() => {
-                routeNameRef.current = navigationRef.getCurrentRoute()?.name || '';
+                const currentRoute = navigationRef.getCurrentRoute()?.name || '';
+                routeNameRef.current = currentRoute;
+                transitionStartedAtRef.current = Date.now();
+                if (currentRoute) {
+                  setAnalyticsContext({ screen: currentRoute });
+                  trackScreenOpen(currentRoute, { source: 'navigation_ready' });
+                  const startedAt = Date.now();
+                  InteractionManager.runAfterInteractions(() => {
+                    trackScreenRenderDuration(currentRoute, Date.now() - startedAt, {
+                      source: 'navigation_ready',
+                    });
+                  });
+                }
                 setBootstrapReady(true);
               }}
               onStateChange={() => {
@@ -115,7 +178,30 @@ export default function App() {
                 if (!currentRoute || currentRoute === routeNameRef.current) {
                   return;
                 }
+
+                const previousRoute = routeNameRef.current;
+                const closeSummary = previousRoute
+                  ? trackScreenClose(previousRoute, {
+                      nextScreen: currentRoute,
+                      source: 'navigation_change',
+                    })
+                  : null;
+
+                if (previousRoute) {
+                  trackNavigationTransition(previousRoute, currentRoute, {
+                    source: 'navigation_change',
+                    previousDurationMs: Number(closeSummary?.durationMs || 0),
+                    previousActions: Number(closeSummary?.actions || 0),
+                  });
+                }
+
                 routeNameRef.current = currentRoute;
+                transitionStartedAtRef.current = Date.now();
+                setAnalyticsContext({ screen: currentRoute });
+                trackScreenOpen(currentRoute, {
+                  previousScreen: previousRoute || null,
+                  source: 'navigation_change',
+                });
                 trackEvent('screen_view', {
                   screen: currentRoute,
                   meta: {
@@ -123,6 +209,52 @@ export default function App() {
                     id: `screen-${String(currentRoute).toLowerCase()}`,
                   },
                 });
+                const startedAt = Date.now();
+                InteractionManager.runAfterInteractions(() => {
+                  trackScreenRenderDuration(currentRoute, Date.now() - startedAt, {
+                    source: 'navigation_change',
+                  });
+                });
+
+                const shouldAskFeedback =
+                  Boolean(closeSummary?.screen) &&
+                  Number(closeSummary?.durationMs || 0) >= 10000 &&
+                  !feedbackPromptVisibleRef.current &&
+                  shouldShowInAppFeedbackPrompt();
+
+                if (shouldAskFeedback) {
+                  const question = 'Foi facil usar essa tela?';
+                  feedbackPromptVisibleRef.current = true;
+                  markFeedbackPromptShown();
+
+                  Alert.alert(
+                    'Feedback rapido',
+                    question,
+                    [
+                      {
+                        text: '👎',
+                        onPress: () => {
+                          submitInAppFeedback('down', `${question} [${closeSummary.screen}]`);
+                          feedbackPromptVisibleRef.current = false;
+                        },
+                      },
+                      {
+                        text: '👍',
+                        onPress: () => {
+                          submitInAppFeedback('up', `${question} [${closeSummary.screen}]`);
+                          feedbackPromptVisibleRef.current = false;
+                        },
+                      },
+                    ],
+                    {
+                      cancelable: true,
+                      onDismiss: () => {
+                        feedbackPromptVisibleRef.current = false;
+                      },
+                    }
+                  );
+                }
+
                 if (__DEV__) {
                   console.log('[app-nav]', currentRoute);
                 }

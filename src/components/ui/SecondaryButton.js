@@ -1,7 +1,8 @@
 import React from 'react';
 import { Animated, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { colors, radius, spacing } from '../../theme';
-import { trackEvent } from '../../utils/analytics';
+import { getAnalyticsContext, trackEvent } from '../../utils/analytics';
+import { trackButtonClick } from '../../core/observability';
 
 export function SecondaryButton({ title, onPress, style, testID }) {
   // BLOCO 3: Microinterações - Button press feedback
@@ -26,13 +27,24 @@ export function SecondaryButton({ title, onPress, style, testID }) {
   }, [scaleAnim]);
 
   const handlePress = React.useCallback(() => {
+    const analyticsContext = getAnalyticsContext();
+    const buttonId = String(testID || title || 'secondary-button');
+    const screen = String(analyticsContext?.screen || 'unknown');
+
+    trackButtonClick({
+      screen,
+      id: buttonId,
+      label: String(title || ''),
+      component: 'SecondaryButton',
+    });
+
     trackEvent('tap', {
-      screen: 'ui',
+      screen,
       meta: {
         allowBurst: true,
         component: 'SecondaryButton',
         domain: 'interaction',
-        id: String(testID || title || 'secondary-button'),
+        id: buttonId,
         label: String(title || ''),
       },
     });
@@ -54,16 +66,16 @@ export function SecondaryButton({ title, onPress, style, testID }) {
 const styles = StyleSheet.create({
   button: {
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.outlineStrong,
     padding: spacing.md,
     borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 48,
-    backgroundColor: 'transparent',
+    backgroundColor: colors.surfaceElevated,
   },
   text: {
-    color: colors.textPrimary,
+    color: colors.textSecondary,
     fontWeight: '600',
   },
 });
