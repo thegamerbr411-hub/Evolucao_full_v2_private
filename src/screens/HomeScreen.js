@@ -13,6 +13,13 @@ import { useUserStore } from '../stores/useUserStore';
 import { useNutritionStore } from '../stores/useNutritionStore';
 import { useApp } from '../context/AppContext';
 import { colors, spacing, radius, typography } from '../theme';
+import {
+  canInterruptCoach,
+  dismissDropRecoveryCandidate,
+  getAdaptiveHomeConfig,
+  logEvent,
+  markCoachInterruption,
+} from '../core/observability';
 
 const XP_PER_LEVEL = 500;
 const WEEK_DAYS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
@@ -199,7 +206,23 @@ export default function HomeScreen({ navigation }) {
   const { nutritionLogs, plan } = useNutritionStore();
   const { getTodayWorkout, getTodayWorkoutSummary, addWaterIntake } = useApp();
   const [waterFeedback, setWaterFeedback] = useState(false);
+  const [adaptiveConfig, setAdaptiveConfig] = useState(() => getAdaptiveHomeConfig());
+  const [showMore, setShowMore] = useState(false);
+  const lastCoachTrackedRef = useRef('');
   const waterDebounceRef = useRef(null);
+
+  React.useEffect(() => {
+    const refresh = () => {
+      setAdaptiveConfig(getAdaptiveHomeConfig());
+    };
+    refresh();
+    const unsubscribe = navigation?.addListener?.('focus', refresh);
+    return () => {
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    };
+  }, [navigation]);
 
   const todayKey = useMemo(() => getTodayKey(), []);
 
@@ -266,6 +289,100 @@ export default function HomeScreen({ navigation }) {
     ? `Treino de hoje: ${todayWorkout[0]?.name || 'Sessao principal'}`
     : 'Treino de hoje: Sessao principal';
 
+  const coachMessage = adaptiveConfig?.coach || null;
+  const recovery = adaptiveConfig?.recovery || null;
+  const highlightedFeature = String(adaptiveConfig?.highlightedFeature || 'workout');
+  const isLightweightMode = Boolean(adaptiveConfig?.lightweightMode);
+
+  const isContinueWorkout = Boolean(recovery) || (todayWorkout.length > 0 && !workoutDone);
+  const primaryCtaLabel = isContinueWorkout ? 'CONTINUAR TREINO' : 'INICIAR TREINO';
+  const primaryCtaSubtitle = isContinueWorkout
+    ? 'Volte para o treino atual'
+    : 'Comece sua sessao de hoje agora';
+
+  const orderedActions = useMemo(() => {
+    const actionByKey = {
+      insights: {
+        key: 'insights',
+        testID: 'home-shortcut-insights',
+        label: 'Ver insights do dia',
+        onPress: () => navigation.navigate('Insights', {
+          postValuePaywall: {
+            featureKey: 'auto_coach',
+            source: 'home_insights',
+            message: 'Veja seus insights e destrave o plano PRO para receber ajuste automatico semanal.',
+            paywallExperiment: {
+              key: 'paywall_timing',
+              variant: 'B',
+            },
+          },
+          paywallExperiment: {
+            key: 'paywall_timing',
+            variant: 'B',
+          },
+        }),
+      },
+      nutrition: {
+        key: 'nutrition',
+        testID: 'home-quick-nutricao',
+        label: '+ Registrar refeicao',
+        onPress: () => navigation.navigate('Scanner'),
+      },
+      workout: {
+        key: 'workout',
+        testID: 'home-quick-workout',
+        label: 'Retomar treino agora',
+        onPress: () => navigation.navigate('TreinoHoje'),
+      },
+      water: {
+        key: 'water',
+        testID: 'btn-add-agua',
+        label: '+ Beber agua',
+        onPress: () => {
+          if (waterDebounceRef.current) return;
+          try { addWaterIntake?.(300); } catch { return; }
+          setWaterFeedback(true);
+          waterDebounceRef.current = setTimeout(() => {
+            setWaterFeedback(false);
+            waterDebounceRef.current = null;
+          }, 3000);
+        },
+      },
+    };
+
+    const requested = Array.isArray(adaptiveConfig?.quickActionOrder)
+      ? adaptiveConfig.quickActionOrder
+      : ['workout', 'nutrition', 'insights'];
+
+    const hydrated = requested
+      .map((key) => actionByKey[key])
+      .filter(Boolean)
+      .slice(0, 3);
+
+    hydrated.push(actionByKey.water);
+    return hydrated;
+  }, [adaptiveConfig, addWaterIntake, navigation]);
+
+  const secondaryActions = orderedActions.filter((action) => action.key !== 'workout');
+
+  React.useEffect(() => {
+    if (!coachMessage?.title) {
+      return;
+    }
+
+    const signature = `${coachMessage.title}|${coachMessage.routeName || ''}`;
+    if (lastCoachTrackedRef.current === signature) {
+      return;
+    }
+
+    lastCoachTrackedRef.current = signature;
+    logEvent('coach_message_sent', {
+      screen: 'HomeScreen',
+      source: 'coach_card',
+      title: coachMessage.title,
+    });
+  }, [coachMessage]);
+
   return (
     <SafeAreaView style={styles.screen}>
       <ScrollView
@@ -280,53 +397,122 @@ export default function HomeScreen({ navigation }) {
           <Text style={styles.dailyTopXp}>+{Math.max(0, Number(workoutSummary?.sessionXp || 120))} XP hoje</Text>
         </View>
 
-        <View testID="home-ready" style={styles.missionMainCard}>
-          <Text style={styles.missionEyebrow}>MISSAO PRINCIPAL</Text>
-          <Text style={styles.missionMainTitle}>{missionTitle}</Text>
-        </View>
-
         <TouchableOpacity
           testID="home-main-cta"
           style={styles.mainMissionCta}
-          onPress={() => navigation.navigate('TreinoHoje')}
+          onPress={() => {
+            if (recovery) {
+              dismissDropRecoveryCandidate();
+              logEvent('workout_recovery', {
+                screen: 'HomeScreen',
+                source: 'main_cta',
+              });
+            }
+            navigation.navigate('TreinoHoje');
+          }}
           activeOpacity={0.92}
         >
-          <Text style={styles.mainMissionCtaText}>▶ COMEÇAR TREINO</Text>
+          <Text style={styles.mainMissionCtaText}>{`▶ ${primaryCtaLabel}`}</Text>
+          <Text style={styles.mainMissionCtaSub}>{primaryCtaSubtitle}</Text>
         </TouchableOpacity>
 
-        <View style={styles.progressCard}>
-          <Text style={styles.progressTitle}>PROGRESSO DO DIA</Text>
+        <View testID="home-ready" style={styles.progressCard}>
+          <Text style={styles.progressTitle}>CONTEXTO DO TREINO</Text>
+          <Text style={styles.progressLine}>{missionTitle}</Text>
           <Text style={styles.progressLine}>Treino: {workoutDone ? '✅' : '⬜'}</Text>
           <Text style={styles.progressLine}>Proteina: {Math.round(todayProtein)}/{proteinTarget}g</Text>
           <Text style={styles.progressLine}>Agua: {(waterTodayMl / 1000).toFixed(1)}L / {(waterTargetMl / 1000).toFixed(1)}L</Text>
+          <Text style={styles.progressFeature}>Prioridade atual: {highlightedFeature}</Text>
+          {recovery ? <Text style={styles.progressMode}>{recovery.message}</Text> : null}
+          {isLightweightMode ? (
+            <Text style={styles.progressMode}>Modo leve ativo para reduzir telas lentas.</Text>
+          ) : null}
         </View>
 
         <View style={styles.quickCard}>
           <Text style={styles.quickTitle}>ACOES RAPIDAS</Text>
           <View style={styles.quickActionsDailyRow}>
-            <TouchableOpacity
-              testID="home-quick-nutricao"
-              style={styles.quickDailyButton}
-              onPress={() => navigation.navigate('Scanner')}
-            >
-              <Text style={styles.quickDailyButtonText}>+ Registrar refeicao</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              testID="btn-add-agua"
-              style={styles.quickDailyButton}
-              onPress={() => {
-                if (waterDebounceRef.current) return;
-                try { addWaterIntake?.(300); } catch { /* ignore */ }
-                setWaterFeedback(true);
-                waterDebounceRef.current = setTimeout(() => {
-                  setWaterFeedback(false);
-                  waterDebounceRef.current = null;
-                }, 3000);
-              }}
-            >
-              <Text style={styles.quickDailyButtonText}>+ Beber agua</Text>
-            </TouchableOpacity>
+            {secondaryActions.slice(0, 2).map((action, index) => (
+              <TouchableOpacity
+                key={action.key}
+                testID={action.testID}
+                style={[
+                  styles.quickDailyButton,
+                  index === 0 ? styles.quickDailyButtonFeatured : null,
+                ]}
+                onPress={action.onPress}
+              >
+                <Text
+                  style={[
+                    styles.quickDailyButtonText,
+                    index === 0 ? styles.quickDailyButtonTextFeatured : null,
+                  ]}
+                >
+                  {action.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
+        </View>
+
+        <View style={styles.quickCard}>
+          <TouchableOpacity
+            testID="home-more-toggle"
+            style={styles.moreToggle}
+            onPress={() => setShowMore((prev) => !prev)}
+          >
+            <Text style={styles.quickTitle}>MAIS OPCOES</Text>
+            <Text style={styles.moreToggleText}>{showMore ? 'Ocultar' : 'Expandir'}</Text>
+          </TouchableOpacity>
+
+          {showMore ? (
+            <>
+              {coachMessage ? (
+                <View style={styles.coachCard}>
+                  <Text style={styles.coachEyebrow}>COACH</Text>
+                  <Text style={styles.coachTitle}>{coachMessage.title}</Text>
+                  <Text style={styles.coachText}>{coachMessage.message}</Text>
+                  <TouchableOpacity
+                    testID="home-coach-cta"
+                    style={styles.coachCta}
+                    onPress={() => {
+                      if (canInterruptCoach()) {
+                        markCoachInterruption();
+                      }
+
+                      logEvent('coach_suggestion_accepted', {
+                        screen: 'HomeScreen',
+                        source: 'coach_card',
+                      });
+                      setAdaptiveConfig(getAdaptiveHomeConfig());
+                      navigation.navigate(coachMessage.routeName || 'Insights');
+                    }}
+                  >
+                    <Text style={styles.coachCtaText}>{coachMessage.cta || 'Abrir'}</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+
+              <View style={styles.quickActionsDailyRow}>
+                {secondaryActions.slice(2).map((action) => (
+                  <TouchableOpacity
+                    key={action.key}
+                    testID={action.testID}
+                    style={styles.quickDailyButton}
+                    onPress={action.onPress}
+                  >
+                    <Text style={styles.quickDailyButtonText}>{action.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <WeeklyProgress
+                streak={streak}
+                onPress={() => navigation.navigate('Insights')}
+              />
+            </>
+          ) : null}
+
           {waterFeedback ? <Text testID="feedback-add-agua" style={styles.waterFeedback}>+300ml adicionados 💧</Text> : null}
         </View>
       </ScrollView>
@@ -377,6 +563,61 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     lineHeight: 30,
   },
+  missionAdaptiveTag: {
+    marginTop: 4,
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.primary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  recoveryCard: {
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.warning,
+    backgroundColor: colors.card,
+    gap: 8,
+  },
+  recoveryTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: colors.warning,
+    textTransform: 'uppercase',
+    letterSpacing: 0.7,
+  },
+  recoveryMessage: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  recoveryActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  recoveryButton: {
+    flex: 1,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recoveryPrimary: {
+    backgroundColor: colors.warning,
+    borderColor: colors.warning,
+  },
+  recoveryPrimaryText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#2e1f06',
+  },
+  recoverySecondaryText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textSecondary,
+  },
   mainMissionCta: {
     borderRadius: 14,
     backgroundColor: colors.success,
@@ -390,6 +631,13 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '900',
     letterSpacing: 0.5,
+  },
+  mainMissionCtaSub: {
+    marginTop: 4,
+    color: '#134e3a',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
   progressCard: {
     borderRadius: 14,
@@ -412,6 +660,70 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.textPrimary,
   },
+  progressFeature: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginTop: 2,
+  },
+  progressMode: {
+    marginTop: 4,
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.warning,
+  },
+  coachCard: {
+    borderRadius: 14,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: colors.cardElevated,
+    gap: 6,
+  },
+  coachEyebrow: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.primary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  coachTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: colors.textPrimary,
+  },
+  coachText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  coachCta: {
+    alignSelf: 'flex-start',
+    marginTop: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: colors.primaryMuted,
+  },
+  coachCtaText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.primary,
+  },
+  coachSkip: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
+  coachSkipText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textSecondary,
+  },
   quickCard: {
     borderRadius: 14,
     padding: 20,
@@ -427,6 +739,16 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     marginBottom: 12,
   },
+  moreToggle: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  moreToggleText: {
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: '800',
+  },
   quickActionsDailyRow: {
     gap: 10,
   },
@@ -438,10 +760,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     backgroundColor: colors.surface,
   },
+  quickDailyButtonFeatured: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryMuted,
+  },
   quickDailyButtonText: {
     color: colors.textPrimary,
     fontSize: 15,
     fontWeight: '800',
+  },
+  quickDailyButtonTextFeatured: {
+    color: colors.primary,
   },
   waterFeedback: {
     color: colors.primary,
