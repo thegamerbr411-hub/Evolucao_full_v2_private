@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 
 import { useApp } from '../context/AppContext';
 import { AppCard, AppInput, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { colors, spacing } from '../theme';
-import { EXERCISE_NAMES_V2 } from '../data/exerciseLibraryV2';
+import { EXERCISE_NAMES_V2 } from '../data/exerciseLibraryV2.js';
 
 function normalize(value = '') {
   return String(value || '')

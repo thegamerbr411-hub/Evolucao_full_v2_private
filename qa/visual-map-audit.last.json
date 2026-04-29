@@ -1,23 +1,22 @@
 {
-  "completedAt": "2026-04-18T03:41:32.299Z",
+  "completedAt": "2026-04-29T19:24:17.733Z",
   "visited": [
-    "attached:attached-safe-home-dashboard",
-    "attached:attached-safe-loading-home",
-    "attached:attached-safe-treino-entry",
-    "attached:attached-safe-workout-card",
-    "attached:attached-safe-coach-entry",
-    "attached:attached-safe-chat-widget",
-    "attached:attached-safe-nutricao-entry",
-    "attached:attached-safe-food-card",
-    "attached:attached-safe-social-entry",
-    "attached:attached-safe-ranking-card",
-    "attached:attached-safe-modal-popup",
-    "attached:attached-safe-error-state"
+    "home",
+    "quick-nutricao",
+    "treino-hub",
+    "treino-livre",
+    "rotinas",
+    "import-workout",
+    "social-from-hub",
+    "ranking",
+    "nutricao",
+    "coach",
+    "social-tab",
+    "perfil"
   ],
   "arrozAppearedAsExercise": false,
   "notes": [
     "sync-disabled",
-    "mode:attached-safe",
-    "attached-safe-minimal-skip-interactions"
+    "Nao foi possivel abrir detalhe por botao Detalhes nesta execucao."
   ]
 }

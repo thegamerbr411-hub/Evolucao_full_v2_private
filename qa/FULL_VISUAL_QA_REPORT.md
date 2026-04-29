@@ -1,17 +1,17 @@
 # Full Visual QA Report
 
-Data: 2026-04-18T07:24:10.462Z
+Data: 2026-04-28T14:56:47.463Z
 
 ## Configuracao executada
 
 - Ciclos principais: 1
-- Ciclos finais de estabilidade: 0
+- Ciclos finais de estabilidade: 1
 - Mobile only: true
 - Web only: false
 
 ## Resultado geral
 
-- Mobile: 0/1 aprovados
+- Mobile: 0/2 aprovados
 - Web: 0/0 aprovados
 
 ## Cobertura validada

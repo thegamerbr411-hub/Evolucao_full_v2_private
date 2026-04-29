@@ -1,9 +1,8 @@
 {
-  "completedAt": "2026-04-27T05:54:46.048Z",
+  "completedAt": "2026-04-29T00:23:53.334Z",
   "appMapVersion": 1,
   "workflow": [
-    "sync:disabled",
-    "attached-safe-gates"
+    "sync:disabled"
   ],
   "screenshots": [
     "audit-home-base",
@@ -25,18 +24,18 @@
     "action-treino-start-workout",
     "popup-treino-start-workout-none",
     "action-treino-add-exercise",
-    "popup-treino-add-exercise-text-ok",
-    "action-treino-finish-workout-attached-fallback",
-    "popup-treino-finish-workout-attached-fallback-none",
+    "popup-treino-add-exercise-none",
+    "action-treino-finish-workout",
+    "popup-treino-finish-workout-none",
     "audit-nutricao-base",
     "audit-nutricao-top",
     "audit-nutricao-mid",
     "audit-nutricao-end",
     "popup-nutricao-base-none",
-    "action-nutricao-add-food-attached-fallback",
-    "popup-nutricao-add-food-attached-fallback-none",
-    "action-nutricao-view-details-attached-fallback",
-    "popup-nutricao-view-details-attached-fallback-none",
+    "action-nutricao-add-food",
+    "popup-nutricao-add-food-none",
+    "action-nutricao-view-details",
+    "popup-nutricao-view-details-id-nutrition-result-card",
     "audit-coach-base",
     "audit-coach-top",
     "audit-coach-mid",
@@ -51,15 +50,15 @@
     "audit-social-mid",
     "audit-social-end",
     "popup-social-base-none",
-    "action-social-add-friend-attached-fallback",
-    "popup-social-add-friend-attached-fallback-none",
+    "action-social-add-friend",
+    "popup-social-add-friend-none",
     "audit-profile-base",
     "audit-profile-top",
     "audit-profile-mid",
     "audit-profile-end",
     "popup-profile-base-none",
-    "action-profile-edit-profile-attached-fallback",
-    "popup-profile-edit-profile-attached-fallback-none"
+    "action-profile-edit-profile",
+    "popup-profile-edit-profile-none"
   ],
   "printsByScreen": {
     "home": {
@@ -161,7 +160,7 @@
   "gates": {
     "passed": true,
     "reasons": [],
-    "screenshotMinimum": 24,
+    "screenshotMinimum": 42,
     "screenshotCount": 54
   }
 }

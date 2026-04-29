@@ -1,6 +1,6 @@
 {
   "phase": "fim",
-  "completedAt": "2026-04-27T04:45:53.671Z",
+  "completedAt": "2026-04-28T16:11:22.432Z",
   "questionnairePersisted": true,
   "screenshots": [
     "checkpoint-fim-ready",
@@ -16,9 +16,6 @@
     "audit-fim-coach-top",
     "audit-fim-coach-mid",
     "audit-fim-coach-end",
-    "audit-fim-social-top",
-    "audit-fim-social-mid",
-    "audit-fim-social-end",
     "audit-fim-perfil-top",
     "audit-fim-perfil-mid",
     "audit-fim-perfil-end",
@@ -29,7 +26,7 @@
     "audit-fim-treino:ok",
     "audit-fim-nutricao:ok",
     "audit-fim-coach:ok",
-    "audit-fim-social:ok",
+    "audit-fim-social:skip:falha ao navegar para screen-social via tab-social",
     "audit-fim-perfil:ok"
   ]
 }

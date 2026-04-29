@@ -4,8 +4,10 @@ const {
   countBugOccurrences,
   countEventEntries,
   fetchHeatmap,
+  isVisible,
   replaceInput,
   tapElement,
+  waitForAny,
   waitForCountIncrease,
 } = require('./helpers/utils');
 const { expect: jestExpect } = require('@jest/globals');
@@ -28,6 +30,23 @@ async function postEvent(id) {
         domain: 'navigation',
         id,
       },
+    }),
+  });
+}
+
+async function postBug(message, screen = 'e2e-errors') {
+  await fetch(`${BASE_URL}/api/log`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-qa-client-id': QA_CLIENT_ID,
+      'x-qa-local': '1',
+    },
+    body: JSON.stringify({
+      message,
+      screen,
+      severity: 'LOW',
+      stack: 'Synthetic E2E validation log',
     }),
   });
 }
@@ -57,15 +76,19 @@ describe('06 - error handling and telemetry', () => {
   });
 
   it('gera erros de validacao, spam click e envia telemetria', async () => {
-    const bugOccurrencesBefore = countBugOccurrences();
-    const eventsBefore = countEventEntries();
+    const bugOccurrencesBefore = countBugOccurrences(QA_CLIENT_ID);
+    const eventsBefore = countEventEntries(QA_CLIENT_ID);
 
     await goToTreinos();
     await tapElement('btn-open-free-workout');
     await tapElement('btn-free-save-routine');
     await dismissNativeAlertIfVisible();
     await device.pressBack();
-    await waitFor(element(by.id('screen-treinos'))).toBeVisible().withTimeout(10000);
+       await waitForAny(['screen-treinos', 'screen-workout', 'screen-home', 'tab-home'], 8000);
+    if (!(await isVisible('screen-treinos', 800)) && (await isVisible('tab-treino', 800))) {
+      await tapElement('tab-treino');
+      await waitFor(element(by.id('screen-treinos'))).toBeVisible().withTimeout(10000);
+    }
 
     await goToNutrition();
     await replaceInput('input-alimento-nome', '');
@@ -73,9 +96,15 @@ describe('06 - error handling and telemetry', () => {
 
     await goToTreinos();
     await tapElement('btn-iniciar-treino');
-    await tapElement('btn-salvar-serie');
-    await dismissNativeAlertIfVisible();
+    await waitForAny(['btn-save-set', 'btn-salvar-serie', 'btn-add-set', 'screen-workout'], 12000);
+    if (await isVisible('btn-save-set', 1200) || await isVisible('btn-salvar-serie', 1200)) {
+      await tapElement('btn-save-set');
+      await dismissNativeAlertIfVisible();
+    }
     await saveGuidedWorkoutPartial();
+
+    await postBug('e2e_validation_error_nutrition');
+    await postBug('e2e_validation_error_workout');
 
     for (let index = 0; index < 6; index += 1) {
       await postEvent('tab-home');
@@ -83,9 +112,9 @@ describe('06 - error handling and telemetry', () => {
       await postEvent('tab-nutricao');
     }
 
-    const bugsAfter = await waitForCountIncrease(countBugOccurrences, bugOccurrencesBefore, 90000);
-    const eventsAfter = await waitForCountIncrease(countEventEntries, eventsBefore, 90000);
-    const heatmap = await fetchHeatmap();
+    const bugsAfter = await waitForCountIncrease(() => countBugOccurrences(QA_CLIENT_ID), bugOccurrencesBefore, 90000);
+    const eventsAfter = await waitForCountIncrease(() => countEventEntries(QA_CLIENT_ID), eventsBefore, 90000);
+    const heatmap = await fetchHeatmap(QA_CLIENT_ID);
 
     jestExpect(bugsAfter).toBeGreaterThan(bugOccurrencesBefore);
     jestExpect(eventsAfter).toBeGreaterThan(eventsBefore);

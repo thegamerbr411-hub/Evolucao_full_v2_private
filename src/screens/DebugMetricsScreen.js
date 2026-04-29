@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useApp } from '../context/AppContext';
-import { AppCard, PrimaryButton, ScreenHeader } from '../components/ui';
+import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { colors, spacing } from '../theme';
 
 function formatPercent(value) {
@@ -12,7 +12,7 @@ function formatMs(value) {
   return `${Math.round(Number(value || 0))} ms`;
 }
 
-export default function DebugMetricsScreen() {
+export default function DebugMetricsScreen({ navigation }) {
   const isDev = typeof __DEV__ !== 'undefined' && Boolean(__DEV__);
   if (!isDev) {
     return null;
@@ -135,6 +135,7 @@ export default function DebugMetricsScreen() {
       </AppCard>
 
       <PrimaryButton title="Atualizar" onPress={loadSnapshot} />
+      <SecondaryButton title="Observability Logs" onPress={() => navigation.navigate('DebugObservability')} />
         </>
       ) : null}
     </ScrollView>

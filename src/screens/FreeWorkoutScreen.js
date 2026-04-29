@@ -13,7 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { getExerciseByName, getExerciseFilters, searchExercises } from '../data/exercises.js';
-import { matchNutritionToken } from '../data/nutritionDatabase';
+import { matchNutritionToken } from '../data/nutritionDatabase.js';
 import { logError } from '../utils/errorLogger';
 import { AnimatedToast, AppCard, PrimaryButton, ScreenHeader } from '../components/ui';
 import { colors, spacing, radius, typography } from '../theme';

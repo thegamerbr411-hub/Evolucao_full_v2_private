@@ -16,6 +16,7 @@ const {
   isVisible,
   logStep,
   replaceInput,
+  scrollToElement,
   sleep,
   tapElement,
   waitForAny,
@@ -28,6 +29,13 @@ const APP_MAP_FILE = path.join(QA_DIR, 'app-map.json');
 const ROOT_MARKERS = ['tab-home', 'tab-treino', 'tab-nutricao', 'tab-conversa', 'tab-social', 'tab-perfil'];
 const OVERLAY_IDS = ['feedback-add-agua', 'alimento-salvo-indicator', 'nutrition-result-card', 'rest-timer-floating', 'serie-salva-indicator'];
 const DIALOG_LABELS = ['OK', 'Ok', 'Permitir', 'Allow', 'Nao permitir', 'Não permitir', "Don't allow", 'Fechar'];
+const GENERIC_EMPTY_TEXTS = [
+  'Nenhum exercício encontrado',
+  'Nenhum exercicio encontrado',
+  'Nenhum alimento encontrado',
+  'Nenhum item encontrado',
+  'Sem resultados',
+];
 
 function ensureQaDir() {
   if (!fs.existsSync(QA_DIR)) {
@@ -231,6 +239,45 @@ async function captureBaseScrollAndPopup(report, screen) {
   await capturePopupEvidence(report, screen.name, 'base');
 }
 
+async function assertVisibleOrThrow(report, screenName, actionName, id, timeout = 12000) {
+  const visible = await isVisible(id, timeout);
+  if (visible) {
+    await expect(element(by.id(id))).toBeVisible();
+    return;
+  }
+
+  await shotAndTrack(report, screenName, `missing-${screenName}-${actionName}-${sanitize(id)}`, 'popup');
+  throw new Error(`Elemento obrigatorio nao visivel para ${screenName}/${actionName}: ${id}`);
+}
+
+async function assertNoGenericEmptyState(report, screenName, actionName) {
+  for (const label of GENERIC_EMPTY_TEXTS) {
+    if (await isVisible(element(by.text(label)), 500)) {
+      await shotAndTrack(report, screenName, `empty-state-${screenName}-${actionName}-${sanitize(label)}`, 'popup');
+      throw new Error(`Falha por estado vazio em ${screenName}/${actionName}: ${label}`);
+    }
+  }
+}
+
+async function runCriticalFlow(report, screenName, stepName, fn) {
+  try {
+    return await fn();
+  } catch (error) {
+    await shotAndTrack(report, screenName, `FAIL_${sanitize(screenName)}_${sanitize(stepName)}`, 'action');
+    throw error;
+  }
+}
+
+async function hasAnyDialogVisible() {
+  for (const label of DIALOG_LABELS) {
+    if (await isVisible(element(by.text(label)), 500)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function sanitize(value) {
   return String(value || 'unknown').toLowerCase().replace(/[^a-z0-9]+/g, '-');
 }
@@ -329,6 +376,7 @@ async function executeActionStrict(report, screen, action) {
   }
 
   if (action.type === 'tap-id') {
+    await assertVisibleOrThrow(report, screen.name, action.name, action.id, 12000);
     await tapElement(action.id, 12000);
     if (Array.isArray(action.expectsAny) && action.expectsAny.length > 0) {
       await waitForAny(action.expectsAny, 30000);
@@ -342,6 +390,7 @@ async function executeActionStrict(report, screen, action) {
   }
 
   if (action.type === 'start-workout') {
+    await assertVisibleOrThrow(report, screen.name, action.name, 'btn-iniciar-treino', 12000);
     await tapElement('btn-iniciar-treino', 12000);
 
     let opened = await waitForAny(['screen-workout', 'btn-finalizar-treino', 'btn-salvar-serie'], 20000).catch(() => null);
@@ -361,7 +410,35 @@ async function executeActionStrict(report, screen, action) {
 
   if (action.type === 'add-exercise') {
     await ensureWorkoutScreen();
-    await tapElement('btn-adicionar-exercicio-workout', 12000);
+    let hasPrimary = await isVisible('btn-adicionar-exercicio-workout', 1500);
+    let hasSecondary = await isVisible('btn-add-set', 1500);
+
+    if (!hasPrimary && !hasSecondary) {
+      await scrollToElement('screen-workout', 'btn-adicionar-exercicio-workout', 'down', 360, 8);
+      hasPrimary = await isVisible('btn-adicionar-exercicio-workout', 1500);
+      hasSecondary = await isVisible('btn-add-set', 1500);
+    }
+
+    if (!hasPrimary && !hasSecondary) {
+      await scrollToElement('screen-workout', 'btn-add-set', 'down', 360, 8);
+      hasPrimary = await isVisible('btn-adicionar-exercicio-workout', 1500);
+      hasSecondary = await isVisible('btn-add-set', 1500);
+    }
+
+    if (hasPrimary) {
+      await expect(element(by.id('btn-adicionar-exercicio-workout'))).toBeVisible();
+      await tapElement('btn-adicionar-exercicio-workout', 12000);
+    } else if (hasSecondary) {
+      await expect(element(by.id('btn-add-set'))).toBeVisible();
+      await tapElement('btn-add-set', 8000);
+    } else {
+      await shotAndTrack(report, screen.name, `missing-${screen.name}-${action.name}-exercise-cta`, 'popup');
+      throw new Error('Nenhum CTA de adicionar exercicio disponivel (btn-adicionar-exercicio-workout|btn-add-set).');
+    }
+
+    await waitForAny(['btn-finalizar-treino', 'btn-salvar-serie', 'screen-workout'], 12000);
+    await assertNoGenericEmptyState(report, screen.name, action.name);
+
     await shotAndTrack(report, screen.name, `action-${screen.name}-${action.name}`, 'action');
     await capturePopupEvidence(report, screen.name, action.name);
     return;
@@ -370,22 +447,55 @@ async function executeActionStrict(report, screen, action) {
   if (action.type === 'finish-workout') {
     await ensureWorkoutScreen();
 
-    if (await isVisible('btn-finalizar-treino', 2500)) {
-      await tapElement('btn-finalizar-treino', 12000);
-    } else {
-      const attachedRun = isAttachedRun();
-      if (!attachedRun) {
-        throw new Error('btn-finalizar-treino indisponivel no fluxo de finish-workout.');
-      }
+    await assertVisibleOrThrow(report, screen.name, action.name, 'btn-finalizar-treino', 2500);
+    await tapElement('btn-finalizar-treino', 12000);
 
-      logStep('finish-workout:attached-fallback-no-finalize-button');
-
-      // No attached, a UI pode ficar em transição sem marcadores por vários segundos.
-      // Registra evidência e segue para preservar estabilidade do ciclo full-visual.
-      await shotAndTrack(report, screen.name, `action-${screen.name}-${action.name}-attached-fallback`, 'action');
-      await capturePopupEvidence(report, screen.name, `${action.name}-attached-fallback`);
-      return;
+    const errorBoundaryVisible = await isVisible(element(by.text('Algo deu errado')), 2000);
+    if (errorBoundaryVisible) {
+      throw new Error('Finish workout levou ao ErrorBoundary (Algo deu errado).');
     }
+
+    const summaryVisible = (
+      await isVisible(element(by.text('🔥 Treino concluido!')), 15000)
+    ) || (
+      await isVisible(element(by.text('Evolução incrível!')), 15000)
+    ) || (
+      await isVisible(element(by.text('RESUMO DO TREINO')), 15000)
+    ) || (
+      await isVisible(element(by.text('Continuar amanhã')), 15000)
+    );
+
+    const postState = summaryVisible
+      ? 'workout-summary'
+      : await waitForAny([
+      'screen-treinos',
+      'screen-home',
+      'screen-workout',
+      'tab-home',
+      'tab-treino',
+      'btn-iniciar-treino',
+      'btn-salvar-serie',
+    ], 20000).catch(() => null);
+
+    if (!postState) {
+      const dialogVisible = await hasAnyDialogVisible();
+      if (!dialogVisible) {
+        throw new Error('Finish workout sem estado final valido (sem screen alvo e sem dialog visivel).');
+      }
+    }
+
+    if (postState === 'workout-summary') {
+      const hasLegacySummary = await isVisible(element(by.text('🔥 Treino concluido!')), 1200);
+      const hasEvolutionSummary = await isVisible(element(by.text('Evolução incrível!')), 1200);
+      const hasResumo = await isVisible(element(by.text('RESUMO DO TREINO')), 1200);
+      const hasContinue = await isVisible(element(by.text('Continuar amanhã')), 1200);
+
+      if (!(hasLegacySummary || hasEvolutionSummary || hasResumo || hasContinue)) {
+        throw new Error('Tela de resumo de treino sem marcador valido de sucesso.');
+      }
+    }
+
+    await assertNoGenericEmptyState(report, screen.name, action.name);
 
     await shotAndTrack(report, screen.name, `action-${screen.name}-${action.name}`, 'action');
     await capturePopupEvidence(report, screen.name, action.name);
@@ -393,50 +503,86 @@ async function executeActionStrict(report, screen, action) {
   }
 
   if (action.type === 'nutrition-add-food') {
-    await replaceInput('input-alimento-nome', 'frango arroz', 12000);
+    if (!(await isVisible('input-alimento-nome', 1200))) {
+      await scrollToElement('screen-nutricao', 'input-alimento-nome', 'up', 360, 10).catch(() => null);
+    }
+    if (!(await isVisible('input-alimento-nome', 1200))) {
+      await scrollToElement('screen-nutricao', 'input-alimento-nome', 'down', 360, 10).catch(() => null);
+    }
+    await assertVisibleOrThrow(report, screen.name, action.name, 'input-alimento-nome', 12000);
+    await replaceInput('input-alimento-nome', 'frango + arroz', 12000);
     await hideKeyboardIfNeeded();
+    if (!(await isVisible('btn-adicionar-alimento', 1200))) {
+      await scrollToElement('screen-nutricao', 'btn-adicionar-alimento', 'up', 320, 8).catch(() => null);
+    }
+    if (!(await isVisible('btn-adicionar-alimento', 1200))) {
+      await scrollToElement('screen-nutricao', 'btn-adicionar-alimento', 'down', 320, 8).catch(() => null);
+    }
+    await assertVisibleOrThrow(report, screen.name, action.name, 'btn-adicionar-alimento', 12000);
     await tapElement('btn-adicionar-alimento', 12000);
+
+    const mealState = await waitForAny(['btn-salvar-alimento', 'alimento-salvo-indicator'], 12000).catch(() => null);
+    if (!mealState) {
+      throw new Error('Nutricao/add-food nao apresentou estado de refeicao montada (btn-salvar-alimento|alimento-salvo-indicator).');
+    }
+    await assertNoGenericEmptyState(report, screen.name, action.name);
+
     await shotAndTrack(report, screen.name, `action-${screen.name}-${action.name}`, 'action');
     await capturePopupEvidence(report, screen.name, action.name);
     return;
   }
 
   if (action.type === 'nutrition-view-details') {
-    await replaceInput('input-alimento-nome', 'iogurte aveia', 12000);
+    if (!(await isVisible('text-input-food', 1200))) {
+      await scrollToElement('screen-nutricao', 'text-input-food', 'down', 420, 14).catch(() => null);
+    }
+    if (!(await isVisible('text-input-food', 1200))) {
+      await scrollToElement('screen-nutricao', 'text-input-food', 'up', 420, 14).catch(() => null);
+    }
+    await assertVisibleOrThrow(report, screen.name, action.name, 'text-input-food', 12000);
+    await replaceInput('text-input-food', '1 pao, 2 ovos, 100g frango', 12000);
     await hideKeyboardIfNeeded();
-    await tapElement('btn-adicionar-alimento', 12000);
-    await waitForAny(['nutrition-result-card', 'btn-salvar-alimento'], 12000);
+    try {
+      await device.pressBack();
+    } catch {
+      // teclado pode ja estar fechado
+    }
+    if (!(await isVisible('btn-estimate-text', 1200))) {
+      await scrollToElement('screen-nutricao', 'btn-estimate-text', 'down', 320, 8).catch(() => null);
+    }
+    await assertVisibleOrThrow(report, screen.name, action.name, 'btn-estimate-text', 12000);
+    await tapElement('btn-estimate-text', 12000);
+    await scrollToElement('screen-nutricao', 'nutrition-result-card', 'down', 420, 18).catch(() => null);
+    await expect(element(by.id('nutrition-result-card'))).toBeVisible();
+    await assertNoGenericEmptyState(report, screen.name, action.name);
+
     await shotAndTrack(report, screen.name, `action-${screen.name}-${action.name}`, 'action');
     await capturePopupEvidence(report, screen.name, action.name);
     return;
   }
 
   if (action.type === 'coach-send-message') {
-    await replaceInput('chat-input', 'QA strict coverage message', 12000);
+    await assertVisibleOrThrow(report, screen.name, action.name, 'chat-input', 6000);
+    await replaceInput('chat-input', 'QA strict coverage message', 6000);
     await hideKeyboardIfNeeded();
-    await tapElement('btn-chat-send', 12000);
+    await assertVisibleOrThrow(report, screen.name, action.name, 'btn-chat-send', 6000);
+    await tapElement('btn-chat-send', 6000);
+    await waitForAny(['message-user', 'message-coach', 'screen-coach'], 12000);
+    await assertNoGenericEmptyState(report, screen.name, action.name);
+
     await shotAndTrack(report, screen.name, `action-${screen.name}-${action.name}`, 'action');
     await capturePopupEvidence(report, screen.name, action.name);
     return;
   }
 
   if (action.type === 'coach-quick-actions') {
-    const attachedRun = isAttachedRun();
+    await assertVisibleOrThrow(report, screen.name, action.name, 'btn-chat-eat', 6000);
 
-    if (attachedRun) {
-      if (await isVisible('btn-chat-eat', 2000)) {
-        try {
-          await tapElement('btn-chat-eat', 12000);
-        } catch {
-          // best effort no attached
-        }
-      }
-    } else {
-      await tapElement('btn-chat-eat', 12000);
-      await waitForAny(['screen-nutricao'], 15000);
-      await goToCoach();
-      await waitForAny(['screen-coach'], 15000);
-    }
+    await tapElement('btn-chat-eat', 6000);
+    await waitForAny(['screen-nutricao'], 10000);
+    await goToCoach();
+    await waitForAny(['screen-coach'], 10000);
+    await assertNoGenericEmptyState(report, screen.name, action.name);
 
     await shotAndTrack(report, screen.name, `action-${screen.name}-${action.name}`, 'action');
     await capturePopupEvidence(report, screen.name, action.name);
@@ -444,18 +590,48 @@ async function executeActionStrict(report, screen, action) {
   }
 
   if (action.type === 'social-add-friend') {
+    await assertVisibleOrThrow(report, screen.name, action.name, 'input-social-friend-userid', 12000);
     await replaceInput('input-social-friend-userid', 'qa_friend_coverage', 12000);
     await hideKeyboardIfNeeded();
+    await assertVisibleOrThrow(report, screen.name, action.name, 'btn-social-add-friend', 12000);
     await tapElement('btn-social-add-friend', 12000);
+    await expect(element(by.id('screen-social'))).toBeVisible();
+    await assertNoGenericEmptyState(report, screen.name, action.name);
+
     await shotAndTrack(report, screen.name, `action-${screen.name}-${action.name}`, 'action');
     await capturePopupEvidence(report, screen.name, action.name);
     return;
   }
 
   if (action.type === 'profile-edit') {
+    if (!(await isVisible('input-profile-current-weight', 1200))) {
+      await scrollToElement('screen-perfil', 'input-profile-current-weight', 'up', 420, 12).catch(() => null);
+    }
+    if (!(await isVisible('input-profile-current-weight', 1200))) {
+      await scrollToElement('screen-perfil', 'input-profile-current-weight', 'down', 420, 12).catch(() => null);
+    }
+    await assertVisibleOrThrow(report, screen.name, action.name, 'input-profile-current-weight', 12000);
     await replaceInput('input-profile-current-weight', '81', 12000);
     await hideKeyboardIfNeeded();
+    try {
+      await device.pressBack();
+    } catch {
+      // teclado pode ja estar fechado
+    }
+    if (!(await isVisible('btn-profile-save', 1200))) {
+      await scrollToElement('screen-perfil', 'btn-profile-save', 'down', 420, 14).catch(() => null);
+    }
+    if (!(await isVisible('btn-profile-save', 1200))) {
+      await scrollToElement('screen-perfil', 'btn-profile-save', 'up', 420, 10).catch(() => null);
+    }
+    await assertVisibleOrThrow(report, screen.name, action.name, 'btn-profile-save', 12000);
     await tapElement('btn-profile-save', 12000);
+    await expect(element(by.id('screen-perfil'))).toBeVisible();
+    await scrollToElement('screen-perfil', 'input-profile-current-weight', 'up', 420, 12).catch(() => null);
+    await expect(element(by.id('input-profile-current-weight'))).toBeVisible();
+    await waitFor(element(by.id('input-profile-current-weight'))).toHaveText('81').withTimeout(5000);
+    await assertNoGenericEmptyState(report, screen.name, action.name);
+
     await shotAndTrack(report, screen.name, `action-${screen.name}-${action.name}`, 'action');
     await capturePopupEvidence(report, screen.name, action.name);
     return;
@@ -466,17 +642,20 @@ async function executeActionStrict(report, screen, action) {
 
 async function exploreScreenStrict(report, screen, persona) {
   logStep(`crawler:screen:start=${screen.name}`);
-  const attachedRun = isAttachedRun();
 
-  await runStepWithTimeout(`open-screen:${screen.name}`, async () => {
-    await openScreen(screen, persona);
-  }, 60000);
+  await runCriticalFlow(report, screen.name, 'open-screen', async () => {
+    await runStepWithTimeout(`open-screen:${screen.name}`, async () => {
+      await openScreen(screen, persona);
+    }, 60000);
+  });
 
   markVisitedScreen(report, screen.name);
 
-  await runStepWithTimeout(`capture-base:${screen.name}`, async () => {
-    await captureBaseScrollAndPopup(report, screen);
-  }, 60000);
+  await runCriticalFlow(report, screen.name, 'capture-base', async () => {
+    await runStepWithTimeout(`capture-base:${screen.name}`, async () => {
+      await captureBaseScrollAndPopup(report, screen);
+    }, 60000);
+  });
 
   for (const action of screen.actions || []) {
     logStep(`crawler:action:start=${screen.name}/${action.name}`);
@@ -493,23 +672,19 @@ async function exploreScreenStrict(report, screen, persona) {
     const isAttached = isAttachedRun();
     const actionTimeoutMs = (isAttached && action.type === 'finish-workout') ? 140000 : 70000;
 
-    try {
+    await runCriticalFlow(report, screen.name, `${action.name}`, async () => {
       await runStepWithTimeout(`action:${screen.name}/${action.name}`, async () => {
         await executeActionStrict(report, screen, action);
       }, actionTimeoutMs);
-    } catch (error) {
-      if (!attachedRun) {
-        throw error;
-      }
-
-      logStep(`crawler:action:attached-fallback=${screen.name}/${action.name}:${String(error?.message || error)}`);
-      await shotAndTrack(report, screen.name, `action-${screen.name}-${action.name}-attached-fallback`, 'action');
-      await capturePopupEvidence(report, screen.name, `${action.name}-attached-fallback`);
-    }
+    });
 
     markClickedAction(report, screen.name, action.name);
     logStep(`crawler:action:ok=${screen.name}/${action.name}`);
   }
+
+  await runCriticalFlow(report, screen.name, 'screen-empty-state-check', async () => {
+    await assertNoGenericEmptyState(report, screen.name, 'screen-final');
+  });
 
   logStep(`crawler:screen:ok=${screen.name}`);
 }

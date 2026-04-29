@@ -5,6 +5,75 @@ const { hasDetoxGlobals } = require('./runtime');
 const expoQaClientId = process.env['EXPO_PUBLIC_QA_CLIENT_ID'];
 const DEFAULT_CLIENT_ID = expoQaClientId || process.env.QA_CLIENT_ID || 'default';
 const ARTIFACTS_DIR = path.resolve(__dirname, '..', '..', 'artifacts');
+const ID_ALIASES = {
+  'input-peso': ['input-peso', 'input-weight'],
+  'input-weight': ['input-weight', 'input-peso'],
+  'input-reps': ['input-reps'],
+  'btn-salvar-serie': ['btn-salvar-serie', 'btn-save-set'],
+  'btn-save-set': ['btn-save-set', 'btn-salvar-serie'],
+};
+
+function getIdCandidates(id) {
+  const target = String(id || '').trim();
+  if (!target) {
+    return [];
+  }
+
+  const aliases = Array.isArray(ID_ALIASES[target]) ? ID_ALIASES[target] : [target];
+  return Array.from(new Set(aliases));
+}
+
+const KNOWN_SCROLL_CONTAINERS = [
+  'screen-workout',
+  'screen-home',
+  'screen-treinos',
+  'screen-routines',
+  'screen-nutricao',
+  'screen-social',
+  'screen-perfil',
+  'screen-profile',
+  'screen-free-workout',
+  'scroll-container',
+];
+
+async function tryScrollToTarget(id) {
+  for (const containerId of KNOWN_SCROLL_CONTAINERS) {
+    try {
+      const containerReady = await isVisible(containerId, 450);
+      if (!containerReady) {
+        continue;
+      }
+      const found = await scrollToElement(containerId, id, 'down', 360, 6);
+      if (found) {
+        return true;
+      }
+    } catch {
+      // tenta o proximo container
+    }
+  }
+
+  return false;
+}
+
+async function resolveElementWithFallback(id, timeout = 5000) {
+  const candidates = getIdCandidates(id);
+  for (const candidate of candidates) {
+    const target = element(by.id(candidate));
+    try {
+      await waitFor(target).toBeVisible().withTimeout(Math.max(1200, timeout));
+      return { id: candidate, target };
+    } catch {
+      try {
+        await waitFor(target).toExist().withTimeout(Math.max(1200, timeout));
+        return { id: candidate, target };
+      } catch {
+        // tenta proximo alias
+      }
+    }
+  }
+
+  return null;
+}
 
 function ensureArtifactsDir() {
   if (!fs.existsSync(ARTIFACTS_DIR)) {
@@ -57,7 +126,28 @@ async function isVisible(target, timeout = 1000) {
     return false;
   }
 
-  const matcher = typeof target === 'string' ? element(by.id(target)) : target;
+  if (typeof target === 'string') {
+    const candidates = getIdCandidates(target);
+    for (const candidate of candidates) {
+      const matcher = element(by.id(candidate));
+      const visible = await withDetoxGuard(
+        async () => {
+          await waitFor(matcher).toBeVisible().withTimeout(timeout);
+          return true;
+        },
+        false,
+        Math.max(1200, Number(timeout || 0) + 800)
+      );
+
+      if (visible) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  const matcher = target;
   return withDetoxGuard(
     async () => {
       await waitFor(matcher).toBeVisible().withTimeout(timeout);
@@ -125,51 +215,70 @@ async function tapElement(id, timeout = 12000) {
     throw new Error('Detox globals indisponiveis durante tapElement.');
   }
 
-  const becameVisible = await withDetoxGuard(
+  let resolved = await resolveElementWithFallback(id, Math.min(timeout, 5000));
+  if (!resolved) {
+    await tryScrollToTarget(id);
+    resolved = await resolveElementWithFallback(id, timeout);
+  }
+
+  if (!resolved) {
+    throw new Error(`elemento ${id} nao ficou disponivel para tap`);
+  }
+
+  const { target } = resolved;
+
+  await withDetoxGuard(
     async () => {
-      await waitFor(element(by.id(id))).toBeVisible().withTimeout(timeout);
+      await waitFor(target).toExist().withTimeout(timeout);
       return true;
     },
     false,
-    Math.max(3000, Number(timeout || 0) + 1000)
+    Math.max(2500, Number(timeout || 0) + 800)
   );
 
-  if (!becameVisible) {
-    const exists = await withDetoxGuard(
-      async () => {
-        await waitFor(element(by.id(id))).toExist().withTimeout(timeout);
-        return true;
-      },
-      false,
-      Math.max(3000, Number(timeout || 0) + 1000)
-    );
-
-    if (!exists) {
-      throw new Error(`elemento ${id} nao ficou disponivel para tap`);
-    }
-
-    const visibleAfterExist = await withDetoxGuard(
-      async () => {
-        await waitFor(element(by.id(id))).toBeVisible().withTimeout(Math.max(1500, timeout));
-        return true;
-      },
-      false,
-      Math.max(2500, Number(timeout || 0) + 500)
-    );
-
-    if (!visibleAfterExist) {
-      throw new Error(`elemento ${id} nao ficou visivel para tap`);
-    }
-  }
-
-  const tapped = await withDetoxGuard(
+  await withDetoxGuard(
     async () => {
-      await element(by.id(id)).tap();
+      await waitFor(target).toBeVisible().withTimeout(Math.min(2500, timeout));
+      return true;
+    },
+    false,
+    Math.max(1800, Number(timeout || 0) + 500)
+  );
+
+  await expect(target).toBeVisible();
+
+  let tapped = await withDetoxGuard(
+    async () => {
+      await target.tap();
       return true;
     },
     false,
     2500
   );
+
+  if (!tapped) {
+    if (device.getPlatform() === 'android') {
+      try {
+        await device.pressBack();
+        await sleep(180);
+      } catch {
+        // teclado pode ja estar fechado
+      }
+    }
+
+    await tryScrollToTarget(id);
+    const resolvedAfterScroll = await resolveElementWithFallback(id, Math.max(3000, timeout));
+    if (resolvedAfterScroll) {
+      tapped = await withDetoxGuard(
+        async () => {
+          await resolvedAfterScroll.target.tap();
+          return true;
+        },
+        false,
+        2500
+      );
+    }
+  }
 
   if (!tapped) {
     throw new Error(`falha ao tocar no elemento ${id}`);
@@ -181,7 +290,18 @@ async function replaceInput(id, value, timeout = 12000) {
     throw new Error('Detox globals indisponiveis durante replaceInput.');
   }
 
-  const target = element(by.id(id));
+  let resolved = await resolveElementWithFallback(id, Math.min(timeout, 5000));
+
+  if (!resolved) {
+    await tryScrollToTarget(id);
+    resolved = await resolveElementWithFallback(id, timeout);
+  }
+
+  if (!resolved) {
+    throw new Error(`campo ${id} nao foi encontrado para preenchimento`);
+  }
+
+  const { target } = resolved;
 
   try {
     await waitFor(target).toBeVisible().withTimeout(timeout);
@@ -193,6 +313,8 @@ async function replaceInput(id, value, timeout = 12000) {
       // segue para tentativa de clear/replace mesmo sem tap
     }
   }
+
+  await expect(target).toBeVisible();
 
   try {
     await target.tap();

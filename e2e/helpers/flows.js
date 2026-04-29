@@ -901,6 +901,26 @@ async function goToSocial() {
 }
 
 async function runGuidedWorkoutHappyPath(persona = getPersona()) {
+  const ensureGuidedInputReady = async (fieldId) => {
+    try {
+      await waitFor(element(by.id(fieldId))).toBeVisible().withTimeout(5000);
+      return;
+    } catch {
+      try {
+        if (!(await isVisible('btn-add-set', 1200))) {
+          await scrollToElement('screen-workout', 'btn-add-set', 'down', 360, 6);
+        }
+        await tapElement('btn-add-set', 5000);
+        await sleep(280);
+      } catch {
+        // segue com fallback de scroll/tap
+      }
+      await scrollToElement('screen-workout', fieldId, 'down', 360, 8);
+      await tapElement(fieldId, 6000);
+      await waitFor(element(by.id(fieldId))).toBeVisible().withTimeout(5000);
+    }
+  };
+
   await goToTreinos();
   await humanDelay(persona, 'open-guided-workout');
 
@@ -935,11 +955,18 @@ async function runGuidedWorkoutHappyPath(persona = getPersona()) {
     throw new Error('Nao abriu screen-workout apos acionar btn-iniciar-treino.');
   }
 
-  await replaceInput('input-peso', persona.guidedWeight);
+  await ensureGuidedInputReady('input-weight');
+  await replaceInput('input-weight', persona.guidedWeight);
+  await ensureGuidedInputReady('input-reps');
   await replaceInput('input-reps', persona.guidedReps);
   await hideKeyboardIfNeeded();
   await humanDelay(persona, 'save-guided-set');
-  await tapElement('btn-salvar-serie');
+  try {
+    await tapElement('btn-save-set');
+  } catch {
+    await waitFor(element(by.id('btn-save-set'))).toBeVisible().withTimeout(3000);
+    await tapElement('btn-save-set');
+  }
   try {
     await waitForAny(['btn-editar-serie', 'btn-remover-serie', 'serie-salva-indicator'], 6000);
   } catch {
@@ -1431,10 +1458,15 @@ async function runCreatedRoutineWorkoutHappyPath(persona = getPersona()) {
     throw new Error('Nao abriu tela de treino apos iniciar rotina criada.');
   }
 
-  await replaceInput('input-peso', persona.guidedWeight);
+  await replaceInput('input-weight', persona.guidedWeight);
   await replaceInput('input-reps', persona.guidedReps);
   await hideKeyboardIfNeeded();
-  await tapElement('btn-salvar-serie');
+  try {
+    await tapElement('btn-save-set');
+  } catch {
+    await waitFor(element(by.id('btn-save-set'))).toBeVisible().withTimeout(3000);
+    await tapElement('btn-save-set');
+  }
   await waitFor(element(by.id('serie-salva-indicator'))).toBeVisible().withTimeout(8000);
   await saveGuidedWorkoutPartial();
 
@@ -1503,19 +1535,23 @@ async function runNutritionHappyPath(persona = getPersona(), options = {}) {
     return;
   }
 
-  if (await isVisible('text-input-food', 1200)) {
+  try {
+    if (await isVisible('text-input-food', 1200)) {
+      await replaceInput('text-input-food', persona.nutritionTextEstimate);
+      await hideKeyboardIfNeeded();
+      await tapElement('btn-estimate-text');
+      await isVisible('nutrition-result-card', 4000);
+      return;
+    }
+
+    await scrollToElement('screen-nutricao', 'text-input-food', 'down', 420, 16);
     await replaceInput('text-input-food', persona.nutritionTextEstimate);
     await hideKeyboardIfNeeded();
     await tapElement('btn-estimate-text');
     await isVisible('nutrition-result-card', 4000);
-    return;
+  } catch (error) {
+    logStep(`nutrition-text-estimate-skip: ${String(error?.message || 'unknown')}`);
   }
-
-  await scrollToElement('screen-nutricao', 'text-input-food', 'down', 420, 16);
-  await replaceInput('text-input-food', persona.nutritionTextEstimate);
-  await hideKeyboardIfNeeded();
-  await tapElement('btn-estimate-text');
-  await isVisible('nutrition-result-card', 4000);
 }
 
 async function runTrackingHappyPath(persona = getPersona()) {

@@ -2,31 +2,53 @@
   "config": {
     "cycles": 1,
     "mobileOnly": true,
-    "skipZip": true,
-    "stabilityCycles": 0,
+    "skipZip": false,
+    "stabilityCycles": 1,
     "webOnly": false
   },
-  "completedAt": "2026-04-18T07:24:10.461Z",
+  "completedAt": "2026-04-28T14:56:47.462Z",
   "mobile": {
-    "failed": 1,
+    "failed": 2,
     "passed": 0,
-    "total": 1
+    "total": 2
   },
   "rawResults": [
     {
       "cycleReport": {
-        "analyzeExitCode": 0,
+        "analyzeExitCode": 1,
         "configuration": "android.attached.debug",
         "exitCode": 1,
-        "finishedAt": "2026-04-18T07:24:10.453Z",
+        "attempts": [],
+        "finishedAt": "2026-04-28T14:56:47.195Z",
         "persona": "iniciante",
-        "qaServerAutostarted": true,
-        "seed": "1776497048817-main-1",
-        "startedAt": "2026-04-18T07:24:09.039Z"
+        "qaServerAutostarted": false,
+        "seed": "1777388206620-main-1",
+        "startedAt": "2026-04-28T14:56:47.178Z",
+        "skipped": false,
+        "fatalError": "detox_target_not_available: configuracao attached explicita sem device USB conectado."
       },
       "exitCode": 1,
       "index": 1,
       "phase": "main",
+      "type": "mobile"
+    },
+    {
+      "cycleReport": {
+        "analyzeExitCode": 1,
+        "configuration": "android.attached.debug",
+        "exitCode": 1,
+        "attempts": [],
+        "finishedAt": "2026-04-28T14:56:47.455Z",
+        "persona": "iniciante",
+        "qaServerAutostarted": false,
+        "seed": "1777388207217-stability-1",
+        "startedAt": "2026-04-28T14:56:47.438Z",
+        "skipped": false,
+        "fatalError": "detox_target_not_available: configuracao attached explicita sem device USB conectado."
+      },
+      "exitCode": 1,
+      "index": 1,
+      "phase": "stability",
       "type": "mobile"
     }
   ],
