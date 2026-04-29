@@ -256,6 +256,70 @@ export const EXERCISES = [
     ],
   }),
   createExercise({
+    id: 'cadeira_extensora',
+    name: 'Cadeira Extensora',
+    type: 'machine',
+    musclePrimary: ['quadriceps'],
+    muscleSecondary: ['pernas'],
+    equipment: 'maquina',
+    objective: 'hipertrofia',
+    difficulty: 'iniciante',
+    tags: ['quadriceps', 'maquina', 'pernas'],
+    instructions: [
+      'Ajuste o encosto para manter joelhos alinhados ao eixo da maquina.',
+      'Estenda os joelhos sem tirar quadril do banco.',
+      'Controle a descida sem soltar a carga.',
+    ],
+  }),
+  createExercise({
+    id: 'abdutora_maquina',
+    name: 'Abdutora Maquina',
+    type: 'machine',
+    musclePrimary: ['gluteo'],
+    muscleSecondary: ['pernas'],
+    equipment: 'maquina',
+    objective: 'hipertrofia',
+    difficulty: 'iniciante',
+    tags: ['gluteo', 'abdutora', 'maquina'],
+    instructions: [
+      'Mantenha tronco estavel e quadril bem apoiado.',
+      'Abra as pernas com controle ate sua amplitude segura.',
+      'Retorne devagar mantendo tensao no gluteo.',
+    ],
+  }),
+  createExercise({
+    id: 'panturrilha_em_pe_maquina',
+    name: 'Panturrilha em Pe Maquina',
+    type: 'machine',
+    musclePrimary: ['panturrilha'],
+    muscleSecondary: ['pernas'],
+    equipment: 'maquina',
+    objective: 'hipertrofia',
+    difficulty: 'iniciante',
+    tags: ['panturrilha', 'maquina'],
+    instructions: [
+      'Posicione a ponta dos pes na plataforma com calcanhar livre.',
+      'Eleve o calcanhar ate contrair a panturrilha.',
+      'Desca controlando sem quicar.',
+    ],
+  }),
+  createExercise({
+    id: 'panturrilha_no_leg_press',
+    name: 'Panturrilha no Leg Press',
+    type: 'machine',
+    musclePrimary: ['panturrilha'],
+    muscleSecondary: ['quadriceps'],
+    equipment: 'maquina',
+    objective: 'hipertrofia',
+    difficulty: 'iniciante',
+    tags: ['panturrilha', 'leg press', 'maquina'],
+    instructions: [
+      'Use apenas ponta dos pes na parte baixa da plataforma.',
+      'Empurre com a panturrilha sem mover joelhos excessivamente.',
+      'Controle a fase de alongamento na descida.',
+    ],
+  }),
+  createExercise({
     id: 'prancha',
     name: 'Prancha',
     type: 'bodyweight',
@@ -316,6 +380,7 @@ export const EXERCISE_MUSCLE_FILTERS = [
   'abdomen',
   'posterior_coxa',
   'quadriceps',
+  'panturrilha',
   'core',
 ];
 
@@ -339,7 +404,13 @@ export function listExerciseNames() {
 function matchesMuscle(exercise, muscle) {
   if (!muscle || muscle === 'all') return true;
   const safe = slugify(muscle);
-  const aliases = safe === 'pernas' ? ['quadriceps', 'posterior_coxa', 'panturrilha', 'gluteo', 'pernas'] : [safe];
+  const muscleMap = {
+    pernas: ['quadriceps', 'posterior_coxa', 'panturrilha', 'gluteo', 'pernas'],
+    core: ['abdomen', 'abs'],
+    abs: ['abdomen', 'abs'],
+    abdomen: ['abdomen', 'abs'],
+  };
+  const aliases = muscleMap[safe] || [safe];
   const groups = [...(exercise.musclePrimary || []), ...(exercise.muscleSecondary || [])].map(slugify);
   return aliases.some((item) => groups.includes(item));
 }
@@ -349,7 +420,7 @@ export function searchExercises({ query = '', muscle = 'all', equipment = 'all',
   const equipmentKey = slugify(equipment);
   const objectiveKey = slugify(objective);
 
-  return EXERCISES.filter((exercise) => {
+  const baseQueryAndFilters = EXERCISES.filter((exercise) => {
     const textBlob = [
       exercise.name,
       ...(exercise.tags || []),
@@ -365,7 +436,38 @@ export function searchExercises({ query = '', muscle = 'all', equipment = 'all',
     const objectiveOk = objectiveKey === 'all' || slugify(exercise.objective) === objectiveKey;
 
     return queryOk && muscleOk && equipmentOk && objectiveOk;
-  }).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+  });
+
+  let result = baseQueryAndFilters;
+
+  if (!result.length && equipmentKey !== 'all') {
+    result = EXERCISES.filter((exercise) => {
+      const textBlob = [
+        exercise.name,
+        ...(exercise.tags || []),
+        ...(exercise.musclePrimary || []),
+        ...(exercise.muscleSecondary || []),
+      ]
+        .map(slugify)
+        .join(' ');
+
+      const queryOk = !q || textBlob.includes(q);
+      const muscleOk = matchesMuscle(exercise, muscle);
+      const objectiveOk = objectiveKey === 'all' || slugify(exercise.objective) === objectiveKey;
+
+      return queryOk && muscleOk && objectiveOk;
+    });
+  }
+
+  if (!result.length && muscle && muscle !== 'all') {
+    result = EXERCISES.filter((exercise) => matchesMuscle(exercise, muscle));
+  }
+
+  if (!result.length) {
+    result = EXERCISES;
+  }
+
+  return result.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
 }
 
 export function getExerciseFilters() {

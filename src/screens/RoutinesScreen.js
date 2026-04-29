@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useApp } from '../context/AppContext';
-import { EXERCISE_NAMES_V2 } from '../data/exerciseLibraryV2';
+import { EXERCISE_NAMES_V2 } from '../data/exerciseLibraryV2.js';
 import { getExerciseByName, getExerciseFilters, searchExercises } from '../data/exercises.js';
 import { fuzzySearchExercises } from '../services/fuzzySearch';
 import { AnimatedToast, AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
@@ -69,6 +69,8 @@ export default function RoutinesScreen({ navigation }) {
   const [muscleFilter, setMuscleFilter] = useState('all');
   const [equipmentFilter, setEquipmentFilter] = useState('all');
   const [builderExercises, setBuilderExercises] = useState([]);
+  const [selectedCatalogExercises, setSelectedCatalogExercises] = useState([]);
+  const [builderStep, setBuilderStep] = useState(1);
   const [editingRoutineId, setEditingRoutineId] = useState(null);
   const [toastMessage, setToastMessage] = useState('');
 
@@ -125,6 +127,33 @@ export default function RoutinesScreen({ navigation }) {
     setBuilderExercises((prev) => [...prev, safeName]);
   };
 
+  const toggleCatalogSelection = (exerciseName) => {
+    const safeName = String(exerciseName || '').trim();
+    if (!safeName) {
+      return;
+    }
+
+    setSelectedCatalogExercises((prev) => (
+      prev.includes(safeName)
+        ? prev.filter((item) => item !== safeName)
+        : [...prev, safeName]
+    ));
+  };
+
+  const addSelectedCatalogToBuilder = () => {
+    if (!selectedCatalogExercises.length) {
+      return;
+    }
+
+    setBuilderExercises((prev) => {
+      const map = new Set(prev);
+      selectedCatalogExercises.forEach((name) => map.add(name));
+      return Array.from(map);
+    });
+    setToastMessage(`${selectedCatalogExercises.length} exercicio(s) adicionados na rotina.`);
+    setSelectedCatalogExercises([]);
+  };
+
   const removeExerciseFromBuilder = (exerciseName) => {
     setBuilderExercises((prev) => prev.filter((item) => item !== exerciseName));
   };
@@ -146,6 +175,8 @@ export default function RoutinesScreen({ navigation }) {
   const resetBuilder = () => {
     setRoutineName('');
     setBuilderExercises([]);
+    setSelectedCatalogExercises([]);
+    setBuilderStep(1);
     setExerciseQuery('');
     setEditingRoutineId(null);
   };
@@ -186,6 +217,7 @@ export default function RoutinesScreen({ navigation }) {
 
   const loadRoutineToEdit = (routine) => {
     setEditingRoutineId(routine.id);
+    setBuilderStep(3);
     setRoutineName(routine.name);
     setBuilderExercises(
       Array.isArray(routine.exercises)
@@ -264,120 +296,167 @@ export default function RoutinesScreen({ navigation }) {
 
       <AppCard>
         <Text style={styles.cardTitle}>{editingRoutineId ? 'Editar rotina' : 'Criar rotina manual'}</Text>
+        <Text style={styles.recommendationSub}>Etapa {builderStep}/4</Text>
 
-        <Text style={styles.stepLabel}>1. Nome da rotina</Text>
-        <Text style={styles.helperText}>Escolha um nome curto: exemplo "Perna A" ou "Upper Forte".</Text>
+        {builderStep === 1 ? (
+          <>
+            <Text style={styles.stepLabel}>1. Nome da rotina</Text>
+            <Text style={styles.helperText}>Escolha um nome curto: exemplo "Perna A" ou "Upper Forte".</Text>
+            <TextInput
+              testID="input-routine-name"
+              value={routineName}
+              onChangeText={setRoutineName}
+              placeholder="Ex: Perna A"
+              placeholderTextColor="#8FA5CB"
+              style={styles.input}
+            />
+          </>
+        ) : null}
 
-        <TextInput
-          testID="input-routine-name"
-          value={routineName}
-          onChangeText={setRoutineName}
-          placeholder="Ex: Perna A"
-          placeholderTextColor="#8FA5CB"
-          style={styles.input}
-        />
+        {builderStep === 2 ? (
+          <>
+            <Text style={styles.stepLabel}>2. Adicionar exercicios</Text>
+            <Text style={styles.helperText}>Selecione em lote e adicione de uma vez.</Text>
 
-        <Text style={styles.stepLabel}>2. Exercicios</Text>
-        <Text style={styles.helperText}>Atalhos populares (toque para adicionar rapido):</Text>
-        <View style={styles.chipsWrap}>
-          {QUICK_EXERCISES.map((item) => (
-            <TouchableOpacity testID={`chip-routine-quick-${toTestId(item)}`} key={`quick-${item}`} style={styles.quickChip} onPress={() => addExerciseToBuilder(item)}>
-              <Text style={styles.quickChipText}>{item}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+            <View style={styles.chipsWrap}>
+              {QUICK_EXERCISES.map((item) => (
+                <TouchableOpacity
+                  testID={`chip-routine-quick-${toTestId(item)}`}
+                  key={`quick-${item}`}
+                  style={[styles.quickChip, selectedCatalogExercises.includes(item) ? styles.quickChipSelected : null]}
+                  onPress={() => toggleCatalogSelection(item)}
+                >
+                  <Text style={styles.quickChipText}>{item}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
 
-        <TextInput
-          testID="input-routine-search"
-          value={exerciseQuery}
-          onChangeText={setExerciseQuery}
-          placeholder="Buscar exercicio (ex: leg press)"
-          placeholderTextColor="#8FA5CB"
-          style={styles.input}
-        />
+            <TextInput
+              testID="input-routine-search"
+              value={exerciseQuery}
+              onChangeText={setExerciseQuery}
+              placeholder="Buscar exercicio (ex: leg press)"
+              placeholderTextColor="#8FA5CB"
+              style={styles.input}
+            />
 
-        <Text style={styles.helperText}>Filtrar por musculo:</Text>
-        <View style={styles.chipsWrap}>
-          <TouchableOpacity
-            style={[styles.filterChip, muscleFilter === 'all' ? styles.filterChipActive : null]}
-            onPress={() => setMuscleFilter('all')}
-          >
-            <Text style={[styles.filterChipText, muscleFilter === 'all' ? styles.filterChipTextActive : null]}>Todos</Text>
-          </TouchableOpacity>
-          {safeMuscles.slice(0, 8).map((item) => (
-            <TouchableOpacity
-              key={`muscle-${item}`}
-              style={[styles.filterChip, muscleFilter === item ? styles.filterChipActive : null]}
-              onPress={() => setMuscleFilter(item)}
-            >
-              <Text style={[styles.filterChipText, muscleFilter === item ? styles.filterChipTextActive : null]}>{item.replace(/_/g, ' ')}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+            <Text style={styles.helperText}>Filtrar por musculo:</Text>
+            <View style={styles.chipsWrap}>
+              <TouchableOpacity
+                style={[styles.filterChip, muscleFilter === 'all' ? styles.filterChipActive : null]}
+                onPress={() => setMuscleFilter('all')}
+              >
+                <Text style={[styles.filterChipText, muscleFilter === 'all' ? styles.filterChipTextActive : null]}>Todos</Text>
+              </TouchableOpacity>
+              {safeMuscles.slice(0, 8).map((item) => (
+                <TouchableOpacity
+                  key={`muscle-${item}`}
+                  style={[styles.filterChip, muscleFilter === item ? styles.filterChipActive : null]}
+                  onPress={() => setMuscleFilter(item)}
+                >
+                  <Text style={[styles.filterChipText, muscleFilter === item ? styles.filterChipTextActive : null]}>{item.replace(/_/g, ' ')}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
 
-        <Text style={styles.helperText}>Filtrar por equipamento:</Text>
-        <View style={styles.chipsWrap}>
-          <TouchableOpacity
-            style={[styles.filterChip, equipmentFilter === 'all' ? styles.filterChipActive : null]}
-            onPress={() => setEquipmentFilter('all')}
-          >
-            <Text style={[styles.filterChipText, equipmentFilter === 'all' ? styles.filterChipTextActive : null]}>Todos</Text>
-          </TouchableOpacity>
-          {safeEquipments.map((item) => (
-            <TouchableOpacity
-              key={`equipment-${item}`}
-              style={[styles.filterChip, equipmentFilter === item ? styles.filterChipActive : null]}
-              onPress={() => setEquipmentFilter(item)}
-            >
-              <Text style={[styles.filterChipText, equipmentFilter === item ? styles.filterChipTextActive : null]}>{item.replace(/_/g, ' ')}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+            {filteredCatalog.length === 0 ? <Text style={styles.empty}>Nenhum exercicio encontrado. Tente "leg press" ou "agachamento".</Text> : null}
+            <View style={styles.catalogList}>
+              {filteredCatalog.map((item) => {
+                const selected = selectedCatalogExercises.includes(item.name);
+                return (
+                  <View key={item.name} style={[styles.catalogCard, selected ? styles.catalogCardSelected : null]}>
+                    <View style={styles.catalogInfoRow}>
+                      {item.thumbnail ? <Image source={{ uri: item.thumbnail }} style={styles.catalogThumb} /> : <View style={styles.catalogThumbFallback} />}
+                      <View style={styles.catalogTextWrap}>
+                        <Text style={styles.catalogName}>{item.name}</Text>
+                        <Text style={styles.catalogMeta}>{item.muscle.replace(/_/g, ' ')} · {item.equipment.replace(/_/g, ' ')}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.catalogActions}>
+                      <TouchableOpacity
+                        testID={`chip-routine-catalog-${toTestId(item.name)}`}
+                        style={[styles.catalogAddButton, selected ? styles.catalogAddButtonSelected : null]}
+                        onPress={() => toggleCatalogSelection(item.name)}
+                      >
+                        <Text style={styles.catalogAddButtonText}>{selected ? 'Selecionado' : 'Selecionar'}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.catalogDetailButton} onPress={() => openExerciseDetail(item)}>
+                        <Text style={styles.catalogDetailButtonText}>Detalhes</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
 
-        {filteredCatalog.length === 0 ? <Text style={styles.empty}>Nenhum exercicio encontrado. Tente "leg press" ou "agachamento".</Text> : null}
-        <View style={styles.catalogList}>
-          {filteredCatalog.map((item) => (
-            <View key={item.name} style={styles.catalogCard}>
-              <View style={styles.catalogInfoRow}>
-                {item.thumbnail ? <Image source={{ uri: item.thumbnail }} style={styles.catalogThumb} /> : <View style={styles.catalogThumbFallback} />}
-                <View style={styles.catalogTextWrap}>
-                  <Text style={styles.catalogName}>{item.name}</Text>
-                  <Text style={styles.catalogMeta}>{item.muscle.replace(/_/g, ' ')} · {item.equipment.replace(/_/g, ' ')}</Text>
+            <PrimaryButton
+              testID="btn-routine-add-bulk"
+              title={`Adicionar ${selectedCatalogExercises.length} exercicio(s)`}
+              onPress={addSelectedCatalogToBuilder}
+              style={styles.primaryButton}
+            />
+            <Text style={styles.helperText}>Na rotina agora: {builderExercises.length} exercicio(s).</Text>
+          </>
+        ) : null}
+
+        {builderStep === 3 ? (
+          <>
+            <Text style={styles.stepLabel}>3. Revisar rotina</Text>
+            <Text style={styles.helperText}>Reordene e ajuste antes de salvar.</Text>
+            {builderExercises.length === 0 ? <Text style={styles.empty}>Adicione exercicios para montar sua rotina.</Text> : null}
+            {builderExercises.map((item, index) => (
+              <View testID={`row-routine-builder-${toTestId(item)}`} key={item} style={styles.builderRow}>
+                <Text style={styles.line}>• {item}</Text>
+                <View style={styles.actionsRow}>
+                  <TouchableOpacity style={styles.smallButton} onPress={() => moveBuilderExercise(index, -1)}>
+                    <Text style={styles.smallButtonText}>↑</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.smallButton} onPress={() => moveBuilderExercise(index, 1)}>
+                    <Text style={styles.smallButtonText}>↓</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => removeExerciseFromBuilder(item)}>
+                    <Text style={styles.removeText}>Remover</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
-              <View style={styles.catalogActions}>
-                <TouchableOpacity testID={`chip-routine-catalog-${toTestId(item.name)}`} style={styles.catalogAddButton} onPress={() => addExerciseToBuilder(item.name)}>
-                  <Text style={styles.catalogAddButtonText}>Adicionar</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.catalogDetailButton} onPress={() => openExerciseDetail(item)}>
-                  <Text style={styles.catalogDetailButtonText}>Detalhes</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))}
-        </View>
+            ))}
+          </>
+        ) : null}
 
-        <Text style={styles.blockLabel}>Exercicios da rotina</Text>
-        {builderExercises.length === 0 ? <Text style={styles.empty}>Adicione exercicios para montar sua rotina.</Text> : null}
-        {builderExercises.map((item, index) => (
-          <View testID={`row-routine-builder-${toTestId(item)}`} key={item} style={styles.builderRow}>
-            <Text style={styles.line}>• {item}</Text>
-            <View style={styles.actionsRow}>
-              <TouchableOpacity style={styles.smallButton} onPress={() => moveBuilderExercise(index, -1)}>
-                <Text style={styles.smallButtonText}>↑</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.smallButton} onPress={() => moveBuilderExercise(index, 1)}>
-                <Text style={styles.smallButtonText}>↓</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => removeExerciseFromBuilder(item)}>
-                <Text style={styles.removeText}>Remover</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        ))}
+        {builderStep === 4 ? (
+          <>
+            <Text style={styles.stepLabel}>4. Salvar rotina</Text>
+            <Text style={styles.helperText}>Nome: {routineName || 'sem nome'}</Text>
+            <Text style={styles.helperText}>Total de exercicios: {builderExercises.length}</Text>
+            <PrimaryButton testID="btn-routine-save" title={editingRoutineId ? 'Salvar edicao' : 'Criar rotina'} onPress={saveRoutine} style={styles.primaryButton} />
+          </>
+        ) : null}
 
         <View style={styles.actionsRow}>
-          <PrimaryButton testID="btn-routine-save" title={editingRoutineId ? 'Salvar edicao' : 'Criar rotina'} onPress={saveRoutine} style={styles.primaryButton} />
+          {builderStep > 1 ? (
+            <SecondaryButton title="Voltar" onPress={() => setBuilderStep((prev) => Math.max(1, prev - 1))} style={styles.secondaryButton} />
+          ) : null}
+          {builderStep < 4 ? (
+            <PrimaryButton
+              title="Proximo"
+              onPress={() => {
+                if (builderStep === 1 && !String(routineName || '').trim()) {
+                  setToastMessage('Defina um nome para a rotina antes de continuar.');
+                  return;
+                }
+                if (builderStep === 2 && builderExercises.length === 0) {
+                  setToastMessage('Adicione ao menos 1 exercicio para continuar.');
+                  return;
+                }
+                if (builderStep === 3 && builderExercises.length === 0) {
+                  setToastMessage('A revisao precisa de pelo menos 1 exercicio.');
+                  return;
+                }
+                setBuilderStep((prev) => Math.min(4, prev + 1));
+              }}
+              style={styles.primaryButton}
+            />
+          ) : null}
           {editingRoutineId ? (
             <SecondaryButton testID="btn-routine-cancel-edit" title="Cancelar" onPress={resetBuilder} style={styles.secondaryButton} />
           ) : null}
@@ -558,6 +637,10 @@ const styles = StyleSheet.create({
     padding: 10,
     gap: 8,
   },
+  catalogCardSelected: {
+    borderColor: colors.primary,
+    backgroundColor: '#11243F',
+  },
   catalogInfoRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -605,6 +688,9 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     alignItems: 'center',
   },
+  catalogAddButtonSelected: {
+    backgroundColor: '#1B7C47',
+  },
   catalogAddButtonText: {
     color: '#E7F2FF',
     fontWeight: '800',
@@ -631,6 +717,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     backgroundColor: '#11243F',
+  },
+  quickChipSelected: {
+    backgroundColor: '#1B7C47',
+    borderColor: '#2EDB8F',
   },
   quickChipText: {
     color: '#D7E8FF',

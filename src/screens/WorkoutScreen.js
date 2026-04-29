@@ -23,8 +23,8 @@ import { scheduleStreakPush } from '../utils/push';
 import StreakBar from '../components/StreakBar';
 import QuickExerciseRegister from '../components/QuickExerciseRegister';
 import { useApp } from '../context/AppContext';
-import { getCanonicalExerciseId, getCanonicalMuscleGroup } from '../data/exerciseDatabase';
-import { EXERCISE_NAMES_V2, getExerciseMetaByName } from '../data/exerciseLibraryV2';
+import { getCanonicalExerciseId, getCanonicalMuscleGroup } from '../data/exerciseDatabase.js';
+import { EXERCISE_NAMES_V2, getExerciseMetaByName } from '../data/exerciseLibraryV2.js';
 import { SCREENS, trackAppError, trackEvent } from '../utils/analytics';
 import { calculate1RM, calculateSRPE, calculateVolume, getProgression } from '../services/performanceEngine';
 import { findBestFuzzyMatch, fuzzySearchExercises } from '../services/fuzzySearch';
@@ -32,8 +32,9 @@ import { loadWorkout, saveWorkout } from '../services/storage';
 import { loadWorkoutCloud, saveWorkoutCloud } from '../services/cloudWorkoutService';
 import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { ExerciseCard } from '../components/workout/ExerciseCard';
-import { colors, spacing } from '../theme';
+import { colors, spacing, radius } from '../theme';
 import { logEvent } from '../core/logger';
+import { trackEmptyState, trackScreenAction } from '../core/observability';
 import { success } from '../services/feedbackService.js';
 import { logError as logQaError } from '../utils/errorLogger';
 import { saveCompletedWorkoutToApi, syncPendingWorkouts } from '../services/workoutApiService';
@@ -262,8 +263,10 @@ export default function WorkoutScreen({ navigation, route }) {
   const sessionStartXpRef = useRef(null);
   const actionFeedbackAnim = useRef(new Animated.Value(0)).current;
   const rowPulseAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
   const didHydrateWorkoutDraftsRef = useRef(false);
   const sessionStartedAtRef = useRef(Date.now());
+  const emptyExerciseListLoggedRef = useRef(false);
   
   // BLOCO 1: Animação + Recompensa
   const xpFloatAnimY = useRef(new Animated.Value(0)).current;
@@ -381,8 +384,33 @@ export default function WorkoutScreen({ navigation, route }) {
 
   useEffect(() => {
     prepareTodayWorkoutTargets();
-    logEvent('workout_started');
+    logEvent('workout_start', {
+      screen: SCREENS.WORKOUT,
+      source: 'WorkoutScreen',
+    });
   }, []);
+
+  useEffect(() => {
+    if (allExercises.length > 0) {
+      emptyExerciseListLoggedRef.current = false;
+      return;
+    }
+
+    if (emptyExerciseListLoggedRef.current) {
+      return;
+    }
+
+    emptyExerciseListLoggedRef.current = true;
+    trackEmptyState({
+      screen: SCREENS.WORKOUT,
+      reason: 'exercise_list_empty',
+      filter: 'today',
+    });
+    logEvent('empty_exercise_list', {
+      screen: SCREENS.WORKOUT,
+      filter: 'today',
+    });
+  }, [allExercises.length]);
 
   useEffect(() => {
     trackEvent('workout_fast_finish_cta_viewed', {
@@ -692,6 +720,19 @@ export default function WorkoutScreen({ navigation, route }) {
 
     return () => clearTimeout(timeoutId);
   }, [xpFeedback, xpPulseAnim]);
+
+  useEffect(() => {
+    if (!showWorkoutSummary) {
+      fadeAnim.setValue(0);
+      return;
+    }
+
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 260,
+      useNativeDriver: true,
+    }).start();
+  }, [showWorkoutSummary, fadeAnim]);
 
   useEffect(() => {
     if (summary.completionRate < 1) {
@@ -1069,6 +1110,12 @@ export default function WorkoutScreen({ navigation, route }) {
     const tapToSaveMs = Math.max(0, saveStartAt - interactionStartedAt);
     const saveDurationMs = Math.max(0, Date.now() - saveStartAt);
     delete setInteractionStartRef.current[interactionKey];
+
+    trackScreenAction(SCREENS.WORKOUT, 'screen_action', {
+      source: 'set_logged',
+      exerciseName: exercise.name,
+      setIndex: setIndex + 1,
+    });
 
     trackEvent('set_logged', {
       time: saveDurationMs,
@@ -1540,6 +1587,13 @@ export default function WorkoutScreen({ navigation, route }) {
       totalSets: todaySets,
       totalLoad: totalVolume,
     };
+
+    logEvent('workout_finish', {
+      screen: SCREENS.WORKOUT,
+      totalSets: todaySets,
+      totalVolume,
+      durationMinutes: sessionDurationMinutes,
+    });
 
     const previousDates = Array.from(new Set(
       workoutLogs
@@ -2016,6 +2070,7 @@ export default function WorkoutScreen({ navigation, route }) {
               rpe: row.rpe,
               done: row.done,
             }));
+            const firstPendingIndex = mergedSets.findIndex((setItem) => !setItem?.done);
 
             const lastSetLabel = lastSet
               ? `${lastSet.weight || 0}kg x ${lastSet.reps || 0}`
@@ -2031,10 +2086,11 @@ export default function WorkoutScreen({ navigation, route }) {
                 onCompleteSet={handleCompleteSet}
                 onAddSet={handleAddSet}
                 onRemoveExercise={removeExerciseFromWorkout}
-                testIDs={(index) => ({
-                  weight: isActive && index === 0 ? 'input-peso' : `input-peso-${exercise.id}-${index}`,
-                  reps: isActive && index === 0 ? 'input-reps' : `input-reps-${exercise.id}-${index}`,
-                  done: isActive && index === 0 ? 'btn-salvar-serie' : `btn-salvar-serie-${exercise.id}-${index}`,
+                testIDs={(setItem, index) => ({
+                  weight: isActive && index === firstPendingIndex ? 'input-weight' : `input-weight-${exercise.id}-${index}`,
+                  reps: isActive && index === firstPendingIndex ? 'input-reps' : `input-reps-${exercise.id}-${index}`,
+                  done: isActive && index === firstPendingIndex ? 'btn-save-set' : `btn-save-set-${exercise.id}-${index}`,
+                  addSet: isActive ? 'btn-add-set' : `btn-add-set-${exercise.id}`,
                 })}
               />
             );
@@ -2227,7 +2283,7 @@ export default function WorkoutScreen({ navigation, route }) {
                                 handleSetSubmitWeight(exercise.name, setIndex);
                                 focusSetField(exercise.name, setIndex, 'reps');
                               }}
-                              testID={isActive && setIndex === 0 ? 'input-peso' : `input-peso-${exercise.id}-${setIndex}`}
+                              testID={isActive && canSave ? 'input-weight' : `input-weight-${exercise.id}-${setIndex}`}
                               inputRef={(ref) => {
                                 setFieldRefs.current[getSetFieldKey(exercise.name, setIndex, 'weight')] = ref;
                               }}
@@ -2244,7 +2300,7 @@ export default function WorkoutScreen({ navigation, route }) {
                                   saveSetLine(exercise, exerciseIndex, setIndex);
                                 }
                               }}
-                              testID={isActive && setIndex === 0 ? 'input-reps' : `input-reps-${exercise.id}-${setIndex}`}
+                              testID={isActive && canSave ? 'input-reps' : `input-reps-${exercise.id}-${setIndex}`}
                               inputRef={(ref) => {
                                 setFieldRefs.current[getSetFieldKey(exercise.name, setIndex, 'reps')] = ref;
                               }}
@@ -2304,7 +2360,7 @@ export default function WorkoutScreen({ navigation, route }) {
                           {isActive ? (
                             <TouchableOpacity
                               style={[styles.inlineBtn, styles.inlineBtnGood, !canSave ? styles.inlineBtnDisabled : null]}
-                              testID={isActive && setIndex === 0 ? 'btn-salvar-serie' : `btn-salvar-serie-${exercise.id}-${setIndex}`}
+                              testID={isActive && canSave ? 'btn-save-set' : `btn-save-set-${exercise.id}-${setIndex}`}
                               onPress={() => canSave && saveSetLine(exercise, exerciseIndex, setIndex)}
                             >
                               <Text style={styles.inlineBtnText}>✔ Concluir série</Text>
@@ -2319,7 +2375,7 @@ export default function WorkoutScreen({ navigation, route }) {
 
               {isActive ? (
                 <View style={styles.setActionsRow}>
-                  <TouchableOpacity style={styles.addSetButton} onPress={() => addSetToExercise(exercise.name)}>
+                  <TouchableOpacity testID="btn-add-set" style={styles.addSetButton} onPress={() => addSetToExercise(exercise.name)}>
                     <Text style={styles.addSetButtonText}>+ Série extra</Text>
                   </TouchableOpacity>
                 </View>
@@ -2330,7 +2386,14 @@ export default function WorkoutScreen({ navigation, route }) {
           );
           } catch (err) {
             console.error('[WorkoutScreen renderItem crash]', err?.message, err?.stack);
-            return null;
+            return (
+              <View key={`render-fallback-${renderIndex}`} style={styles.exerciseCardFallback}>
+                <Text style={styles.exerciseCardFallbackTitle}>{exercise?.name ?? 'Exercicio'}</Text>
+                <Text style={styles.exerciseCardFallbackText}>
+                  Nao foi possivel renderizar este bloco. {String(err?.message || err || 'erro desconhecido')}
+                </Text>
+              </View>
+            );
           }
           }}
         />
@@ -2711,6 +2774,25 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     opacity: 0.6,
     transform: [{ scale: 0.985 }],
+  },
+  exerciseCardFallback: {
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#7C2D12',
+    backgroundColor: '#2A140F',
+  },
+  exerciseCardFallbackTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#FDBA74',
+    marginBottom: 4,
+  },
+  exerciseCardFallbackText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FED7AA',
   },
   exerciseName: {
     fontSize: 23,

@@ -2,7 +2,7 @@ import React from 'react';
 import { FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { AppCard } from '../ui';
 import { colors, spacing, typography } from '../../theme';
-import { getExerciseGifFallback } from '../../data/exerciseLibraryV2';
+import { getExerciseGifFallback } from '../../data/exerciseLibraryV2.js';
 import { SetRow } from './SetRow';
 
 export const ExerciseCard = React.memo(function ExerciseCard({
@@ -26,7 +26,7 @@ export const ExerciseCard = React.memo(function ExerciseCard({
       simpleMode={simpleMode}
       onChange={(field, value) => typeof onChangeSet === 'function' && onChangeSet(exercise.name, index, field, value)}
       onComplete={() => typeof onCompleteSet === 'function' && onCompleteSet(exercise.name, index)}
-      testIDs={typeof testIDs === 'function' ? testIDs(index) : {}}
+      testIDs={typeof testIDs === 'function' ? testIDs(setItem, index) : {}}
     />
   ), [exercise.name, onChangeSet, onCompleteSet, simpleMode, testIDs]);
 
@@ -41,13 +41,17 @@ export const ExerciseCard = React.memo(function ExerciseCard({
         ) : null}
       </View>
 
-      {!hasGifError ? (
-        <Image source={{ uri: gifUri }} style={styles.gifPreview} resizeMode="cover" onError={() => setHasGifError(true)} />
-      ) : (
-        <View style={styles.gifFallback}><Text style={styles.gifFallbackText}>Preview indisponivel</Text></View>
-      )}
+      {!simpleMode ? (
+        <>
+          {!hasGifError ? (
+            <Image source={{ uri: gifUri }} style={styles.gifPreview} resizeMode="cover" onError={() => setHasGifError(true)} />
+          ) : (
+            <View style={styles.gifFallback}><Text style={styles.gifFallbackText}>Preview indisponivel</Text></View>
+          )}
 
-      {lastSet ? <Text style={styles.last}>Ultimo: {lastSet}</Text> : null}
+          {lastSet ? <Text style={styles.last}>Ultimo: {lastSet}</Text> : null}
+        </>
+      ) : null}
 
       <FlatList
         data={Array.isArray(exercise.sets) ? exercise.sets : []}
@@ -56,8 +60,8 @@ export const ExerciseCard = React.memo(function ExerciseCard({
         renderItem={renderSetItem}
       />
 
-      <TouchableOpacity onPress={() => onAddSet(exercise.name)} style={styles.addButton}>
-        <Text style={styles.addText}>+ Adicionar serie</Text>
+      <TouchableOpacity testID={testIDs?.addSet || 'btn-add-set'} onPress={() => onAddSet(exercise.name)} style={styles.addButton}>
+        <Text style={styles.addText}>+ Serie</Text>
       </TouchableOpacity>
     </AppCard>
   );
