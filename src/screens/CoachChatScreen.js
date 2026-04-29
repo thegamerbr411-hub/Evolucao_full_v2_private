@@ -7,7 +7,7 @@ import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../compon
 import { colors, spacing } from '../theme';
 import { generateCoachInsight } from '../services/coachInsight';
 import { sendMessage as sendRealtimeMessage, subscribeToMessages } from '../services/chatService.js';
-import { getExerciseFallbackSuggestions, resolveGymExerciseMention } from '../data/exerciseDatabase';
+import { getExerciseFallbackSuggestions, resolveGymExerciseMention } from '../data/exerciseDatabase.js';
 
 const COACH_MEMORY_KEY = 'coach.memory.v1';
 const TRIGGER_COOLDOWN_MS = 2 * 60 * 60 * 1000;
@@ -288,15 +288,6 @@ function getCoachReply(message, context, turnIndex, memory) {
   }
 
   if (intent === 'nutrition') {
-    const intro = getMessageVariant([
-      'Fechou. Vamos resolver isso agora.',
-      'Boa. Próxima refeição decide seu dia.',
-      'Perfeito. Foco em proteína agora.'
-    ], seed);
-    const proteinGap = Math.max(0, context.proteinTarget - context.proteinToday);
-    return `${intro} Hoje você está em ${context.proteinToday}/${context.proteinTarget}g. ${proteinGap > 0 ? `Faltam ${proteinGap}g. Um whey ou ovos já resolvem fácil.` : 'Meta batida. Só manter no jantar.'}`;
-  }
-
     if (normalizedMessage.includes('agua') || normalizedMessage.includes('hidrat')) {
       const intro = getMessageVariant([
         'Boa chamada. Agua muda sua energia na hora.',
@@ -309,11 +300,11 @@ function getCoachReply(message, context, turnIndex, memory) {
 
     const intro = getMessageVariant([
       'Fechou. Vamos resolver isso agora.',
-      'Boa. Proxima refeicao decide seu dia.',
-      'Perfeito. Foco em proteina agora.'
+      'Boa. Próxima refeição decide seu dia.',
+      'Perfeito. Foco em proteína agora.'
     ], seed);
     const proteinGap = Math.max(0, context.proteinTarget - context.proteinToday);
-    return `${intro} Hoje você está em ${context.proteinToday}/${context.proteinTarget}g. ${proteinGap > 0 ? `Faltam ${proteinGap}g. Um whey ou ovos ja resolvem facil.` : 'Meta batida. So manter no jantar.'}`;
+    return `${intro} Hoje você está em ${context.proteinToday}/${context.proteinTarget}g. ${proteinGap > 0 ? `Faltam ${proteinGap}g. Um whey ou ovos já resolvem fácil.` : 'Meta batida. Só manter no jantar.'}`;
   }
 
   if (intent === 'workout') {
@@ -344,7 +335,10 @@ function getCoachReply(message, context, turnIndex, memory) {
     return `Eu te ajudo com foco em treino, nutricao e progresso. Se quiser, me diga: "montar treino", "quanto falta de proteina" ou "como esta meu progresso". Agora, sua melhor acao e ${nextAction}.`;
   }
 
-  return 'Nao entendi, pode explicar melhor?';
+  const contextSuggestion = context.trainedToday
+    ? 'fechar proteina ou agua'
+    : 'iniciar treino agora';
+  return `Pode me dizer mais? Temas que entendo: treino, proteina, agua, progresso, rotina. Agora, sua melhor acao e ${contextSuggestion}.`;
 }
 
 function buildPainSafetyLine(pain = '') {
@@ -390,21 +384,6 @@ function getUrgencyStyles(level) {
     backgroundColor: colors.successMuted,
     badge: 'Bom ritmo',
   };
-}
-
-function toCoachShortText(message) {
-  const raw = String(message || '').trim();
-  if (!raw) {
-    return '';
-  }
-
-  const lines = raw
-    .split(/\n+|(?<=[.!?])\s+/)
-    .map((part) => String(part || '').trim())
-    .filter(Boolean)
-    .slice(0, 3);
-
-  return lines.join('\n');
 }
 
 export default function CoachChatScreen({ navigation }) {
@@ -718,6 +697,7 @@ export default function CoachChatScreen({ navigation }) {
       trainedToday,
       weakMeals,
     };
+    const normalizedMessage = trimmed.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     const baseReply = getCoachReply(trimmed, liveContext, messages.length, memory);
     const contextInsight = (intent === 'workout' || intent === 'progress' || intent === 'nutrition') && smartInsight?.summary
       ? `Insight: ${smartInsight.summary}`
@@ -797,7 +777,7 @@ export default function CoachChatScreen({ navigation }) {
   const openNutrition = () => {
     rememberAction('nutrition_open');
     setActionFeedback('Boa. Registre a refeição para reduzir o gap de proteína.');
-    navigation.navigate('Scanner');
+    navigation.navigate('Nutricao');
   };
 
   const openRoutines = () => {
@@ -883,6 +863,22 @@ export default function CoachChatScreen({ navigation }) {
         }}
       />
 
+      <View style={styles.suggestionChips}>
+        {[
+          { label: '💪 Meu treino hoje', text: 'como esta meu treino hoje' },
+          { label: '🍗 Falta proteína?', text: 'quanto falta de proteina hoje' },
+          { label: '💧 Registrar água', text: 'quero registrar agua' },
+          { label: '📊 Progresso', text: 'como esta meu progresso' },
+        ].map((chip) => (
+          <TouchableOpacity
+            key={chip.label}
+            style={styles.suggestionChip}
+            onPress={() => { setInput(chip.text); }}
+          >
+            <Text style={styles.suggestionChipText}>{chip.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
       <View style={styles.inputRow}>
         <TextInput
           testID="chat-input"
@@ -1066,6 +1062,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     marginBottom: 16,
+  },
+  suggestionChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 8,
+  },
+  suggestionChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  suggestionChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textSecondary,
   },
   input: {
     flex: 1,
