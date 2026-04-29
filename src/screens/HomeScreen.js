@@ -298,7 +298,7 @@ export default function HomeScreen({ navigation }) {
   const primaryCtaLabel = isContinueWorkout ? 'CONTINUAR TREINO' : 'INICIAR TREINO';
   const primaryCtaSubtitle = isContinueWorkout
     ? 'Volte para o treino atual'
-    : 'Comece sua sessao de hoje agora';
+    : 'Comece agora';
 
   const orderedActions = useMemo(() => {
     const actionByKey = {
@@ -540,12 +540,12 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   dailyTopTitle: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '900',
     color: colors.textPrimary,
   },
   dailyTopXp: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '800',
     color: colors.success,
   },
@@ -621,7 +621,7 @@ const styles = StyleSheet.create({
   mainMissionCta: {
     borderRadius: 14,
     backgroundColor: colors.success,
-    minHeight: 72,
+    minHeight: 88,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 16,
