@@ -91,12 +91,12 @@ export default function FreeWorkoutScreen({ navigation }) {
   const categoryExercises = useMemo(
     () => {
       const muscleMap = {
-        peito: 'peito',
-        costas: 'costas',
-        perna: 'pernas',
-        ombro: 'ombro',
-        braco: 'biceps',
-        core: 'core',
+        peito:  'chest',
+        costas: 'back',
+        perna:  'legs',
+        ombro:  'shoulders',
+        braco:  'biceps',
+        core:   'core',
       };
 
       const premiumResults = searchExercises({

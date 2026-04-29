@@ -8,7 +8,7 @@ import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../compon
 import { colors, spacing, radius, typography } from '../theme';
 import { logEvent } from '../core/logger';
 import { isFeatureVariantEnabled, trackEmptyState, trackScreenAction } from '../core/observability';
-import { listExerciseNames, searchExercises } from '../data/exercises.js';
+import { listExerciseNames, MUSCLE_GROUP_LABELS, searchExercises } from '../data/exercises.js';
 
 function WorkoutStatBadge({ label, value, color }) {
   return (
@@ -112,7 +112,7 @@ export function WorkoutsHubView({
               >
                 <Text style={styles.emptySuggestionName}>{exercise.name}</Text>
                 <Text style={styles.emptySuggestionMeta}>
-                  + Adicionar rapido • {exercise.musclePrimary?.[0] || 'geral'}
+                  + Adicionar rapido • {MUSCLE_GROUP_LABELS[exercise.primaryMuscle] || exercise.primaryMuscle || 'geral'}
                 </Text>
               </TouchableOpacity>
             ))}

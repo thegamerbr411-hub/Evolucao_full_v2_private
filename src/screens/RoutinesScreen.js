@@ -3,7 +3,7 @@ import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, Te
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { EXERCISE_NAMES_V2 } from '../data/exerciseLibraryV2.js';
-import { getExerciseByName, getExerciseFilters, searchExercises } from '../data/exercises.js';
+import { getExerciseByName, getExerciseFilters, MUSCLE_GROUP_LABELS, searchExercises } from '../data/exercises.js';
 import { fuzzySearchExercises } from '../services/fuzzySearch';
 import { AnimatedToast, AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { colors, spacing } from '../theme';
@@ -109,7 +109,7 @@ export default function RoutinesScreen({ navigation }) {
         return {
           name,
           thumbnail: detail?.thumbnail || null,
-          muscle: detail?.musclePrimary?.[0] || detail?.muscleSecondary?.[0] || 'geral',
+          muscle: detail?.primaryMuscle || 'geral',
           equipment: detail?.equipment || 'livre',
         };
       });
@@ -356,7 +356,7 @@ export default function RoutinesScreen({ navigation }) {
                   style={[styles.filterChip, muscleFilter === item ? styles.filterChipActive : null]}
                   onPress={() => setMuscleFilter(item)}
                 >
-                  <Text style={[styles.filterChipText, muscleFilter === item ? styles.filterChipTextActive : null]}>{item.replace(/_/g, ' ')}</Text>
+                  <Text style={[styles.filterChipText, muscleFilter === item ? styles.filterChipTextActive : null]}>{MUSCLE_GROUP_LABELS[item] || item.replace(/_/g, ' ')}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -371,7 +371,7 @@ export default function RoutinesScreen({ navigation }) {
                       {item.thumbnail ? <Image source={{ uri: item.thumbnail }} style={styles.catalogThumb} /> : <View style={styles.catalogThumbFallback} />}
                       <View style={styles.catalogTextWrap}>
                         <Text style={styles.catalogName}>{item.name}</Text>
-                        <Text style={styles.catalogMeta}>{item.muscle.replace(/_/g, ' ')} · {item.equipment.replace(/_/g, ' ')}</Text>
+                        <Text style={styles.catalogMeta}>{MUSCLE_GROUP_LABELS[item.muscle] || item.muscle.replace(/_/g, ' ')} · {item.equipment.replace(/_/g, ' ')}</Text>
                       </View>
                     </View>
                     <View style={styles.catalogActions}>
