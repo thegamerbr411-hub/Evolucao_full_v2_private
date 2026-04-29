@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { AnimatedToast, AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { colors, spacing } from '../theme';
@@ -157,7 +159,9 @@ export default function SocialChallengesScreen() {
   };
 
   return (
-    <ScrollView testID="screen-social-challenges" contentContainerStyle={styles.container}>
+    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.background }}>
+    <ScrollView testID="screen-social" contentContainerStyle={styles.container}>
+      <View testID="screen-social-challenges" style={styles.hiddenMarker} />
       <AnimatedToast message={toastMessage} onHide={() => setToastMessage('')} />
       <ScreenHeader title="Social e Desafios" subtitle="Amigos, ranking e desafios semanais." />
 
@@ -188,6 +192,14 @@ export default function SocialChallengesScreen() {
           style={styles.input}
         />
         <PrimaryButton testID="btn-social-add-friend" title="Adicionar" onPress={onAddFriend} />
+        
+        {Number(overview?.friendsCount || 0) === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="people-outline" size={40} color={colors.primary} />
+            <Text style={styles.emptyStateTitle}>Nenhum amigo adicionado ainda</Text>
+            <Text style={styles.emptyStateText}>Convide amigos para competir, comparar XP e criar desafios juntos.</Text>
+          </View>
+        ) : null}
       </AppCard>
 
       <AppCard>
@@ -266,19 +278,29 @@ export default function SocialChallengesScreen() {
               )) : null}
             </View>
           ))
-        ) : (
-          <Text style={styles.meta}>Nenhum desafio ativo por enquanto. Crie um novo desafio semanal para engajar sua rede.</Text>
-        )}
+        ) : !loading ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="flag-outline" size={40} color={colors.primary} />
+            <Text style={styles.emptyStateTitle}>Nenhum desafio ativo</Text>
+            <Text style={styles.emptyStateText}>Crie um novo desafio semanal para engajar sua rede de amigos em competições.</Text>
+          </View>
+        ) : null}
       </AppCard>
     </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  hiddenMarker: {
+    width: 1,
+    height: 1,
+    opacity: 0,
+  },
   container: {
     flexGrow: 1,
     backgroundColor: colors.background,
-    paddingTop: 56,
+    paddingTop: spacing.md,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xl,
   },
@@ -350,7 +372,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 10,
-    backgroundColor: '#111822',
+    backgroundColor: colors.surface,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
     marginBottom: spacing.sm,
@@ -370,7 +392,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 12,
-    backgroundColor: colors.cardElevated,
     backgroundColor: colors.secondary,
     paddingHorizontal: 10,
     paddingVertical: 8,
@@ -379,5 +400,26 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: 12,
     fontWeight: '700',
+  },
+  emptyState: {
+    marginTop: spacing.lg,
+    paddingVertical: spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyStateTitle: {
+    color: colors.textPrimary,
+    fontSize: 16,
+    fontWeight: '800',
+    marginTop: spacing.sm,
+    letterSpacing: -0.3,
+  },
+  emptyStateText: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: spacing.xs,
+    textAlign: 'center',
+    maxWidth: '85%',
   },
 });

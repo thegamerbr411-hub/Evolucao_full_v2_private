@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { AnimatedToast, AppCard, AppInput, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { generateCoachInsight } from '../services/coachInsight';
@@ -163,7 +164,13 @@ export default function ProfileScreen({ navigation }) {
   }, [response, setUser]);
 
   return (
-    <ScrollView testID="screen-perfil" contentContainerStyle={styles.container}>
+    <SafeAreaView edges={['top']} style={styles.screenWrapper}>
+    <ScrollView
+      testID="screen-perfil"
+      style={styles.scrollArea}
+      keyboardShouldPersistTaps="handled"
+      contentContainerStyle={styles.container}
+    >
       <AnimatedToast message={toastMessage} onHide={() => setToastMessage('')} />
       <ScreenHeader title="Perfil" subtitle="Centro de controle da sua estrategia e evolucao." />
 
@@ -362,19 +369,41 @@ export default function ProfileScreen({ navigation }) {
       </AppCard>
 
 
-      <PrimaryButton testID="btn-profile-save" title="Salvar perfil" onPress={saveProfile} />
       <Text style={styles.versionText}>Versao do app: v{APP_VERSION}</Text>
     </ScrollView>
+
+    <View
+      testID="btn-profile-save"
+      accessibilityLabel="Salvar perfil"
+      collapsable={false}
+      style={styles.stickyFooter}
+    >
+      <PrimaryButton title="Salvar perfil" onPress={saveProfile} />
+    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  screenWrapper: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  scrollArea: {
+    flex: 1,
+  },
   container: {
     flexGrow: 1,
     backgroundColor: colors.background,
-    paddingTop: 56,
+    paddingTop: spacing.md,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xl,
+  },
+  stickyFooter: {
+    backgroundColor: colors.background,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.md,
   },
   cardLabel: {
     color: colors.textSecondary,
