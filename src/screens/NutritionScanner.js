@@ -5,12 +5,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { useNotifications } from '../hooks';
 import { useApp } from '../context/AppContext';
 import { SCREENS, trackAppError, trackEvent } from '../utils/analytics';
 import { AnimatedToast, AppCard, AppInput, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { colors, spacing } from '../theme';
 import { createFoodFromText, parseNutritionLabel } from '../services/nutritionIntelligence';
+import { matchNutritionToken } from '../data/nutritionDatabase.js';
 import { logError } from '../utils/errorLogger';
 
 const FAVORITES_STORAGE_KEY = 'nutrition.favorite.foods.v1';
@@ -70,7 +72,7 @@ export default function NutritionScanner({ navigation, route }) {
   const [selectedFood, setSelectedFood] = useState(null);
   const [mealFeedback, setMealFeedback] = useState('');
   const [toastMessage, setToastMessage] = useState('');
-  const simpleNutritionMode = true;
+  const simpleNutritionMode = false;
   const [foodSavedIndicatorVisible, setFoodSavedIndicatorVisible] = useState(false);
   const [mealDraftItems, setMealDraftItems] = useState([]);
   const [favoriteFoodKeys, setFavoriteFoodKeys] = useState([]);
@@ -317,12 +319,17 @@ export default function NutritionScanner({ navigation, route }) {
       const labelHint = parseSegmentLabel(segment);
       const query = labelHint || segment;
       const options = safeSearchFoodCatalog(query);
-      if (!options.length) {
-        return;
+      let match = null;
+      if (options.length) {
+        const exact = options.find((item) => normalizeText(item.label) === query || normalizeText(item.key) === query);
+        match = exact || options[0];
+      } else {
+        // Fallback: tenta match por token individual para tolerar erros de digitação.
+        const tokenMatch = matchNutritionToken(segment);
+        if (tokenMatch) {
+          match = tokenMatch;
+        }
       }
-
-      const exact = options.find((item) => normalizeText(item.label) === query || normalizeText(item.key) === query);
-      const match = exact || options[0];
       if (!match) {
         return;
       }
@@ -667,7 +674,13 @@ export default function NutritionScanner({ navigation, route }) {
         severity: 'low',
         extra: { quickMealText },
       });
-      setMealFeedback('Nao identifiquei alimentos validos nesse texto.');
+      // Mostra sugestões do catálogo com base no texto informado para ajudar o usuário.
+      const normalized = String(quickMealText || '').trim();
+      const fallbackHint = normalized ? safeSearchFoodCatalog(normalized.split(/\s+/)[0]).slice(0, 3) : [];
+      const suggestionText = fallbackHint.length
+        ? `Sugestoes: ${fallbackHint.map((f) => f.label).join(', ')}`
+        : 'Tente nomes como "arroz", "frango", "ovo", "pao".';
+      setMealFeedback(`Nao identifiquei alimentos. ${suggestionText}`);
       return;
     }
     setQuickMealItems(parsed);
@@ -965,7 +978,13 @@ export default function NutritionScanner({ navigation, route }) {
         <Text style={styles.cardTitle}>Hoje</Text>
         <Text testID="calorias-total" style={styles.logMeta}>{Math.round(todayCalories)} kcal</Text>
         {mealFeedback ? <Text style={styles.mealFeedback}>{mealFeedback}</Text> : null}
-        {todayFoodLog.length === 0 ? <Text style={styles.emptyLine}>Nenhum registro ainda.</Text> : null}
+        {todayFoodLog.length === 0 ? (
+          <View style={styles.emptyStateMini}>
+            <Ionicons name="restaurant-outline" size={28} color={colors.primary} />
+            <Text style={styles.emptyStateMiniTitle}>Nenhuma refeição registrada</Text>
+            <Text style={styles.emptyStateMiniText}>Registre sua primeira refeição do dia acima para começar a acompanhar seus macros.</Text>
+          </View>
+        ) : null}
         {todayFoodLog.slice(0, 8).map((item) => (
           <View key={item.id} style={styles.logRow}>
             <View>
@@ -1029,8 +1048,6 @@ export default function NutritionScanner({ navigation, route }) {
           ]}
         >
           {recoveryInsight?.title || 'Insight indisponível'}
-        </>
-        ) : null}
         </Text>
         <Text style={styles.crossInsightText}>{recoveryInsight?.message || ''}</Text>
       </AppCard>
@@ -1278,6 +1295,8 @@ export default function NutritionScanner({ navigation, route }) {
       ) : null}
       </>
       ) : null}
+      </>
+      ) : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -1415,22 +1434,29 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   logRow: {
-    marginTop: 8,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    marginTop: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
   logTitle: {
     color: colors.textPrimary,
-    fontWeight: '700',
+    fontWeight: '800',
+    fontSize: 14,
+    letterSpacing: -0.3,
   },
   logMeta: {
     color: colors.textSecondary,
     fontSize: 12,
+    fontWeight: '600',
+    marginTop: 3,
   },
   removeText: {
     color: '#FCA5A5',
@@ -1491,34 +1517,39 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   simpleMacroTrack: {
-    marginTop: 8,
-    height: 14,
+    marginTop: 10,
+    height: 16,
     borderRadius: 999,
     backgroundColor: colors.border,
     overflow: 'hidden',
   },
   simpleMacroFill: {
-    height: 14,
+    height: 16,
     borderRadius: 999,
     backgroundColor: colors.success,
   },
   simpleMacroText: {
-    marginTop: 8,
+    marginTop: 10,
     color: colors.textPrimary,
     fontSize: 16,
     fontWeight: '800',
+    letterSpacing: -0.4,
   },
   quickPreviewWrap: {
     marginTop: spacing.sm,
   },
   quickItemRow: {
-    marginTop: 8,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    marginTop: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 8,
+    alignItems: 'center',
+    gap: 10,
   },
   quickItemLeft: {
     flex: 1,
@@ -1574,6 +1605,27 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     marginBottom: 3,
     fontWeight: '700',
+  },
+  emptyStateMini: {
+    marginVertical: spacing.lg,
+    paddingVertical: spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyStateMiniTitle: {
+    color: colors.textPrimary,
+    fontSize: 14,
+    fontWeight: '800',
+    marginTop: spacing.xs,
+    letterSpacing: -0.3,
+  },
+  emptyStateMiniText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: spacing.xs,
+    textAlign: 'center',
+    maxWidth: '90%',
   },
   coachLine: {
     marginTop: 6,
