@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Clipboard from 'expo-clipboard';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { createMission, giveXP, removeXP } from '../services/adminService';
 import { AnimatedToast, AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
@@ -27,6 +28,7 @@ function loadLocalFoods() {
 
 export default function AdminScreen() {
   const { user, setUser } = useApp();
+  const insets = useSafeAreaInsets();
   const [adminUser, setAdminUser] = useState('admin');
   const [adminPass, setAdminPass] = useState('');
   const [userId, setUserId] = useState('');
@@ -158,11 +160,17 @@ export default function AdminScreen() {
 
   if (!isAdmin) {
     return (
-      <View style={styles.container}>
-        <AnimatedToast message={toastMessage} onHide={() => setToastMessage('')} />
-        <ScreenHeader title="Admin" subtitle="Area restrita. Entre com credenciais de admin." />
-        <Text style={styles.denied}>Acesso negado</Text>
-        <AppCard>
+      <SafeAreaView style={styles.screenWrapper} edges={['top', 'bottom']}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardWrapper}>
+          <ScrollView
+            contentContainerStyle={[styles.container, { paddingBottom: Math.max(spacing.xl, insets.bottom + spacing.lg) }]}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          >
+            <AnimatedToast message={toastMessage} onHide={() => setToastMessage('')} />
+            <ScreenHeader title="Admin" subtitle="Area restrita. Entre com credenciais de admin." />
+            <Text style={styles.denied}>Acesso negado</Text>
+            <AppCard>
           <Text style={styles.label}>Admin user</Text>
           <TextInput value={adminUser} onChangeText={setAdminUser} placeholder="admin" placeholderTextColor={colors.textSecondary} style={styles.input} />
 
@@ -215,15 +223,23 @@ export default function AdminScreen() {
               setToastMessage('Sessao restaurada. Token admin aplicado com sucesso.');
             }}
           />
-        </AppCard>
-      </View>
+            </AppCard>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <AnimatedToast message={toastMessage} onHide={() => setToastMessage('')} />
-      <ScreenHeader title="Admin" subtitle="Controle de XP e missoes." />
+    <SafeAreaView style={styles.screenWrapper} edges={['top', 'bottom']}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardWrapper}>
+        <ScrollView
+          contentContainerStyle={[styles.container, { paddingBottom: Math.max(spacing.xl, insets.bottom + spacing.lg) }]}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+        >
+          <AnimatedToast message={toastMessage} onHide={() => setToastMessage('')} />
+          <ScreenHeader title="Admin" subtitle="Controle de XP e missoes." />
 
       <AppCard>
         <Text style={styles.label}>User ID</Text>
@@ -387,13 +403,22 @@ export default function AdminScreen() {
         <Text style={styles.helperText}>Gera JSON com exercicios e alimentos locais e copia para a area de transferencia.</Text>
         <PrimaryButton title="Exportar Pacote Admin (JSON)" onPress={handleExportAdminPack} />
       </AppCard>
-    </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screenWrapper: {
     flex: 1,
+    backgroundColor: colors.background,
+  },
+  keyboardWrapper: {
+    flex: 1,
+  },
+  container: {
+    flexGrow: 1,
     backgroundColor: colors.background,
     paddingTop: 56,
     paddingHorizontal: spacing.lg,
