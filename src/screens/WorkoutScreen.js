@@ -1313,12 +1313,7 @@ export default function WorkoutScreen({ navigation, route }) {
     const nextCompleted = currentProgress.completedSets + 1;
     const nextSetIndex = setIndex + 1;
 
-    if (nextSetIndex >= plannedSets) {
-      addSetToExercise(exercise.name);
-      setTimeout(() => {
-        focusSetField(exercise.name, plannedSets, 'weight');
-      }, 80);
-    } else {
+    if (nextSetIndex < plannedSets) {
       setTimeout(() => {
         focusSetField(exercise.name, nextSetIndex, 'weight');
       }, 60);

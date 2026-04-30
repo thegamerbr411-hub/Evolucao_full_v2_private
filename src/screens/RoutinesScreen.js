@@ -17,6 +17,15 @@ const QUICK_EXERCISES = [
   'Graviton (Barra Assistida)',
   'Stiff',
 ];
+const DEFAULT_ROUTINE_SETS = 3;
+
+function clampRoutineSets(value) {
+  const parsed = Math.round(Number(value || DEFAULT_ROUTINE_SETS));
+  if (!Number.isFinite(parsed)) {
+    return DEFAULT_ROUTINE_SETS;
+  }
+  return Math.max(1, Math.min(12, parsed));
+}
 
 function normalizeText(value) {
   return String(value || '')
@@ -70,6 +79,7 @@ export default function RoutinesScreen({ navigation }) {
   const [muscleFilter, setMuscleFilter] = useState('all');
   const [equipmentFilter, setEquipmentFilter] = useState('all');
   const [builderExercises, setBuilderExercises] = useState([]);
+  const [builderSetsByExercise, setBuilderSetsByExercise] = useState({});
   const [selectedCatalogExercises, setSelectedCatalogExercises] = useState([]);
   const [builderStep, setBuilderStep] = useState(1);
   const [editingRoutineId, setEditingRoutineId] = useState(null);
@@ -127,6 +137,10 @@ export default function RoutinesScreen({ navigation }) {
     }
 
     setBuilderExercises((prev) => [...prev, safeName]);
+    setBuilderSetsByExercise((prev) => ({
+      ...prev,
+      [safeName]: clampRoutineSets(prev?.[safeName] || DEFAULT_ROUTINE_SETS),
+    }));
   };
 
   const toggleCatalogSelection = (exerciseName) => {
@@ -152,12 +166,38 @@ export default function RoutinesScreen({ navigation }) {
       selectedCatalogExercises.forEach((name) => map.add(name));
       return Array.from(map);
     });
+    setBuilderSetsByExercise((prev) => {
+      const next = { ...prev };
+      selectedCatalogExercises.forEach((name) => {
+        next[name] = clampRoutineSets(next?.[name] || DEFAULT_ROUTINE_SETS);
+      });
+      return next;
+    });
     setToastMessage(`${selectedCatalogExercises.length} exercicio(s) adicionados na rotina.`);
     setSelectedCatalogExercises([]);
   };
 
   const removeExerciseFromBuilder = (exerciseName) => {
     setBuilderExercises((prev) => prev.filter((item) => item !== exerciseName));
+    setBuilderSetsByExercise((prev) => {
+      const next = { ...prev };
+      delete next[exerciseName];
+      return next;
+    });
+  };
+
+  const setExerciseRoutineSets = (exerciseName, rawValue) => {
+    const safeName = String(exerciseName || '').trim();
+    if (!safeName) {
+      return;
+    }
+
+    const digitsOnly = String(rawValue || '').replace(/[^0-9]/g, '');
+    const nextSets = clampRoutineSets(digitsOnly || DEFAULT_ROUTINE_SETS);
+    setBuilderSetsByExercise((prev) => ({
+      ...prev,
+      [safeName]: nextSets,
+    }));
   };
 
   const moveBuilderExercise = (index, direction) => {
@@ -177,6 +217,7 @@ export default function RoutinesScreen({ navigation }) {
   const resetBuilder = () => {
     setRoutineName('');
     setBuilderExercises([]);
+    setBuilderSetsByExercise({});
     setSelectedCatalogExercises([]);
     setBuilderStep(1);
     setExerciseQuery('');
@@ -189,7 +230,10 @@ export default function RoutinesScreen({ navigation }) {
         routineId: editingRoutineId,
         name: routineName,
         frequency: Number(profile?.trainingDaysPerWeek || 3),
-        exercises: builderExercises.map((name) => ({ name })),
+        exercises: builderExercises.map((name) => ({
+          name,
+          sets: clampRoutineSets(builderSetsByExercise?.[name] || DEFAULT_ROUTINE_SETS),
+        })),
       });
 
       if (!result.ok) {
@@ -205,7 +249,10 @@ export default function RoutinesScreen({ navigation }) {
     const result = createUserRoutine({
       name: routineName,
       frequency: Number(profile?.trainingDaysPerWeek || 3),
-      exercises: builderExercises.map((name) => ({ name })),
+      exercises: builderExercises.map((name) => ({
+        name,
+        sets: clampRoutineSets(builderSetsByExercise?.[name] || DEFAULT_ROUTINE_SETS),
+      })),
     });
 
     if (!result.ok) {
@@ -221,11 +268,22 @@ export default function RoutinesScreen({ navigation }) {
     setEditingRoutineId(routine.id);
     setBuilderStep(3);
     setRoutineName(routine.name);
-    setBuilderExercises(
-      Array.isArray(routine.exercises)
-        ? routine.exercises.map((item) => (typeof item === 'string' ? item : item?.name)).filter(Boolean)
-        : []
-    );
+    const safeExercises = Array.isArray(routine.exercises) ? routine.exercises : [];
+    const nextNames = safeExercises
+      .map((item) => (typeof item === 'string' ? item : item?.name))
+      .filter(Boolean);
+
+    const nextSetsByExercise = {};
+    safeExercises.forEach((item) => {
+      const name = typeof item === 'string' ? item : item?.name;
+      if (!name) {
+        return;
+      }
+      nextSetsByExercise[name] = clampRoutineSets(typeof item === 'object' ? item?.sets : DEFAULT_ROUTINE_SETS);
+    });
+
+    setBuilderExercises(nextNames);
+    setBuilderSetsByExercise(nextSetsByExercise);
   };
 
   const saveRecommendedAsOwn = () => {
@@ -349,7 +407,20 @@ export default function RoutinesScreen({ navigation }) {
             {builderExercises.length === 0 ? <Text style={styles.empty}>Adicione exercicios para montar sua rotina.</Text> : null}
             {builderExercises.map((item, index) => (
               <View testID={`row-routine-builder-${toTestId(item)}`} key={item} style={styles.builderRow}>
-                <Text style={styles.line}>• {item}</Text>
+                <View style={styles.builderRowMain}>
+                  <Text style={styles.line}>• {item}</Text>
+                  <View style={styles.builderSetsWrap}>
+                    <Text style={styles.builderSetsLabel}>Series</Text>
+                    <TextInput
+                      testID={`input-routine-sets-${toTestId(item)}`}
+                      value={String(clampRoutineSets(builderSetsByExercise?.[item] || DEFAULT_ROUTINE_SETS))}
+                      onChangeText={(value) => setExerciseRoutineSets(item, value)}
+                      keyboardType="numeric"
+                      maxLength={2}
+                      style={styles.builderSetsInput}
+                    />
+                  </View>
+                </View>
                 <View style={styles.actionsRow}>
                   <TouchableOpacity style={styles.smallButton} onPress={() => moveBuilderExercise(index, -1)}>
                     <Text style={styles.smallButtonText}>↑</Text>
@@ -415,7 +486,7 @@ export default function RoutinesScreen({ navigation }) {
             <Text style={styles.recommendationSub}>{routine.frequency}x por semana</Text>
             {(Array.isArray(routine?.exercises) ? routine.exercises : []).map((item, index) => (
               <View key={`${routine.id}-${String(typeof item === 'string' ? item : item?.name)}-${index}`} style={styles.builderRow}>
-                <Text style={styles.line}>• {typeof item === 'string' ? item : item?.name}</Text>
+                <Text style={styles.line}>• {typeof item === 'string' ? item : item?.name} ({clampRoutineSets(typeof item === 'object' ? item?.sets : DEFAULT_ROUTINE_SETS)} series)</Text>
                 <View style={styles.actionsRow}>
                   <TouchableOpacity
                     style={styles.smallButton}
@@ -797,6 +868,34 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: 8,
+  },
+  builderRowMain: {
+    flex: 1,
+    marginRight: 8,
+  },
+  builderSetsWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 6,
+  },
+  builderSetsLabel: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  builderSetsInput: {
+    minWidth: 56,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    backgroundColor: '#141922',
+    color: colors.textPrimary,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    textAlign: 'center',
+    fontWeight: '800',
   },
   removeText: {
     color: '#FCA5A5',
