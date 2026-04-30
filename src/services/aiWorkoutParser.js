@@ -6,29 +6,45 @@ function normalize(value = '') {
 }
 
 const EXERCISE_ALIASES = [
-  { keys: ['supino inclinado', 'inclinado'], name: 'Supino Inclinado' },
-  { keys: ['supino reto', 'supino'], name: 'Supino Reto' },
+  { keys: ['supino inclinado', 'inclinado'], name: 'Supino Inclinado Maquina' },
+  { keys: ['supino reto', 'supino', 'chest press'], name: 'Supino Maquina (Chest Press)' },
   { keys: ['crucifixo', 'voador'], name: 'Crucifixo' },
-  { keys: ['leg press', 'leg'], name: 'Leg Press' },
+  { keys: ['leg press', 'leg'], name: 'Leg Press 45' },
   { keys: ['agachamento', 'agach'], name: 'Agachamento Livre' },
-  { keys: ['remada curvada', 'remada'], name: 'Remada Curvada' },
-  { keys: ['puxada', 'pulldown', 'puxador'], name: 'Puxada Frontal' },
-  { keys: ['desenvolvimento', 'ombro'], name: 'Desenvolvimento' },
+  { keys: ['remada curvada', 'remada'], name: 'Remada Curvada Barra' },
+  { keys: ['puxada', 'pulldown', 'puxador'], name: 'Puxada Frontal Polia' },
+  { keys: ['desenvolvimento', 'ombro'], name: 'Desenvolvimento Halter' },
   { keys: ['rosca direta', 'rosca'], name: 'Rosca Direta' },
-  { keys: ['triceps', 'triceps pulley', 'triceps corda'], name: 'Triceps Pulley' },
+  { keys: ['triceps', 'triceps pulley', 'triceps corda'], name: 'Triceps Polia' },
   { keys: ['stiff'], name: 'Stiff' },
   { keys: ['mesa flexora', 'flexora'], name: 'Mesa Flexora' },
   { keys: ['cadeira extensora', 'extensora'], name: 'Cadeira Extensora' },
 ];
 
+function resolveCatalogName(candidate = '') {
+  const normalizedCandidate = normalize(candidate);
+  if (!normalizedCandidate) {
+    return '';
+  }
+
+  const aliasNames = Array.from(new Set(EXERCISE_ALIASES.map((item) => item.name).filter(Boolean)));
+  const exact = aliasNames.find((name) => normalize(name) === normalizedCandidate);
+  if (exact) {
+    return exact;
+  }
+
+  const contains = aliasNames.find((name) => normalize(name).includes(normalizedCandidate) || normalizedCandidate.includes(normalize(name)));
+  return contains || '';
+}
+
 function resolveExerciseName(line = '') {
   const lower = normalize(line);
   const matched = EXERCISE_ALIASES.find((item) => item.keys.some((key) => lower.includes(key)));
   if (matched) {
-    return matched.name;
+    return resolveCatalogName(matched.name) || matched.name;
   }
 
-  return '';
+  return resolveCatalogName(line);
 }
 
 function parseSetRep(line = '') {

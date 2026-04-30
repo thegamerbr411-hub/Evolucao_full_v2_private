@@ -7,6 +7,7 @@ import { useUserStore } from '../stores/useUserStore';
 import { colors } from '../theme';
 import NutritionScanner from '../screens/NutritionScanner';
 import QuestionnaireScreen from '../screens/QuestionnaireScreen';
+import RegisterScreen from '../screens/RegisterScreen';
 import DayAnalysisScreen from '../screens/DayAnalysisScreen';
 import HistoryScreen from '../screens/HistoryScreen';
 import WeeklyInsightScreen from '../screens/WeeklyInsightScreen';
@@ -35,6 +36,7 @@ export default function RootNavigator(){
   const profile = useUserStore((state) => state.profile);
   const user = useUserStore((state) => state.user);
   const hasPersistedProfile = Boolean(profile && Number(profile.currentWeight || 0) > 0);
+  const hasAccount = Boolean(user && (user.name || user.id));
 
   if (!isHydrated) {
     return (
@@ -44,11 +46,18 @@ export default function RootNavigator(){
     );
   }
 
+  const getInitialRoute = () => {
+    if (!hasAccount) return 'Cadastro';
+    if (hasCompletedQuestionnaire || hasPersistedProfile) return 'MainTabs';
+    return 'Questionario';
+  };
+
   return(
     <Stack.Navigator
-      initialRouteName={hasCompletedQuestionnaire || hasPersistedProfile ? 'MainTabs' : 'Questionario'}
+      initialRouteName={getInitialRoute()}
       screenOptions={{headerShown:false}}
     >
+      <Stack.Screen name="Cadastro" component={RegisterScreen}/>
       <Stack.Screen name="Questionario" component={QuestionnaireScreen}/>
       <Stack.Screen name="MainTabs" component={MainTabs}/>
       <Stack.Screen name="Scanner" component={NutritionScanner}/>

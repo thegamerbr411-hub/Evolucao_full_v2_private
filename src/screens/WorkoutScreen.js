@@ -78,6 +78,7 @@ const SPARKLINE_HEIGHT = 58;
 const WORKOUT_DRAFTS_STORAGE_KEY = '@workout:draft-sets-v1';
 const WORKOUT_SET_COUNT_STORAGE_KEY = '@workout:set-count-v1';
 const WORKOUT_REST_END_STORAGE_KEY = '@workout:rest-timer-end-v1';
+const WORKOUT_ACTIVE_ROUTINE_STORAGE_KEY = '@workout:active-routine-id-v1';
 const WORKOUT_FAST_FINISH_EXPERIMENT_KEY = 'exp_workout_fast_finish_v1';
 const PAYWALL_TIMING_EXPERIMENT_KEY = 'exp_paywall_timing_v1';
 
@@ -373,6 +374,16 @@ export default function WorkoutScreen({ navigation, route }) {
 
   const selectedWorkoutId = String(route?.params?.workoutId || '').trim();
   const selectedWorkout = selectedWorkoutId ? getUserRoutineById(selectedWorkoutId) : null;
+
+  useEffect(() => {
+    if (!selectedWorkoutId) {
+      return;
+    }
+
+    AsyncStorage.setItem(WORKOUT_ACTIVE_ROUTINE_STORAGE_KEY, selectedWorkoutId).catch(() => {
+      // Falha de cache local nao pode interromper o treino.
+    });
+  }, [selectedWorkoutId]);
 
   const addExercise = (exercise) => {
     setWorkout(prev => ({
@@ -1918,7 +1929,7 @@ export default function WorkoutScreen({ navigation, route }) {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={{ flex: 1 }}
+      style={{ flex: 1, backgroundColor: colors.background }}
     >
       <StreakBar streak={workoutSummary?.streak || 1} />
       {saveSuccessVisible ? (

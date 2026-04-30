@@ -11,6 +11,7 @@ import { getExerciseFallbackSuggestions, resolveGymExerciseMention } from '../da
 
 const COACH_MEMORY_KEY = 'coach.memory.v1';
 const TRIGGER_COOLDOWN_MS = 2 * 60 * 60 * 1000;
+const WORKOUT_ACTIVE_ROUTINE_STORAGE_KEY = '@workout:active-routine-id-v1';
 
 function normalizeCoachInsight(insight) {
   if (insight && typeof insight === 'object' && !Array.isArray(insight)) {
@@ -760,7 +761,7 @@ export default function CoachChatScreen({ navigation }) {
     refreshCoachCard();
   };
 
-  const openWorkout = () => {
+  const openWorkout = async () => {
     rememberAction('workout_open');
     setActionFeedback('Treino aberto. Finaliza essa sessao para fechar o loop de hoje.');
     setMessages((prev) => [
@@ -771,6 +772,17 @@ export default function CoachChatScreen({ navigation }) {
         text: 'Ja foi feito: treino iniciado. Falta: concluir o treino de hoje. Agora: termine a sessao e volte para registrar fechamento.',
       },
     ]);
+
+    try {
+      const activeRoutineId = String((await AsyncStorage.getItem(WORKOUT_ACTIVE_ROUTINE_STORAGE_KEY)) || '').trim();
+      if (activeRoutineId) {
+        navigation.navigate('TreinoHoje', { workoutId: activeRoutineId });
+        return;
+      }
+    } catch {
+      // Fallback para fluxo padrao quando cache local falhar.
+    }
+
     navigation.navigate('TreinoHoje');
   };
 
@@ -787,6 +799,29 @@ export default function CoachChatScreen({ navigation }) {
   };
 
   const urgencyUI = getUrgencyStyles(coachCard.urgencyLevel);
+  const [showWaterPicker, setShowWaterPicker] = useState(false);
+  const [customWaterInput, setCustomWaterInput] = useState('');
+  const WATER_PRESETS = [150, 300, 500, 750, 1000];
+
+  const addWaterAmount = (ml) => {
+    const safeMl = Math.max(1, Number(ml || 0));
+    if (!safeMl) return;
+    setOptimisticWaterDelta((prev) => Number(prev || 0) + safeMl);
+    addWaterIntakeSafe(safeMl);
+    rememberAction(`water_${safeMl}`);
+    setActionFeedback(`Boa, +${safeMl}ml registrado 💧`);
+    setShowWaterPicker(false);
+    setCustomWaterInput('');
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `coach-action-water-${Date.now()}`,
+        role: 'coach',
+        text: `Ja foi feito: +${safeMl}ml de hidratacao registrado. Falta: manter blocos menores no restante do dia. Agora: siga para o proximo bloco de foco.`,
+      },
+    ]);
+    refreshCoachCard();
+  };
 
   return (
     <SafeAreaView testID="screen-coach" style={styles.container} edges={['top', 'bottom']}>
@@ -826,9 +861,31 @@ export default function CoachChatScreen({ navigation }) {
         <View style={styles.quickActionRow}>
           <PrimaryButton testID="btn-chat-train" title={coachCard.quickActions?.trainingTitle || 'Iniciar treino'} onPress={openWorkout} style={styles.quickMainBtn} />
           <SecondaryButton testID="btn-chat-eat" title={coachCard.quickActions?.nutritionTitle || 'Registrar refeição'} onPress={openNutrition} style={styles.quickBtn} />
-          <SecondaryButton testID="btn-add-water-chat" title={coachCard.quickActions?.waterTitle || '+300ml agua'} onPress={addWaterQuick} style={styles.quickBtn} />
+          <SecondaryButton testID="btn-add-water-chat" title={coachCard.quickActions?.waterTitle || '💧 Registrar água'} onPress={() => setShowWaterPicker((v) => !v)} style={styles.quickBtn} />
           <SecondaryButton testID="btn-chat-routine" title={coachCard.quickActions?.routineTitle || 'Ver rotina'} onPress={openRoutines} style={styles.quickBtn} />
         </View>
+        {showWaterPicker ? (
+          <View style={styles.waterPickerRow}>
+            {WATER_PRESETS.map((ml) => (
+              <TouchableOpacity key={ml} style={styles.waterPresetChip} onPress={() => addWaterAmount(ml)}>
+                <Text style={styles.waterPresetText}>{ml >= 1000 ? `${ml / 1000}L` : `${ml}ml`}</Text>
+              </TouchableOpacity>
+            ))}
+            <TextInput
+              value={customWaterInput}
+              onChangeText={setCustomWaterInput}
+              placeholder="outro ml"
+              placeholderTextColor={colors.textMuted}
+              keyboardType="numeric"
+              style={styles.waterCustomInput}
+              returnKeyType="done"
+              onSubmitEditing={() => addWaterAmount(Number(customWaterInput))}
+            />
+            <TouchableOpacity style={styles.waterCustomBtn} onPress={() => addWaterAmount(Number(customWaterInput))}>
+              <Text style={styles.waterCustomBtnText}>✓</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
       </AppCard>
 
       <FlatList
@@ -1013,9 +1070,9 @@ const styles = StyleSheet.create({
   },
   bubble: {
     borderRadius: 14,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    maxWidth: '88%',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    maxWidth: '90%',
   },
   userBubble: {
     backgroundColor: colors.secondary,
@@ -1030,8 +1087,8 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 4,
   },
   bubbleText: {
-    fontSize: 13,
-    lineHeight: 19,
+    fontSize: 15,
+    lineHeight: 22,
     fontWeight: '600',
   },
   userText: {
@@ -1084,25 +1141,71 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    minHeight: 50,
+    minHeight: 52,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
     color: colors.textPrimary,
     paddingHorizontal: 12,
-    fontSize: 14,
+    fontSize: 15,
   },
   sendButton: {
-    minHeight: 50,
+    minHeight: 52,
     borderRadius: 10,
     backgroundColor: colors.primary,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
   sendText: {
     color: colors.textInverse,
     fontWeight: '800',
+    fontSize: 15,
+  },
+  waterPickerRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 10,
+    alignItems: 'center',
+  },
+  waterPresetChip: {
+    borderWidth: 1,
+    borderColor: colors.secondary,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    backgroundColor: colors.surface,
+  },
+  waterPresetText: {
+    color: colors.secondary,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  waterCustomInput: {
+    flex: 1,
+    minWidth: 70,
+    height: 36,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    backgroundColor: colors.surface,
+    color: colors.textPrimary,
+    paddingHorizontal: 10,
+    fontSize: 13,
+  },
+  waterCustomBtn: {
+    height: 36,
+    width: 36,
+    borderRadius: 8,
+    backgroundColor: colors.secondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  waterCustomBtnText: {
+    color: colors.textPrimary,
+    fontSize: 16,
+    fontWeight: '900',
   },
 });

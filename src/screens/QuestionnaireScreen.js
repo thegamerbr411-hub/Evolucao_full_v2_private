@@ -169,7 +169,7 @@ export default function QuestionnaireScreen({ navigation }) {
     >
       <AnimatedToast message={toastMessage} onHide={() => setToastMessage('')} />
       <View testID="questionnaire-screen">
-      <ScreenHeader title="Comece em 30 segundos" subtitle="So o essencial para criar seu plano." />
+      <ScreenHeader title="Personalize seu plano" subtitle="Preencha rapidamente para o coach criar sua estratégia ideal." />
 
       <AppCard>
         <OptionGroup title="Objetivo" options={goals} selected={goal} onSelect={setGoal} testIDPrefix="chip-goal" />

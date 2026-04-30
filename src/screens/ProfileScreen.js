@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useRef, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
@@ -68,12 +68,33 @@ export default function ProfileScreen({ navigation }) {
   const [creatineLoading, setCreatineLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const insets = useSafeAreaInsets();
+  const adminTapCount = useRef(0);
+  const adminTapTimer = useRef(null);
+
+  const handleVersionTap = () => {
+    adminTapCount.current += 1;
+    if (adminTapTimer.current) clearTimeout(adminTapTimer.current);
+    adminTapTimer.current = setTimeout(() => { adminTapCount.current = 0; }, 3000);
+    if (adminTapCount.current >= 5) {
+      adminTapCount.current = 0;
+      navigation.navigate('Admin');
+    }
+  };
   const { request, promptAsync, response } = useGoogleAuth();
   const googleConfigured = isGoogleAuthConfigured();
   const isAdmin = String(user?.role || '').toLowerCase() === 'admin';
 
   const gamification = getWorkoutGamification();
   const macroTargets = getDailyMacroTargets();
+
+  const bmi = useMemo(() => {
+    const w = Number(profile?.currentWeight || currentWeight || 0);
+    const h = Number(profile?.height || height || 170) / 100;
+    if (!w || !h) return null;
+    const val = w / (h * h);
+    const label = val < 18.5 ? 'Abaixo do peso' : val < 25 ? 'Peso normal' : val < 30 ? 'Sobrepeso' : 'Obesidade';
+    return { value: val.toFixed(1), label };
+  }, [profile?.currentWeight, profile?.height, currentWeight, height]);
 
   const historySummary = useMemo(() => {
     const recent = history.slice(0, 7);
@@ -205,16 +226,56 @@ export default function ProfileScreen({ navigation }) {
       contentContainerStyle={styles.container}
     >
       <AnimatedToast message={toastMessage} onHide={() => setToastMessage('')} />
-      <ScreenHeader title="Perfil" subtitle="Centro de controle da sua estrategia e evolucao." />
 
-      <AppCard>
-        <Text style={styles.cardLabel}>Seu progresso</Text>
-        <Text style={styles.metric}>Peso: {weightEvolution.current}kg {weightEvolution.diff < 0 ? `↓ ${Math.abs(weightEvolution.diff)}kg` : weightEvolution.diff > 0 ? `↑ ${weightEvolution.diff}kg` : '→ estável'}</Text>
-        <Text style={styles.metric}>Treinos: {totalWorkouts} feitos</Text>
-        <Text style={styles.metric}>Sequencia: {Number(gamification?.streakDays || 0)} dias</Text>
-      </AppCard>
+      {/* Hero / Avatar */}
+      <View style={styles.heroSection}>
+        <View style={styles.avatarCircle}>
+          <Text style={styles.avatarEmoji}>👤</Text>
+        </View>
+        <Text style={styles.heroName}>{user?.name || 'Meu Perfil'}</Text>
+        {user?.email ? <Text style={styles.heroEmail}>{user.email}</Text> : null}
+        <View style={styles.heroStatsRow}>
+          <View style={styles.heroStat}>
+            <Text style={styles.heroStatValue}>{gamification.level ?? 1}</Text>
+            <Text style={styles.heroStatLabel}>Nível</Text>
+          </View>
+          <View style={styles.heroStatDivider} />
+          <View style={styles.heroStat}>
+            <Text style={styles.heroStatValue}>{gamification.xp ?? 0}</Text>
+            <Text style={styles.heroStatLabel}>XP</Text>
+          </View>
+          <View style={styles.heroStatDivider} />
+          <View style={styles.heroStat}>
+            <Text style={styles.heroStatValue}>{gamification.streakDays ?? 0}</Text>
+            <Text style={styles.heroStatLabel}>Streak</Text>
+          </View>
+        </View>
+      </View>
 
-      <Text style={styles.sectionHeading}>Configurações</Text>
+      {/* Stats Cards */}
+      <View style={styles.statsRow}>
+        <View style={styles.statCard}>
+          <Text style={styles.statCardValue}>{weightEvolution.current}kg</Text>
+          <Text style={styles.statCardLabel}>Peso atual</Text>
+          <Text style={[styles.statCardDiff, { color: weightEvolution.diff <= 0 ? colors.success : colors.warning }]}>
+            {weightEvolution.diff < 0 ? `↓ ${Math.abs(weightEvolution.diff)}kg` : weightEvolution.diff > 0 ? `↑ ${weightEvolution.diff}kg` : '→ estável'}
+          </Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={styles.statCardValue}>{totalWorkouts}</Text>
+          <Text style={styles.statCardLabel}>Treinos</Text>
+          <Text style={styles.statCardDiff}>{historySummary.trainedDays} últimos 7d</Text>
+        </View>
+        {bmi ? (
+          <View style={styles.statCard}>
+            <Text style={styles.statCardValue}>{bmi.value}</Text>
+            <Text style={styles.statCardLabel}>IMC</Text>
+            <Text style={[styles.statCardDiff, { color: bmi.label === 'Peso normal' ? colors.success : colors.warning }]}>{bmi.label}</Text>
+          </View>
+        ) : null}
+      </View>
+
+      <Text style={styles.sectionHeading}>⚙️ Configurações</Text>
 
       <AppCard>
         <Text style={styles.cardLabel}>Meta principal</Text>
@@ -285,30 +346,27 @@ export default function ProfileScreen({ navigation }) {
         />
       </AppCard>
 
+      <Text style={styles.sectionHeading}>📊 Histórico</Text>
+
       <AppCard>
-        <Text style={styles.cardLabel}>Historico recente</Text>
+        <Text style={styles.cardLabel}>Atividade recente</Text>
         <Text style={styles.metric}>Dias com registro: {historySummary.days}</Text>
         <Text style={styles.metric}>Dias treinados: {historySummary.trainedDays}</Text>
-        <Text style={styles.metric}>Proteina media: {historySummary.avgProtein}g</Text>
-      </AppCard>
-
-      <AppCard>
-        <Text style={styles.cardLabel}>Evolucao e social (base)</Text>
-        <Text style={styles.metric}>Nivel {gamification.level} · XP {gamification.xp}</Text>
-        <Text style={styles.metric}>Streak: {gamification.streakDays} dias</Text>
+        <Text style={styles.metric}>Proteína média: {historySummary.avgProtein}g/dia</Text>
         <Text style={styles.metric}>Rotinas salvas: {Array.isArray(userRoutines) ? userRoutines.length : 0}</Text>
-        <Text style={styles.metric}>Comunidade: acompanhe sua evolucao e consistencia semanal.</Text>
       </AppCard>
 
+      <Text style={styles.sectionHeading}>🍽️ Plano atual</Text>
+
       <AppCard>
-        <Text style={styles.cardLabel}>Plano atual</Text>
         <Text style={styles.metric}>Calorias alvo: {Number(plan?.caloriesPerDay || 0)} kcal/dia</Text>
         <Text style={styles.metric}>Agua alvo: {Number(plan?.waterLitersPerDay || 0)}L/dia</Text>
         <Text style={styles.metric}>Estrategia: {String(plan?.strategy || 'recomposicao')}</Text>
       </AppCard>
 
+      <Text style={styles.sectionHeading}>🔐 Conta</Text>
+
       <AppCard>
-        <Text style={styles.cardLabel}>Conta</Text>
         <Text style={styles.metric}>Sincronize sua conta para manter seu progresso seguro em qualquer dispositivo.</Text>
         {googleConfigured ? (
           <>
@@ -356,17 +414,14 @@ export default function ProfileScreen({ navigation }) {
 
       </AppCard>
 
-      <AppCard>
-        <Text style={styles.cardLabel}>Admin</Text>
-        {isAdmin ? (
+      {isAdmin ? (
+        <AppCard>
+          <Text style={styles.cardLabel}>Admin</Text>
           <PrimaryButton title="Abrir configuracoes Admin" onPress={() => navigation.navigate('Admin')} />
-        ) : (
-          <>
-            <Text style={styles.metric}>Entre na tela Admin e autentique com usuario/senha de admin para liberar os controles.</Text>
-            <PrimaryButton title="Entrar no Admin" onPress={() => navigation.navigate('Admin')} />
-          </>
-        )}
-      </AppCard>
+        </AppCard>
+      ) : null}
+
+      <Text style={styles.sectionHeading}>🔔 Lembretes</Text>
 
       <AppCard>
         <Text style={styles.cardLabel}>Lembrete diario de creatina</Text>
@@ -408,8 +463,9 @@ export default function ProfileScreen({ navigation }) {
         />
       </AppCard>
 
+      <Text style={styles.sectionHeading}>🤖 Coach IA</Text>
+
       <AppCard>
-        <Text style={styles.cardLabel}>Coach sobre o seu perfil</Text>
         <Text style={styles.metric}>Prioridade: {profileCoach.priority}</Text>
         <Text style={styles.metric}>{profileCoach.summary}</Text>
         {(profileCoach.actions || []).slice(0, 2).map((item) => (
@@ -418,7 +474,9 @@ export default function ProfileScreen({ navigation }) {
       </AppCard>
 
 
-      <Text style={styles.versionText}>Versao do app: v{APP_VERSION}</Text>
+      <TouchableOpacity onPress={handleVersionTap} activeOpacity={0.7}>
+        <Text style={styles.versionText}>v{APP_VERSION}</Text>
+      </TouchableOpacity>
     </ScrollView>
 
     <View
@@ -434,6 +492,98 @@ export default function ProfileScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+  heroSection: {
+    alignItems: 'center',
+    paddingVertical: spacing.xl,
+    marginBottom: spacing.md,
+  },
+  avatarCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
+  },
+  avatarEmoji: {
+    fontSize: 36,
+  },
+  heroName: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  heroEmail: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textMuted,
+    marginBottom: spacing.md,
+  },
+  heroStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 0,
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+  },
+  heroStat: {
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+  },
+  heroStatValue: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: colors.primary,
+  },
+  heroStatLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+  },
+  heroStatDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: colors.border,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: spacing.sm,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    alignItems: 'center',
+  },
+  statCardValue: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: colors.textPrimary,
+  },
+  statCardLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    marginTop: 2,
+  },
+  statCardDiff: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
   screenWrapper: {
     flex: 1,
     backgroundColor: colors.background,

@@ -10,6 +10,7 @@ import {
   Vibration,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { getExerciseByName, getExerciseFilters, searchExercises } from '../data/exercises.js';
@@ -254,6 +255,7 @@ export default function FreeWorkoutScreen({ navigation }) {
   };
 
   return (
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={{ flex: 1 }}
@@ -297,12 +299,12 @@ export default function FreeWorkoutScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.card}>
+      <AppCard>
         <Text style={styles.cardTitle}>Adicionar exercicio</Text>
         <TextInput
           testID="input-free-exercise-name"
           placeholder="Nome do exercicio"
-          placeholderTextColor="#8AA2C7"
+          placeholderTextColor={colors.textMuted}
           value={exerciseNameInput}
           onChangeText={setExerciseNameInput}
           style={styles.input}
@@ -317,14 +319,14 @@ export default function FreeWorkoutScreen({ navigation }) {
         >
           <Text style={styles.addButtonText}>Adicionar</Text>
         </TouchableOpacity>
-      </View>
+      </AppCard>
 
-      <View style={styles.card}>
+      <AppCard>
         <Text style={styles.cardTitle}>Categorias</Text>
         <TextInput
           testID="input-free-catalog-search"
           placeholder="Buscar exercicio"
-          placeholderTextColor="#8AA2C7"
+          placeholderTextColor={colors.textMuted}
           value={catalogSearch}
           onChangeText={setCatalogSearch}
           style={styles.input}
@@ -375,10 +377,10 @@ export default function FreeWorkoutScreen({ navigation }) {
             </View>
           ))}
         </View>
-      </View>
+      </AppCard>
 
       {selectedExercises.length ? (
-        <View style={styles.cardGreen}>
+        <AppCard accent>
           <Text style={styles.cardTitleGreen}>Sugestoes para continuar</Text>
           <View style={styles.chipsWrap}>
             {suggestions.map((name) => (
@@ -387,7 +389,7 @@ export default function FreeWorkoutScreen({ navigation }) {
               </TouchableOpacity>
             ))}
           </View>
-        </View>
+        </AppCard>
       ) : null}
 
       {selectedExercises.map((exerciseName) => {
@@ -395,7 +397,7 @@ export default function FreeWorkoutScreen({ navigation }) {
         const setProgress = getExerciseSetProgress(exerciseName, 3);
 
         return (
-          <View key={exerciseName} testID={`card-free-exercise-${toTestId(exerciseName)}`} style={styles.exerciseCard}>
+          <AppCard key={exerciseName} testID={`card-free-exercise-${toTestId(exerciseName)}`}>
             <Text style={styles.exerciseName}>{exerciseName}</Text>
             <Text style={styles.progressText}>Serie {setProgress.nextSet}/3</Text>
 
@@ -404,7 +406,7 @@ export default function FreeWorkoutScreen({ navigation }) {
                 testID={`input-free-weight-${toTestId(exerciseName)}`}
                 keyboardType="numeric"
                 placeholder="Carga"
-                placeholderTextColor="#8AA2C7"
+                placeholderTextColor={colors.textMuted}
                 value={values.weight}
                 onChangeText={(text) => setField(exerciseName, 'weight', text)}
                 style={styles.input}
@@ -413,7 +415,7 @@ export default function FreeWorkoutScreen({ navigation }) {
                 testID={`input-free-reps-${toTestId(exerciseName)}`}
                 keyboardType="numeric"
                 placeholder="Reps"
-                placeholderTextColor="#8AA2C7"
+                placeholderTextColor={colors.textMuted}
                 value={values.reps}
                 onChangeText={(text) => setField(exerciseName, 'reps', text)}
                 style={styles.input}
@@ -431,15 +433,20 @@ export default function FreeWorkoutScreen({ navigation }) {
                 <Text style={styles.restText}>descanso</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </AppCard>
         );
       })}
       </ScrollView>
     </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   keyboardContainer: {
     flex: 1,
     backgroundColor: colors.background,

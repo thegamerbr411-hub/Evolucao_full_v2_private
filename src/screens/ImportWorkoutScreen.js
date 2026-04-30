@@ -4,6 +4,7 @@ import { useApp } from '../context/AppContext';
 import { AppCard, AppInput, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { colors, spacing } from '../theme';
 import { EXERCISE_NAMES_V2 } from '../data/exerciseLibraryV2.js';
+import { fuzzySearchExercises } from '../services/fuzzySearch';
 
 function normalize(value = '') {
   return String(value || '')
@@ -15,11 +16,14 @@ function normalize(value = '') {
 
 function parseLine(rawLine = '') {
   const safeLine = String(rawLine || '').trim();
-  const match = safeLine.match(/(\d{1,2})\s*(x|de)\s*(\d{1,3})/i);
+  const direct = safeLine.match(/(\d{1,2})\s*(x|de)\s*(\d{1,3})/i);
+  const verbose = safeLine.match(/(\d{1,2})\s*(serie|series|séries|s)\s*(de|x)\s*(\d{1,3})/i);
+  const match = direct || verbose;
   const sets = match ? Math.max(1, Number(match[1] || 3)) : 3;
-  const reps = match ? String(Number(match[3] || 10)) : '10';
+  const reps = match ? String(Number((direct ? match[3] : match[4]) || 10)) : '10';
   const cleanName = safeLine
     .replace(/(\d{1,2})\s*(x|de)\s*(\d{1,3})/i, '')
+    .replace(/(\d{1,2})\s*(serie|series|séries|s)\s*(de|x)\s*(\d{1,3})/i, '')
     .replace(/[-*•]+/g, ' ')
     .trim();
   return { raw: safeLine, candidateName: cleanName, sets, reps };
@@ -31,16 +35,65 @@ function buildSets(sets = 3, reps = '10') {
 }
 
 function getSuggestions(name = '', catalog = []) {
-  const source = normalize(name);
+  const source = normalizeForLookup(name);
   if (!source) {
     return [];
   }
-  return catalog
+  const contains = catalog
     .filter((entry) => {
-      const target = normalize(entry);
+      const target = normalizeForLookup(entry);
       return target.includes(source) || source.includes(target);
     })
     .slice(0, 6);
+
+  const fuzzy = fuzzySearchExercises(name, catalog, 6);
+  return Array.from(new Set([...contains, ...fuzzy])).slice(0, 6);
+}
+
+function normalizeForLookup(value = '') {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(/\b(com|na|no|de|do|da|em)\b/g, ' ')
+    .replace(/\b(maquina|máquina|barra|halter|halteres|polia|livre)\b/g, ' ')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function buildCandidateQueries(name = '') {
+  const safeName = String(name || '').trim();
+  const normalized = normalizeForLookup(safeName);
+  const variants = [
+    safeName,
+    normalized,
+    normalized.replace(/\bsupino\b/g, 'chest press'),
+    normalized.replace(/\btriceps\b/g, 'triceps'),
+    normalized.replace(/\bbiceps\b/g, 'biceps'),
+    normalized.replace(/\bpanturrilha\b/g, 'panturrilha'),
+  ];
+  return Array.from(new Set(variants.filter(Boolean)));
+}
+
+function resolveCatalogExerciseName(rawName = '', catalog = [], catalogIndex = new Map()) {
+  const queries = buildCandidateQueries(rawName);
+  for (const query of queries) {
+    const exact = catalogIndex.get(normalizeForLookup(query));
+    if (exact) {
+      return exact;
+    }
+  }
+
+  for (const query of queries) {
+    const fuzzy = fuzzySearchExercises(query, catalog, 1);
+    if (fuzzy[0]) {
+      return fuzzy[0];
+    }
+  }
+
+  return '';
 }
 
 export default function ImportWorkoutScreen({ navigation }) {
@@ -54,7 +107,7 @@ export default function ImportWorkoutScreen({ navigation }) {
   const catalogIndex = useMemo(() => {
     const map = new Map();
     catalog.forEach((name) => {
-      const key = normalize(name);
+      const key = normalizeForLookup(name);
       if (key && !map.has(key)) {
         map.set(key, name);
       }
@@ -83,7 +136,7 @@ export default function ImportWorkoutScreen({ navigation }) {
 
     const nextPreview = lines.map((line) => {
       const parsed = parseLine(line);
-      const exact = catalogIndex.get(normalize(parsed.candidateName)) || '';
+      const exact = resolveCatalogExerciseName(parsed.candidateName, catalog, catalogIndex);
       return {
         ...parsed,
         matchedName: exact,
@@ -130,7 +183,7 @@ export default function ImportWorkoutScreen({ navigation }) {
     for (let index = 0; index < previewItems.length; index += 1) {
       const item = previewItems[index];
       const override = String(manualOverrides[index] || '').trim();
-      const exactOverride = override ? catalogIndex.get(normalize(override)) : '';
+      const exactOverride = override ? resolveCatalogExerciseName(override, catalog, catalogIndex) : '';
       const resolvedName = exactOverride || item.matchedName;
       if (!resolvedName) {
         setFeedback({
