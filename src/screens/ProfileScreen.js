@@ -154,7 +154,17 @@ export default function ProfileScreen({ navigation }) {
 
   React.useEffect(() => {
     const handleGoogleResponse = async () => {
-      if (!response || response.type !== 'success') {
+      if (!response) {
+        return;
+      }
+
+      if (response.type === 'error') {
+        const responseError = String(response?.error?.message || response?.params?.error_description || response?.params?.error || 'Falha na autenticacao Google.');
+        setToastMessage(`Erro no login Google: ${responseError}`);
+        return;
+      }
+
+      if (response.type !== 'success') {
         return;
       }
 
@@ -311,7 +321,7 @@ export default function ProfileScreen({ navigation }) {
                   setToastMessage('Login Google indisponivel no momento. Reabra a tela e tente novamente.');
                   return;
                 }
-                promptAsync().catch(() => {
+                promptAsync({ useProxy: false }).catch(() => {
                   setToastMessage('Falha no login. Nao foi possivel abrir o fluxo do Google.');
                 });
               }}

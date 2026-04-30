@@ -11,12 +11,14 @@ WebBrowser.maybeCompleteAuthSession();
 
 function getGoogleClientConfig() {
   const sharedClientId = String(process?.env?.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '').trim();
+  const webClientId = String(process?.env?.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '').trim();
   const androidClientId = String(process?.env?.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '').trim();
   const expoClientId = String(process?.env?.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID || '').trim();
   const iosClientId = String(process?.env?.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '').trim();
 
   return {
     androidClientId: androidClientId || sharedClientId,
+    webClientId: webClientId || sharedClientId,
     expoClientId: expoClientId || sharedClientId,
     iosClientId: iosClientId || sharedClientId,
     sharedClientId,
@@ -25,7 +27,7 @@ function getGoogleClientConfig() {
 
 export function isGoogleAuthConfigured() {
   const cfg = getGoogleClientConfig();
-  return Boolean(cfg.androidClientId || cfg.expoClientId || cfg.iosClientId || cfg.sharedClientId);
+  return Boolean(cfg.androidClientId || cfg.webClientId || cfg.expoClientId || cfg.iosClientId || cfg.sharedClientId);
 }
 
 export function useGoogleAuth() {
@@ -35,8 +37,10 @@ export function useGoogleAuth() {
   const safeAndroidClientId = cfg.androidClientId || 'detox-placeholder.apps.googleusercontent.com';
   const [request, response, promptAsync] = Google.useAuthRequest({
     androidClientId: safeAndroidClientId,
+    webClientId: cfg.webClientId || undefined,
     expoClientId: cfg.expoClientId || undefined,
     iosClientId: cfg.iosClientId || undefined,
+    scopes: ['openid', 'profile', 'email'],
     responseType: 'id_token',
     selectAccount: true,
   });
