@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { AnimatedToast, AppCard, AppInput, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { generateCoachInsight } from '../services/coachInsight';
@@ -28,6 +28,21 @@ const LEVELS = [
   { key: 'avancado', label: 'Avancado' },
 ];
 
+function parseLocalizedNumber(value = '') {
+  const sanitized = String(value || '').trim().replace(',', '.');
+  const parsed = Number(sanitized);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function parseHeightCm(value = '') {
+  const parsed = parseLocalizedNumber(value);
+  if (!parsed) return 0;
+  if (parsed > 0 && parsed <= 3) {
+    return Math.round(parsed * 100);
+  }
+  return Math.round(parsed);
+}
+
 export default function ProfileScreen({ navigation }) {
   const {
     profile,
@@ -52,8 +67,10 @@ export default function ProfileScreen({ navigation }) {
   const [logoutLoading, setLogoutLoading] = useState(false);
   const [creatineLoading, setCreatineLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const insets = useSafeAreaInsets();
   const { request, promptAsync, response } = useGoogleAuth();
   const googleConfigured = isGoogleAuthConfigured();
+  const isAdmin = String(user?.role || '').toLowerCase() === 'admin';
 
   const gamification = getWorkoutGamification();
   const macroTargets = getDailyMacroTargets();
@@ -99,18 +116,24 @@ export default function ProfileScreen({ navigation }) {
   }), [historySummary.trainedDays, historySummary.avgProtein, macroTargets?.protein, plan?.waterLitersPerDay, trainingDays, profile?.trainingDaysPerWeek, userRoutines, goal, level, currentPain]);
 
   const saveProfile = () => {
-    const parsedDays = Math.round(Number(String(trainingDays || '3').replace(',', '.')));
+    const parsedDays = Math.round(parseLocalizedNumber(trainingDays || '3'));
     if (!parsedDays || parsedDays < 1 || parsedDays > 7) {
       setToastMessage('Frequencia invalida. Informe entre 1 e 7 dias por semana.');
       return;
     }
-    const parsedWeight = Number(String(currentWeight || '70').replace(',', '.'));
+    const parsedWeight = parseLocalizedNumber(currentWeight || '70');
     if (!parsedWeight || parsedWeight < 30 || parsedWeight > 300) {
       setToastMessage('Peso invalido. Informe um peso entre 30 e 300 kg.');
       return;
     }
-    const parsedTargetWeight = Number(String(targetWeight || '70').replace(',', '.'));
-    const parsedHeight = Number(String(height || '170').replace(',', '.'));
+    const parsedTargetWeight = parseLocalizedNumber(targetWeight || '70');
+    const parsedHeight = parseHeightCm(height || '170');
+
+    if (!parsedHeight || parsedHeight < 120 || parsedHeight > 230) {
+      setToastMessage('Altura invalida. Use 180, 1.80 ou 1,80.');
+      return;
+    }
+
     const result = updateProfileSettings({
       goal,
       level,
@@ -164,7 +187,7 @@ export default function ProfileScreen({ navigation }) {
   }, [response, setUser]);
 
   return (
-    <SafeAreaView edges={['top']} style={styles.screenWrapper}>
+    <SafeAreaView edges={['top', 'bottom']} style={styles.screenWrapper}>
     <ScrollView
       testID="screen-perfil"
       style={styles.scrollArea}
@@ -284,6 +307,10 @@ export default function ProfileScreen({ navigation }) {
               title={googleLoading ? 'Conectando Google...' : 'Entrar com Google'}
               onPress={() => {
                 if (googleLoading) return;
+                if (!request) {
+                  setToastMessage('Login Google indisponivel no momento. Reabra a tela e tente novamente.');
+                  return;
+                }
                 promptAsync().catch(() => {
                   setToastMessage('Falha no login. Nao foi possivel abrir o fluxo do Google.');
                 });
@@ -314,9 +341,18 @@ export default function ProfileScreen({ navigation }) {
             {!request ? <Text style={styles.metric}>Preparando acesso Google...</Text> : null}
           </>
         ) : (
-          <Text style={styles.metric}>Conecte sua conta Google para sincronizar dados entre dispositivos.</Text>
+          <Text style={styles.metric}>Google nao configurado nesta build. Ative EXPO_PUBLIC_GOOGLE_* para login no release.</Text>
         )}
 
+      </AppCard>
+
+      <AppCard>
+        <Text style={styles.cardLabel}>Admin</Text>
+        {isAdmin ? (
+          <PrimaryButton title="Abrir configuracoes Admin" onPress={() => navigation.navigate('Admin')} />
+        ) : (
+          <Text style={styles.metric}>Acesso admin disponivel apenas para contas com role admin.</Text>
+        )}
       </AppCard>
 
       <AppCard>
@@ -376,7 +412,7 @@ export default function ProfileScreen({ navigation }) {
       testID="btn-profile-save"
       accessibilityLabel="Salvar perfil"
       collapsable={false}
-      style={styles.stickyFooter}
+      style={[styles.stickyFooter, { paddingBottom: Math.max(spacing.md, insets.bottom + 8) }]}
     >
       <PrimaryButton title="Salvar perfil" onPress={saveProfile} />
     </View>

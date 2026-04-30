@@ -61,7 +61,7 @@ export function WorkoutsHubView({
   const recommendationSource = String(safeRecommended.source || '').trim() || 'motor_v4/local';
 
   return (
-    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.background }}>
+    <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: colors.background }}>
     <ScrollView
       testID="screen-treinos"
       contentContainerStyle={styles.container}

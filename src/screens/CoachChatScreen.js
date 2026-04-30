@@ -789,7 +789,7 @@ export default function CoachChatScreen({ navigation }) {
   const urgencyUI = getUrgencyStyles(coachCard.urgencyLevel);
 
   return (
-    <SafeAreaView testID="screen-coach" style={styles.container} edges={['top']}>
+    <SafeAreaView testID="screen-coach" style={styles.container} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.flex}

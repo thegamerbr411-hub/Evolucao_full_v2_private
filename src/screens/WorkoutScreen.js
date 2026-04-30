@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNotifications, useNutrition, useWorkout } from '../hooks';
@@ -147,6 +148,7 @@ function findBestCatalogMatch(catalog = [], query = '') {
 }
 
 export default function WorkoutScreen({ navigation, route }) {
+  const insets = useSafeAreaInsets();
   const { workout, setWorkout, user, plan, getUserRoutineById } = useApp();
   const setCurrentExerciseState = useWorkoutStore((state) => state.setCurrentExerciseState);
   const advanceCurrentSet = useWorkoutStore((state) => state.advanceCurrentSet);
@@ -1146,7 +1148,8 @@ export default function WorkoutScreen({ navigation, route }) {
   const saveSetLine = (exercise, exerciseIndex, setIndex) => {
     const saveStartAt = Date.now();
     const plannedSets = Number(setCountByExercise[exercise.name] || exercise.sets || 3);
-    const todaySets = workoutLogs
+    const freshWorkoutLogs = useWorkoutStore.getState().workoutLogs || [];
+    const todaySets = freshWorkoutLogs
       .filter((item) => item.date === todayKey && isSameExerciseLog(item, exercise.name) && (item.mode || 'guided') !== 'free');
 
     const nextIndex = todaySets.length;
@@ -1959,7 +1962,7 @@ export default function WorkoutScreen({ navigation, route }) {
       <ScrollView
         testID="screen-workout"
         ref={scrollRef}
-        contentContainerStyle={styles.container}
+        contentContainerStyle={[styles.container, { paddingBottom: 84 + Number(insets.bottom || 0) }]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
       >

@@ -37,6 +37,8 @@ export function useGoogleAuth() {
     androidClientId: safeAndroidClientId,
     expoClientId: cfg.expoClientId || undefined,
     iosClientId: cfg.iosClientId || undefined,
+    responseType: 'id_token',
+    selectAccount: true,
   });
 
   return { request, response, promptAsync };

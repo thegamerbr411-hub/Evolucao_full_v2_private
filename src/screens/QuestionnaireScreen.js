@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { AnimatedToast, AppCard, PrimaryButton, ScreenHeader } from '../components/ui';
 import { colors, radius, spacing, typography } from '../theme';
@@ -65,11 +66,26 @@ function NumberField({ label, value, onChangeText, placeholder, testID }) {
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        keyboardType="numeric"
+        keyboardType="decimal-pad"
         style={styles.input}
       />
     </View>
   );
+}
+
+function parseLocalizedNumber(value = '') {
+  const sanitized = String(value || '').trim().replace(',', '.');
+  const parsed = Number(sanitized);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function parseHeightCm(value = '') {
+  const parsed = parseLocalizedNumber(value);
+  if (!parsed) return 0;
+  if (parsed > 0 && parsed <= 3) {
+    return Math.round(parsed * 100);
+  }
+  return Math.round(parsed);
 }
 
 export default function QuestionnaireScreen({ navigation }) {
@@ -84,10 +100,10 @@ export default function QuestionnaireScreen({ navigation }) {
   const [toastMessage, setToastMessage] = useState('');
 
   const handleSubmit = () => {
-    const currentWeight = Number(String(weight || '').replace(',', '.'));
+    const currentWeight = parseLocalizedNumber(weight);
     const trainingDaysValue = Number(daysPerWeek);
-    const safeTargetWeight = Number(String(targetWeight || weight || '').replace(',', '.'));
-    const safeHeight = Number(String(height || '170').replace(',', '.'));
+    const safeTargetWeight = parseLocalizedNumber(targetWeight || weight);
+    const safeHeight = parseHeightCm(height || '170');
 
     const payload = {
       goal,
@@ -124,7 +140,7 @@ export default function QuestionnaireScreen({ navigation }) {
         severity: 'low',
         extra: { height: safeHeight, targetWeight: safeTargetWeight },
       });
-      setToastMessage('Dados invalidos. Ajuste peso meta e altura nas opcoes avancadas.');
+      setToastMessage('Dados invalidos. Altura aceita: 180, 1.80 ou 1,80.');
       return;
     }
 
@@ -145,6 +161,7 @@ export default function QuestionnaireScreen({ navigation }) {
   };
 
   return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top', 'bottom']}>
     <ScrollView
       testID="scroll-container"
       contentContainerStyle={styles.container}
@@ -215,6 +232,7 @@ export default function QuestionnaireScreen({ navigation }) {
       <PrimaryButton testID="btn-continuar" title="Comecar agora" onPress={handleSubmit} />
       </View>
     </ScrollView>
+    </SafeAreaView>
   );
 }
 
