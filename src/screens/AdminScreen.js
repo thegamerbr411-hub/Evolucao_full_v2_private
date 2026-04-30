@@ -12,10 +12,16 @@ import { postToAvailableQaHost, setQaRuntimeAuth } from '../utils/qaTransport';
 
 const ADMIN_TOKEN_STORAGE_KEY = 'evolucao.admin.token.v1';
 const ADMIN_LOCAL_EXERCISES_KEY = 'admin.local.exercises.v1';
+const ADMIN_LOCAL_FOODS_KEY = 'admin.local.foods.v1';
 const EQUIPMENT_OPTIONS = ['maquina', 'halter', 'barra', 'cabo', 'peso_corporal', 'corda'];
 
 function loadLocalExercises() {
   const persisted = getLocal(ADMIN_LOCAL_EXERCISES_KEY);
+  return Array.isArray(persisted) ? persisted : [];
+}
+
+function loadLocalFoods() {
+  const persisted = getLocal(ADMIN_LOCAL_FOODS_KEY);
   return Array.isArray(persisted) ? persisted : [];
 }
 
@@ -33,12 +39,24 @@ export default function AdminScreen() {
   const [localPrimaryMuscle, setLocalPrimaryMuscle] = useState(MUSCLE_GROUPS.LEGS);
   const [localEquipment, setLocalEquipment] = useState('maquina');
   const [localExercises, setLocalExercises] = useState(() => loadLocalExercises());
+  const [localFoodName, setLocalFoodName] = useState('');
+  const [localFoodPortion, setLocalFoodPortion] = useState('100g');
+  const [localFoodKcal, setLocalFoodKcal] = useState('0');
+  const [localFoodCarbs, setLocalFoodCarbs] = useState('0');
+  const [localFoodProtein, setLocalFoodProtein] = useState('0');
+  const [localFoodFats, setLocalFoodFats] = useState('0');
+  const [localFoods, setLocalFoods] = useState(() => loadLocalFoods());
 
   const isAdmin = useMemo(() => user?.role === 'admin', [user?.role]);
 
   const persistLocalExercises = (nextExercises) => {
     setLocal(ADMIN_LOCAL_EXERCISES_KEY, nextExercises);
     setLocalExercises(nextExercises);
+  };
+
+  const persistLocalFoods = (nextFoods) => {
+    setLocal(ADMIN_LOCAL_FOODS_KEY, nextFoods);
+    setLocalFoods(nextFoods);
   };
 
   const handleCreateLocalExercise = () => {
@@ -72,20 +90,70 @@ export default function AdminScreen() {
     setToastMessage(`Exercicio local criado: ${safeName}.`);
   };
 
-  const handleExportLocalExercises = async () => {
-    if (!localExercises.length) {
-      setToastMessage('Nao ha exercicios locais para exportar.');
+  const handleCreateLocalFood = () => {
+    const safeName = String(localFoodName || '').trim();
+    if (!safeName) {
+      setToastMessage('Informe o nome do alimento local.');
       return;
     }
 
-    const exportPayload = localExercises.map(({ name, primaryMuscle, equipment }) => ({
-      name,
-      primaryMuscle,
-      equipment,
-    }));
+    const duplicate = localFoods.some((item) => String(item?.nome || '').trim().toLowerCase() === safeName.toLowerCase());
+    if (duplicate) {
+      setToastMessage('Ja existe um alimento local com esse nome.');
+      return;
+    }
+
+    const nextFood = {
+      id: `local_food_${Date.now()}`,
+      nome: safeName,
+      aliases: [safeName.toLowerCase()],
+      porcao: String(localFoodPortion || '100g').trim() || '100g',
+      kcal: Math.max(0, Number(localFoodKcal || 0)),
+      carbo: Math.max(0, Number(localFoodCarbs || 0)),
+      prot: Math.max(0, Number(localFoodProtein || 0)),
+      gord: Math.max(0, Number(localFoodFats || 0)),
+      createdAt: new Date().toISOString(),
+      source: 'admin_local',
+    };
+
+    const nextFoods = [nextFood, ...localFoods];
+    persistLocalFoods(nextFoods);
+    setLocalFoodName('');
+    setLocalFoodPortion('100g');
+    setLocalFoodKcal('0');
+    setLocalFoodCarbs('0');
+    setLocalFoodProtein('0');
+    setLocalFoodFats('0');
+    setToastMessage(`Alimento local criado: ${safeName}.`);
+  };
+
+  const handleExportAdminPack = async () => {
+    if (!localExercises.length && !localFoods.length) {
+      setToastMessage('Nao ha exercicios/alimentos locais para exportar.');
+      return;
+    }
+
+    const exportPayload = {
+      exportedAt: new Date().toISOString(),
+      app: 'evolucao_full_v2',
+      exercises: localExercises.map(({ name, primaryMuscle, equipment }) => ({
+        name,
+        primaryMuscle,
+        equipment,
+      })),
+      foods: localFoods.map(({ nome, aliases, porcao, kcal, carbo, prot, gord }) => ({
+        nome,
+        aliases: Array.isArray(aliases) ? aliases : [],
+        porcao,
+        kcal,
+        carbo,
+        prot,
+        gord,
+      })),
+    };
 
     await Clipboard.setStringAsync(JSON.stringify(exportPayload, null, 2));
-    setToastMessage(`${localExercises.length} exercicio(s) copiados para a area de transferencia.`);
+    setToastMessage(`Pacote copiado: ${localExercises.length} exercicio(s) e ${localFoods.length} alimento(s). Cole aqui no chat.`);
   };
 
   if (!isAdmin) {
@@ -240,7 +308,6 @@ export default function AdminScreen() {
         </View>
 
         <PrimaryButton title="Criar Exercício Local" onPress={handleCreateLocalExercise} />
-        <SecondaryButton title="Exportar Novos Exercícios" onPress={handleExportLocalExercises} style={styles.secondary} />
 
         <Text style={styles.helperText}>{localExercises.length} exercicio(s) local(is) prontos para exportacao.</Text>
         {localExercises.slice(0, 5).map((exercise) => (
@@ -251,6 +318,74 @@ export default function AdminScreen() {
             </Text>
           </View>
         ))}
+      </AppCard>
+
+      <AppCard>
+        <Text style={styles.label}>Criar alimento local</Text>
+        <TextInput
+          value={localFoodName}
+          onChangeText={setLocalFoodName}
+          placeholder="Nome do alimento"
+          placeholderTextColor={colors.textSecondary}
+          style={styles.input}
+        />
+        <TextInput
+          value={localFoodPortion}
+          onChangeText={setLocalFoodPortion}
+          placeholder="Porcao (ex: 100g)"
+          placeholderTextColor={colors.textSecondary}
+          style={styles.input}
+        />
+        <TextInput
+          value={localFoodKcal}
+          onChangeText={setLocalFoodKcal}
+          placeholder="Kcal"
+          keyboardType="numeric"
+          placeholderTextColor={colors.textSecondary}
+          style={styles.input}
+        />
+        <TextInput
+          value={localFoodCarbs}
+          onChangeText={setLocalFoodCarbs}
+          placeholder="Carboidratos"
+          keyboardType="numeric"
+          placeholderTextColor={colors.textSecondary}
+          style={styles.input}
+        />
+        <TextInput
+          value={localFoodProtein}
+          onChangeText={setLocalFoodProtein}
+          placeholder="Proteinas"
+          keyboardType="numeric"
+          placeholderTextColor={colors.textSecondary}
+          style={styles.input}
+        />
+        <TextInput
+          value={localFoodFats}
+          onChangeText={setLocalFoodFats}
+          placeholder="Gorduras"
+          keyboardType="numeric"
+          placeholderTextColor={colors.textSecondary}
+          style={styles.input}
+        />
+
+        <PrimaryButton title="Criar Alimento Local" onPress={handleCreateLocalFood} />
+
+        <Text style={styles.helperText}>{localFoods.length} alimento(s) local(is) prontos para exportacao.</Text>
+        {localFoods.slice(0, 5).map((food) => (
+          <View key={food.id} style={styles.localExerciseRow}>
+            <Text style={styles.localExerciseName}>{food.nome}</Text>
+            <Text style={styles.localExerciseMeta}>
+              {food.porcao} • {food.kcal} kcal • C {food.carbo} / P {food.prot} / G {food.gord}
+            </Text>
+          </View>
+        ))}
+      </AppCard>
+
+      <AppCard>
+        <Text style={styles.label}>Exportar pacote para me enviar</Text>
+        <Text style={styles.helperText}>Gera JSON com exercicios e alimentos locais e copia para a area de transferencia.</Text>
+        <PrimaryButton title="Exportar Pacote Admin (JSON)" onPress={handleExportAdminPack} />
       </AppCard>
     </ScrollView>
   );

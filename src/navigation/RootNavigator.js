@@ -35,7 +35,6 @@ export default function RootNavigator(){
   const profile = useUserStore((state) => state.profile);
   const user = useUserStore((state) => state.user);
   const hasPersistedProfile = Boolean(profile && Number(profile.currentWeight || 0) > 0);
-  const canAccessAdmin = user?.role === 'admin';
 
   if (!isHydrated) {
     return (
@@ -63,7 +62,7 @@ export default function RootNavigator(){
       <Stack.Screen name="TreinoLivre" component={FreeWorkoutScreen}/>
       <Stack.Screen name="Rotinas" component={RoutinesScreen}/>
       <Stack.Screen name="ImportWorkout" component={ImportWorkoutScreen}/>
-      {canAccessAdmin ? <Stack.Screen name="Admin" component={AdminScreen}/> : null}
+      <Stack.Screen name="Admin" component={AdminScreen}/>
       <Stack.Screen name="SocialChallenges" component={SocialChallengesScreen}/>
       <Stack.Screen name="RankingEvolution" component={RankingEvolutionScreen}/>
       <Stack.Screen name="ExerciseDetail" component={ExerciseDetailScreen}/>

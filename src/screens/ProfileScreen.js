@@ -361,7 +361,10 @@ export default function ProfileScreen({ navigation }) {
         {isAdmin ? (
           <PrimaryButton title="Abrir configuracoes Admin" onPress={() => navigation.navigate('Admin')} />
         ) : (
-          <Text style={styles.metric}>Acesso admin disponivel apenas para contas com role admin.</Text>
+          <>
+            <Text style={styles.metric}>Entre na tela Admin e autentique com usuario/senha de admin para liberar os controles.</Text>
+            <PrimaryButton title="Entrar no Admin" onPress={() => navigation.navigate('Admin')} />
+          </>
         )}
       </AppCard>
 
