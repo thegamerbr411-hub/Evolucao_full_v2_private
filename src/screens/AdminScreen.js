@@ -1,13 +1,23 @@
 import React, { useMemo, useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Clipboard from 'expo-clipboard';
 import { useApp } from '../context/AppContext';
 import { createMission, giveXP, removeXP } from '../services/adminService';
 import { AnimatedToast, AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
+import { MUSCLE_GROUP_LABELS, MUSCLE_GROUPS } from '../data/exercises';
+import { getLocal, setLocal } from '../storage/mmkv';
 import { colors, spacing } from '../theme';
 import { postToAvailableQaHost, setQaRuntimeAuth } from '../utils/qaTransport';
 
 const ADMIN_TOKEN_STORAGE_KEY = 'evolucao.admin.token.v1';
+const ADMIN_LOCAL_EXERCISES_KEY = 'admin.local.exercises.v1';
+const EQUIPMENT_OPTIONS = ['maquina', 'halter', 'barra', 'cabo', 'peso_corporal', 'corda'];
+
+function loadLocalExercises() {
+  const persisted = getLocal(ADMIN_LOCAL_EXERCISES_KEY);
+  return Array.isArray(persisted) ? persisted : [];
+}
 
 export default function AdminScreen() {
   const { user, setUser } = useApp();
@@ -19,8 +29,64 @@ export default function AdminScreen() {
   const [missionReward, setMissionReward] = useState('50');
   const [authLoading, setAuthLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [localExerciseName, setLocalExerciseName] = useState('');
+  const [localPrimaryMuscle, setLocalPrimaryMuscle] = useState(MUSCLE_GROUPS.LEGS);
+  const [localEquipment, setLocalEquipment] = useState('maquina');
+  const [localExercises, setLocalExercises] = useState(() => loadLocalExercises());
 
   const isAdmin = useMemo(() => user?.role === 'admin', [user?.role]);
+
+  const persistLocalExercises = (nextExercises) => {
+    setLocal(ADMIN_LOCAL_EXERCISES_KEY, nextExercises);
+    setLocalExercises(nextExercises);
+  };
+
+  const handleCreateLocalExercise = () => {
+    const safeName = String(localExerciseName || '').trim();
+    if (!safeName) {
+      setToastMessage('Informe o nome do exercicio local.');
+      return;
+    }
+
+    const duplicate = localExercises.some((item) => String(item?.name || '').trim().toLowerCase() === safeName.toLowerCase());
+    if (duplicate) {
+      setToastMessage('Ja existe um exercicio local com esse nome.');
+      return;
+    }
+
+    const nextExercise = {
+      id: `local_${Date.now()}`,
+      name: safeName,
+      primaryMuscle: localPrimaryMuscle,
+      equipment: localEquipment,
+      secondaryMuscles: [],
+      category: 'compound',
+      movementPattern: '',
+      createdAt: new Date().toISOString(),
+      source: 'admin_local',
+    };
+
+    const nextExercises = [nextExercise, ...localExercises];
+    persistLocalExercises(nextExercises);
+    setLocalExerciseName('');
+    setToastMessage(`Exercicio local criado: ${safeName}.`);
+  };
+
+  const handleExportLocalExercises = async () => {
+    if (!localExercises.length) {
+      setToastMessage('Nao ha exercicios locais para exportar.');
+      return;
+    }
+
+    const exportPayload = localExercises.map(({ name, primaryMuscle, equipment }) => ({
+      name,
+      primaryMuscle,
+      equipment,
+    }));
+
+    await Clipboard.setStringAsync(JSON.stringify(exportPayload, null, 2));
+    setToastMessage(`${localExercises.length} exercicio(s) copiados para a area de transferencia.`);
+  };
 
   if (!isAdmin) {
     return (
@@ -87,7 +153,7 @@ export default function AdminScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <ScrollView contentContainerStyle={styles.container}>
       <AnimatedToast message={toastMessage} onHide={() => setToastMessage('')} />
       <ScreenHeader title="Admin" subtitle="Controle de XP e missoes." />
 
@@ -136,7 +202,57 @@ export default function AdminScreen() {
           }}
         />
       </AppCard>
-    </View>
+
+      <AppCard>
+        <Text style={styles.label}>Criar exercicio local</Text>
+        <TextInput
+          value={localExerciseName}
+          onChangeText={setLocalExerciseName}
+          placeholder="Nome"
+          placeholderTextColor={colors.textSecondary}
+          style={styles.input}
+        />
+
+        <Text style={styles.label}>Grupo muscular principal</Text>
+        <View style={styles.optionWrap}>
+          {Object.entries(MUSCLE_GROUP_LABELS).map(([value, label]) => (
+            <TouchableOpacity
+              key={value}
+              style={[styles.optionChip, localPrimaryMuscle === value ? styles.optionChipActive : null]}
+              onPress={() => setLocalPrimaryMuscle(value)}
+            >
+              <Text style={[styles.optionChipText, localPrimaryMuscle === value ? styles.optionChipTextActive : null]}>{label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <Text style={styles.label}>Equipamento</Text>
+        <View style={styles.optionWrap}>
+          {EQUIPMENT_OPTIONS.map((option) => (
+            <TouchableOpacity
+              key={option}
+              style={[styles.optionChip, localEquipment === option ? styles.optionChipActive : null]}
+              onPress={() => setLocalEquipment(option)}
+            >
+              <Text style={[styles.optionChipText, localEquipment === option ? styles.optionChipTextActive : null]}>{option}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <PrimaryButton title="Criar Exercício Local" onPress={handleCreateLocalExercise} />
+        <SecondaryButton title="Exportar Novos Exercícios" onPress={handleExportLocalExercises} style={styles.secondary} />
+
+        <Text style={styles.helperText}>{localExercises.length} exercicio(s) local(is) prontos para exportacao.</Text>
+        {localExercises.slice(0, 5).map((exercise) => (
+          <View key={exercise.id} style={styles.localExerciseRow}>
+            <Text style={styles.localExerciseName}>{exercise.name}</Text>
+            <Text style={styles.localExerciseMeta}>
+              {MUSCLE_GROUP_LABELS[exercise.primaryMuscle] || exercise.primaryMuscle} • {exercise.equipment}
+            </Text>
+          </View>
+        ))}
+      </AppCard>
+    </ScrollView>
   );
 }
 
@@ -170,5 +286,51 @@ const styles = StyleSheet.create({
   },
   secondary: {
     marginTop: spacing.sm,
+  },
+  optionWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  optionChip: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 999,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: '#141922',
+  },
+  optionChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  optionChipText: {
+    color: colors.textSecondary,
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  optionChipTextActive: {
+    color: colors.textInverse,
+  },
+  helperText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  localExerciseRow: {
+    paddingVertical: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  localExerciseName: {
+    color: colors.textPrimary,
+    fontWeight: '800',
+  },
+  localExerciseMeta: {
+    color: colors.textSecondary,
+    marginTop: 2,
+    fontSize: 12,
   },
 });

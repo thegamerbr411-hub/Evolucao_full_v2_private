@@ -19,10 +19,28 @@ const QUERY_ALIASES = {
   bicepis: 'biceps',
   gluteo: 'gluteo',
   gluteos: 'gluteo',
+  quad: 'quadriceps',
+  quadri: 'quadriceps',
+  quadril: 'gluteo',
   cross: 'crossover',
   peck: 'peck deck',
   pecdeck: 'peck deck',
 };
+
+const SEMANTIC_NAME_HINTS = [
+  {
+    tokens: ['extensora', 'agachamento', 'hack', 'leg press', 'bulgaro', 'afundo', 'passada'],
+    tags: ['quadriceps', 'legs'],
+  },
+  {
+    tokens: ['hip thrust', 'coice', 'kickback', 'abdutora', 'glute', 'pelvica'],
+    tags: ['gluteo', 'glutes'],
+  },
+  {
+    tokens: ['flexora', 'stiff', 'good morning', 'mesa flexora'],
+    tags: ['hamstrings', 'posterior'],
+  },
+];
 
 function normalizeWithAliases(value = '') {
   const normalized = normalize(value);
@@ -60,72 +78,148 @@ function levenshtein(a = '', b = '') {
   return matrix[rows - 1][cols - 1];
 }
 
+function getEntryText(item) {
+  const entryName = typeof item === 'string' ? item : item?.name;
+  const inferredTags = SEMANTIC_NAME_HINTS
+    .filter(({ tokens }) => tokens.some((token) => normalize(entryName).includes(normalize(token))))
+    .flatMap(({ tags }) => tags);
+
+  const parts = [entryName];
+  if (Array.isArray(item?.tags)) {
+    parts.push(item.tags.join(' '));
+  }
+  if (inferredTags.length) {
+    parts.push(inferredTags.join(' '));
+  }
+
+  return parts.filter(Boolean).join(' ');
+}
+
+function getEntryName(item) {
+  return typeof item === 'string' ? item : String(item?.name || '');
+}
+
+function getNormalizedTokens(value = '') {
+  return normalizeWithAliases(value).split(/\s+/).filter(Boolean);
+}
+
+function getTokenMatchScore(queryToken, candidateToken) {
+  if (!queryToken || !candidateToken) {
+    return 0;
+  }
+
+  if (candidateToken === queryToken) {
+    return 320;
+  }
+
+  if (candidateToken.startsWith(queryToken)) {
+    return queryToken.length <= 4 ? 260 : 220;
+  }
+
+  if (queryToken.length >= 5 && candidateToken.includes(queryToken)) {
+    return 120;
+  }
+
+  if (queryToken.length <= 4) {
+    return 0;
+  }
+
+  const distance = levenshtein(queryToken, candidateToken);
+  const maxDistance = queryToken.length <= 6 ? 1 : 2;
+  return distance <= maxDistance ? 90 - distance * 20 : 0;
+}
+
+function hasStrongShortQueryMatch(queryTokens, candidateTokens) {
+  return queryTokens.some((queryToken) =>
+    queryToken.length <= 4 && candidateTokens.some((candidateToken) => candidateToken.startsWith(queryToken))
+  );
+}
+
 function scoreCandidate(query, candidate) {
   const q = normalizeWithAliases(query);
-  const c = normalizeWithAliases(candidate);
+  const searchable = normalizeWithAliases(getEntryText(candidate));
+  const candidateName = normalizeWithAliases(getEntryName(candidate));
 
   if (!q) {
     return 0;
   }
 
-  if (c === q) {
+  if (candidateName === q) {
     return 1000;
   }
 
+  const qTokens = getNormalizedTokens(q);
+  const candidateTokens = getNormalizedTokens(searchable);
+  if (!qTokens.length || !candidateTokens.length) {
+    return 0;
+  }
+
+  if (qTokens.some((token) => token.length <= 4) && !hasStrongShortQueryMatch(qTokens, candidateTokens)) {
+    return 0;
+  }
+
   let score = 0;
+  let matchedTokens = 0;
 
-  if (c.startsWith(q)) {
-    score += 400;
+  qTokens.forEach((queryToken) => {
+    const bestTokenScore = candidateTokens.reduce((best, candidateToken) => {
+      const current = getTokenMatchScore(queryToken, candidateToken);
+      return current > best ? current : best;
+    }, 0);
+
+    if (bestTokenScore > 0) {
+      matchedTokens += 1;
+      score += bestTokenScore;
+    }
+  });
+
+  if (matchedTokens === 0) {
+    return 0;
   }
 
-  if (c.includes(q)) {
-    score += 250;
+  if (matchedTokens < qTokens.length && qTokens.length > 1) {
+    score -= (qTokens.length - matchedTokens) * 140;
   }
 
-  const qTokens = q.split(/\s+/).filter(Boolean);
-  const tokenHits = qTokens.filter((token) => c.includes(token)).length;
-  score += tokenHits * 80;
+  if (candidateName.startsWith(q)) {
+    score += 320;
+  } else if (searchable.startsWith(q)) {
+    score += 220;
+  }
 
-  // Tolerância para erro ortográfico por token (ex.: panturilha -> panturrilha)
-  const cTokens = c.split(/\s+/).filter(Boolean);
-  const typoHits = qTokens.filter((token) =>
-    cTokens.some((candidateToken) => {
-      if (!token || !candidateToken) return false;
-      if (candidateToken.includes(token) || token.includes(candidateToken)) return true;
-      const distance = levenshtein(token, candidateToken);
-      const threshold = token.length <= 5 ? 1 : 2;
-      return distance <= threshold;
-    })
-  ).length;
-  score += typoHits * 95;
+  if (candidateName.includes(q)) {
+    score += 150;
+  } else if (q.length >= 5 && searchable.includes(q)) {
+    score += 80;
+  }
 
-  const distance = levenshtein(q, c);
-  score += Math.max(0, 220 - distance * 24);
+  const phraseDistance = levenshtein(q, candidateName);
+  score += Math.max(0, 120 - phraseDistance * 18);
 
-  score -= Math.max(0, c.length - q.length) * 2;
+  score -= Math.max(0, candidateName.length - q.length) * 2;
 
-  return score;
+  if (q.length <= 4) {
+    return score >= 200 ? score : 0;
+  }
+
+  return score >= 120 ? score : 0;
 }
 
 export const fuzzySearch = (query, list) => {
   const q = normalizeWithAliases(query);
+  const qTokens = getNormalizedTokens(q);
 
   return (Array.isArray(list) ? list : []).filter((item) => {
-    const name = typeof item === 'string' ? item : item?.name;
-    const normalizedName = normalizeWithAliases(name);
-    if (normalizedName.includes(q)) return true;
+    const searchable = normalizeWithAliases(getEntryText(item));
+    const candidateTokens = getNormalizedTokens(searchable);
+    if (!qTokens.length || !candidateTokens.length) return false;
 
-    const qTokens = q.split(/\s+/).filter(Boolean);
-    const nameTokens = normalizedName.split(/\s+/).filter(Boolean);
-    if (!qTokens.length || !nameTokens.length) return false;
+    if (q.length <= 4) {
+      return hasStrongShortQueryMatch(qTokens, candidateTokens);
+    }
 
     return qTokens.every((token) =>
-      nameTokens.some((nameToken) => {
-        if (nameToken.includes(token) || token.includes(nameToken)) return true;
-        const distance = levenshtein(token, nameToken);
-        const threshold = token.length <= 5 ? 1 : 2;
-        return distance <= threshold;
-      })
+      candidateTokens.some((candidateToken) => getTokenMatchScore(token, candidateToken) > 0)
     );
   });
 };
@@ -139,7 +233,7 @@ export function fuzzySearchExercises(query, list = [], limit = 30) {
   }
 
   const ranked = safeList
-    .map((name) => ({ name, score: scoreCandidate(normalizedQuery, name) }))
+    .map((item) => ({ item, name: getEntryName(item), score: scoreCandidate(normalizedQuery, item) }))
     .filter((item) => item.score > 0)
     .sort((a, b) => b.score - a.score || String(a.name).localeCompare(String(b.name)));
 

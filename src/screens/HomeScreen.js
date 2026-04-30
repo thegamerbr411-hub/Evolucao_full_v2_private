@@ -203,7 +203,9 @@ const wpStyles = StyleSheet.create({
 export default function HomeScreen({ navigation }) {
   const { gamification } = useGamificationStore();
   const { profile } = useUserStore();
-  const { nutritionLogs, plan } = useNutritionStore();
+  const nutritionLogs = useNutritionStore((state) => state.nutritionLogs);
+  const plan = useNutritionStore((state) => state.plan);
+  const hydration = useNutritionStore((state) => state.hydration);
   const { getTodayWorkout, getTodayWorkoutSummary, addWaterIntake } = useApp();
   const [waterFeedback, setWaterFeedback] = useState(false);
   const [adaptiveConfig, setAdaptiveConfig] = useState(() => getAdaptiveHomeConfig());
@@ -282,8 +284,12 @@ export default function HomeScreen({ navigation }) {
   const workoutDone = (workoutSummary?.guidedSets || 0) > 0;
 
   const greeting = getGreeting();
-  const waterTargetMl = Math.round(Number(plan?.waterLitersPerDay || 3) * 1000);
-  const waterTodayMl = Math.round(todayLogs.reduce((a, l) => a + Number(l.waterMl || 0), 0));
+  const waterTargetMl = Math.round(Number(hydration?.waterGoalMl || (Number(plan?.waterLitersPerDay || 3) * 1000)));
+  const waterTodayMl = Math.round(
+    hydration?.dayKey === todayKey
+      ? Number(hydration?.consumedMl || 0)
+      : todayLogs.reduce((a, l) => a + Number(l.waterMl || 0), 0)
+  );
   const proteinTarget = Math.round(Number(macroTargets?.protein || 120));
   const missionTitle = todayWorkout.length > 0
     ? `Treino de hoje: ${todayWorkout[0]?.name || 'Sessao principal'}`

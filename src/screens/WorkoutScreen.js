@@ -39,6 +39,7 @@ import { success } from '../services/feedbackService.js';
 import { logError as logQaError } from '../utils/errorLogger';
 import { saveCompletedWorkoutToApi, syncPendingWorkouts } from '../services/workoutApiService';
 import { onWorkoutCompleted, getEngagementMessage } from '../services/socialEngagementService';
+import { useWorkoutStore } from '../stores/useWorkoutStore';
 
 function formatTimer(seconds) {
   const safe = Math.max(0, Number(seconds || 0));
@@ -147,6 +148,9 @@ function findBestCatalogMatch(catalog = [], query = '') {
 
 export default function WorkoutScreen({ navigation, route }) {
   const { workout, setWorkout, user, plan, getUserRoutineById } = useApp();
+  const setCurrentExerciseState = useWorkoutStore((state) => state.setCurrentExerciseState);
+  const advanceCurrentSet = useWorkoutStore((state) => state.advanceCurrentSet);
+  const setRestingState = useWorkoutStore((state) => state.setRestingState);
   const workoutApi = useWorkout() || {};
   const {
     getTodayWorkout,
@@ -334,6 +338,10 @@ export default function WorkoutScreen({ navigation, route }) {
       // Persistência local resiliente.
     });
   }, [workout]);
+
+  useEffect(() => {
+    setRestingState(restRunning);
+  }, [restRunning, setRestingState]);
 
   useEffect(() => {
     if (!user?.id) {
@@ -816,6 +824,17 @@ export default function WorkoutScreen({ navigation, route }) {
 
   const activeExercise = allExercises[activeExerciseIndex] || null;
 
+  useEffect(() => {
+    if (!activeExercise) {
+      setCurrentExerciseState(null, 1);
+      return;
+    }
+
+    const plannedSets = Number(setCountByExercise[activeExercise.name] || activeExercise.sets || 3);
+    const progress = safeGetExerciseSetProgress(activeExercise.name, plannedSets);
+    setCurrentExerciseState(activeExercise, progress?.nextSet || 1);
+  }, [activeExercise, safeGetExerciseSetProgress, setCountByExercise, setCurrentExerciseState]);
+
   const inferExerciseGroup = (exerciseName) => {
     const canonical = getCanonicalMuscleGroup(exerciseName);
     if (canonical) return canonical;
@@ -1195,6 +1214,8 @@ export default function WorkoutScreen({ navigation, route }) {
       exerciseName: exercise.name,
       mode: 'guided',
     });
+
+    advanceCurrentSet(exercise, setIndex);
 
     setSetSpeedStats((prev) => {
       const prevCount = Number(prev.count || 0);
@@ -2111,9 +2132,16 @@ export default function WorkoutScreen({ navigation, route }) {
           const exerciseProgress = safeGetExerciseProgress(exercise.name, exerciseId);
           const lastSet = getLastSetForExercise(exercise.name);
           const lastWeight = Number(lastSet?.weight || 0);
+          const lastReps = Number(lastSet?.reps || 0);
+          const hasHistory = historySnapshot.length > 0 || (lastWeight > 0 && lastReps > 0);
           const suggestedWeightNumber = Number(progression?.suggestedWeight || 0);
           const prWeight = Number(exerciseProgress?.bestWeight || 0);
           const prGap = Math.max(0, Number((prWeight - suggestedWeightNumber).toFixed(1)));
+          const estimated1Rm = hasHistory ? Math.round(calculate1RM(lastWeight, lastReps)) : 0;
+          const safeSuggestedWeight = hasHistory && suggestedWeightNumber > 0 ? suggestedWeightNumber : 0;
+          const progressionTargetWeight = hasHistory && lastWeight > 0
+            ? Number(getProgression(lastReps, Number(inferRepTarget(exercise)), lastWeight).toFixed(1))
+            : 0;
           const sparklineValues = historySnapshot.map((item) => Number(item.weight || 0));
           const sparklinePoints = buildSparklinePoints(sparklineValues, SPARKLINE_WIDTH, SPARKLINE_HEIGHT);
           const sparklineSegments = sparklinePoints.slice(1).map((point, index) => {
@@ -2190,7 +2218,7 @@ export default function WorkoutScreen({ navigation, route }) {
               <View style={styles.exerciseChipRow}>
                 <Text style={styles.smallChip}>{plannedSets}x{exercise.reps}</Text>
                 <Text style={styles.smallChip}>Serie {setProgress.nextSet}/{setProgress.totalSets}</Text>
-                {isActive ? (
+                {isActive && hasHistory ? (
                   <TouchableOpacity style={styles.substituteBtn} onPress={() => setShowSubstitutePicker((prev) => !prev)}>
                     <Text style={styles.substituteBtnText}>Substituir</Text>
                   </TouchableOpacity>
@@ -2200,7 +2228,7 @@ export default function WorkoutScreen({ navigation, route }) {
               <Text style={styles.progressHint}>
                 Ultimo: {lastSet?.weight || 0}kg x {lastSet?.reps || 0} · Melhor: {safeGetExerciseProgress(exercise.name).bestWeight || 0}kg
               </Text>
-              {isActive ? (
+              {isActive && hasHistory ? (
                 <TouchableOpacity
                   style={styles.coachHintToggle}
                   onPress={() => setShowCoachDetailsByExercise((prev) => ({
@@ -2212,13 +2240,16 @@ export default function WorkoutScreen({ navigation, route }) {
                 </TouchableOpacity>
               ) : null}
 
-              {isActive && showCoachDetailsByExercise?.[exercise.id] ? (
+              {isActive && hasHistory && showCoachDetailsByExercise?.[exercise.id] ? (
                 <>
                   <Text style={styles.progressionLine}>
-                    Hoje: {suggestedWeightNumber || 0}kg {weightDelta > 0 ? `( +${weightDelta}kg )` : weightDelta < 0 ? `( ${weightDelta}kg )` : '( manter )'}
+                    Hoje: {safeSuggestedWeight}kg {weightDelta > 0 ? `( +${weightDelta}kg )` : weightDelta < 0 ? `( ${weightDelta}kg )` : '( manter )'}
                   </Text>
                   <Text style={styles.progressionMetaLine}>
                     Meta hoje: {progression?.message || 'Consolidar tecnica e repetir carga com qualidade.'}
+                  </Text>
+                  <Text style={styles.progressionMetaLine}>
+                    1RM estimado: {estimated1Rm}kg · RPE base: {lastSet?.rpe ? Number(lastSet.rpe) : 0}
                   </Text>
 
                   <View style={styles.prCard}>
@@ -2403,33 +2434,32 @@ export default function WorkoutScreen({ navigation, route }) {
                               </View>
                             </View>
 
-                            {isActive && canSave && suggestedWeight ? (
+                            {isActive && canSave && safeSuggestedWeight > 0 ? (
                               <TouchableOpacity
                                 style={styles.suggestButton}
-                                onPress={() => setDraftField(exercise.name, setIndex, 'weight', suggestedWeight)}
+                                onPress={() => setDraftField(exercise.name, setIndex, 'weight', String(safeSuggestedWeight))}
                               >
-                                <Text style={styles.suggestButtonText}>usar {suggestedWeight}kg</Text>
+                                <Text style={styles.suggestButtonText}>usar {safeSuggestedWeight}kg</Text>
                               </TouchableOpacity>
                             ) : null}
 
-                            {isActive && canSave && lastWeight > 0 ? (
+                            {isActive && canSave && progressionTargetWeight > 0 ? (
                               <TouchableOpacity
                                 style={styles.progressionButton}
                                 onPress={() => {
                                   const targetReps = Number(inferRepTarget(exercise));
-                                  const progressionWeight = getProgression(Number(lastSet?.reps || 0), targetReps, lastWeight).toFixed(1);
-                                  setDraftField(exercise.name, setIndex, 'weight', progressionWeight);
+                                  setDraftField(exercise.name, setIndex, 'weight', String(progressionTargetWeight));
                                   trackEvent('progression_applied', {
                                     exerciseName: exercise.name,
                                     fromWeight: lastWeight,
-                                    toWeight: Number(progressionWeight),
-                                    lastReps: Number(lastSet?.reps || 0),
+                                    toWeight: progressionTargetWeight,
+                                    lastReps,
                                     targetReps,
                                   });
                                 }}
                               >
                                 <Text style={styles.progressionButtonText}>
-                                  meta {getProgression(Number(lastSet?.reps || 0), Number(inferRepTarget(exercise)), lastWeight).toFixed(1)}kg
+                                  meta {progressionTargetWeight.toFixed(1)}kg
                                 </Text>
                               </TouchableOpacity>
                             ) : null}
@@ -2439,7 +2469,7 @@ export default function WorkoutScreen({ navigation, route }) {
                             <TouchableOpacity
                               style={[styles.inlineBtn, styles.inlineBtnGood, !canSave ? styles.inlineBtnDisabled : null]}
                               testID={isActive && canSave ? 'btn-save-set' : `btn-save-set-${exercise.id}-${setIndex}`}
-                              onPress={() => canSave && saveSetLine(exercise, exerciseIndex, setIndex)}
+                              onPress={() => saveSetLine(exercise, exerciseIndex, setIndex)}
                             >
                               <Text style={styles.inlineBtnText}>✔ Concluir série</Text>
                             </TouchableOpacity>
