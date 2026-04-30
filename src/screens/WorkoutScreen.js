@@ -634,6 +634,23 @@ export default function WorkoutScreen({ navigation, route }) {
     setSessionBaseExercises(safeRoutine);
     setCustomExercises([]);
     setActiveExerciseIndex(0);
+    setSetCountByExercise(
+      safeRoutine.reduce((acc, item) => {
+        acc[item.name] = Number(item.sets || 3);
+        return acc;
+      }, {})
+    );
+    setDraftSetsByExercise(
+      safeRoutine.reduce((acc, item) => {
+        const totalSets = Math.max(1, Number(item.sets || 3));
+        acc[item.name] = Array.from({ length: totalSets }, () => ({
+          weight: '',
+          reps: '',
+          rpe: '8',
+        }));
+        return acc;
+      }, {})
+    );
     setShowWorkoutSummary(false);
     setShowSubstitutePicker(false);
     setExerciseQuery('');
@@ -1095,7 +1112,11 @@ export default function WorkoutScreen({ navigation, route }) {
     }
 
     setDraftSetsByExercise((prev) => {
-      const currentRows = prev[exerciseName] || [];
+      const currentRows = [...(prev[exerciseName] || [])];
+      while (currentRows.length <= setIndex) {
+        currentRows.push({ weight: '', reps: '', rpe: '8' });
+      }
+
       const rows = currentRows.map((row, idx) =>
         idx === setIndex ? { ...row, [field]: value } : row
       );
