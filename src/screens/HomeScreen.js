@@ -204,6 +204,7 @@ export default function HomeScreen({ navigation }) {
   const { gamification } = useGamificationStore();
   const { profile } = useUserStore();
   const nutritionLogs = useNutritionStore((state) => state.nutritionLogs);
+  const history = useNutritionStore((state) => state.history);
   const plan = useNutritionStore((state) => state.plan);
   const hydration = useNutritionStore((state) => state.hydration);
   const { getTodayWorkout, getTodayWorkoutSummary, addWaterIntake } = useApp();
@@ -238,6 +239,15 @@ export default function HomeScreen({ navigation }) {
   const todayLogs = useMemo(
     () => (nutritionLogs || []).filter((l) => l.date === todayKey),
     [nutritionLogs, todayKey],
+  );
+
+  const todayHistoryWaterMl = useMemo(
+    () => Math.round(
+      (history || [])
+        .filter((entry) => entry.date === todayKey)
+        .reduce((sum, entry) => sum + Number(entry.waterMl || 0), 0)
+    ),
+    [history, todayKey],
   );
 
   const todayCalories = useMemo(
@@ -288,7 +298,7 @@ export default function HomeScreen({ navigation }) {
   const waterTodayMl = Math.round(
     hydration?.dayKey === todayKey
       ? Number(hydration?.consumedMl || 0)
-      : todayLogs.reduce((a, l) => a + Number(l.waterMl || 0), 0)
+      : todayHistoryWaterMl
   );
   const proteinTarget = Math.round(Number(macroTargets?.protein || 120));
   const missionTitle = todayWorkout.length > 0

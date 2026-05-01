@@ -21,7 +21,10 @@ const QUERY_ALIASES = {
   gluteos: 'gluteo',
   quad: 'quadriceps',
   quadri: 'quadriceps',
-  quadril: 'gluteo',
+  quadril: 'quadriceps',
+  quadris: 'quadriceps',
+  quadricepss: 'quadriceps',
+  quadricepis: 'quadriceps',
   cross: 'crossover',
   peck: 'peck deck',
   pecdeck: 'peck deck',
@@ -109,14 +112,16 @@ function getTokenMatchScore(queryToken, candidateToken) {
   }
 
   if (candidateToken === queryToken) {
-    return 320;
+    return 360;
   }
 
   if (candidateToken.startsWith(queryToken)) {
-    return queryToken.length <= 4 ? 260 : 220;
+    if (queryToken.length <= 4) return 300;
+    if (queryToken.length <= 6) return 240;
+    return 220;
   }
 
-  if (queryToken.length >= 5 && candidateToken.includes(queryToken)) {
+  if (queryToken.length >= 6 && candidateToken.includes(queryToken)) {
     return 120;
   }
 
@@ -133,6 +138,13 @@ function hasStrongShortQueryMatch(queryTokens, candidateTokens) {
   return queryTokens.some((queryToken) =>
     queryToken.length <= 4 && candidateTokens.some((candidateToken) => candidateToken.startsWith(queryToken))
   );
+}
+
+function getStrictThreshold(query = '') {
+  const size = String(query || '').length;
+  if (size <= 4) return 260;
+  if (size <= 6) return 190;
+  return 140;
 }
 
 function scoreCandidate(query, candidate) {
@@ -154,14 +166,15 @@ function scoreCandidate(query, candidate) {
     return 0;
   }
 
-  if (qTokens.some((token) => token.length <= 4) && !hasStrongShortQueryMatch(qTokens, candidateTokens)) {
+  const hasShortTokens = qTokens.some((token) => token.length <= 4);
+  if (hasShortTokens && !hasStrongShortQueryMatch(qTokens, candidateTokens)) {
     return 0;
   }
 
   let score = 0;
   let matchedTokens = 0;
 
-  qTokens.forEach((queryToken) => {
+  qTokens.forEach((queryToken, tokenIndex) => {
     const bestTokenScore = candidateTokens.reduce((best, candidateToken) => {
       const current = getTokenMatchScore(queryToken, candidateToken);
       return current > best ? current : best;
@@ -169,7 +182,9 @@ function scoreCandidate(query, candidate) {
 
     if (bestTokenScore > 0) {
       matchedTokens += 1;
-      score += bestTokenScore;
+      const lengthWeight = queryToken.length >= 8 ? 1.2 : queryToken.length <= 4 ? 1.1 : 1;
+      const positionBoost = tokenIndex === 0 ? 1.05 : 1;
+      score += Math.round(bestTokenScore * lengthWeight * positionBoost);
     }
   });
 
@@ -189,7 +204,7 @@ function scoreCandidate(query, candidate) {
 
   if (candidateName.includes(q)) {
     score += 150;
-  } else if (q.length >= 5 && searchable.includes(q)) {
+  } else if (q.length >= 6 && searchable.includes(q)) {
     score += 80;
   }
 
@@ -198,11 +213,8 @@ function scoreCandidate(query, candidate) {
 
   score -= Math.max(0, candidateName.length - q.length) * 2;
 
-  if (q.length <= 4) {
-    return score >= 200 ? score : 0;
-  }
-
-  return score >= 120 ? score : 0;
+  const threshold = getStrictThreshold(q);
+  return score >= threshold ? score : 0;
 }
 
 export const fuzzySearch = (query, list) => {

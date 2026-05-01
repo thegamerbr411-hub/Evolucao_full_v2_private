@@ -1,6 +1,9 @@
 import { getCanonicalMuscleGroup } from '../../data/exerciseDatabase.js';
 import { getExerciseById } from '../../data/exerciseDatabase.js';
 import { listExerciseNames } from '../../data/exercises.js';
+import { getLocal } from '../../storage/mmkv';
+
+const ADMIN_LOCAL_EXERCISES_KEY = 'admin.local.exercises.v1';
 
 export function getWeekBounds(dateKey) {
   const base = new Date(`${dateKey}T12:00:00`);
@@ -410,7 +413,11 @@ export const getExerciseCatalogFromSources = () => {
     .filter(Boolean);
 
   const premium = listExerciseNames();
-  return Array.from(new Set([...premium, ...names]));
+  const localAdminExercises = (getLocal(ADMIN_LOCAL_EXERCISES_KEY) || [])
+    .map((item) => String(item?.name || '').trim())
+    .filter(Boolean);
+
+  return Array.from(new Set([...premium, ...names, ...localAdminExercises]));
 };
 
 export const getWeeklyMacroSummary = (history = []) => {

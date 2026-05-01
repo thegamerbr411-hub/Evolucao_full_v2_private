@@ -148,12 +148,40 @@ function findBestCatalogMatch(catalog = [], query = '') {
   }) || '';
 }
 
+function isCardioExerciseName(value = '') {
+  const normalized = normalizeText(value);
+  if (!normalized) {
+    return false;
+  }
+
+  return [
+    'cardio',
+    'corrida',
+    'caminhada',
+    'bike',
+    'bicicleta',
+    'esteira',
+    'eliptico',
+    'corda',
+    'hiit',
+    'aerobico',
+  ].some((term) => normalized.includes(term));
+}
+
+function isCardioExercise(exercise) {
+  const exerciseName = String(exercise?.name || '');
+  const category = String(exercise?.category || '').toLowerCase();
+  const libCategory = String(getExerciseMetaByName(exerciseName)?.category || '').toLowerCase();
+  return category === 'cardio' || libCategory === 'cardio' || isCardioExerciseName(exerciseName);
+}
+
 export default function WorkoutScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
   const { workout, setWorkout, user, plan, getUserRoutineById } = useApp();
   const setCurrentExerciseState = useWorkoutStore((state) => state.setCurrentExerciseState);
   const advanceCurrentSet = useWorkoutStore((state) => state.advanceCurrentSet);
   const setRestingState = useWorkoutStore((state) => state.setRestingState);
+  const setWorkoutSessionId = useWorkoutStore((state) => state.setWorkoutSessionId);
   const workoutApi = useWorkout() || {};
   const {
     getTodayWorkout,
@@ -228,19 +256,33 @@ export default function WorkoutScreen({ navigation, route }) {
     value: '',
   });
 
+  const computedPlannedSets = useMemo(() => (
+    allExercises.reduce((acc, exercise) => (
+      acc + Math.max(1, Number(setCountByExercise?.[exercise?.name] || exercise?.sets || 1))
+    ), 0)
+  ), [allExercises, setCountByExercise]);
+  const computedGuidedSets = useMemo(() => {
+    const activeSessionId = useWorkoutStore.getState().workoutSessionId;
+    const sessionLogs = activeSessionId
+      ? workoutLogs.filter((item) => item.sessionId === activeSessionId)
+      : workoutLogs.filter((item) => item.date === todayKey);
+    return sessionLogs.filter((item) => (item.mode || 'guided') !== 'free').length;
+  }, [workoutLogs, todayKey]);
+  const computedCompletionRate = computedPlannedSets > 0
+    ? Math.min(1, computedGuidedSets / computedPlannedSets)
+    : 0;
+
   const finishButtonTitle = useMemo(() => {
     if (isSavingWorkout) {
       return 'Salvando treino...';
     }
 
-    const guidedSets = Number(summary?.guidedSets || 0);
-    const plannedSets = Number(summary?.plannedSets || 0);
-    if (plannedSets > 0) {
-      return `Finalizar treino (${guidedSets}/${plannedSets})`;
+    if (computedPlannedSets > 0) {
+      return `Finalizar treino (${computedGuidedSets}/${computedPlannedSets})`;
     }
 
     return 'Finalizar treino';
-  }, [isSavingWorkout, summary?.guidedSets, summary?.plannedSets]);
+  }, [isSavingWorkout, computedGuidedSets, computedPlannedSets]);
 
   const postWorkoutNutritionFeedback = typeof getNutritionFeedback === 'function'
     ? getNutritionFeedback({ trainedToday: true })
@@ -320,13 +362,21 @@ export default function WorkoutScreen({ navigation, route }) {
 
   // BLOCO 4: Animar progress bar quando completion rate mudar
   useEffect(() => {
-    const targetValue = Math.max(2, Math.round(Number(summary?.completionRate || 0) * 100));
+    const targetValue = Math.max(2, Math.round(Number(computedCompletionRate || 0) * 100));
     Animated.timing(progressFillAnim, {
       toValue: targetValue,
       duration: 500,
       useNativeDriver: false,
     }).start();
-  }, [summary?.completionRate, progressFillAnim]);
+  }, [computedCompletionRate, progressFillAnim]);
+
+  useEffect(() => {
+    const sessionId = `ws-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    setWorkoutSessionId(sessionId);
+    return () => {
+      setWorkoutSessionId(null);
+    };
+  }, []);
 
   useEffect(() => {
     loadWorkout().then((data) => {
@@ -610,8 +660,13 @@ export default function WorkoutScreen({ navigation, route }) {
     if (selectedWorkoutId) {
       return;
     }
+
+    if (sessionBaseExercises.length > 0 || customExercises.length > 0) {
+      return;
+    }
+
     setSessionBaseExercises(baseExercises.map((item) => ({ ...item })));
-  }, [baseExercises, selectedWorkoutId]);
+  }, [baseExercises, selectedWorkoutId, sessionBaseExercises.length, customExercises.length]);
 
   useEffect(() => {
     if (!selectedWorkoutId) {
@@ -807,7 +862,7 @@ export default function WorkoutScreen({ navigation, route }) {
   }, [showWorkoutSummary, fadeAnim]);
 
   useEffect(() => {
-    if (summary.completionRate < 1) {
+    if (computedCompletionRate < 1) {
       return;
     }
 
@@ -838,7 +893,7 @@ export default function WorkoutScreen({ navigation, route }) {
 
       navigateWithTracking('Paywall', paywallPayload, 'post_workout_paywall');
     }
-  }, [summary.completionRate, summary.guidedSets, summary.plannedSets, hasFeatureAccess, navigation, paywallTimingVariant]);
+  }, [computedCompletionRate, computedGuidedSets, computedPlannedSets, hasFeatureAccess, navigation, paywallTimingVariant]);
 
   useEffect(() => {
     const activeExercise = allExercises[activeExerciseIndex];
@@ -902,7 +957,11 @@ export default function WorkoutScreen({ navigation, route }) {
 
   const buildUnifiedSetRows = useCallback((exerciseName, plannedSets) => {
     const safePlannedSets = Math.max(1, Number(plannedSets || 1));
-    const persistedSets = workoutLogs
+    const activeSessionId = useWorkoutStore.getState().workoutSessionId;
+    const sessionFilteredLogs = activeSessionId
+      ? workoutLogs.filter((item) => item.sessionId === activeSessionId)
+      : workoutLogs;
+    const persistedSets = sessionFilteredLogs
       .filter((item) => item.date === todayKey && isSameExerciseLog(item, exerciseName) && (item.mode || 'guided') !== 'free')
       .slice(0, safePlannedSets);
     const draftRows = draftSetsByExercise[exerciseName] || [];
@@ -1088,10 +1147,30 @@ export default function WorkoutScreen({ navigation, route }) {
     });
   };
 
-  const isValidSet = (kg, reps) => {
+  const isValidSet = (kg, reps, exerciseName = '') => {
+    const isCardio = isCardioExerciseName(exerciseName);
     const parsedKg = Number(normalizeNumericInput(kg));
     const parsedReps = Number(normalizeNumericInput(reps));
+
+    if (isCardio) {
+      return reps !== '' && parsedReps > 0 && Number.isFinite(parsedKg);
+    }
+
     return kg !== '' && reps !== '' && parsedKg > 0 && parsedReps > 0;
+  };
+
+  const resolveWithTimeout = async (promise, timeoutMs, fallbackValue) => {
+    let timeoutId = null;
+    try {
+      const timeoutPromise = new Promise((resolve) => {
+        timeoutId = setTimeout(() => resolve(fallbackValue), Math.max(500, Number(timeoutMs || 0)));
+      });
+      return await Promise.race([promise, timeoutPromise]);
+    } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    }
   };
 
   const startRestTimer = (seconds = restPreset) => {
@@ -1146,6 +1225,7 @@ export default function WorkoutScreen({ navigation, route }) {
     const exerciseIndex = allExercises.findIndex((item) => item.name === exerciseName);
     const exercise = allExercises[exerciseIndex];
     if (!exercise) {
+      showActionToast('Exercicio indisponivel no momento.');
       return;
     }
     saveSetLine(exercise, exerciseIndex, setIndex);
@@ -1166,37 +1246,37 @@ export default function WorkoutScreen({ navigation, route }) {
       }
     }
 
-    for (let index = 0; index < allExercises.length; index += 1) {
-      const item = allExercises[index];
-      const plannedSets = Number(setCountByExercise[item.name] || item.sets || 3);
-      const progress = safeGetExerciseSetProgress(item.name, plannedSets);
-      if (!progress.isDone) {
-        setActiveExerciseIndex(index);
-        return;
-      }
-    }
+    // Evita salto para o primeiro exercício quando o usuário está focado em outro.
+    setActiveExerciseIndex(currentIndex);
   };
 
   const saveSetLine = (exercise, exerciseIndex, setIndex) => {
     const saveStartAt = Date.now();
     const plannedSets = Number(setCountByExercise[exercise.name] || exercise.sets || 3);
     const freshWorkoutLogs = useWorkoutStore.getState().workoutLogs || [];
-    const todaySets = freshWorkoutLogs
+    const activeSessionId = useWorkoutStore.getState().workoutSessionId;
+    const sessionLogs = activeSessionId
+      ? freshWorkoutLogs.filter((item) => item.sessionId === activeSessionId)
+      : freshWorkoutLogs;
+    const todaySets = sessionLogs
       .filter((item) => item.date === todayKey && isSameExerciseLog(item, exercise.name) && (item.mode || 'guided') !== 'free');
 
     const nextIndex = todaySets.length;
-    if (setIndex !== nextIndex) {
+    const requestedIndex = Number.isInteger(setIndex) ? setIndex : nextIndex;
+    const effectiveSetIndex = requestedIndex >= nextIndex ? nextIndex : requestedIndex;
+
+    if (requestedIndex < nextIndex) {
       logQaError(new Error('workout_set_order_invalid'), {
         screen: SCREENS.WORKOUT,
         severity: 'low',
-        extra: { expectedSetIndex: nextIndex, receivedSetIndex: setIndex },
+        extra: { expectedSetIndex: nextIndex, receivedSetIndex: requestedIndex },
       });
-      showActionToast(`Salve primeiro a serie ${nextIndex + 1}.`);
+      showActionToast(`A serie ${requestedIndex + 1} ja foi salva.`);
       return;
     }
 
-    const row = (draftSetsByExercise[exercise.name] || [])[setIndex] || { weight: '', reps: '', rpe: '8' };
-    if (!isValidSet(row.weight, row.reps)) {
+    const row = (draftSetsByExercise[exercise.name] || [])[effectiveSetIndex] || { weight: '', reps: '', rpe: '8' };
+    if (!isValidSet(row.weight, row.reps, exercise.name)) {
       logQaError(new Error('workout_set_invalid_fields'), {
         screen: SCREENS.WORKOUT,
         severity: 'low',
@@ -1211,10 +1291,14 @@ export default function WorkoutScreen({ navigation, route }) {
       return;
     }
 
+    const isCardioSet = isCardioExercise(exercise);
+    const parsedWeight = Number(normalizeNumericInput(row.weight));
+    const safeWeight = isCardioSet && !String(row.weight || '').trim() ? 0 : parsedWeight;
+
     const result = saveWorkoutSet({
       exerciseName: exercise.name,
       exerciseId: getCanonicalExerciseId(exercise.name) || undefined,
-      weight: Number(normalizeNumericInput(row.weight)),
+      weight: safeWeight,
       reps: Number(normalizeNumericInput(row.reps)),
       rpe: Number(normalizeNumericInput(row.rpe || '8')),
       failed: false,
@@ -1230,7 +1314,7 @@ export default function WorkoutScreen({ navigation, route }) {
       return;
     }
 
-    const interactionKey = getSetInteractionKey(exercise.name, setIndex);
+    const interactionKey = getSetInteractionKey(exercise.name, effectiveSetIndex);
     const interactionStartedAt = Number(setInteractionStartRef.current[interactionKey] || saveStartAt);
     const tapToSaveMs = Math.max(0, saveStartAt - interactionStartedAt);
     const saveDurationMs = Math.max(0, Date.now() - saveStartAt);
@@ -1239,18 +1323,18 @@ export default function WorkoutScreen({ navigation, route }) {
     trackScreenAction(SCREENS.WORKOUT, 'screen_action', {
       source: 'set_logged',
       exerciseName: exercise.name,
-      setIndex: setIndex + 1,
+      setIndex: effectiveSetIndex + 1,
     });
 
     trackEvent('set_logged', {
       time: saveDurationMs,
       tapToSaveMs,
-      setIndex: setIndex + 1,
+      setIndex: effectiveSetIndex + 1,
       exerciseName: exercise.name,
       mode: 'guided',
     });
 
-    advanceCurrentSet(exercise, setIndex);
+    advanceCurrentSet(exercise, effectiveSetIndex);
 
     setSetSpeedStats((prev) => {
       const prevCount = Number(prev.count || 0);
@@ -1266,16 +1350,17 @@ export default function WorkoutScreen({ navigation, route }) {
     setSaveSuccessVisible(true);
     setTimeout(() => setSaveSuccessVisible(false), 1800);
 
-    setXpFeedback('+10 XP');
+    const earnedXp = Math.max(1, Number(result?.xpDelta || 10));
+    setXpFeedback(`+${earnedXp} XP`);
     success();
 
-    const tone = (setIndex + 1) % 3;
+    const tone = (effectiveSetIndex + 1) % 3;
     const personality = tone === 0
       ? 'Mais uma série. Bora 🔥'
       : tone === 1
         ? 'Cadência forte. Continua ⚡'
         : 'Execução limpa. Segue 🚀';
-    showActionToast(`${personality} • ${setIndex + 1}/${plannedSets}`);
+    showActionToast(`${personality} • ${effectiveSetIndex + 1}/${plannedSets}`);
 
     if (result.isNewLoadPR) {
       const safeDelta = Number(result.prWeightDelta || 0);
@@ -1287,7 +1372,7 @@ export default function WorkoutScreen({ navigation, route }) {
 
     // BLOCO 1: Animação + Recompensa no set salvo
     // 1. XP flutuante (subindo + fade out)
-    setXpFloatValue('+20 XP');
+    setXpFloatValue(`+${earnedXp} XP`);
     setShowXpFloat(true);
     xpFloatAnimY.setValue(0);
     xpFloatOpacity.setValue(1);
@@ -1324,7 +1409,7 @@ export default function WorkoutScreen({ navigation, route }) {
     });
 
     // Pulse animation na linha salva
-    setSavedSetPulseKey(`${exercise.name}-${setIndex}`);
+    setSavedSetPulseKey(`${exercise.name}-${effectiveSetIndex}`);
     rowPulseAnim.setValue(0);
     Animated.sequence([
       Animated.timing(rowPulseAnim, {
@@ -1343,7 +1428,7 @@ export default function WorkoutScreen({ navigation, route }) {
 
     const currentProgress = safeGetExerciseSetProgress(exercise.name, plannedSets);
     const nextCompleted = currentProgress.completedSets + 1;
-    const nextSetIndex = setIndex + 1;
+    const nextSetIndex = effectiveSetIndex + 1;
 
     if (nextSetIndex < plannedSets) {
       setTimeout(() => {
@@ -1741,12 +1826,22 @@ export default function WorkoutScreen({ navigation, route }) {
 
     const delta = getWorkoutDelta(currentWorkout, previousWorkout);
 
-    // Atualiza streak no Firebase
+    // Atualiza streak no Firebase sem quebrar o fluxo de finalizacao.
     let streak = 1;
     let lastWorkout = todayKey;
     if (user?.id) {
-      streak = await updateStreak(user.id);
-      lastWorkout = todayKey;
+      try {
+        streak = await resolveWithTimeout(updateStreak(user.id), 6000, 1);
+        lastWorkout = todayKey;
+      } catch (streakError) {
+        logQaError(streakError, {
+          action: 'updateStreak',
+          screen: SCREENS.WORKOUT,
+          severity: 'medium',
+          extra: { userId: String(user.id) },
+        });
+        streak = Math.max(1, Number(gamification?.streak || 1));
+      }
     }
 
     // Calcula evolução percentual
@@ -1755,10 +1850,10 @@ export default function WorkoutScreen({ navigation, route }) {
     const evolution = calcEvolution(prevWeight, currWeight);
 
     try {
-      trackEvent('workout_finish_manual', { guidedSets: todaySets, plannedSets: summary.plannedSets });
+      trackEvent('workout_finish_manual', { guidedSets: todaySets, plannedSets: computedPlannedSets });
       trackEvent('workout_completed', {
         guidedSets: todaySets,
-        plannedSets: summary.plannedSets,
+        plannedSets: computedPlannedSets,
         totalVolume,
         exerciseCount,
         experimentKey: WORKOUT_FAST_FINISH_EXPERIMENT_KEY,
@@ -1784,7 +1879,7 @@ export default function WorkoutScreen({ navigation, route }) {
         })
         .filter((item) => item.sets > 0);
 
-      const saveResult = await saveCompletedWorkoutToApi({
+      const saveResult = await resolveWithTimeout(saveCompletedWorkoutToApi({
         userId: String(user?.id || ''),
         plan: String(plan?.plan || plan?.goal || 'free').toLowerCase().includes('pro') ? 'premium' : 'free',
         workout: {
@@ -1797,12 +1892,12 @@ export default function WorkoutScreen({ navigation, route }) {
           totalSets: todaySets,
           totalVolume,
         },
-      });
+      }), 12000, { queuedOffline: true });
 
       if (saveResult?.queuedOffline) {
         setSyncStatusMessage('Sem internet: salvo offline e pendente de sincronizacao.');
       } else {
-        const syncResult = await syncPendingWorkouts({ userId: String(user?.id || '') });
+        const syncResult = await resolveWithTimeout(syncPendingWorkouts({ userId: String(user?.id || '') }), 10000, { synced: 0 });
         const syncedExtra = Number(syncResult?.synced || 0);
         setSyncStatusMessage(
           syncedExtra > 0
@@ -1815,7 +1910,7 @@ export default function WorkoutScreen({ navigation, route }) {
           const username = user?.name || String(user?.email || 'User').split('@')[0];
           const workoutName = selectedWorkout?.name || 'Treino';
           
-          const engagementResult = await onWorkoutCompleted({
+          const engagementResult = await resolveWithTimeout(onWorkoutCompleted({
             userId: String(user?.id || ''),
             username,
             workoutType: workoutName,
@@ -1823,7 +1918,7 @@ export default function WorkoutScreen({ navigation, route }) {
             totalSets: todaySets,
             exerciseCount,
             durationMinutes: sessionDurationMinutes,
-          });
+          }), 6000, { success: false, xpGained: 0, position: null });
 
           if (engagementResult.success) {
             const position = engagementResult.position;
@@ -1931,7 +2026,7 @@ export default function WorkoutScreen({ navigation, route }) {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={{ flex: 1, backgroundColor: colors.background }}
     >
-      <StreakBar streak={workoutSummary?.streak || 1} />
+      <StreakBar streak={Number(gamification.streakDays || 0)} />
       {saveSuccessVisible ? (
         <View testID="serie-salva-indicator" style={styles.savedFixedIndicator}>
           <Text style={styles.savedBannerText}>Serie salva</Text>
@@ -2026,14 +2121,20 @@ export default function WorkoutScreen({ navigation, route }) {
         />
 
         <View style={styles.topRow}>
-          <Text style={styles.metaText}>{summary.guidedSets}/{summary.plannedSets || 0} series</Text>
+          <Text style={styles.metaText}>{computedGuidedSets}/{computedPlannedSets || 0} series</Text>
           <Text style={styles.metaText}>Nivel {gamification.level} · XP {gamification.xp}</Text>
         </View>
+
+        {__DEV__ && activeExercise && isCardioExercise(activeExercise) ? (
+          <View style={styles.devFeatureTagWrap}>
+            <Text style={styles.devFeatureTag}>[F-Cardio] Entrada em Tempo (min) e Distancia (km)</Text>
+          </View>
+        ) : null}
 
 
 
         <View style={styles.progressHeaderWrap}>
-          <Text style={styles.progressHeaderText}>Treino: {Math.round(Number(summary.completionRate || 0) * 100)}% concluido</Text>
+          <Text style={styles.progressHeaderText}>Treino: {Math.round(Number(computedCompletionRate || 0) * 100)}% concluido</Text>
           <Text style={styles.streakText}>🔥 {Number(gamification.streakDays || 0)} dias seguidos</Text>
         </View>
         {/* BLOCO 4: Progresso Visual - Smooth animated fill */}
@@ -2151,27 +2252,33 @@ export default function WorkoutScreen({ navigation, route }) {
           const plannedSets = Number(setCountByExercise[exercise.name] || exercise.sets || 3);
           const setProgress = safeGetExerciseSetProgress(exercise.name, plannedSets);
           const isActive = exerciseIndex === activeExerciseIndex;
-          const todaySets = workoutLogs
-            .filter((item) => item.date === todayKey && isSameExerciseLog(item, exercise.name) && (item.mode || 'guided') !== 'free')
+          const safeLogs = Array.isArray(workoutLogs) ? workoutLogs : [];
+          const todaySets = safeLogs
+            .filter((item) => item.date === todayKey && typeof isSameExerciseLog === 'function' && isSameExerciseLog(item, exercise.name) && (item.mode || 'guided') !== 'free')
             .slice(0, plannedSets);
 
-          const unifiedSetRows = buildUnifiedSetRows(exercise.name, plannedSets);
-          const exerciseId = getCanonicalExerciseId(exercise.name) || undefined;
+          const unifiedSetRows = typeof buildUnifiedSetRows === 'function' ? buildUnifiedSetRows(exercise.name, plannedSets) : [];
+          const exerciseId = typeof getCanonicalExerciseId === 'function' ? (getCanonicalExerciseId(exercise.name) || undefined) : undefined;
           const historySnapshot = safeGetExerciseHistorySnapshot(exercise.name, 5, exerciseId);
-          const progression = safeGetExerciseProgressionSuggestion(exercise.name, exerciseId);
-          const exerciseProgress = safeGetExerciseProgress(exercise.name, exerciseId);
-          const lastSet = getLastSetForExercise(exercise.name);
+          const progression = (() => { try { return safeGetExerciseProgressionSuggestion(exercise.name, exerciseId); } catch (_e) { return { suggestedWeight: 0, message: '' }; } })();
+          const exerciseProgress = (() => { try { return safeGetExerciseProgress(exercise.name, exerciseId); } catch (_e) { return { bestWeight: 0 }; } })();
+          const isCardio = isCardioExercise(exercise);
+          const lastSet = typeof getLastSetForExercise === 'function' ? getLastSetForExercise(exercise.name) : null;
           const lastWeight = Number(lastSet?.weight || 0);
           const lastReps = Number(lastSet?.reps || 0);
           const hasHistory = historySnapshot.length > 0 || (lastWeight > 0 && lastReps > 0);
           const suggestedWeightNumber = Number(progression?.suggestedWeight || 0);
           const prWeight = Number(exerciseProgress?.bestWeight || 0);
           const prGap = Math.max(0, Number((prWeight - suggestedWeightNumber).toFixed(1)));
-          const estimated1Rm = hasHistory ? Math.round(calculate1RM(lastWeight, lastReps)) : 0;
+          const estimated1Rm = hasHistory && typeof calculate1RM === 'function' ? Math.round(calculate1RM(lastWeight, lastReps)) : 0;
           const safeSuggestedWeight = hasHistory && suggestedWeightNumber > 0 ? suggestedWeightNumber : 0;
-          const progressionTargetWeight = hasHistory && lastWeight > 0
-            ? Number(getProgression(lastReps, Number(inferRepTarget(exercise)), lastWeight).toFixed(1))
-            : 0;
+          const progressionTargetWeight = (() => {
+            try {
+              return hasHistory && lastWeight > 0 && typeof getProgression === 'function' && typeof inferRepTarget === 'function'
+                ? Number(getProgression(lastReps, Number(inferRepTarget(exercise)), lastWeight).toFixed(1))
+                : 0;
+            } catch (_e) { return 0; }
+          })();
           const sparklineValues = historySnapshot.map((item) => Number(item.weight || 0));
           const sparklinePoints = buildSparklinePoints(sparklineValues, SPARKLINE_WIDTH, SPARKLINE_HEIGHT);
           const sparklineSegments = sparklinePoints.slice(1).map((point, index) => {
@@ -2196,6 +2303,7 @@ export default function WorkoutScreen({ navigation, route }) {
           if (simpleMode) {
             const mergedSets = unifiedSetRows.map((row) => ({
               id: `${exercise.id}-${row.done ? 'saved' : 'draft'}-${row.index}`,
+              index: row.index,
               weight: row.weight,
               reps: row.reps,
               rpe: row.rpe,
@@ -2204,13 +2312,20 @@ export default function WorkoutScreen({ navigation, route }) {
             const firstPendingIndex = mergedSets.findIndex((setItem) => !setItem?.done);
 
             const lastSetLabel = lastSet
-              ? `${lastSet.weight || 0}kg x ${lastSet.reps || 0}`
+              ? isCardio
+                ? `${lastSet.reps || 0}min • ${lastSet.weight || 0}km`
+                : `${lastSet.weight || 0}kg x ${lastSet.reps || 0}`
               : null;
 
             return (
               <ExerciseCard
                 key={exercise.id}
-                exercise={{ name: exercise.name, sets: mergedSets, gif: getExerciseMetaByName(exercise.name)?.gif }}
+                exercise={{
+                  name: exercise.name,
+                  category: isCardio ? 'cardio' : 'strength',
+                  sets: mergedSets,
+                  gif: getExerciseMetaByName(exercise.name)?.gif,
+                }}
                 lastSet={lastSetLabel}
                 simpleMode={simpleMode}
                 onChangeSet={handleChangeSet}
@@ -2241,7 +2356,9 @@ export default function WorkoutScreen({ navigation, route }) {
               <View style={styles.lastWorkoutSticky}>
                 <Text style={styles.lastWorkoutStickyTitle}>Ultimo treino</Text>
                 <Text style={styles.lastWorkoutStickyValue}>
-                  {lastSet?.weight || 0}kg x {lastSet?.reps || 0}
+                  {isCardio
+                    ? `${lastSet?.reps || 0}min • ${lastSet?.weight || 0}km`
+                    : `${lastSet?.weight || 0}kg x ${lastSet?.reps || 0}`}
                   {lastSet?.rpe ? ` @RPE ${lastSet?.rpe}` : ''}
                 </Text>
               </View>
@@ -2256,7 +2373,9 @@ export default function WorkoutScreen({ navigation, route }) {
               </View>
 
               <Text style={styles.progressHint}>
-                Ultimo: {lastSet?.weight || 0}kg x {lastSet?.reps || 0} · Melhor: {safeGetExerciseProgress(exercise.name).bestWeight || 0}kg
+                {isCardio
+                  ? `Ultimo: ${lastSet?.reps || 0}min • ${lastSet?.weight || 0}km`
+                  : `Ultimo: ${lastSet?.weight || 0}kg x ${lastSet?.reps || 0} · Melhor: ${safeGetExerciseProgress(exercise.name).bestWeight || 0}kg`}
               </Text>
               {isActive && hasHistory ? (
                 <TouchableOpacity
@@ -2412,7 +2531,12 @@ export default function WorkoutScreen({ navigation, route }) {
                         >
                           <View style={styles.savedSetBox}>
                             <View style={styles.savedSetCopy}>
-                              <Text style={styles.savedSetText}>{saved.weight}kg x {saved.reps} {saved.rpe ? `@RPE ${saved.rpe}` : ''}</Text>
+                              <Text style={styles.savedSetText}>
+                                {isCardio
+                                  ? `${saved.reps}min • ${saved.weight}km`
+                                  : `${saved.weight}kg x ${saved.reps}`}
+                                {saved.rpe ? ` @RPE ${saved.rpe}` : ''}
+                              </Text>
                               <Text style={styles.savedSetHint}>Serie salva • arraste para editar/remover</Text>
                             </View>
                           </View>
@@ -2422,7 +2546,7 @@ export default function WorkoutScreen({ navigation, route }) {
                           <View style={styles.setInputRow}>
                             <SetField
                               value={draft.weight}
-                              placeholder={suggestedWeight ? `${suggestedWeight}kg` : 'kg'}
+                              placeholder={isCardio ? 'km' : (suggestedWeight ? `${suggestedWeight}kg` : 'kg')}
                               testID={isActive && canSave ? 'input-weight' : `input-weight-${exercise.id}-${setIndex}`}
                               focused={
                                 keypadState.visible
@@ -2434,7 +2558,7 @@ export default function WorkoutScreen({ navigation, route }) {
                             />
                             <SetField
                               value={draft.reps}
-                              placeholder="reps"
+                              placeholder={isCardio ? 'min' : 'reps'}
                               testID={isActive && canSave ? 'input-reps' : `input-reps-${exercise.id}-${setIndex}`}
                               focused={
                                 keypadState.visible
@@ -2464,7 +2588,7 @@ export default function WorkoutScreen({ navigation, route }) {
                               </View>
                             </View>
 
-                            {isActive && canSave && safeSuggestedWeight > 0 ? (
+                            {isActive && canSave && safeSuggestedWeight > 0 && !isCardio ? (
                               <TouchableOpacity
                                 style={styles.suggestButton}
                                 onPress={() => setDraftField(exercise.name, setIndex, 'weight', String(safeSuggestedWeight))}
@@ -2473,7 +2597,7 @@ export default function WorkoutScreen({ navigation, route }) {
                               </TouchableOpacity>
                             ) : null}
 
-                            {isActive && canSave && progressionTargetWeight > 0 ? (
+                            {isActive && canSave && progressionTargetWeight > 0 && !isCardio ? (
                               <TouchableOpacity
                                 style={styles.progressionButton}
                                 onPress={() => {
@@ -2523,7 +2647,7 @@ export default function WorkoutScreen({ navigation, route }) {
             </TouchableOpacity>
           );
           } catch (err) {
-            console.error('[WorkoutScreen renderItem crash]', err?.message, err?.stack);
+            console.error('[WorkoutScreen renderItem crash]', exercise?.name, err?.message, '\nSTACK:', err?.stack);
             return (
               <View key={`render-fallback-${renderIndex}`} style={styles.exerciseCardFallback}>
                 <Text style={styles.exerciseCardFallbackTitle}>{exercise?.name ?? 'Exercicio'}</Text>
@@ -2602,7 +2726,7 @@ export default function WorkoutScreen({ navigation, route }) {
         </AppCard> : null}
 
         <View style={styles.finishCard}>
-          <Text style={styles.finishHintText}>Feche em 1 toque: {Number(summary?.guidedSets || 0)}/{Number(summary?.plannedSets || 0)} series concluidas.</Text>
+          <Text style={styles.finishHintText}>Feche em 1 toque: {computedGuidedSets}/{computedPlannedSets} series concluidas.</Text>
           <PrimaryButton testID="btn-finalizar-treino" title={finishButtonTitle} onPress={finishWorkout} style={styles.finishButton} />
           <SecondaryButton testID="btn-salvar-parcial" title="Salvar parcial e sair" onPress={savePartialAndExit} style={styles.partialButton} />
           {syncStatusMessage ? <Text style={styles.syncStatusText}>{syncStatusMessage}</Text> : null}
@@ -3816,5 +3940,20 @@ const styles = StyleSheet.create({
     bottom: 0,
     zIndex: 100,
     pointerEvents: 'none',
+  },
+  devFeatureTagWrap: {
+    borderWidth: 1,
+    borderColor: '#3B82F6',
+    backgroundColor: '#0B1730',
+    borderRadius: 999,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    marginBottom: 8,
+  },
+  devFeatureTag: {
+    color: '#BFDBFE',
+    fontSize: 11,
+    fontWeight: '800',
   },
 });

@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Clipboard from 'expo-clipboard';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,8 +10,10 @@ import { MUSCLE_GROUP_LABELS, MUSCLE_GROUPS } from '../data/exercises';
 import { getLocal, setLocal } from '../storage/mmkv';
 import { colors, spacing } from '../theme';
 import { postToAvailableQaHost, setQaRuntimeAuth } from '../utils/qaTransport';
+import { clearObservabilitySnapshot, getObservabilitySnapshot } from '../core/observability';
 
 const ADMIN_TOKEN_STORAGE_KEY = 'evolucao.admin.token.v1';
+const ADMIN_LOCAL_UNLOCK_KEY = 'evolucao.admin.local.unlock.v1';
 const ADMIN_LOCAL_EXERCISES_KEY = 'admin.local.exercises.v1';
 const ADMIN_LOCAL_FOODS_KEY = 'admin.local.foods.v1';
 const EQUIPMENT_OPTIONS = ['maquina', 'halter', 'barra', 'cabo', 'peso_corporal', 'corda'];
@@ -48,8 +50,40 @@ export default function AdminScreen() {
   const [localFoodProtein, setLocalFoodProtein] = useState('0');
   const [localFoodFats, setLocalFoodFats] = useState('0');
   const [localFoods, setLocalFoods] = useState(() => loadLocalFoods());
+  const [bugLogs, setBugLogs] = useState([]);
+  const [logsLoaded, setLogsLoaded] = useState(false);
+  const [localAdminUnlocked, setLocalAdminUnlocked] = useState(false);
 
-  const isAdmin = useMemo(() => user?.role === 'admin', [user?.role]);
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const unlocked = String((await AsyncStorage.getItem(ADMIN_LOCAL_UNLOCK_KEY)) || '').trim() === '1';
+        if (mounted) {
+          setLocalAdminUnlocked(unlocked);
+          if (unlocked) {
+            setUser((prev) => ({ ...prev, role: 'admin' }));
+          }
+        }
+      } catch {
+        // Sem bloqueio de render por falha de storage.
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [setUser]);
+
+  const ADMIN_EMAILS_LOCAL = ['thegamerbr411@gmail.com'];
+  const isAdmin = useMemo(
+    () => (
+      localAdminUnlocked
+      || user?.role === 'admin'
+      || ADMIN_EMAILS_LOCAL.includes(String(user?.email || '').toLowerCase().trim())
+    ),
+    [localAdminUnlocked, user?.role, user?.email]
+  );
 
   const persistLocalExercises = (nextExercises) => {
     setLocal(ADMIN_LOCAL_EXERCISES_KEY, nextExercises);
@@ -158,6 +192,33 @@ export default function AdminScreen() {
     setToastMessage(`Pacote copiado: ${localExercises.length} exercicio(s) e ${localFoods.length} alimento(s). Cole aqui no chat.`);
   };
 
+  const handleExportNewExercisesJson = async () => {
+    if (!localExercises.length) {
+      setToastMessage('Nao ha novos exercicios locais para exportar.');
+      return;
+    }
+
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      source: 'admin_local',
+      count: localExercises.length,
+      exercises: localExercises.map((exercise) => ({
+        id: exercise.id,
+        name: exercise.name,
+        primaryMuscle: exercise.primaryMuscle,
+        equipment: exercise.equipment,
+        secondaryMuscles: Array.isArray(exercise.secondaryMuscles) ? exercise.secondaryMuscles : [],
+        category: exercise.category || 'compound',
+        movementPattern: exercise.movementPattern || '',
+        createdAt: exercise.createdAt || null,
+      })),
+    };
+
+    await Clipboard.setStringAsync(JSON.stringify(payload, null, 2));
+    Alert.alert('Exportacao concluida', `${localExercises.length} exercicio(s) copiado(s) em JSON.`);
+    setToastMessage('Novos exercicios copiados para a area de transferencia.');
+  };
+
   if (!isAdmin) {
     return (
       <SafeAreaView style={styles.screenWrapper} edges={['top', 'bottom']}>
@@ -223,6 +284,17 @@ export default function AdminScreen() {
               setToastMessage('Sessao restaurada. Token admin aplicado com sucesso.');
             }}
           />
+
+          <SecondaryButton
+            title="Entrar modo local"
+            style={styles.secondary}
+            onPress={async () => {
+              await AsyncStorage.setItem(ADMIN_LOCAL_UNLOCK_KEY, '1');
+              setLocalAdminUnlocked(true);
+              setUser((prev) => ({ ...prev, role: 'admin' }));
+              setToastMessage('Modo local habilitado. Configuracoes gerais liberadas neste dispositivo.');
+            }}
+          />
             </AppCard>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -240,6 +312,22 @@ export default function AdminScreen() {
         >
           <AnimatedToast message={toastMessage} onHide={() => setToastMessage('')} />
           <ScreenHeader title="Admin" subtitle="Controle de XP e missoes." />
+
+      <AppCard>
+        <Text style={styles.label}>Sessao local</Text>
+        <Text style={styles.helperText}>
+          Se as configuracoes sumirem, mantenha o modo local ativo neste dispositivo.
+        </Text>
+        <SecondaryButton
+          title="Desativar modo local"
+          style={styles.secondary}
+          onPress={async () => {
+            await AsyncStorage.removeItem(ADMIN_LOCAL_UNLOCK_KEY);
+            setLocalAdminUnlocked(false);
+            setToastMessage('Modo local desativado.');
+          }}
+        />
+      </AppCard>
 
       <AppCard>
         <Text style={styles.label}>User ID</Text>
@@ -402,6 +490,86 @@ export default function AdminScreen() {
         <Text style={styles.label}>Exportar pacote para me enviar</Text>
         <Text style={styles.helperText}>Gera JSON com exercicios e alimentos locais e copia para a area de transferencia.</Text>
         <PrimaryButton title="Exportar Pacote Admin (JSON)" onPress={handleExportAdminPack} />
+        <SecondaryButton title="Exportar Novos Exercicios (JSON)" onPress={handleExportNewExercisesJson} style={styles.secondary} />
+      </AppCard>
+
+      <AppCard>
+        <Text style={styles.label}>Logs de erros do app</Text>
+        <Text style={styles.helperText}>
+          Erros capturados em tempo real durante o uso do app. Util para diagnostico de bugs.
+        </Text>
+        <View style={styles.logsBtnRow}>
+          <PrimaryButton
+            title={logsLoaded ? 'Atualizar' : 'Carregar logs'}
+            onPress={() => {
+              const snapshot = getObservabilitySnapshot();
+              const errs = Array.isArray(snapshot?.errors) ? [...snapshot.errors].reverse() : [];
+              setBugLogs(errs);
+              setLogsLoaded(true);
+              setToastMessage(`${errs.length} log(s) carregado(s).`);
+            }}
+          />
+          <SecondaryButton
+            title="Copiar tudo"
+            style={styles.secondary}
+            onPress={async () => {
+              if (!bugLogs.length) {
+                setToastMessage('Nenhum log para copiar.');
+                return;
+              }
+              const text = bugLogs
+                .map((e, i) => {
+                  const ts = e.timestamp ? new Date(e.timestamp).toLocaleString('pt-BR') : '?';
+                  const screen = e.context?.screen || e.context?.action || '?';
+                  return `[${i + 1}] ${ts} | ${screen}\n${e.message}\n${e.stack ? e.stack.split('\n').slice(0, 3).join('\n') : ''}`;
+                })
+                .join('\n\n---\n\n');
+              await Clipboard.setStringAsync(text);
+              setToastMessage('Logs copiados para area de transferencia.');
+            }}
+          />
+          <SecondaryButton
+            title="Limpar logs"
+            style={styles.secondary}
+            onPress={() => {
+              clearObservabilitySnapshot();
+              setBugLogs([]);
+              setLogsLoaded(false);
+              setToastMessage('Logs apagados.');
+            }}
+          />
+        </View>
+
+        {logsLoaded && bugLogs.length === 0 ? (
+          <Text style={[styles.helperText, { color: '#4ade80', marginTop: spacing.md }]}>
+            Nenhum erro registrado. App sem crashs detectados.
+          </Text>
+        ) : null}
+
+        {bugLogs.slice(0, 30).map((err, i) => {
+          const ts = err.timestamp ? new Date(err.timestamp).toLocaleString('pt-BR') : '?';
+          const screen = err.context?.screen || err.context?.action || err.context?.source || '?';
+          const severity = err.context?.severity || 'high';
+          const severityColor = severity === 'critical' ? '#ef4444' : severity === 'high' ? '#f97316' : severity === 'medium' ? '#eab308' : '#94a3b8';
+          return (
+            <View key={err.id || i} style={styles.logEntry}>
+              <View style={styles.logHeader}>
+                <Text style={[styles.logSeverity, { color: severityColor }]}>{severity.toUpperCase()}</Text>
+                <Text style={styles.logMeta}>{ts} • {screen}</Text>
+              </View>
+              <Text style={styles.logMessage} numberOfLines={3}>{err.message}</Text>
+              {err.stack ? (
+                <Text style={styles.logStack} numberOfLines={2}>
+                  {err.stack.split('\n').slice(1, 3).join(' | ')}
+                </Text>
+              ) : null}
+            </View>
+          );
+        })}
+
+        {bugLogs.length > 30 ? (
+          <Text style={styles.helperText}>+ {bugLogs.length - 30} logs anteriores (use "Copiar tudo" para ver).</Text>
+        ) : null}
       </AppCard>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -492,5 +660,43 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 2,
     fontSize: 12,
+  },
+  logsBtnRow: {
+    flexDirection: 'column',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  logEntry: {
+    borderTopWidth: 1,
+    borderTopColor: '#1e293b',
+    paddingVertical: spacing.sm,
+  },
+  logHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: 2,
+  },
+  logSeverity: {
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  logMeta: {
+    color: '#64748b',
+    fontSize: 11,
+    flex: 1,
+  },
+  logMessage: {
+    color: '#f1f5f9',
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 17,
+  },
+  logStack: {
+    color: '#475569',
+    fontSize: 10,
+    marginTop: 2,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
 });

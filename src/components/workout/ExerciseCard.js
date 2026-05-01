@@ -18,18 +18,43 @@ export const ExerciseCard = React.memo(function ExerciseCard({
   const [hasGifError, setHasGifError] = React.useState(false);
   const gifUri = exercise?.gif || getExerciseGifFallback();
   const safeExerciseName = String(exercise?.name || '').trim();
+  const safeSets = React.useMemo(
+    () => (Array.isArray(exercise?.sets) ? exercise.sets.filter(Boolean) : []),
+    [exercise?.sets]
+  );
 
-  const renderSetItem = React.useCallback(({ item: setItem, index }) => (
-    <SetRow
-      key={setItem.id || `${safeExerciseName}-${index}`}
-      set={setItem}
-      index={index}
-      simpleMode={simpleMode}
-      onChange={(field, value) => typeof onChangeSet === 'function' && safeExerciseName && onChangeSet(safeExerciseName, index, field, value)}
-      onComplete={() => typeof onCompleteSet === 'function' && safeExerciseName && onCompleteSet(safeExerciseName, index)}
-      testIDs={typeof testIDs === 'function' ? testIDs(setItem, index) : {}}
-    />
-  ), [onChangeSet, onCompleteSet, safeExerciseName, simpleMode, testIDs]);
+  const nextPendingSetIndex = React.useMemo(() => {
+    const pendingIndex = safeSets.findIndex((setItem) => !setItem?.done);
+    return pendingIndex >= 0 ? pendingIndex : safeSets.length;
+  }, [safeSets]);
+
+  const renderSetItem = React.useCallback(({ item: setItem, index }) => {
+    const resolvedSetIndex = Number.isInteger(setItem?.index) ? setItem.index : index;
+    const canComplete = resolvedSetIndex === nextPendingSetIndex;
+
+    return (
+      <SetRow
+        key={setItem?.id || `${safeExerciseName}-${resolvedSetIndex}`}
+        set={setItem}
+        index={resolvedSetIndex}
+        simpleMode={simpleMode}
+        isCardio={exercise?.category === 'cardio'}
+        onChange={(field, value) => {
+          if (typeof onChangeSet !== 'function' || !safeExerciseName) {
+            return;
+          }
+          onChangeSet(safeExerciseName, resolvedSetIndex, field, value);
+        }}
+        onComplete={() => {
+          if (typeof onCompleteSet !== 'function' || !safeExerciseName || setItem?.done || !canComplete) {
+            return;
+          }
+          onCompleteSet(safeExerciseName, resolvedSetIndex);
+        }}
+        testIDs={typeof testIDs === 'function' ? testIDs(setItem, resolvedSetIndex) : {}}
+      />
+    );
+  }, [exercise?.category, nextPendingSetIndex, onChangeSet, onCompleteSet, safeExerciseName, simpleMode, testIDs]);
 
   return (
     <AppCard>
@@ -55,7 +80,7 @@ export const ExerciseCard = React.memo(function ExerciseCard({
       ) : null}
 
       <FlatList
-        data={Array.isArray(exercise.sets) ? exercise.sets : []}
+        data={safeSets}
         scrollEnabled={false}
         keyExtractor={(item, index) => String(item?.id || `${safeExerciseName}-${index}`)}
         renderItem={renderSetItem}

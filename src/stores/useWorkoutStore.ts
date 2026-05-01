@@ -7,6 +7,7 @@ export type WorkoutLog = {
   id: string;
   date: string;
   createdAt: string;
+  sessionId?: string;
   exerciseId?: string;
   exerciseName: string;
   weight: number;
@@ -33,8 +34,10 @@ type WorkoutStore = {
   currentExercise: any | null;
   currentSet: number;
   isResting: boolean;
+  workoutSessionId: string | null;
 
   setWorkout: (workout: WorkoutData) => void;
+  setWorkoutSessionId: (id: string | null) => void;
   addExercise: (exercise: any) => void;
   updateSet: (exerciseIndex: number, setIndex: number, field: string, value: any) => void;
   addWorkoutLog: (log: WorkoutLog) => void;
@@ -65,8 +68,10 @@ export const useWorkoutStore = create<WorkoutStore>((set) => ({
   currentExercise: null,
   currentSet: 1,
   isResting: false,
+  workoutSessionId: null,
 
   setWorkout: (workout) => set({ workout }),
+  setWorkoutSessionId: (id) => set({ workoutSessionId: id }),
   addExercise: (exercise) =>
     set((state) => ({
       workout: {
@@ -133,10 +138,15 @@ export const useWorkoutStore = create<WorkoutStore>((set) => ({
       currentSet: Math.max(1, Number(currentSet || 1)),
     })),
   advanceCurrentSet: (exercise, completedSetIndex) =>
-    set((state) => ({
-      currentExercise: exercise || state.currentExercise || null,
-      currentSet: Math.max(1, Number(completedSetIndex || 0) + 2),
-    })),
+    set((state) => {
+      const safeExercise = exercise || state.currentExercise || null;
+      const plannedSets = Math.max(1, Number(safeExercise?.sets || 1));
+      const nextSet = Math.max(1, Number(completedSetIndex || 0) + 2);
+      return {
+        currentExercise: safeExercise,
+        currentSet: Math.min(nextSet, plannedSets),
+      };
+    }),
   setRestingState: (isResting) =>
     set(() => ({ isResting: Boolean(isResting) })),
 }));

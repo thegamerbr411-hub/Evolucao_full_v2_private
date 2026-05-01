@@ -3,6 +3,14 @@ import { searchNutritionDatabase } from '../data/nutritionDatabase.js';
 const TEXT_CONNECTORS = /(?:\+|,|;|\be\b|\bcom\b)/i;
 const FOOD_STOP_WORDS = new Set(['de', 'da', 'do', 'das', 'dos', 'com', 'sem', 'no', 'na', 'em']);
 const UNIT_HINTS = new Set(['fatia', 'fatias', 'colher', 'colheres', 'scoop', 'un', 'unid', 'unidade', 'unidades', 'copo', 'copos', 'xicara', 'xicaras']);
+const FOOD_TYPO_ALIASES = {
+  muzarela: 'mussarela',
+  mussarelaa: 'mussarela',
+  paoziho: 'paozinho',
+  paozinhoo: 'paozinho',
+  ovvo: 'ovo',
+  aveiaa: 'aveia',
+};
 
 function normalize(value = '') {
   return String(value || '')
@@ -17,6 +25,11 @@ function toNumber(value, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function normalizeFoodToken(token = '') {
+  const base = normalize(token);
+  return FOOD_TYPO_ALIASES[base] || base;
+}
+
 function buildFoodSearchVariants(label = '') {
   const normalized = normalize(label)
     .replace(/\b(fatia|fatias|colher|colheres|scoop|unidade|unidades|unid|copo|copos|xicara|xicaras)\b/g, ' ')
@@ -25,7 +38,7 @@ function buildFoodSearchVariants(label = '') {
 
   const baseTokens = normalized
     .split(/\s+/)
-    .map((token) => token.trim())
+    .map((token) => normalizeFoodToken(token.trim()))
     .filter((token) => token && !FOOD_STOP_WORDS.has(token));
 
   const singularTokens = baseTokens.map((token) => (token.endsWith('s') && token.length > 3 ? token.slice(0, -1) : token));
@@ -38,7 +51,12 @@ function buildFoodSearchVariants(label = '') {
     }
   }
 
-  return Array.from(new Set([normalized, ...phrases].filter(Boolean)));
+  return Array.from(new Set([
+    baseTokens.join(' '),
+    normalized,
+    ...phrases,
+    ...baseTokens,
+  ].filter(Boolean)));
 }
 
 function getMatchQualityScore(candidate, phrase = '') {
@@ -49,6 +67,8 @@ function getMatchQualityScore(candidate, phrase = '') {
 
   const candidateLabel = normalize(candidate.label);
   const candidateAliases = Array.isArray(candidate.aliases) ? candidate.aliases.map((alias) => normalize(alias)) : [];
+  const phraseTokens = normalizedPhrase.split(/\s+/).filter(Boolean);
+  const candidateTokenPool = [candidateLabel, ...candidateAliases].join(' ').split(/\s+/).filter(Boolean);
 
   if (candidateLabel === normalizedPhrase || candidateAliases.includes(normalizedPhrase)) {
     return 300;
@@ -56,6 +76,14 @@ function getMatchQualityScore(candidate, phrase = '') {
 
   if (candidateLabel.includes(normalizedPhrase) || candidateAliases.some((alias) => alias.includes(normalizedPhrase))) {
     return 180 + normalizedPhrase.split(/\s+/).length * 10;
+  }
+
+  const matchedTokens = phraseTokens.filter((token) =>
+    candidateTokenPool.some((candidateToken) => candidateToken.startsWith(token) || token.startsWith(candidateToken))
+  ).length;
+
+  if (matchedTokens > 0) {
+    return 120 + matchedTokens * 25;
   }
 
   return 0;
@@ -66,7 +94,13 @@ function findFlexibleFoodMatches(label = '') {
   const matches = new Map();
 
   phrases.forEach((phrase) => {
-    const candidates = searchNutritionDatabase(phrase);
+    const phraseTokens = phrase.split(/\s+/).filter(Boolean);
+    const rawCandidates = [
+      ...searchNutritionDatabase(phrase),
+      ...phraseTokens.flatMap((token) => (token.length >= 3 ? searchNutritionDatabase(token) : [])),
+    ];
+    const candidates = Array.from(new Map(rawCandidates.map((item) => [item.id, item])).values());
+
     candidates.forEach((candidate) => {
       const score = getMatchQualityScore(candidate, phrase);
       if (score <= 0) {
