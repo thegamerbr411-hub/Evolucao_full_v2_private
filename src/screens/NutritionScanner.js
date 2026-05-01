@@ -898,6 +898,12 @@ export default function NutritionScanner({ navigation, route }) {
       <ScrollView testID="screen-nutricao" contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
       <ScreenHeader title="Nutrição" subtitle="Registre em 5 segundos." />
 
+      {__DEV__ ? (
+        <View style={styles.devFeatureTagWrap}>
+          <Text style={styles.devFeatureTag}>[F-Nutrition] Scanner, parser e feedback de macros</Text>
+        </View>
+      ) : null}
+
       <Text style={styles.sectionSeparator}>O que você comeu?</Text>
       <AppCard style={styles.card}>
         <Text style={styles.cardTitle}>Registro rápido</Text>
@@ -1177,37 +1183,57 @@ export default function NutritionScanner({ navigation, route }) {
           title="Estimar por texto"
           style={styles.primaryButton}
           onPress={() => {
-            const parsedFromFreeText = createFoodFromText(manualText);
-            if (parsedFromFreeText?.items?.length) {
-              setResult({
-                ok: true,
-                source: 'free_text',
-                items: parsedFromFreeText.items,
-                totals: {
-                  calories: Math.round(parsedFromFreeText.totals.calories * portionFactor),
-                  protein: Math.round(parsedFromFreeText.totals.protein * portionFactor),
-                  carbs: Math.round(parsedFromFreeText.totals.carbs * portionFactor),
-                  fats: Math.round(parsedFromFreeText.totals.fats * portionFactor),
-                },
-                message: `Texto livre processado com sucesso. Porcao aplicada: ${portionFactor}x.`,
-              });
-              return;
-            }
+            try {
+              const parsedFromFreeText = createFoodFromText(manualText);
+              if (parsedFromFreeText?.items?.length) {
+                setResult({
+                  ok: true,
+                  source: 'free_text',
+                  items: parsedFromFreeText.items,
+                  totals: {
+                    calories: Math.round(parsedFromFreeText.totals.calories * portionFactor),
+                    protein: Math.round(parsedFromFreeText.totals.protein * portionFactor),
+                    carbs: Math.round(parsedFromFreeText.totals.carbs * portionFactor),
+                    fats: Math.round(parsedFromFreeText.totals.fats * portionFactor),
+                  },
+                  message: `Texto livre processado com sucesso. Porcao aplicada: ${portionFactor}x.`,
+                });
+                return;
+              }
 
-            const parsed = estimateNutritionFromText(manualText);
-            if (parsed?.ok) {
+              const parsed = estimateNutritionFromText(manualText);
+              if (parsed?.ok) {
+                setResult({
+                  ...parsed,
+                  totals: {
+                    calories: Math.round(parsed.totals.calories * portionFactor),
+                    protein: Math.round(parsed.totals.protein * portionFactor),
+                    carbs: Math.round(parsed.totals.carbs * portionFactor),
+                    fats: Math.round(parsed.totals.fats * portionFactor),
+                  },
+                  message: `${parsed.message} Porcao aplicada: ${portionFactor}x.`,
+                });
+              } else {
+                setResult(
+                  parsed || {
+                    ok: false,
+                    message: 'Nao foi possivel estimar com esse texto. Tente incluir quantidade e alimento (ex: 2 ovos, 100g frango).',
+                  }
+                );
+              }
+            } catch (error) {
               setResult({
-                ...parsed,
-                totals: {
-                  calories: Math.round(parsed.totals.calories * portionFactor),
-                  protein: Math.round(parsed.totals.protein * portionFactor),
-                  carbs: Math.round(parsed.totals.carbs * portionFactor),
-                  fats: Math.round(parsed.totals.fats * portionFactor),
-                },
-                message: `${parsed.message} Porcao aplicada: ${portionFactor}x.`,
+                ok: false,
+                message: 'Falha ao estimar refeicao agora. Ajuste o texto e tente novamente.',
               });
-            } else {
-              setResult(parsed);
+              trackAppError(error, {
+                screen: SCREENS.NUTRITION,
+                action: 'estimate_text',
+                context: {
+                  manualTextLength: String(manualText || '').length,
+                  portionFactor,
+                },
+              });
             }
           }}
         />
@@ -1422,16 +1448,20 @@ const styles = StyleSheet.create({
   },
   resultCard: {
     marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: '#2C3D55',
+    backgroundColor: '#0F1726',
   },
   emptyLine: {
     color: colors.textSecondary,
     fontSize: 13,
   },
   mealFeedback: {
-    color: colors.textPrimary,
+    color: '#D9E8FF',
     fontSize: 12,
     marginBottom: 6,
     fontWeight: '700',
+    lineHeight: 18,
   },
   logRow: {
     marginTop: 6,
@@ -1593,16 +1623,19 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   resultTitle: {
-    color: colors.textPrimary,
+    color: '#BFDBFE',
     fontWeight: '800',
     marginBottom: 6,
+    fontSize: 14,
   },
   resultMessage: {
-    color: colors.textSecondary,
+    color: '#D1D9E6',
     marginBottom: 8,
+    lineHeight: 19,
+    fontWeight: '600',
   },
   resultLine: {
-    color: colors.textPrimary,
+    color: '#F8FAFC',
     marginBottom: 3,
     fontWeight: '700',
   },
@@ -1750,5 +1783,20 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     lineHeight: 19,
+  },
+  devFeatureTagWrap: {
+    borderWidth: 1,
+    borderColor: '#3B82F6',
+    backgroundColor: '#0B1730',
+    borderRadius: 999,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    marginBottom: 8,
+  },
+  devFeatureTag: {
+    color: '#BFDBFE',
+    fontSize: 11,
+    fontWeight: '800',
   },
 });
