@@ -175,6 +175,34 @@ function isCardioExercise(exercise) {
   return category === 'cardio' || libCategory === 'cardio' || isCardioExerciseName(exerciseName);
 }
 
+function normalizeWorkoutExercise(item, index = 0, prefix = 'exercise') {
+  if (!item) {
+    return null;
+  }
+
+  const isObject = typeof item === 'object';
+  const rawName = isObject
+    ? (item.name || item.exerciseName || item.title || item.label)
+    : item;
+  const name = String(rawName || '').trim();
+  if (!name) {
+    return null;
+  }
+
+  const sets = Math.max(1, Number(isObject ? item.sets : 3) || 3);
+  const reps = String((isObject ? item.reps : '') || '8-12').trim() || '8-12';
+  const id = String((isObject ? item.id : '') || `${prefix}-${index + 1}-${name}`);
+
+  return {
+    ...(isObject ? item : {}),
+    id,
+    name,
+    sets,
+    reps,
+    targetWeight: Number(isObject ? item.targetWeight : 0) || 0,
+  };
+}
+
 export default function WorkoutScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
   const { workout, setWorkout, user, plan, getUserRoutineById } = useApp();
@@ -207,7 +235,12 @@ export default function WorkoutScreen({ navigation, route }) {
   const baseExercises = useMemo(() => getTodayWorkout(), [getTodayWorkout]);
   const [sessionBaseExercises, setSessionBaseExercises] = useState([]);
   const [customExercises, setCustomExercises] = useState([]);
-  const allExercises = useMemo(() => [...sessionBaseExercises, ...customExercises], [sessionBaseExercises, customExercises]);
+  const allExercises = useMemo(
+    () => [...sessionBaseExercises, ...customExercises]
+      .map((item, index) => normalizeWorkoutExercise(item, index, 'workout'))
+      .filter(Boolean),
+    [sessionBaseExercises, customExercises]
+  );
   const exerciseCatalog = useMemo(() => {
     const baseCatalog = Array.isArray(getExerciseCatalog()) ? getExerciseCatalog() : [];
     return Array.from(new Set([...baseCatalog, ...EXERCISE_NAMES_V2]));
@@ -665,7 +698,11 @@ export default function WorkoutScreen({ navigation, route }) {
       return;
     }
 
-    setSessionBaseExercises(baseExercises.map((item) => ({ ...item })));
+    setSessionBaseExercises(
+      (Array.isArray(baseExercises) ? baseExercises : [])
+        .map((item, index) => normalizeWorkoutExercise(item, index, 'base'))
+        .filter(Boolean)
+    );
   }, [baseExercises, selectedWorkoutId, sessionBaseExercises.length, customExercises.length]);
 
   useEffect(() => {
@@ -2652,7 +2689,7 @@ export default function WorkoutScreen({ navigation, route }) {
               <View key={`render-fallback-${renderIndex}`} style={styles.exerciseCardFallback}>
                 <Text style={styles.exerciseCardFallbackTitle}>{exercise?.name ?? 'Exercicio'}</Text>
                 <Text style={styles.exerciseCardFallbackText}>
-                  Nao foi possivel renderizar este bloco. {String(err?.message || err || 'erro desconhecido')}
+                  Nao foi possivel renderizar este bloco agora. Tente alternar para outro exercicio e voltar.
                 </Text>
               </View>
             );

@@ -55,7 +55,7 @@ export default function RootNavigator(){
   return(
     <Stack.Navigator
       initialRouteName={getInitialRoute()}
-      screenOptions={{headerShown:false}}
+      screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}
     >
       <Stack.Screen name="Cadastro" component={RegisterScreen}/>
       <Stack.Screen name="Questionario" component={QuestionnaireScreen}/>
