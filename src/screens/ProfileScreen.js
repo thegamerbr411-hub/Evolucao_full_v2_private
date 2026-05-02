@@ -16,6 +16,8 @@ const useGoogleAuth = typeof _useGoogleAuth === 'function' ? _useGoogleAuth : ()
 import { getOrCreateUserIdentity, saveUserIdentity } from '../services/appIdentityService';
 import { setQaRuntimeAuth } from '../utils/qaTransport';
 
+const ADMIN_EMAILS = ['thegamerbr411@gmail.com'];
+
 const GOALS = [
   { key: 'emagrecer', label: 'Perda de gordura' },
   { key: 'ganhar_massa', label: 'Ganho de massa' },
@@ -82,7 +84,7 @@ export default function ProfileScreen({ navigation }) {
   };
   const { request, promptAsync, response } = useGoogleAuth();
   const googleConfigured = isGoogleAuthConfigured();
-  const isAdmin = String(user?.role || '').toLowerCase() === 'admin';
+  const isAdmin = String(user?.role || '').toLowerCase() === 'admin' || ADMIN_EMAILS.includes(String(user?.email || '').toLowerCase().trim());
 
   const gamification = getWorkoutGamification();
   const macroTargets = getDailyMacroTargets();
@@ -205,7 +207,13 @@ export default function ProfileScreen({ navigation }) {
 
         await saveUserIdentity({ userId: loggedUser.id, source: loggedUser.source || 'google' });
         setQaRuntimeAuth({ userId: loggedUser.id });
-        setUser((prev) => ({ ...prev, id: loggedUser.id, role: loggedUser.role || 'user' }));
+        setUser((prev) => ({
+          ...prev,
+          id: loggedUser.id,
+          role: loggedUser.role || 'user',
+          email: loggedUser.email || prev?.email || null,
+          name: loggedUser.name || prev?.name || null,
+        }));
         setToastMessage('Login concluido. Conta Google conectada com sucesso.');
       } catch (error) {
         setToastMessage(`Erro no login: ${String(error?.message || 'Nao foi possivel autenticar com Google.')}`);
@@ -412,11 +420,18 @@ export default function ProfileScreen({ navigation }) {
           <Text style={styles.metric}>Google nao configurado nesta build. Ative EXPO_PUBLIC_GOOGLE_* para login no release.</Text>
         )}
 
+        <SecondaryButton
+          title="Abrir painel Admin"
+          onPress={() => navigation.navigate('Admin')}
+          style={styles.secondaryButton}
+        />
+
       </AppCard>
 
       {isAdmin ? (
         <AppCard>
           <Text style={styles.cardLabel}>Admin</Text>
+          {__DEV__ ? <Text style={styles.devFeatureTag}>[F-Admin] Acesso privilegiado habilitado</Text> : null}
           <PrimaryButton title="Abrir configuracoes Admin" onPress={() => navigation.navigate('Admin')} />
         </AppCard>
       ) : null}
@@ -660,6 +675,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 4,
+  },
+  devFeatureTag: {
+    color: '#BFDBFE',
+    backgroundColor: '#0B1730',
+    borderWidth: 1,
+    borderColor: '#3B82F6',
+    borderRadius: 999,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    fontSize: 11,
+    fontWeight: '800',
+    marginBottom: spacing.sm,
   },
   versionText: {
     marginTop: spacing.md,

@@ -760,6 +760,19 @@ export default function WorkoutScreen({ navigation, route }) {
   }, [selectedWorkoutId, getUserRoutineById]);
 
   useEffect(() => {
+    if (!allExercises.length) {
+      if (activeExerciseIndex !== 0) {
+        setActiveExerciseIndex(0);
+      }
+      return;
+    }
+
+    if (activeExerciseIndex < 0 || activeExerciseIndex >= allExercises.length) {
+      setActiveExerciseIndex(0);
+    }
+  }, [allExercises.length, activeExerciseIndex]);
+
+  useEffect(() => {
     setDraftSetsByExercise((prev) => {
       const next = { ...prev };
       let changed = false;

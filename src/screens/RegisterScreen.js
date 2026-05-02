@@ -23,39 +23,53 @@ import { auth, isFirebaseConfigured } from '../services/firebase';
 import { setQaRuntimeAuth } from '../utils/qaTransport';
 import { API_BASE_URL } from '../services/api';
 import { requestPasswordReset } from '../services/authService';
+import { isGoogleAuthConfigured, loginWithGoogleToken, useGoogleAuth } from '../services/authService';
 import { colors, spacing } from '../theme';
 
 const LOCAL_ACCOUNTS_KEY = 'auth.local.accounts.v1';
 const TEMP_FALLBACK_PASSWORDS = new Set(['123456', '12345678', 'evolucao123', 'temp123456']);
 const ALLOW_LOCAL_CODE_FALLBACK = typeof __DEV__ !== 'undefined' && __DEV__;
+const AUTH_REQUEST_TIMEOUT_MS = 12000;
+
+async function withTimeout(requestFactory, timeoutMs = AUTH_REQUEST_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), Math.max(2000, Number(timeoutMs || AUTH_REQUEST_TIMEOUT_MS)));
+  try {
+    return await requestFactory(controller.signal);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
 
 async function sendCodeViaBackend(email) {
   try {
-    const res = await fetch(`${API_BASE_URL}/auth/send-code`, {
+    const res = await withTimeout((signal) => fetch(`${API_BASE_URL}/auth/send-code`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email }),
-    });
+      signal,
+    }));
     const data = await res.json();
     if (!res.ok) return { ok: false, error: data?.error || 'Falha ao enviar código.' };
     return { ok: true, delivery: data.delivery, code: data.code };
   } catch {
-    return { ok: false, error: 'Backend indisponível.' };
+    return { ok: false, error: 'Servidor de verificacao indisponivel ou sem resposta.' };
   }
 }
 
 async function verifyCodeViaBackend(email, code) {
   try {
-    const res = await fetch(`${API_BASE_URL}/auth/verify-code`, {
+    const res = await withTimeout((signal) => fetch(`${API_BASE_URL}/auth/verify-code`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, code }),
-    });
+      signal,
+    }));
     const data = await res.json();
     if (!res.ok) return { ok: false, error: data?.error || 'Código inválido.' };
     return { ok: true };
   } catch {
-    return { ok: false, error: 'Backend indisponível.' };
+    return { ok: false, error: 'Servidor de verificacao indisponivel ou sem resposta.' };
   }
 }
 
@@ -84,6 +98,58 @@ export default function RegisterScreen({ navigation }) {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState('');
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const { request: googleRequest, promptAsync, response: googleResponse } = useGoogleAuth();
+  const googleConfigured = isGoogleAuthConfigured();
+
+  React.useEffect(() => {
+    const handleGoogleResponse = async () => {
+      if (!googleResponse) {
+        return;
+      }
+
+      if (googleResponse.type === 'error') {
+        const reason = String(googleResponse?.error?.message || googleResponse?.params?.error_description || 'Falha no login Google.');
+        setToast(`Erro Google: ${reason}`);
+        return;
+      }
+
+      if (googleResponse.type !== 'success') {
+        return;
+      }
+
+      setGoogleLoading(true);
+      try {
+        const authData = googleResponse.authentication || {};
+        const idToken = authData.idToken || googleResponse?.params?.id_token || null;
+        const loggedUser = await loginWithGoogleToken({
+          accessToken: authData.accessToken,
+          idToken,
+        });
+
+        if (!loggedUser?.id) {
+          setToast('Falha no login Google. Tente novamente.');
+          return;
+        }
+
+        await saveUserIdentity({ userId: loggedUser.id, source: loggedUser.source || 'google' });
+        setQaRuntimeAuth({ userId: loggedUser.id });
+        setUser({
+          id: loggedUser.id,
+          role: loggedUser.role || 'user',
+          name: loggedUser.name || 'Usuario',
+          email: loggedUser.email || null,
+        });
+        navigation.replace('Questionario');
+      } catch (error) {
+        setToast(`Erro no login Google: ${String(error?.message || 'nao foi possivel autenticar.')}`);
+      } finally {
+        setGoogleLoading(false);
+      }
+    };
+
+    handleGoogleResponse();
+  }, [googleResponse, navigation, setUser]);
 
   const handleForgotPassword = async () => {
     const safeEmail = String(email || '').trim().toLowerCase();
@@ -607,6 +673,23 @@ export default function RegisterScreen({ navigation }) {
             onPress={handleRegister}
             style={styles.btn}
           />
+
+          {googleConfigured ? (
+            <PrimaryButton
+              title={googleLoading ? 'Conectando Google...' : 'Entrar com Google'}
+              onPress={() => {
+                if (googleLoading) return;
+                if (!googleRequest) {
+                  setToast('Google ainda nao inicializou. Reabra a tela e tente novamente.');
+                  return;
+                }
+                promptAsync({ useProxy: false }).catch(() => {
+                  setToast('Nao foi possivel abrir o login Google.');
+                });
+              }}
+              style={styles.btn}
+            />
+          ) : null}
 
           <Text style={styles.terms}>
             Seus dados são armazenados localmente no seu dispositivo.{'\n'}

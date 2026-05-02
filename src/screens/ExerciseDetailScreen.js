@@ -3,6 +3,7 @@ import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacit
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Video, ResizeMode } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
+import * as WebBrowser from 'expo-web-browser';
 import { AppCard, ScreenHeader } from '../components/ui';
 import { colors, spacing, radius } from '../theme';
 import { getExerciseByName } from '../data/exercises.js';
@@ -33,6 +34,11 @@ function toSafeList(value) {
   return Array.isArray(value)
     ? value.map((item) => String(item || '').trim()).filter(Boolean)
     : [];
+}
+
+function buildYoutubeSearchUrl(exerciseName = '') {
+  const query = encodeURIComponent(`${String(exerciseName || '').trim()} exercicio execucao correta`);
+  return `https://www.youtube.com/results?search_query=${query}`;
 }
 
 function safeTrackAppError(error, context) {
@@ -102,6 +108,7 @@ class ExerciseDetailErrorBoundary extends React.PureComponent {
 
 function ExerciseDetailContent({ route, navigation }) {
   const [activeTab, setActiveTab] = useState('resumo');
+  const [videoEnabled, setVideoEnabled] = useState(false);
   const [videoFailed, setVideoFailed] = useState(false);
   const [videoLoading, setVideoLoading] = useState(false);
   const [videoRetryKey, setVideoRetryKey] = useState(0);
@@ -130,7 +137,10 @@ function ExerciseDetailContent({ route, navigation }) {
   const metadataEntries = Object.entries(metadata || {}).filter(([key, value]) => String(key || '').trim() && String(value || '').trim());
   const videoUrl = String(safeExercise?.videoUrl || safeExercise?.video || '').trim();
   const thumbnailUrl = String(safeExercise?.thumbnail || '').trim();
-  const canRenderVideo = isValidHttpUrl(videoUrl) && !videoFailed;
+  const isPlaceholderCdn = /cdn\.app\.com/i.test(videoUrl);
+  const directVideoUrl = isValidHttpUrl(videoUrl) && !isPlaceholderCdn ? videoUrl : '';
+  const fallbackVideoUrl = directVideoUrl || buildYoutubeSearchUrl(name);
+  const canRenderVideo = Boolean(directVideoUrl) && !videoFailed && videoEnabled;
   const canRenderThumbnail = isValidHttpUrl(thumbnailUrl);
   const hasExerciseData = Boolean(
     safeExercise?.name ||
@@ -151,7 +161,7 @@ function ExerciseDetailContent({ route, navigation }) {
     safeTrackAppError(error || new Error('exercise_video_failed'), {
       screen: 'ExerciseDetailScreen',
       action: 'video_render',
-      context: { exerciseName: name, videoUrl },
+      context: { exerciseName: name, videoUrl: directVideoUrl || videoUrl },
     });
   };
 
@@ -164,7 +174,7 @@ function ExerciseDetailContent({ route, navigation }) {
           {canRenderVideo ? (
             <Video
               key={`video-${videoRetryKey}`}
-              source={{ uri: videoUrl }}
+              source={{ uri: directVideoUrl }}
               style={styles.video}
               useNativeControls
               resizeMode={ResizeMode.COVER}
@@ -174,6 +184,39 @@ function ExerciseDetailContent({ route, navigation }) {
               onLoad={() => setVideoLoading(false)}
               onError={handleVideoError}
             />
+          ) : directVideoUrl && !videoEnabled ? (
+            <View style={styles.videoFallback}>
+              <Ionicons name="play-circle-outline" size={34} color={colors.textSecondary} />
+              <Text style={styles.videoFallbackText}>Video pronto</Text>
+              <Text style={styles.videoFallbackSubtext}>Use abertura externa (mais estável) ou player interno (beta).</Text>
+              <TouchableOpacity
+                style={styles.retryVideoButton}
+                onPress={async () => {
+                  try {
+                    await WebBrowser.openBrowserAsync(fallbackVideoUrl);
+                  } catch (error) {
+                    safeTrackAppError(error || new Error('exercise_video_external_open_failed'), {
+                      screen: 'ExerciseDetailScreen',
+                      action: 'video_external_open',
+                      context: { exerciseName: name, videoUrl: fallbackVideoUrl },
+                    });
+                  }
+                }}
+              >
+                <Text style={styles.retryVideoButtonText}>Abrir video (estável)</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.retryVideoButton}
+                onPress={() => {
+                  setVideoFailed(false);
+                  setVideoLoading(true);
+                  setVideoEnabled(true);
+                  setVideoRetryKey((prev) => prev + 1);
+                }}
+              >
+                <Text style={styles.retryVideoButtonText}>Tentar player interno (beta)</Text>
+              </TouchableOpacity>
+            </View>
           ) : canRenderThumbnail ? (
             <Image source={{ uri: thumbnailUrl }} style={styles.video} resizeMode="cover" />
           ) : (
@@ -181,12 +224,29 @@ function ExerciseDetailContent({ route, navigation }) {
               <Ionicons name="videocam-off-outline" size={34} color={colors.textSecondary} />
               <Text style={styles.videoFallbackText}>Video indisponivel</Text>
               <Text style={styles.videoFallbackSubtext}>Sem bloqueio da tela. Use o resumo e o passo a passo abaixo.</Text>
-              {isValidHttpUrl(videoUrl) ? (
+              <TouchableOpacity
+                style={styles.retryVideoButton}
+                onPress={async () => {
+                  try {
+                    await WebBrowser.openBrowserAsync(fallbackVideoUrl);
+                  } catch (error) {
+                    safeTrackAppError(error || new Error('exercise_video_external_open_failed'), {
+                      screen: 'ExerciseDetailScreen',
+                      action: 'video_external_open',
+                      context: { exerciseName: name, videoUrl: fallbackVideoUrl },
+                    });
+                  }
+                }}
+              >
+                <Text style={styles.retryVideoButtonText}>Abrir video exemplo</Text>
+              </TouchableOpacity>
+              {directVideoUrl ? (
                 <TouchableOpacity
                   style={styles.retryVideoButton}
                   onPress={() => {
                     setVideoFailed(false);
                     setVideoLoading(true);
+                    setVideoEnabled(true);
                     setVideoRetryKey((prev) => prev + 1);
                   }}
                 >
@@ -301,7 +361,7 @@ function ExerciseDetailContent({ route, navigation }) {
 
 export default function ExerciseDetailScreen({ route, navigation }) {
   return (
-    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.background }}>
+    <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: colors.background }}>
       <ExerciseDetailErrorBoundary navigation={navigation}>
         <ExerciseDetailContent route={route} navigation={navigation} />
       </ExerciseDetailErrorBoundary>
