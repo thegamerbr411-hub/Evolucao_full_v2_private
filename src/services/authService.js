@@ -1,4 +1,4 @@
-import { getIdTokenResult, GoogleAuthProvider, signInAnonymously, signInWithCredential } from 'firebase/auth';
+import { getIdTokenResult, GoogleAuthProvider, sendPasswordResetEmail, signInAnonymously, signInWithCredential } from 'firebase/auth';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 import { auth } from './firebase.js';
@@ -32,10 +32,24 @@ export function isGoogleAuthConfigured() {
 
 export function useGoogleAuth() {
   const cfg = getGoogleClientConfig();
+  const useAuthRequestHook = Google && typeof Google.useAuthRequest === 'function'
+    ? Google.useAuthRequest
+    : null;
+
+  if (!useAuthRequestHook) {
+    return {
+      request: null,
+      response: null,
+      promptAsync: async () => ({
+        type: 'error',
+        error: { message: 'Google auth indisponivel neste build.' },
+      }),
+    };
+  }
 
   // Evita crash em ambientes QA/E2E sem OAuth configurado; o botao de login continua desabilitado.
   const safeAndroidClientId = cfg.androidClientId || 'detox-placeholder.apps.googleusercontent.com';
-  const [request, response, promptAsync] = Google.useAuthRequest({
+  const [request, response, promptAsync] = useAuthRequestHook({
     androidClientId: safeAndroidClientId,
     webClientId: cfg.webClientId || undefined,
     expoClientId: cfg.expoClientId || undefined,
@@ -95,6 +109,8 @@ export const loginWithGoogleToken = async ({ idToken, accessToken }) => {
       id: user?.id || null,
       isAdmin: Boolean(user?.isAdmin),
       role: user?.role || (user?.isAdmin ? 'admin' : 'user'),
+      email: user?.email || null,
+      name: user?.name || null,
       source: 'google_backend',
     };
   } catch (backendError) {
@@ -113,6 +129,8 @@ export const loginWithGoogleToken = async ({ idToken, accessToken }) => {
         id: result.user.uid,
         isAdmin: Boolean(token?.claims?.admin),
         role: token?.claims?.admin ? 'admin' : 'user',
+        email: result?.user?.email || null,
+        name: result?.user?.displayName || null,
         source: 'google_firebase',
       };
     }
@@ -157,5 +175,24 @@ export const hasAdminClaim = async () => {
   } catch (error) {
     await logCriticalError('authService.hasAdminClaim', error);
     return false;
+  }
+};
+
+export const requestPasswordReset = async (email) => {
+  const safeEmail = String(email || '').trim().toLowerCase();
+  if (!safeEmail) {
+    return { ok: false, message: 'Informe um e-mail válido.' };
+  }
+
+  try {
+    if (!auth) {
+      return { ok: false, message: 'Serviço de autenticação indisponível.' };
+    }
+
+    await sendPasswordResetEmail(auth, safeEmail);
+    return { ok: true };
+  } catch (error) {
+    await logCriticalError('authService.requestPasswordReset', error);
+    return { ok: false, message: 'Não foi possível enviar o e-mail de recuperação agora.' };
   }
 };
