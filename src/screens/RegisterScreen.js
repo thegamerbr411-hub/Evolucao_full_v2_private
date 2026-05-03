@@ -23,7 +23,7 @@ import { auth, isFirebaseConfigured } from '../services/firebase';
 import { setQaRuntimeAuth } from '../utils/qaTransport';
 import { API_BASE_URL } from '../services/api';
 import { requestPasswordReset } from '../services/authService';
-import { isGoogleAuthConfigured, loginWithGoogleToken, useGoogleAuth } from '../services/authService';
+import { loginWithGoogleToken } from '../services/authService';
 import { colors, spacing } from '../theme';
 
 const LOCAL_ACCOUNTS_KEY = 'auth.local.accounts.v1';
@@ -99,8 +99,10 @@ export default function RegisterScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState('');
   const [googleLoading, setGoogleLoading] = useState(false);
-  const { request: googleRequest, promptAsync, response: googleResponse } = useGoogleAuth();
-  const googleConfigured = isGoogleAuthConfigured();
+  const googleRequest = null;
+  const googleResponse = null;
+  const promptAsync = async () => ({ type: 'error' });
+  const googleConfigured = false;
 
   React.useEffect(() => {
     const handleGoogleResponse = async () => {
