@@ -30,6 +30,21 @@ const LOCAL_ACCOUNTS_KEY = 'auth.local.accounts.v1';
 const TEMP_FALLBACK_PASSWORDS = new Set(['123456', '12345678', 'evolucao123', 'temp123456']);
 const ALLOW_LOCAL_CODE_FALLBACK = typeof __DEV__ !== 'undefined' && __DEV__;
 const AUTH_REQUEST_TIMEOUT_MS = 12000;
+const FIREBASE_AUTH_TIMEOUT_MS = 12000;
+
+async function withPromiseTimeout(promise, timeoutMs = FIREBASE_AUTH_TIMEOUT_MS, timeoutMessage = 'Tempo limite de autenticacao excedido.') {
+  const safeTimeout = Math.max(2000, Number(timeoutMs || FIREBASE_AUTH_TIMEOUT_MS));
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(timeoutMessage)), safeTimeout);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
 
 async function withTimeout(requestFactory, timeoutMs = AUTH_REQUEST_TIMEOUT_MS) {
   const controller = new AbortController();
@@ -202,14 +217,22 @@ export default function RegisterScreen({ navigation }) {
 
         if (isFirebaseConfigured && auth) {
           try {
-            const signInResult = await signInWithEmailAndPassword(auth, safeEmail, String(password || ''));
+            const signInResult = await withPromiseTimeout(
+              signInWithEmailAndPassword(auth, safeEmail, String(password || '')),
+              FIREBASE_AUTH_TIMEOUT_MS,
+              'Login demorou para responder. Tente novamente.'
+            );
             const firebaseUser = signInResult?.user;
             if (!firebaseUser) {
               setToast('Falha no login. Tente novamente.');
               return;
             }
 
-            await reload(firebaseUser);
+            await withPromiseTimeout(
+              reload(firebaseUser),
+              FIREBASE_AUTH_TIMEOUT_MS,
+              'Nao foi possivel validar seu e-mail agora. Tente novamente.'
+            );
             if (!firebaseUser.emailVerified) {
               setToast('E-mail ainda não verificado. Abra sua caixa de entrada e confirme o cadastro.');
               return;
@@ -275,20 +298,32 @@ export default function RegisterScreen({ navigation }) {
 
       if (isFirebaseConfigured && auth) {
         try {
-          const methods = await fetchSignInMethodsForEmail(auth, safeEmail);
+          const methods = await withPromiseTimeout(
+            fetchSignInMethodsForEmail(auth, safeEmail),
+            FIREBASE_AUTH_TIMEOUT_MS,
+            'Nao foi possivel validar seu e-mail agora. Tente novamente.'
+          );
           if (Array.isArray(methods) && methods.length > 0) {
             setToast('Este e-mail já possui conta. Use a opção Entrar.');
             return;
           }
 
-          const created = await createUserWithEmailAndPassword(auth, safeEmail, String(password || ''));
+          const created = await withPromiseTimeout(
+            createUserWithEmailAndPassword(auth, safeEmail, String(password || '')),
+            FIREBASE_AUTH_TIMEOUT_MS,
+            'Cadastro demorou para responder. Tente novamente.'
+          );
           const firebaseUser = created?.user;
           if (!firebaseUser) {
             setToast('Não foi possível criar conta no momento.');
             return;
           }
 
-          await sendEmailVerification(firebaseUser);
+          await withPromiseTimeout(
+            sendEmailVerification(firebaseUser),
+            FIREBASE_AUTH_TIMEOUT_MS,
+            'Nao foi possivel enviar o e-mail de confirmacao agora. Tente novamente.'
+          );
           setPendingVerification({
             delivery: 'email',
             userId: firebaseUser.uid,
