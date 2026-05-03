@@ -426,6 +426,14 @@ export default function ProfileScreen({ navigation }) {
           style={styles.secondaryButton}
         />
 
+        {__DEV__ ? (
+          <SecondaryButton
+            title="Monitor ao vivo (debug)"
+            onPress={() => navigation.navigate('DebugObservability')}
+            style={styles.secondaryButton}
+          />
+        ) : null}
+
       </AppCard>
 
       {isAdmin ? (
