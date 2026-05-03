@@ -31,6 +31,17 @@ const TEMP_FALLBACK_PASSWORDS = new Set(['123456', '12345678', 'evolucao123', 't
 const ALLOW_LOCAL_CODE_FALLBACK = typeof __DEV__ !== 'undefined' && __DEV__;
 const AUTH_REQUEST_TIMEOUT_MS = 12000;
 const FIREBASE_AUTH_TIMEOUT_MS = 12000;
+const UI_LOADING_WATCHDOG_MS = 18000;
+
+function startLoadingWatchdog(setLoading, setToast, timeoutMs = UI_LOADING_WATCHDOG_MS) {
+  const safeTimeout = Math.max(8000, Number(timeoutMs || UI_LOADING_WATCHDOG_MS));
+  const timerId = setTimeout(() => {
+    setLoading(false);
+    setToast('A operacao demorou mais do que o esperado. Tente novamente.');
+  }, safeTimeout);
+
+  return () => clearTimeout(timerId);
+}
 
 async function withPromiseTimeout(promise, timeoutMs = FIREBASE_AUTH_TIMEOUT_MS, timeoutMessage = 'Tempo limite de autenticacao excedido.') {
   const safeTimeout = Math.max(2000, Number(timeoutMs || FIREBASE_AUTH_TIMEOUT_MS));
@@ -176,6 +187,7 @@ export default function RegisterScreen({ navigation }) {
     }
 
     setLoading(true);
+    const clearWatchdog = startLoadingWatchdog(setLoading, setToast);
     try {
       const result = await requestPasswordReset(safeEmail);
       if (!result?.ok) {
@@ -186,6 +198,7 @@ export default function RegisterScreen({ navigation }) {
       setToast('Enviamos um link de recuperação para seu e-mail. Verifique inbox e spam.');
       setShowForgotPassword(false);
     } finally {
+      clearWatchdog();
       setLoading(false);
     }
   };
@@ -205,6 +218,7 @@ export default function RegisterScreen({ navigation }) {
     }
 
     setLoading(true);
+    const clearWatchdog = startLoadingWatchdog(setLoading, setToast);
     try {
       const accounts = await loadLocalAccounts();
 
@@ -378,6 +392,7 @@ export default function RegisterScreen({ navigation }) {
     } catch {
       setToast('Erro ao criar conta. Tente novamente.');
     } finally {
+      clearWatchdog();
       setLoading(false);
     }
   };
@@ -388,6 +403,7 @@ export default function RegisterScreen({ navigation }) {
     }
 
     setLoading(true);
+    const clearWatchdog = startLoadingWatchdog(setLoading, setToast);
     try {
       // Firebase email verification (link-based)
       if (pendingVerification.delivery === 'email' && isFirebaseConfigured && auth && auth.currentUser) {
@@ -477,6 +493,7 @@ export default function RegisterScreen({ navigation }) {
     } catch {
       setToast('Falha ao verificar e-mail. Tente novamente.');
     } finally {
+      clearWatchdog();
       setLoading(false);
     }
   };
