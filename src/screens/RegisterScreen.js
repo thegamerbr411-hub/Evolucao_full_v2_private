@@ -9,10 +9,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-  createUserWithEmailAndPassword,
-  fetchSignInMethodsForEmail,
   reload,
-  sendEmailVerification,
   signInWithEmailAndPassword,
 } from 'firebase/auth';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -28,7 +25,7 @@ import { colors, spacing } from '../theme';
 
 const LOCAL_ACCOUNTS_KEY = 'auth.local.accounts.v1';
 const TEMP_FALLBACK_PASSWORDS = new Set(['123456', '12345678', 'evolucao123', 'temp123456']);
-const ALLOW_LOCAL_CODE_FALLBACK = typeof __DEV__ !== 'undefined' && __DEV__;
+const ALLOW_LOCAL_CODE_FALLBACK = false;
 const AUTH_REQUEST_TIMEOUT_MS = 8000;
 const FIREBASE_AUTH_TIMEOUT_MS = 8000;
 const UI_LOADING_WATCHDOG_MS = 12000;
@@ -311,48 +308,6 @@ export default function RegisterScreen({ navigation }) {
         return;
       }
 
-      if (isFirebaseConfigured && auth) {
-        try {
-          const methods = await withPromiseTimeout(
-            fetchSignInMethodsForEmail(auth, safeEmail),
-            FIREBASE_AUTH_TIMEOUT_MS,
-            'Nao foi possivel validar seu e-mail agora. Tente novamente.'
-          );
-          if (Array.isArray(methods) && methods.length > 0) {
-            setToast('Este e-mail já possui conta. Use a opção Entrar.');
-            return;
-          }
-
-          const created = await withPromiseTimeout(
-            createUserWithEmailAndPassword(auth, safeEmail, String(password || '')),
-            FIREBASE_AUTH_TIMEOUT_MS,
-            'Cadastro demorou para responder. Tente novamente.'
-          );
-          const firebaseUser = created?.user;
-          if (!firebaseUser) {
-            setToast('Não foi possível criar conta no momento.');
-            return;
-          }
-
-          await withPromiseTimeout(
-            sendEmailVerification(firebaseUser),
-            FIREBASE_AUTH_TIMEOUT_MS,
-            'Nao foi possivel enviar o e-mail de confirmacao agora. Tente novamente.'
-          );
-          setPendingVerification({
-            delivery: 'email',
-            userId: firebaseUser.uid,
-            name: safeName,
-            email: safeEmail,
-            password: String(password || ''),
-          });
-          setToast('Código enviado por e-mail. Verifique sua caixa de entrada e spam.');
-          return;
-        } catch {
-          setToast('Falha no envio por e-mail. Usando verificação local neste dispositivo.');
-        }
-      }
-
       const identity = await getOrCreateUserIdentity();
       const backendResult = await sendCodeViaBackend(safeEmail);
       if (backendResult.ok) {
@@ -406,48 +361,6 @@ export default function RegisterScreen({ navigation }) {
     setLoading(true);
     const clearWatchdog = startLoadingWatchdog(setLoading, setToast);
     try {
-      // Firebase email verification (link-based)
-      if (pendingVerification.delivery === 'email' && isFirebaseConfigured && auth && auth.currentUser) {
-        const firebaseUser = auth.currentUser;
-        if (!firebaseUser) {
-          setToast('Sessão expirada. Faça o cadastro novamente.');
-          return;
-        }
-
-        await reload(firebaseUser);
-        if (!firebaseUser.emailVerified) {
-          setToast('E-mail ainda não confirmado. Abra o link enviado no seu e-mail.');
-          return;
-        }
-
-        const accounts = await loadLocalAccounts();
-        const nextAccounts = [
-          {
-            userId: firebaseUser.uid,
-            name: pendingVerification.name,
-            email: pendingVerification.email,
-            password: pendingVerification.password,
-            emailVerified: true,
-            provider: 'firebase_email',
-            createdAt: new Date().toISOString(),
-          },
-          ...accounts.filter((item) => String(item?.email || '').toLowerCase() !== String(pendingVerification.email || '').toLowerCase()),
-        ];
-        await saveLocalAccounts(nextAccounts);
-        await saveUserIdentity({ userId: firebaseUser.uid, source: 'firebase_email_verified' });
-        setQaRuntimeAuth({ userId: firebaseUser.uid });
-
-        setUser({
-          id: firebaseUser.uid,
-          role: 'user',
-          name: pendingVerification.name,
-          email: pendingVerification.email,
-        });
-
-        navigation.replace('Questionario');
-        return;
-      }
-
       // Backend email code verification (6-digit code sent by backend SMTP)
       const codeInput = String(verificationCode || '').trim();
       if (!codeInput) {
@@ -622,40 +535,7 @@ export default function RegisterScreen({ navigation }) {
             {pendingVerification && mode === 'register' ? (
               <>
                 <View style={styles.spacer} />
-                {pendingVerification.delivery === 'email' && isFirebaseConfigured && auth?.currentUser ? (
-                  <>
-                    <View style={styles.codeBox}>
-                      <Text style={styles.codeBoxLabel}>Verificação por e-mail</Text>
-                      <Text style={styles.codeBoxHint}>
-                        Enviamos um e-mail para {pendingVerification.email}. Abra sua caixa de entrada (e spam),
-                        confirme o link e toque no botão abaixo.
-                      </Text>
-                    </View>
-                    <PrimaryButton
-                      title={loading ? 'Verificando...' : 'Já confirmei meu e-mail'}
-                      onPress={handleVerifyEmail}
-                      style={styles.btnInline}
-                    />
-                    <Text
-                      style={styles.resendLink}
-                      onPress={async () => {
-                        try {
-                          if (isFirebaseConfigured && auth?.currentUser) {
-                            await sendEmailVerification(auth.currentUser);
-                            setToast('E-mail reenviado. Confira inbox e spam.');
-                            return;
-                          }
-                          setToast('Reenvio indisponível no momento.');
-                        } catch {
-                          setToast('Não foi possível reenviar agora. Tente novamente em instantes.');
-                        }
-                      }}
-                    >
-                      Reenviar e-mail de confirmação
-                    </Text>
-                  </>
-                ) : (
-                  <>
+                <>
                     {/* Caixa do código — backend SMTP ou local */}
                     <View style={styles.codeBox}>
                       <Text style={styles.codeBoxLabel}>
@@ -717,8 +597,7 @@ export default function RegisterScreen({ navigation }) {
                     >
                       Reenviar código
                     </Text>
-                  </>
-                )}
+                </>
               </>
             ) : null}
           </AppCard>
