@@ -29,9 +29,9 @@ import { colors, spacing } from '../theme';
 const LOCAL_ACCOUNTS_KEY = 'auth.local.accounts.v1';
 const TEMP_FALLBACK_PASSWORDS = new Set(['123456', '12345678', 'evolucao123', 'temp123456']);
 const ALLOW_LOCAL_CODE_FALLBACK = typeof __DEV__ !== 'undefined' && __DEV__;
-const AUTH_REQUEST_TIMEOUT_MS = 12000;
-const FIREBASE_AUTH_TIMEOUT_MS = 12000;
-const UI_LOADING_WATCHDOG_MS = 18000;
+const AUTH_REQUEST_TIMEOUT_MS = 8000;
+const FIREBASE_AUTH_TIMEOUT_MS = 8000;
+const UI_LOADING_WATCHDOG_MS = 12000;
 
 function startLoadingWatchdog(setLoading, setToast, timeoutMs = UI_LOADING_WATCHDOG_MS) {
   const safeTimeout = Math.max(8000, Number(timeoutMs || UI_LOADING_WATCHDOG_MS));
@@ -229,6 +229,32 @@ export default function RegisterScreen({ navigation }) {
           return;
         }
 
+        const account = accounts.find((item) => String(item?.email || '').toLowerCase() === safeEmail);
+        if (account) {
+          if (!account.emailVerified) {
+            setToast('E-mail ainda não verificado. Conclua a verificação para entrar.');
+            return;
+          }
+
+          if (String(account.password || '') !== String(password || '')) {
+            setToast('Senha incorreta.');
+            return;
+          }
+
+          const identity = await getOrCreateUserIdentity();
+          await saveUserIdentity({ userId: account.userId || identity.userId, source: 'local_login' });
+          setQaRuntimeAuth({ userId: account.userId || identity.userId });
+
+          setUser({
+            id: account.userId || identity.userId,
+            role: 'user',
+            name: account.name || safeName || 'Usuário',
+            email: safeEmail,
+          });
+          navigation.replace('Questionario');
+          return;
+        }
+
         if (isFirebaseConfigured && auth) {
           try {
             const signInResult = await withPromiseTimeout(
@@ -265,37 +291,12 @@ export default function RegisterScreen({ navigation }) {
             navigation.replace('Questionario');
             return;
           } catch {
-            // Fallback local abaixo para ambientes sem auth remoto estável.
+            setToast('Falha no login online. Verifique e-mail/senha e sua conexão.');
+            return;
           }
         }
 
-        const account = accounts.find((item) => String(item?.email || '').toLowerCase() === safeEmail);
-        if (!account) {
-          setToast('Conta não encontrada. Faça cadastro primeiro.');
-          return;
-        }
-
-        if (!account.emailVerified) {
-          setToast('E-mail ainda não verificado. Conclua a verificação para entrar.');
-          return;
-        }
-
-        if (String(account.password || '') !== String(password || '')) {
-          setToast('Senha incorreta.');
-          return;
-        }
-
-        const identity = await getOrCreateUserIdentity();
-        await saveUserIdentity({ userId: account.userId || identity.userId, source: 'local_login' });
-        setQaRuntimeAuth({ userId: account.userId || identity.userId });
-
-        setUser({
-          id: account.userId || identity.userId,
-          role: 'user',
-          name: account.name || safeName || 'Usuário',
-          email: safeEmail,
-        });
-        navigation.replace('Questionario');
+        setToast('Conta não encontrada neste dispositivo. Faça cadastro primeiro.');
         return;
       }
 
