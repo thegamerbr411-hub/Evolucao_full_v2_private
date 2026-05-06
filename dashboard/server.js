@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const nodemailer = require('nodemailer');
 require('dotenv').config();
 
 const { analyzeBatch, analyzeBug, buildInsightsPayload } = require('./src/server/analysis');
@@ -68,6 +69,23 @@ const faultProfile = {
   apiDelayMs: 0,
   forceApiError: false,
 };
+
+const pendingEmailCodes = new Map();
+
+function createSmtpTransporter() {
+  const host = process.env.SMTP_HOST;
+  const port = Number(process.env.SMTP_PORT || 587);
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  if (!host || !user || !pass) return null;
+
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    auth: { user, pass },
+  });
+}
 
 function createApp() {
   const app = express();
@@ -253,6 +271,54 @@ function createApp() {
 
   app.post('/login', auth.handleLogin);
   app.post('/token/client', auth.authenticateAdmin, auth.handleClientToken);
+
+  app.post('/auth/send-code', asyncRoute(async (req, res) => {
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ ok: false, error: 'E-mail inválido.' });
+    }
+
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const expiresAt = Date.now() + 15 * 60 * 1000;
+    pendingEmailCodes.set(email, { code, expiresAt });
+
+    const transporter = createSmtpTransporter();
+    if (!transporter) {
+      return res.status(503).json({ ok: false, error: 'Servico de e-mail indisponivel no momento.' });
+    }
+
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      to: email,
+      subject: 'Seu código de verificação — Evolução App',
+      text: `Seu código de verificação é: ${code}\n\nEle expira em 15 minutos.`,
+      html: `<h2>Código de verificação</h2><p style="font-size:32px;letter-spacing:8px;font-weight:bold">${code}</p><p>Expira em 15 minutos.</p>`,
+    });
+
+    return res.json({ ok: true, delivery: 'email' });
+  }));
+
+  app.post('/auth/verify-code', asyncRoute(async (req, res) => {
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    const code = String(req.body?.code || '').trim();
+
+    const entry = pendingEmailCodes.get(email);
+    if (!entry) {
+      return res.status(400).json({ ok: false, error: 'Código não encontrado ou expirado.' });
+    }
+
+    if (Date.now() > entry.expiresAt) {
+      pendingEmailCodes.delete(email);
+      return res.status(400).json({ ok: false, error: 'Código expirado. Solicite um novo.' });
+    }
+
+    if (code !== entry.code) {
+      return res.status(400).json({ ok: false, error: 'Código incorreto.' });
+    }
+
+    pendingEmailCodes.delete(email);
+    return res.json({ ok: true });
+  }));
 
   app.post('/api/workouts', requireAppApiKey, requireUserContext, asyncRoute(async (req, res) => {
     const userId = req.userId;
