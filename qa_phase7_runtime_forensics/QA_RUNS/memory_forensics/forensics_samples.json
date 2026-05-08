@@ -1,0 +1,20 @@
+{
+  "generatedAt": "2026-05-08T15:36:09.294Z",
+  "forensicSnapshots": [],
+  "residueSnapshots": [],
+  "aggregatedSignals": {
+    "listenerCreated": 2,
+    "listenerRemoved": 144,
+    "listenerEvents": 18523,
+    "timerCreated": 0,
+    "timerCleared": 0,
+    "asyncTaskStall": 0,
+    "networkStall": 0,
+    "runtimeBusyAnchor": 0,
+    "runtimeIdleAnchor": 0,
+    "fullscreenEvents": 929,
+    "bufferingEvents": 4,
+    "reconnectSignals": 83,
+    "fpsSamples": 0
+  }
+}

@@ -2,6 +2,12 @@
 import axios, { AxiosError, AxiosResponse } from 'axios'
 import * as SecureStore from 'expo-secure-store'
 import { useAuthStore } from '../stores/useAuthStore'
+import {
+  trackNetworkRequestEnd,
+  trackNetworkRequestFailure,
+  trackNetworkRequestRetry,
+  trackNetworkRequestStart,
+} from '../runtime_sync/networkActivityManager'
 
 const API_URL = String(
   process.env.EXPO_PUBLIC_API_URL
@@ -21,6 +27,13 @@ const api = axios.create({
 
 // 🔑 Interceptor - ADD TOKEN
 api.interceptors.request.use(async (config) => {
+  const requestId = trackNetworkRequestStart({
+    method: config.method,
+    url: `${config.baseURL || ''}${config.url || ''}`,
+  })
+
+  ;(config as any).__qaRequestId = requestId
+
   try {
     const token = await SecureStore.getItemAsync('accessToken')
     if (token) {
@@ -40,6 +53,11 @@ api.interceptors.request.use(async (config) => {
 // 🔄 Interceptor - REFRESH TOKEN automático
 api.interceptors.response.use(
   (response) => {
+    const requestId = (response.config as any)?.__qaRequestId
+    if (requestId) {
+      trackNetworkRequestEnd(requestId)
+    }
+
     if (__DEV__) {
       const method = String(response.config?.method || 'get').toUpperCase()
       const target = `${response.config?.baseURL || ''}${response.config?.url || ''}`
@@ -49,9 +67,14 @@ api.interceptors.response.use(
   },
   async (error: AxiosError) => {
     const originalRequest = error.config as any
+    const requestId = originalRequest?.__qaRequestId
 
     const status = Number(error.response?.status || 0)
     if (__DEV__) console.warn('[API][ERROR]', String(originalRequest?.method || '').toUpperCase(), `${originalRequest?.baseURL || ''}${originalRequest?.url || ''}`, status)
+
+    if (status >= 500 && requestId) {
+      trackNetworkRequestRetry(requestId)
+    }
 
     // Se erro 401 e não tentou refresh ainda
     if (error.response?.status === 401 && !originalRequest._retry) {
@@ -83,10 +106,17 @@ api.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${accessToken}`
         return api(originalRequest)
       } catch (refreshError) {
+        if (requestId) {
+          trackNetworkRequestFailure(requestId, refreshError)
+        }
         // Refresh falhou, logout
         useAuthStore.getState().logout()
         return Promise.reject(refreshError)
       }
+    }
+
+    if (requestId) {
+      trackNetworkRequestFailure(requestId, error)
     }
 
     return Promise.reject(error)

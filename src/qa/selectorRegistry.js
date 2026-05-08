@@ -56,6 +56,12 @@ export const QA_ELEMENTS = Object.freeze({
   appReadinessStoresHydrated: 'app_readiness_stores_hydrated',
   appReadinessSplashFinished: 'app_readiness_splash_finished',
   appReadinessRuntimeSynchronized: 'app_readiness_runtime_synchronized',
+  appNetworkIdle: 'app_network_idle',
+  appNetworkBusy: 'app_network_busy',
+  appAsyncIdle: 'app_async_idle',
+  appAsyncBusy: 'app_async_busy',
+  appRuntimeIdle: 'app_runtime_idle',
+  appRuntimeBusy: 'app_runtime_busy',
 });
 
 export const QA_ALIASES = Object.freeze({

@@ -37,7 +37,9 @@ import {
   getQaHealthSnapshot,
   registerQaError,
   registerQaFpsSample,
+  registerQaMemorySnapshot,
   setQaAppState,
+  setQaAsyncState,
   setQaCurrentScreen,
   setQaLoadingState,
   setQaReadinessFlags,
@@ -46,6 +48,27 @@ import {
   startQaMetric,
   subscribeQaHealth,
 } from './src/qa/qaAutomationState';
+import {
+  installGlobalNetworkTracking,
+  subscribeNetworkSnapshot,
+} from './src/runtime_sync/networkActivityManager';
+import {
+  endAsyncTask,
+  getAsyncTaskSnapshot,
+  registerTimer,
+  setListenerCount,
+  startAsyncTask,
+  subscribeAsyncTaskSnapshot,
+  unregisterTimer,
+} from './src/runtime_sync/asyncTaskRegistry';
+import { getRuntimeBusyReasons } from './src/runtime_sync/runtimeIdleEngine';
+import { analyzeRuntimeResidue } from './src/runtime_sync/runtimeResidueAnalyzer';
+import {
+  captureForensicsSnapshot,
+  estimateHeapSnapshotMb,
+  recordListenerEvent,
+  recordTimerEvent,
+} from './src/runtime_sync/runtimeForensicsCollector';
 
 if (typeof __DEV__ !== 'undefined' && __DEV__) {
   // Detox pode ficar instavel quando o banner de warnings cobre a barra de abas.
@@ -150,6 +173,14 @@ export default function App() {
     initObservability();
     startUserSession('app_mount');
 
+    const uninstallNetworkTracking = installGlobalNetworkTracking();
+    const unsubscribeNetwork = subscribeNetworkSnapshot(() => {
+      setQaHealthSnapshot(getQaHealthSnapshot());
+    });
+    const unsubscribeAsync = subscribeAsyncTaskSnapshot(() => {
+      setQaHealthSnapshot(getQaHealthSnapshot());
+    });
+
     setQaRuntimeState(QA_RUNTIME_STATES.BOOTING, 'app_mount');
     startQaMetric('bootDurationMs', { source: 'app_mount' });
     startQaMetric('authRestoreDurationMs', { source: 'app_mount' });
@@ -169,37 +200,85 @@ export default function App() {
         thresholdMs: RUNTIME_STALL_THRESHOLDS_MS.BOOT_STALL,
       });
     }, RUNTIME_STALL_THRESHOLDS_MS.BOOT_STALL);
+    registerTimer('boot_stall_timer', bootStallTimer, 'timeout');
+    recordTimerEvent('boot_stall_timer', 'created', { kind: 'timeout' });
 
     setQaRuntimeState(QA_RUNTIME_STATES.INITIALIZING, 'app_init_pipeline');
 
     const unsubscribeQa = subscribeQaHealth((nextState) => {
       setQaHealthSnapshot(nextState);
     });
+    recordListenerEvent('qa_health', 'created', { scope: 'app_mount' });
 
     const appStateSub = AppState.addEventListener('change', (nextState) => {
       setQaAppState(nextState);
+      recordListenerEvent('app_state', 'event', { nextState });
       if (nextState === 'active') {
         startUserSession('app_foreground');
         setQaRuntimeState(QA_RUNTIME_STATES.RESTORING_FROM_BACKGROUND, 'app_active');
+        captureForensicsSnapshot('app_foreground', {
+          appState: nextState,
+          qaRuntime: getQaHealthSnapshot()?.runtime?.state || 'unknown',
+        });
         return;
       }
 
       if (nextState === 'inactive' || nextState === 'background') {
         endUserSession(nextState === 'inactive' ? 'app_inactive' : 'app_background');
+        captureForensicsSnapshot('app_background', {
+          appState: nextState,
+          qaRuntime: getQaHealthSnapshot()?.runtime?.state || 'unknown',
+        });
       }
     });
+    recordListenerEvent('app_state', 'created', { scope: 'app_mount' });
+    setListenerCount(1);
 
     const fpsProbeTimer = setInterval(() => {
       const interactionMs = Date.now() - Number(transitionStartedAtRef.current || Date.now());
       const approxFps = Math.max(12, Math.min(60, Math.round(60000 / Math.max(800, interactionMs))));
       registerQaFpsSample(approxFps);
     }, 8000);
+    registerTimer('fps_probe_timer', fpsProbeTimer, 'interval');
+    recordTimerEvent('fps_probe_timer', 'created', { kind: 'interval' });
+
+    const forensicsProbeTimer = setInterval(() => {
+      const healthSnapshot = getQaHealthSnapshot();
+      const residue = analyzeRuntimeResidue(healthSnapshot, { source: 'forensics_probe_timer' });
+      const heapMb = estimateHeapSnapshotMb();
+
+      if (heapMb > 0) {
+        registerQaMemorySnapshot(heapMb, 'forensics_probe_timer');
+      }
+
+      const asyncSnapshot = getAsyncTaskSnapshot();
+      const forensicSnapshot = captureForensicsSnapshot('periodic_forensics_probe', {
+        heapMb,
+        runtimeState: healthSnapshot?.runtime?.state || 'unknown',
+        busyReasons: healthSnapshot?.runtime?.idle?.busyReasons || [],
+        async: {
+          pendingAsyncTasks: Number(asyncSnapshot?.pendingAsyncTasks || 0),
+          activeTimers: Number(asyncSnapshot?.activeTimers || 0),
+          orphanTimers: Number(asyncSnapshot?.orphanTimers || 0),
+          longRunningTimers: Number(asyncSnapshot?.longRunningTimers || 0),
+          retryLoops: Number(asyncSnapshot?.retryLoops || 0),
+          listenerCount: Number(asyncSnapshot?.listenerCount || 0),
+        },
+        residue,
+      });
+
+      console.log(`[FORENSICS] snapshot=${JSON.stringify(forensicSnapshot)}`);
+      console.log(`[RUNTIME_RESIDUE] ${JSON.stringify(residue)}`);
+    }, 12000);
+    registerTimer('forensics_probe_timer', forensicsProbeTimer, 'interval');
+    recordTimerEvent('forensics_probe_timer', 'created', { kind: 'interval' });
 
     if (__DEV__) {
       console.log('[APP_STARTED]', new Date().toISOString());
       console.log('[BUILD_VERSION]', APP_VERSION, BUILD_VERSION);
     }
 
+    const analyticsTaskId = startAsyncTask('initialize_analytics_session', 'bootstrap');
     initializeAnalyticsSession()
       .then(async (sessionId) => {
         const { dayKey, isFirstOpenOfDay } = await getAppOpenSessionMeta();
@@ -216,11 +295,19 @@ export default function App() {
       })
       .catch(() => {
         // Keep analytics resilient on bootstrap failure.
+      })
+      .finally(() => {
+        endAsyncTask(analyticsTaskId);
       });
 
-    initializeNotifications().catch(() => {
-      // Keep startup resilient even without permission.
-    });
+    const notificationsTaskId = startAsyncTask('initialize_notifications', 'bootstrap');
+    initializeNotifications()
+      .catch(() => {
+        // Keep startup resilient even without permission.
+      })
+      .finally(() => {
+        endAsyncTask(notificationsTaskId);
+      });
 
     if (shouldInjectQaAppError()) {
       logError(new Error('BUG_REAL_QA_INJECTED'), {
@@ -233,8 +320,31 @@ export default function App() {
     return () => {
       clearTimeout(bootStallTimer);
       clearInterval(fpsProbeTimer);
+      clearInterval(forensicsProbeTimer);
+      unregisterTimer(bootStallTimer);
+      unregisterTimer(fpsProbeTimer);
+      unregisterTimer(forensicsProbeTimer);
+      recordTimerEvent('boot_stall_timer', 'cleared', { kind: 'timeout' });
+      recordTimerEvent('fps_probe_timer', 'cleared', { kind: 'interval' });
+      recordTimerEvent('forensics_probe_timer', 'cleared', { kind: 'interval' });
+      setListenerCount(0);
+      unsubscribeNetwork?.();
+      unsubscribeAsync?.();
+      uninstallNetworkTracking?.();
       unsubscribeQa?.();
       appStateSub?.remove?.();
+      recordListenerEvent('app_state', 'removed', { scope: 'app_unmount' });
+      recordListenerEvent('qa_health', 'removed', { scope: 'app_unmount' });
+
+      const finalHealthSnapshot = getQaHealthSnapshot();
+      const finalResidue = analyzeRuntimeResidue(finalHealthSnapshot, { source: 'app_unmount' });
+      const finalForensicsSnapshot = captureForensicsSnapshot('app_unmount', {
+        runtimeState: finalHealthSnapshot?.runtime?.state || 'unknown',
+        busyReasons: finalHealthSnapshot?.runtime?.idle?.busyReasons || [],
+        residue: finalResidue,
+      });
+      console.log(`[FORENSICS] snapshot=${JSON.stringify(finalForensicsSnapshot)}`);
+      console.log(`[RUNTIME_RESIDUE] ${JSON.stringify(finalResidue)}`);
       endUserSession('app_unmount');
     };
   }, []);
@@ -258,6 +368,25 @@ export default function App() {
 
   const runtimeState = qaHealthSnapshot?.runtime?.state || QA_RUNTIME_STATES.BOOTING;
   const readiness = qaHealthSnapshot?.runtime?.readiness || {};
+  const networkIdle = Boolean(qaHealthSnapshot?.network?.idle);
+  const asyncIdle = Boolean(qaHealthSnapshot?.async?.runtimeIdle);
+  const runtimeIdle = Boolean(qaHealthSnapshot?.runtime?.idle?.runtimeIdle);
+  const busyReasons = Array.isArray(qaHealthSnapshot?.runtime?.idle?.busyReasons)
+    ? qaHealthSnapshot.runtime.idle.busyReasons
+    : getRuntimeBusyReasons();
+
+  React.useEffect(() => {
+    const pendingAsyncTasks = Number(qaHealthSnapshot?.async?.pendingAsyncTasks || 0);
+    const activeTimers = Number(qaHealthSnapshot?.async?.activeTimers || 0);
+    const backgroundTasks = Number(qaHealthSnapshot?.async?.backgroundTasks || 0);
+
+    setQaAsyncState({
+      pendingAsyncTasks,
+      activeTimers,
+      backgroundTasks,
+      runtimeIdle: pendingAsyncTasks <= 0 && activeTimers <= 0 && backgroundTasks <= 0,
+    });
+  }, [qaHealthSnapshot?.async?.pendingAsyncTasks, qaHealthSnapshot?.async?.activeTimers, qaHealthSnapshot?.async?.backgroundTasks]);
 
   return (
     <ErrorBoundary>
@@ -315,6 +444,12 @@ export default function App() {
                     thresholdMs: RUNTIME_STALL_THRESHOLDS_MS.NAVIGATION_STALL,
                   });
                 }, RUNTIME_STALL_THRESHOLDS_MS.NAVIGATION_STALL);
+                registerTimer('navigation_stall_timer', navigationStallTimer, 'timeout');
+                recordTimerEvent('navigation_stall_timer', 'created', {
+                  kind: 'timeout',
+                  from: previousRoute || null,
+                  to: currentRoute,
+                });
 
                 const closeSummary = previousRoute
                   ? trackScreenClose(previousRoute, {
@@ -352,6 +487,11 @@ export default function App() {
                     source: 'navigation_change',
                   });
                   clearTimeout(navigationStallTimer);
+                  unregisterTimer(navigationStallTimer);
+                  recordTimerEvent('navigation_stall_timer', 'cleared', {
+                    kind: 'timeout',
+                    route: currentRoute,
+                  });
                   setQaStall('navigation', false, 0, { resolved: true, route: currentRoute });
                   endQaMetric('navigationDurationMs', {
                     source: 'navigation_change',
@@ -412,6 +552,10 @@ export default function App() {
             {readiness.storesHydrated ? <HiddenAnchor id={QA_ELEMENTS.appReadinessStoresHydrated} /> : null}
             {readiness.splashFinished ? <HiddenAnchor id={QA_ELEMENTS.appReadinessSplashFinished} /> : null}
             {readiness.runtimeSynchronized ? <HiddenAnchor id={QA_ELEMENTS.appReadinessRuntimeSynchronized} /> : null}
+            {networkIdle ? <HiddenAnchor id={QA_ELEMENTS.appNetworkIdle} /> : <HiddenAnchor id={QA_ELEMENTS.appNetworkBusy} />}
+            {asyncIdle ? <HiddenAnchor id={QA_ELEMENTS.appAsyncIdle} /> : <HiddenAnchor id={QA_ELEMENTS.appAsyncBusy} />}
+            {runtimeIdle ? <HiddenAnchor id={QA_ELEMENTS.appRuntimeIdle} /> : <HiddenAnchor id={QA_ELEMENTS.appRuntimeBusy} />}
+            {busyReasons.length > 0 ? <HiddenAnchor id={`app_runtime_busy_reason_${String(busyReasons[0]).replace(/[^a-z0-9_]+/gi, '_').toLowerCase()}`} /> : null}
           </View>
         </SafeAreaProvider>
       </RootProvider>

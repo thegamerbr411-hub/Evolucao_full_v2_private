@@ -63,6 +63,12 @@ const ELEMENTS = Object.freeze({
   appReadinessStoresHydrated: 'app_readiness_stores_hydrated',
   appReadinessSplashFinished: 'app_readiness_splash_finished',
   appReadinessRuntimeSynchronized: 'app_readiness_runtime_synchronized',
+  appNetworkIdle: 'app_network_idle',
+  appNetworkBusy: 'app_network_busy',
+  appAsyncIdle: 'app_async_idle',
+  appAsyncBusy: 'app_async_busy',
+  appRuntimeIdle: 'app_runtime_idle',
+  appRuntimeBusy: 'app_runtime_busy',
 });
 
 /**
@@ -216,9 +222,70 @@ async function waitForScreenStable(screenId, timeoutMs = 12000) {
 }
 
 async function waitForNoPendingRequests(timeoutMs = 9000) {
-  // Current contract approximates network idle by synchronized runtime readiness.
-  await waitFor(element(bySemanticId(ELEMENTS.appReadinessRuntimeSynchronized))).toExist().withTimeout(timeoutMs);
-  return ELEMENTS.appReadinessRuntimeSynchronized;
+  await waitFor(element(bySemanticId(ELEMENTS.appNetworkIdle))).toExist().withTimeout(timeoutMs);
+  return ELEMENTS.appNetworkIdle;
+}
+
+async function waitForNetworkIdle(timeoutMs = 12000) {
+  await waitFor(element(bySemanticId(ELEMENTS.appNetworkIdle))).toExist().withTimeout(timeoutMs);
+  return ELEMENTS.appNetworkIdle;
+}
+
+async function assertNoPendingRequests() {
+  await expect(element(bySemanticId(ELEMENTS.appNetworkIdle))).toExist();
+}
+
+async function getPendingRequests() {
+  let isBusy = false;
+  try {
+    await waitFor(element(bySemanticId(ELEMENTS.appNetworkBusy))).toExist().withTimeout(300);
+    isBusy = true;
+  } catch {
+    isBusy = false;
+  }
+  return {
+    hasPending: Boolean(isBusy),
+  };
+}
+
+async function getFailedRequests() {
+  // Detailed counts are exported by runtime logs/reports. In E2E we assert idle/busy anchors.
+  let isBusy = false;
+  try {
+    await waitFor(element(bySemanticId(ELEMENTS.appNetworkBusy))).toExist().withTimeout(300);
+    isBusy = true;
+  } catch {
+    isBusy = false;
+  }
+  return {
+    possibleFailures: Boolean(isBusy),
+  };
+}
+
+async function waitForRuntimeIdle(timeoutMs = 14000) {
+  await waitFor(element(bySemanticId(ELEMENTS.appRuntimeIdle))).toExist().withTimeout(timeoutMs);
+  await waitFor(element(bySemanticId(ELEMENTS.appAsyncIdle))).toExist().withTimeout(Math.min(timeoutMs, 9000));
+  await waitFor(element(bySemanticId(ELEMENTS.appNetworkIdle))).toExist().withTimeout(Math.min(timeoutMs, 9000));
+  return ELEMENTS.appRuntimeIdle;
+}
+
+async function assertRuntimeIdle() {
+  await expect(element(bySemanticId(ELEMENTS.appRuntimeIdle))).toExist();
+  await expect(element(bySemanticId(ELEMENTS.appAsyncIdle))).toExist();
+  await expect(element(bySemanticId(ELEMENTS.appNetworkIdle))).toExist();
+}
+
+async function getRuntimeBusyReasons() {
+  let isBusy = false;
+  try {
+    await waitFor(element(bySemanticId(ELEMENTS.appRuntimeBusy))).toExist().withTimeout(300);
+    isBusy = true;
+  } catch {
+    isBusy = false;
+  }
+  return {
+    isBusy: Boolean(isBusy),
+  };
 }
 
 /**
@@ -248,6 +315,13 @@ module.exports = {
   waitForNavigationIdle,
   waitForPlayerReady,
   waitForScreenStable,
+  waitForNetworkIdle,
+  assertNoPendingRequests,
+  getPendingRequests,
+  getFailedRequests,
+  waitForRuntimeIdle,
+  assertRuntimeIdle,
+  getRuntimeBusyReasons,
   waitForNoPendingRequests,
   tapTab,
 };

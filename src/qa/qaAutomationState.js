@@ -41,6 +41,20 @@ const defaultState = {
   network: {
     offline: false,
     pendingRequests: 0,
+    activeRequests: 0,
+    failedRequests: 0,
+    retryCount: 0,
+    cancelledRequests: 0,
+    stalledRequests: 0,
+    idle: true,
+  },
+  async: {
+    pendingAsyncTasks: 0,
+    activeTimers: 0,
+    backgroundTasks: 0,
+    orphanTasks: 0,
+    listenerCount: 0,
+    runtimeIdle: true,
   },
   stores: {
     loaded: [],
@@ -61,6 +75,14 @@ const defaultState = {
       boot: null,
       navigation: null,
       player: null,
+      network: null,
+      task: null,
+      hydration: null,
+    },
+    idle: {
+      runtimeIdle: false,
+      busyReasons: ['bootstrap_not_synchronized'],
+      updatedAt: new Date().toISOString(),
     },
     transitionHistory: [],
   },
@@ -109,9 +131,21 @@ function safeState(input) {
         ...defaultState.runtime.stalls,
         ...(input.runtime?.stalls || {}),
       },
+      idle: {
+        ...defaultState.runtime.idle,
+        ...(input.runtime?.idle || {}),
+      },
       transitionHistory: Array.isArray(input.runtime?.transitionHistory)
         ? input.runtime.transitionHistory.slice(-80)
         : [],
+    },
+    network: {
+      ...defaultState.network,
+      ...(input.network || {}),
+    },
+    async: {
+      ...defaultState.async,
+      ...(input.async || {}),
     },
     metrics: {
       ...defaultState.metrics,
@@ -150,6 +184,9 @@ function persist() {
     state: state.runtime.state,
     readiness: state.runtime.readiness,
     stalls: state.runtime.stalls,
+    idle: state.runtime.idle,
+    network: state.network,
+    async: state.async,
     metrics: state.metrics.latest,
     updatedAt: state.updatedAt,
   };
@@ -172,11 +209,41 @@ function pushRuntimeTransition(nextState, reason = null) {
   };
 }
 
+function buildRuntimeIdle(nextState) {
+  const readiness = nextState?.runtime?.readiness || {};
+  const network = nextState?.network || {};
+  const asyncState = nextState?.async || {};
+  const player = nextState?.player || {};
+  const loading = nextState?.loading || {};
+  const stalls = nextState?.runtime?.stalls || {};
+
+  const activeStallKeys = Object.keys(stalls).filter((key) => Boolean(stalls[key]?.active));
+  const busyReasons = [];
+
+  if (!readiness.runtimeSynchronized) busyReasons.push('bootstrap_not_synchronized');
+  if (!network.idle || Number(network.pendingRequests || 0) > 0) busyReasons.push('network_pending');
+  if (!asyncState.runtimeIdle || Number(asyncState.pendingAsyncTasks || 0) > 0) busyReasons.push('async_tasks_pending');
+  if (Boolean(player.loading)) busyReasons.push('player_loading');
+  if (Boolean(loading.active)) busyReasons.push(`loading_${String(loading.reason || 'active')}`);
+  if (activeStallKeys.length > 0) busyReasons.push(`stall_${activeStallKeys.join('_')}`);
+
+  return {
+    runtimeIdle: busyReasons.length === 0,
+    busyReasons,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 function mergeState(partial = {}) {
-  state = safeState({
+  const nextState = safeState({
     ...state,
     ...partial,
   });
+  nextState.runtime = {
+    ...nextState.runtime,
+    idle: buildRuntimeIdle(nextState),
+  };
+  state = nextState;
   persist();
   return state;
 }
@@ -214,6 +281,9 @@ export function getQaRuntimeSnapshot() {
     state: state.runtime.state,
     readiness: state.runtime.readiness,
     stalls: state.runtime.stalls,
+    idle: state.runtime.idle,
+    network: state.network,
+    async: state.async,
     latestMetrics: state.metrics.latest,
     updatedAt: state.updatedAt,
   };
@@ -444,10 +514,41 @@ export function setQaPlayerState(partial = {}) {
 }
 
 export function setQaNetworkState(partial = {}) {
+  const merged = {
+    ...state.network,
+    ...partial,
+  };
+  const pendingRequests = Number(merged.pendingRequests || 0);
+  const activeRequests = Number(merged.activeRequests || 0);
+
   return mergeState({
     network: {
-      ...state.network,
-      ...partial,
+      ...merged,
+      pendingRequests,
+      activeRequests,
+      idle: pendingRequests <= 0 && activeRequests <= 0,
+    },
+  });
+}
+
+export function setQaAsyncState(partial = {}) {
+  const merged = {
+    ...state.async,
+    ...partial,
+  };
+  const pendingAsyncTasks = Number(merged.pendingAsyncTasks || 0);
+  const activeTimers = Number(merged.activeTimers || 0);
+  const backgroundTasks = Number(merged.backgroundTasks || 0);
+  const orphanTasks = Number(merged.orphanTasks || 0);
+
+  return mergeState({
+    async: {
+      ...merged,
+      pendingAsyncTasks,
+      activeTimers,
+      backgroundTasks,
+      orphanTasks,
+      runtimeIdle: pendingAsyncTasks <= 0 && activeTimers <= 0 && backgroundTasks <= 0,
     },
   });
 }

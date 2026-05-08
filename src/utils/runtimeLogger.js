@@ -9,6 +9,7 @@ const ALLOWED_TAGS = new Set([
   'NETWORK',
   'STORE',
   'PLAYER',
+  'FORENSICS',
   'ERROR_BOUNDARY',
 ]);
 

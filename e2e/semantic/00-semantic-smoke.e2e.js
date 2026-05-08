@@ -10,9 +10,12 @@ const {
   SCREENS,
   ELEMENTS,
   assertAppReady,
+  assertNoPendingRequests,
   waitForAppReady,
   waitForAuthResolved,
+  waitForNetworkIdle,
   waitForNavigationReady,
+  waitForRuntimeIdle,
   waitForStoresHydrated,
 } = require('./helpers/semanticHelpers');
 
@@ -27,6 +30,9 @@ describe('[SEMANTIC] 00 - smoke: boot e landing', () => {
     await waitForNavigationReady(20000);
     await waitForAuthResolved(25000);
     await waitForStoresHydrated(25000);
+    await waitForNetworkIdle(12000);
+    await waitForRuntimeIdle(14000);
+    await assertNoPendingRequests();
 
     if (!signal || typeof signal !== 'string') {
       throw new Error('Readiness signal ausente no smoke.');
