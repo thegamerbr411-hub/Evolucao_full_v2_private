@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -19,8 +19,10 @@ import { AnimatedToast, AppCard, AppInput, PrimaryButton } from '../components/u
 import { getOrCreateUserIdentity, saveUserIdentity } from '../services/appIdentityService';
 import { auth, isFirebaseConfigured } from '../services/firebase';
 import { setQaRuntimeAuth } from '../utils/qaTransport';
-import { requestPasswordReset, loginWithGoogleToken } from '../services/authService';
+import { requestPasswordReset } from '../services/authService';
 import { colors, spacing } from '../theme';
+import { QA_ELEMENTS, QA_SCREENS, qaProps } from '../qa/selectorRegistry';
+import { setQaAuthState, setQaLoadingState } from '../qa/qaAutomationState';
 
 const FIREBASE_AUTH_TIMEOUT_MS = 8000;
 const UI_LOADING_WATCHDOG_MS = 12000;
@@ -96,60 +98,18 @@ export default function RegisterScreen({ navigation }) {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState('');
-  const [googleLoading, setGoogleLoading] = useState(false);
-  const googleRequest = null;
-  const googleResponse = null;
-  const promptAsync = async () => ({ type: 'error' });
-  const googleConfigured = false;
 
   React.useEffect(() => {
-    const handleGoogleResponse = async () => {
-      if (!googleResponse) {
-        return;
-      }
+    setQaAuthState({
+      hydrated: true,
+      hasAccount: false,
+      userId: null,
+    });
+  }, []);
 
-      if (googleResponse.type === 'error') {
-        const reason = String(googleResponse?.error?.message || googleResponse?.params?.error_description || 'Falha no login Google.');
-        setToast(`Erro Google: ${reason}`);
-        return;
-      }
-
-      if (googleResponse.type !== 'success') {
-        return;
-      }
-
-      setGoogleLoading(true);
-      try {
-        const authData = googleResponse.authentication || {};
-        const idToken = authData.idToken || googleResponse?.params?.id_token || null;
-        const loggedUser = await loginWithGoogleToken({
-          accessToken: authData.accessToken,
-          idToken,
-        });
-
-        if (!loggedUser?.id) {
-          setToast('Falha no login Google. Tente novamente.');
-          return;
-        }
-
-        await saveUserIdentity({ userId: loggedUser.id, source: loggedUser.source || 'google' });
-        setQaRuntimeAuth({ userId: loggedUser.id });
-        setUser({
-          id: loggedUser.id,
-          role: loggedUser.role || 'user',
-          name: loggedUser.name || 'Usuario',
-          email: loggedUser.email || null,
-        });
-        navigation.replace('Questionario');
-      } catch (error) {
-        setToast(`Erro no login Google: ${String(error?.message || 'nao foi possivel autenticar.')}`);
-      } finally {
-        setGoogleLoading(false);
-      }
-    };
-
-    handleGoogleResponse();
-  }, [googleResponse, navigation, setUser]);
+  React.useEffect(() => {
+    setQaLoadingState(loading, loading ? `register_${mode}` : null);
+  }, [loading, mode]);
 
   const handleForgotPassword = async () => {
     const safeEmail = String(email || '').trim().toLowerCase();
@@ -163,11 +123,11 @@ export default function RegisterScreen({ navigation }) {
     try {
       const result = await requestPasswordReset(safeEmail);
       if (!result?.ok) {
-        setToast(result?.message || 'Não foi possível enviar o e-mail de recuperação.');
+        setToast(result?.message || 'Nao foi possivel enviar o e-mail de recuperacao.');
         return;
       }
 
-      setToast('Enviamos um link de recuperação para seu e-mail. Verifique inbox e spam.');
+      setToast('Enviamos um link de recuperacao para seu e-mail. Verifique inbox e spam.');
       setShowForgotPassword(false);
     } finally {
       clearWatchdog();
@@ -175,17 +135,23 @@ export default function RegisterScreen({ navigation }) {
     }
   };
 
-  const handleRegister = async () => {
+  const handleSubmit = async () => {
     const safeName = String(name || '').trim();
     const safeEmail = String(email || '').trim().toLowerCase();
+    const safePassword = String(password || '').trim();
 
     if (!safeEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(safeEmail)) {
-      setToast('Informe um e-mail válido para continuar.');
+      setToast('Informe um e-mail valido para continuar.');
       return;
     }
 
-    if (!String(password || '').trim() || String(password || '').trim().length < 6) {
-      setToast('Senha obrigatória com pelo menos 6 caracteres.');
+    if (!safePassword || safePassword.length < 6) {
+      setToast('Senha obrigatoria com pelo menos 6 caracteres.');
+      return;
+    }
+
+    if (mode === 'register' && !safeName) {
+      setToast('Informe seu nome para continuar.');
       return;
     }
 
@@ -193,7 +159,7 @@ export default function RegisterScreen({ navigation }) {
     const clearWatchdog = startLoadingWatchdog(setLoading, setToast);
     try {
       if (!isFirebaseConfigured || !auth) {
-        setToast('Firebase nao configurado. Verifique as variaveis EXPO_PUBLIC_FIREBASE_* e tente novamente.');
+        setToast('Firebase nao configurado. Verifique EXPO_PUBLIC_FIREBASE_* e tente novamente.');
         logAuth('firebase_not_configured', { safeEmail });
         return;
       }
@@ -202,7 +168,7 @@ export default function RegisterScreen({ navigation }) {
         try {
           logAuth('login_start', { safeEmail });
           const signInResult = await runAuthOperation('login', () => withPromiseTimeout(
-            signInWithEmailAndPassword(auth, safeEmail, String(password || '')),
+            signInWithEmailAndPassword(auth, safeEmail, safePassword),
             FIREBASE_AUTH_TIMEOUT_MS,
             'Login demorou para responder. Tente novamente.'
           ));
@@ -210,14 +176,12 @@ export default function RegisterScreen({ navigation }) {
           const firebaseUser = signInResult?.user;
           if (!firebaseUser) {
             setToast('Falha no login. Tente novamente.');
-            logAuth('login_failed_no_user', { safeEmail });
             return;
           }
 
           const identity = await getOrCreateUserIdentity();
           await saveUserIdentity({ userId: firebaseUser.uid || identity.userId, source: 'firebase_login' });
           setQaRuntimeAuth({ userId: firebaseUser.uid || identity.userId });
-
           setUser({
             id: firebaseUser.uid || identity.userId,
             role: 'user',
@@ -230,22 +194,16 @@ export default function RegisterScreen({ navigation }) {
           navigation.replace('MainTabs');
           return;
         } catch (error) {
-          const message = mapFirebaseAuthError(error);
-          setToast(message);
-          logAuth('login_error', { safeEmail, code: String(error?.code || ''), message: String(error?.message || '') });
+          setToast(mapFirebaseAuthError(error));
+          logAuth('login_error', { safeEmail, code: String(error?.code || '') });
           return;
         }
-      }
-
-      if (!safeName) {
-        setToast('Informe seu nome para continuar.');
-        return;
       }
 
       try {
         logAuth('register_start', { safeEmail });
         const registerResult = await runAuthOperation('register', () => withPromiseTimeout(
-          createUserWithEmailAndPassword(auth, safeEmail, String(password || '')),
+          createUserWithEmailAndPassword(auth, safeEmail, safePassword),
           FIREBASE_AUTH_TIMEOUT_MS,
           'Cadastro demorou para responder. Tente novamente.'
         ));
@@ -253,19 +211,11 @@ export default function RegisterScreen({ navigation }) {
         const firebaseUser = registerResult?.user;
         if (!firebaseUser) {
           setToast('Nao foi possivel criar a conta. Tente novamente.');
-          logAuth('register_failed_no_user', { safeEmail });
           return;
         }
 
-        await updateProfile(firebaseUser, { displayName: safeName }).catch(() => {
-          logAuth('register_update_profile_failed', { safeEmail });
-        });
-
-        await sendEmailVerification(firebaseUser).then(() => {
-          logAuth('register_verification_email_sent', { safeEmail });
-        }).catch((error) => {
-          logAuth('register_verification_email_failed', { safeEmail, code: String(error?.code || '') });
-        });
+        await updateProfile(firebaseUser, { displayName: safeName }).catch(() => {});
+        await sendEmailVerification(firebaseUser).catch(() => {});
 
         const identity = await getOrCreateUserIdentity();
         await saveUserIdentity({ userId: firebaseUser.uid || identity.userId, source: 'firebase_register' });
@@ -282,12 +232,11 @@ export default function RegisterScreen({ navigation }) {
         setToast('Conta criada com sucesso.');
         navigation.replace('MainTabs');
       } catch (error) {
-        const message = mapFirebaseAuthError(error);
-        setToast(message);
-        logAuth('register_error', { safeEmail, code: String(error?.code || ''), message: String(error?.message || '') });
+        setToast(mapFirebaseAuthError(error));
+        logAuth('register_error', { safeEmail, code: String(error?.code || '') });
       }
     } catch {
-      setToast('Erro ao criar conta. Tente novamente.');
+      setToast('Erro inesperado. Tente novamente.');
     } finally {
       clearWatchdog();
       setLoading(false);
@@ -296,46 +245,19 @@ export default function RegisterScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.flex}
-      >
-        <ScrollView
-          contentContainerStyle={styles.container}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.flex}>
+        <ScrollView {...qaProps(mode === 'login' ? QA_SCREENS.login : QA_SCREENS.register)} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <AnimatedToast message={toast} onHide={() => setToast('')} />
 
-          {/* Hero */}
           <View style={styles.hero}>
-            <View style={styles.logoContainer}>
-              <Text style={styles.logoEmoji}>⚡</Text>
-            </View>
-            <Text style={styles.heroTitle}>Bem-vindo ao Evolução</Text>
-            <Text style={styles.heroSubtitle}>
-              Seu treinador pessoal com IA. Treinos, nutrição e progresso — tudo em um lugar.
-            </Text>
+            <Text style={styles.heroTitle}>Bem-vindo ao Evolucao</Text>
+            <Text style={styles.heroSubtitle}>Treinos, nutricao e progresso em um lugar.</Text>
           </View>
 
-          {/* Benefícios */}
-          <View style={styles.benefitsRow}>
-            {[
-              { icon: '💪', text: 'Treinos personalizados' },
-              { icon: '🍗', text: 'Controle de nutrição' },
-              { icon: '📈', text: 'Progresso em tempo real' },
-            ].map((item) => (
-              <View key={item.text} style={styles.benefitItem}>
-                <Text style={styles.benefitIcon}>{item.icon}</Text>
-                <Text style={styles.benefitText}>{item.text}</Text>
-              </View>
-            ))}
-          </View>
-
-          {/* Form */}
           <AppCard style={styles.card}>
             <View style={styles.modeSwitchRow}>
               <PrimaryButton
+                {...qaProps(QA_ELEMENTS.btnGoRegister)}
                 title="Cadastrar"
                 onPress={() => {
                   setMode('register');
@@ -344,6 +266,7 @@ export default function RegisterScreen({ navigation }) {
                 style={mode === 'register' ? styles.modeSwitchActive : styles.modeSwitchInactive}
               />
               <PrimaryButton
+                {...qaProps(QA_ELEMENTS.btnGoLogin)}
                 title="Entrar"
                 onPress={() => {
                   setMode('login');
@@ -356,98 +279,66 @@ export default function RegisterScreen({ navigation }) {
             <Text style={styles.cardTitle}>{mode === 'login' ? 'Entrar na conta' : 'Criar minha conta'}</Text>
 
             {mode === 'register' ? (
-              <Text style={styles.codeBoxHint}>
-                Cadastro temporariamente padronizado em Firebase Auth para garantir estabilidade no QA.
-              </Text>
-            ) : null}
-                          : 'Seu código de verificação'}
-                      </Text>
-                      {pendingVerification.delivery === 'email' && !pendingVerification.code ? (
-                        <Text style={styles.codeBoxHint}>
-                          Enviamos um código de 6 dígitos para {pendingVerification.email}.{'\n'}
-                          Verifique sua caixa de entrada e spam.
-                        </Text>
-                      ) : (
-                        <>
-                          <Text style={styles.codeBoxValue}>{pendingVerification.code}</Text>
-                          <Text style={styles.codeBoxHint}>
-                            Copie o código acima e cole no campo abaixo para confirmar seu cadastro.
-                          </Text>
-                        </>
-                      )}
-                    </View>
-                    <View style={styles.spacer} />
-                    <AppInput
-                      label="Código de verificação"
-                      value={verificationCode}
-                      onChangeText={setVerificationCode}
-                      placeholder="Digite o código de 6 dígitos"
-                      keyboardType="numeric"
-                    />
-                    <PrimaryButton
-                      title={loading ? 'Verificando...' : 'Confirmar e entrar'}
-                      onPress={handleVerifyEmail}
-                      style={styles.btnInline}
-                    />
-                    <Text
-                      style={styles.resendLink}
-                      onPress={async () => {
-                        const result = await sendCodeViaBackend(pendingVerification.email);
-                        if (result.ok) {
-                          if (result.delivery !== 'email' && !ALLOW_LOCAL_CODE_FALLBACK) {
-                            setToast('Nao foi possivel reenviar por e-mail agora. Tente novamente mais tarde.');
-                            return;
-                          }
-
-                          setPendingVerification((prev) => ({ ...prev, delivery: result.delivery, code: result.delivery === 'local' ? result.code : undefined }));
-                          setVerificationCode('');
-                          setToast(result.delivery === 'email' ? 'Novo código enviado por e-mail.' : 'Novo código gerado.');
-                        } else {
-                          if (!ALLOW_LOCAL_CODE_FALLBACK) {
-                            setToast('Nao foi possivel reenviar codigo agora. Tente novamente mais tarde.');
-                            return;
-                          }
-
-                          const newCode = String(Math.floor(100000 + Math.random() * 900000));
-                          setPendingVerification((prev) => ({ ...prev, delivery: 'local', code: newCode }));
-                          setVerificationCode('');
-                        }
-                      }}
-                    >
-                      Reenviar código
-                    </Text>
-                </>
+              <>
+                <AppInput
+                  {...qaProps(QA_ELEMENTS.inputName)}
+                  label="Nome"
+                  value={name}
+                  onChangeText={setName}
+                  placeholder="Seu nome"
+                  autoCapitalize="words"
+                />
+                <View style={styles.spacer} />
               </>
+            ) : null}
+
+            <AppInput
+              {...qaProps(QA_ELEMENTS.inputEmail)}
+              label="E-mail"
+              value={email}
+              onChangeText={setEmail}
+              placeholder="voce@email.com"
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
+
+            <View style={styles.spacer} />
+
+            <AppInput
+              {...qaProps(QA_ELEMENTS.inputPassword)}
+              label="Senha"
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Minimo 6 caracteres"
+              secureTextEntry
+            />
+
+            {mode === 'register' ? (
+              <Text style={styles.helperText}>Fluxo de cadastro estabilizado em Firebase Auth.</Text>
+            ) : (
+              <Text style={styles.linkText} onPress={() => setShowForgotPassword((prev) => !prev)}>
+                Esqueci minha senha
+              </Text>
+            )}
+
+            {showForgotPassword && mode === 'login' ? (
+              <PrimaryButton
+                {...qaProps(QA_ELEMENTS.btnForgotPassword)}
+                title={loading ? 'Enviando...' : 'Enviar link de recuperacao'}
+                onPress={handleForgotPassword}
+                style={styles.btnInline}
+              />
             ) : null}
           </AppCard>
 
           <PrimaryButton
-            title={loading ? 'Processando...' : mode === 'login' ? 'Entrar agora →' : 'Cadastrar →'}
-            onPress={handleRegister}
+            {...qaProps(mode === 'login' ? QA_ELEMENTS.btnLogin : QA_ELEMENTS.btnRegister)}
+            title={loading ? 'Processando...' : mode === 'login' ? 'Entrar agora' : 'Cadastrar'}
+            onPress={handleSubmit}
             style={styles.btn}
           />
 
-          {googleConfigured ? (
-            <PrimaryButton
-              title={googleLoading ? 'Conectando Google...' : 'Entrar com Google'}
-              onPress={() => {
-                if (googleLoading) return;
-                if (!googleRequest) {
-                  setToast('Google ainda nao inicializou. Reabra a tela e tente novamente.');
-                  return;
-                }
-                promptAsync({ useProxy: false }).catch(() => {
-                  setToast('Nao foi possivel abrir o login Google.');
-                });
-              }}
-              style={styles.btn}
-            />
-          ) : null}
-
-          <Text style={styles.terms}>
-            Seus dados são armazenados localmente no seu dispositivo.{'\n'}
-            Nenhuma informação é compartilhada sem sua autorização.
-          </Text>
+          <Text style={styles.terms}>Seus dados sao protegidos com Firebase Auth e persistencia local segura.</Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -472,18 +363,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.xl,
   },
-  logoContainer: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.lg,
-  },
-  logoEmoji: {
-    fontSize: 44,
-  },
   heroTitle: {
     fontSize: 28,
     fontWeight: '900',
@@ -498,32 +377,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
-  },
-  benefitsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: spacing.xl,
-    gap: 8,
-  },
-  benefitItem: {
-    flex: 1,
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xs,
-  },
-  benefitIcon: {
-    fontSize: 24,
-    marginBottom: 6,
-  },
-  benefitText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.textSecondary,
-    textAlign: 'center',
   },
   card: {
     marginBottom: spacing.sm,
@@ -546,11 +399,24 @@ const styles = StyleSheet.create({
     flex: 1,
     opacity: 0.7,
   },
-  btnInline: {
-    marginTop: spacing.sm,
-  },
   spacer: {
     height: spacing.sm,
+  },
+  helperText: {
+    marginTop: spacing.sm,
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 18,
+  },
+  linkText: {
+    marginTop: spacing.sm,
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  btnInline: {
+    marginTop: spacing.sm,
   },
   btn: {
     marginTop: spacing.md,
@@ -562,42 +428,5 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     textAlign: 'center',
     lineHeight: 17,
-  },
-  codeBox: {
-    backgroundColor: '#1a2233',
-    borderWidth: 2,
-    borderColor: '#3b82f6',
-    borderRadius: 12,
-    padding: spacing.md,
-    alignItems: 'center',
-  },
-  codeBoxLabel: {
-    color: '#93c5fd',
-    fontSize: 12,
-    fontWeight: '700',
-    marginBottom: spacing.sm,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  codeBoxValue: {
-    color: '#fff',
-    fontSize: 36,
-    fontWeight: '900',
-    letterSpacing: 8,
-    marginBottom: spacing.sm,
-  },
-  codeBoxHint: {
-    color: '#94a3b8',
-    fontSize: 11,
-    textAlign: 'center',
-    lineHeight: 16,
-  },
-  resendLink: {
-    color: '#3b82f6',
-    fontSize: 13,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginTop: spacing.md,
-    paddingVertical: spacing.sm,
   },
 });

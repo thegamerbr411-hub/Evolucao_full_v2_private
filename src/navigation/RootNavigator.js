@@ -15,6 +15,7 @@ import WorkoutScreen from '../screens/WorkoutScreen';
 import FreeWorkoutScreen from '../screens/FreeWorkoutScreen';
 import WeeklyMacroScreen from '../screens/WeeklyMacroScreen';
 import AutoCoachScreen from '../screens/AutoCoachScreen';
+import DebugHealthScreen from '../screens/DebugHealthScreen';
 import DebugMetricsScreen from '../screens/DebugMetricsScreen';
 import DebugObservabilityScreen from '../screens/DebugObservabilityScreen';
 import PaywallScreen from '../screens/PaywallScreen';
@@ -27,6 +28,8 @@ import RankingEvolutionScreen from '../screens/RankingEvolutionScreen';
 import ExerciseDetailScreen from '../screens/ExerciseDetailScreen';
 import WorkoutCompleteScreen from '../screens/WorkoutCompleteScreen';
 import MainTabs from './MainTabs';
+import { QA_SCREENS } from '../qa/selectorRegistry';
+import { setQaAuthState, setQaLoadedStores, setQaLoadingState } from '../qa/qaAutomationState';
 
 const Stack = createNativeStackNavigator();
 
@@ -38,9 +41,23 @@ export default function RootNavigator(){
   const hasPersistedProfile = Boolean(profile && Number(profile.currentWeight || 0) > 0);
   const hasAccount = Boolean(user && (user.name || user.id));
 
+  React.useEffect(() => {
+    setQaAuthState({
+      hydrated: isHydrated,
+      hasAccount,
+      userId: user?.id || null,
+    });
+    setQaLoadingState(!isHydrated, !isHydrated ? 'user_store_hydration' : null);
+    setQaLoadedStores([
+      'user.store.v1',
+      'app.store',
+      hasPersistedProfile ? 'profile.persisted' : null,
+    ].filter(Boolean));
+  }, [hasAccount, hasPersistedProfile, isHydrated, user?.id]);
+
   if (!isHydrated) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background }}>
+      <View testID={QA_SCREENS.loading} accessibilityLabel={QA_SCREENS.loading} nativeID={QA_SCREENS.loading} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background }}>
         <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
@@ -78,6 +95,7 @@ export default function RootNavigator(){
       <Stack.Screen name="ExerciseDetail" component={ExerciseDetailScreen}/>
       <Stack.Screen name="MacroSemanal" component={WeeklyMacroScreen}/>
       <Stack.Screen name="AutoCoach" component={AutoCoachScreen}/>
+      {__DEV__ ? <Stack.Screen name="DebugHealth" component={DebugHealthScreen}/> : null}
       {__DEV__ ? <Stack.Screen name="DebugMetrics" component={DebugMetricsScreen}/> : null}
       {__DEV__ ? <Stack.Screen name="DebugObservability" component={DebugObservabilityScreen}/> : null}
       <Stack.Screen name="Paywall" component={PaywallScreen}/>

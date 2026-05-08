@@ -144,6 +144,14 @@ async function waitForLandingByIds(ids, timeout = 18000) {
 
 async function waitForLandingSignal(isAttachedRun) {
   const idLanding = await waitForLandingByIds([
+    // IDs semânticos (novo padrão Phase 3)
+    'app_bootstrap_ready',
+    'screen_home',
+    'screen_login',
+    'screen_register',
+    'tab_home',
+    'tab_treinos',
+    // IDs legados (mantidos por compatibilidade)
     'home-screen',
     'screen-home',
     'home-ready',

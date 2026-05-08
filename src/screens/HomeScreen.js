@@ -20,6 +20,7 @@ import {
   logEvent,
   markCoachInterruption,
 } from '../core/observability';
+import { QA_SCREENS, qaAliasProps, qaProps } from '../qa/selectorRegistry';
 
 const XP_PER_LEVEL = 500;
 const WEEK_DAYS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
@@ -61,9 +62,9 @@ const macroStyles = StyleSheet.create({
   target: { fontSize: 10, color: colors.textMuted },
 });
 
-function QuickAction({ icon, label, onPress, accent, testID }) {
+function QuickAction({ icon, label, onPress, accent, testID, legacyId }) {
   return (
-    <TouchableOpacity testID={testID} onPress={onPress} style={[qaStyles.btn, accent && qaStyles.btnAccent]}>
+    <TouchableOpacity {...qaAliasProps(testID, legacyId)} onPress={onPress} style={[qaStyles.btn, accent && qaStyles.btnAccent]}>
       <Ionicons name={icon} size={22} color={accent ? colors.textInverse : colors.primary} />
       <Text style={[qaStyles.label, accent && qaStyles.labelAccent]}>{label}</Text>
     </TouchableOpacity>
@@ -320,7 +321,8 @@ export default function HomeScreen({ navigation }) {
     const actionByKey = {
       insights: {
         key: 'insights',
-        testID: 'home-shortcut-insights',
+        testID: 'btn_home_insights',
+        legacyId: 'home-shortcut-insights',
         label: 'Ver insights do dia',
         onPress: () => navigation.navigate('Insights', {
           postValuePaywall: {
@@ -340,19 +342,22 @@ export default function HomeScreen({ navigation }) {
       },
       nutrition: {
         key: 'nutrition',
-        testID: 'home-quick-nutricao',
+        testID: 'btn_home_nutrition',
+        legacyId: 'home-quick-nutricao',
         label: '+ Registrar refeicao',
         onPress: () => navigation.navigate('Nutricao'),
       },
       workout: {
         key: 'workout',
-        testID: 'home-quick-workout',
+        testID: QA_ELEMENTS.btnStartWorkout,
+        legacyId: 'home-quick-workout',
         label: 'Retomar treino agora',
         onPress: () => navigation.navigate('TreinoHoje'),
       },
       water: {
         key: 'water',
-        testID: 'btn-add-agua',
+        testID: 'btn_add_water',
+        legacyId: 'btn-add-agua',
         label: '+ Beber agua',
         onPress: () => {
           if (waterDebounceRef.current) return;
@@ -402,11 +407,11 @@ export default function HomeScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.screen}>
       <ScrollView
+        {...qaAliasProps(QA_SCREENS.home, 'screen-home')}
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
-        testID="screen-home"
       >
-        <View testID="home-screen" style={{ width: 1, height: 1 }} />
+        <View {...qaAliasProps('home_screen_anchor', 'home-screen')} style={{ width: 1, height: 1 }} />
         <View style={styles.dailyTopCard}>
           <Text style={styles.greeting}>{greeting}</Text>
           <Text style={styles.dailyTopTitle}>🔥 Dia {Math.max(1, Number(streak || 0))} de sequência</Text>
@@ -414,7 +419,7 @@ export default function HomeScreen({ navigation }) {
         </View>
 
         <TouchableOpacity
-          testID="home-main-cta"
+          {...qaAliasProps('btn_home_main_cta', 'home-main-cta')}
           style={styles.mainMissionCta}
           onPress={() => {
             if (recovery) {
@@ -432,7 +437,7 @@ export default function HomeScreen({ navigation }) {
           <Text style={styles.mainMissionCtaSub}>{primaryCtaSubtitle}</Text>
         </TouchableOpacity>
 
-        <View testID="home-ready" style={styles.progressCard}>
+        <View {...qaAliasProps('home_ready', 'home-ready')} style={styles.progressCard}>
           <Text style={styles.progressTitle}>CONTEXTO DO TREINO</Text>
           <Text style={styles.progressLine}>{missionTitle}</Text>
           <Text style={styles.progressLine}>Treino: {workoutDone ? '✅' : '⬜'}</Text>
@@ -451,7 +456,7 @@ export default function HomeScreen({ navigation }) {
             {secondaryActions.slice(0, 2).map((action, index) => (
               <TouchableOpacity
                 key={action.key}
-                testID={action.testID}
+                {...qaAliasProps(action.testID, action.legacyId)}
                 style={[
                   styles.quickDailyButton,
                   index === 0 ? styles.quickDailyButtonFeatured : null,
@@ -473,7 +478,7 @@ export default function HomeScreen({ navigation }) {
 
         <View style={styles.quickCard}>
           <TouchableOpacity
-            testID="home-more-toggle"
+            {...qaAliasProps('btn_home_toggle_more', 'home-more-toggle')}
             style={styles.moreToggle}
             onPress={() => setShowMore((prev) => !prev)}
           >
@@ -489,7 +494,7 @@ export default function HomeScreen({ navigation }) {
                   <Text style={styles.coachTitle}>{coachMessage.title}</Text>
                   <Text style={styles.coachText}>{coachMessage.message}</Text>
                   <TouchableOpacity
-                    testID="home-coach-cta"
+                    {...qaAliasProps('btn_home_coach_cta', 'home-coach-cta')}
                     style={styles.coachCta}
                     onPress={() => {
                       if (canInterruptCoach()) {
@@ -513,7 +518,7 @@ export default function HomeScreen({ navigation }) {
                 {secondaryActions.slice(2).map((action) => (
                   <TouchableOpacity
                     key={action.key}
-                    testID={action.testID}
+                    {...qaAliasProps(action.testID, action.legacyId)}
                     style={styles.quickDailyButton}
                     onPress={action.onPress}
                   >
@@ -529,7 +534,7 @@ export default function HomeScreen({ navigation }) {
             </>
           ) : null}
 
-          {waterFeedback ? <Text testID="feedback-add-agua" style={styles.waterFeedback}>+300ml adicionados 💧</Text> : null}
+          {waterFeedback ? <Text {...qaAliasProps('feedback_add_water', 'feedback-add-agua')} style={styles.waterFeedback}>+300ml adicionados 💧</Text> : null}
         </View>
       </ScrollView>
     </SafeAreaView>

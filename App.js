@@ -29,6 +29,9 @@ import {
   trackScreenOpen,
   trackScreenRenderDuration,
 } from './src/core/observability';
+import { captureRuntimeError } from './src/runtime_error_collector';
+import { normalizeQaScreenName } from './src/qa/selectorRegistry';
+import { registerQaError, setQaAppState, setQaCurrentScreen, setQaLoadingState } from './src/qa/qaAutomationState';
 
 if (typeof __DEV__ !== 'undefined' && __DEV__) {
   // Detox pode ficar instavel quando o banner de warnings cobre a barra de abas.
@@ -37,6 +40,14 @@ if (typeof __DEV__ !== 'undefined' && __DEV__) {
 
 if (typeof ErrorUtils !== 'undefined' && ErrorUtils.setGlobalHandler) {
   ErrorUtils.setGlobalHandler((error, isFatal) => {
+    captureRuntimeError(error, {
+      source: 'global_handler',
+      isFatal,
+    });
+    registerQaError(error, {
+      source: 'global_handler',
+      isFatal,
+    });
     logRuntimeError(error, {
       screen: 'global',
       source: 'global_handler',
@@ -70,6 +81,13 @@ class ErrorBoundary extends React.Component {
     });
     logError(error, { screen: 'ErrorBoundary', extra: { componentStack: info?.componentStack } });
     if (__DEV__) {
+      captureRuntimeError(error, {
+        source: 'error_boundary',
+        componentStack: info?.componentStack,
+      });
+      registerQaError(error, {
+        source: 'error_boundary',
+      });
       console.log('[ErrorBoundary] crash capturado:', error?.message);
     }
   }
@@ -97,8 +115,10 @@ export default function App() {
   React.useEffect(() => {
     initObservability();
     startUserSession('app_mount');
+    setQaLoadingState(true, 'app_bootstrap');
 
     const appStateSub = AppState.addEventListener('change', (nextState) => {
+      setQaAppState(nextState);
       if (nextState === 'active') {
         startUserSession('app_foreground');
         return;
@@ -154,7 +174,7 @@ export default function App() {
       <NutritionProvider>
         <RootProvider>
           <SafeAreaProvider>
-            <View testID="app-root" style={{ flex: 1 }}>
+            <View testID="app-root" accessibilityLabel="app_root" nativeID="app_root" style={{ flex: 1 }}>
               <NavigationContainer
               ref={navigationRef}
               onReady={() => {
@@ -162,6 +182,8 @@ export default function App() {
                 routeNameRef.current = currentRoute;
                 transitionStartedAtRef.current = Date.now();
                 if (currentRoute) {
+                  setQaCurrentScreen(normalizeQaScreenName(currentRoute), currentRoute);
+                  setQaLoadingState(false, 'navigation_ready');
                   setAnalyticsContext({ screen: currentRoute });
                   trackScreenOpen(currentRoute, { source: 'navigation_ready' });
                   const startedAt = Date.now();
@@ -197,6 +219,7 @@ export default function App() {
 
                 routeNameRef.current = currentRoute;
                 transitionStartedAtRef.current = Date.now();
+                setQaCurrentScreen(normalizeQaScreenName(currentRoute), currentRoute);
                 setAnalyticsContext({ screen: currentRoute });
                 trackScreenOpen(currentRoute, {
                   previousScreen: previousRoute || null,
@@ -262,7 +285,7 @@ export default function App() {
             >
               <RootNavigator />
             </NavigationContainer>
-            {bootstrapReady ? <View testID="app-bootstrap-ready" style={{ width: 1, height: 1 }} /> : null}
+            {bootstrapReady ? <View testID="app-bootstrap-ready" accessibilityLabel="app_bootstrap_ready" nativeID="app_bootstrap_ready" style={{ width: 1, height: 1 }} /> : null}
           </View>
         </SafeAreaProvider>
       </RootProvider>

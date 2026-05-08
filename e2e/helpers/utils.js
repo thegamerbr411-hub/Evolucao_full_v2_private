@@ -5,12 +5,81 @@ const { hasDetoxGlobals } = require('./runtime');
 const expoQaClientId = process.env['EXPO_PUBLIC_QA_CLIENT_ID'];
 const DEFAULT_CLIENT_ID = expoQaClientId || process.env.QA_CLIENT_ID || 'default';
 const ARTIFACTS_DIR = path.resolve(__dirname, '..', '..', 'artifacts');
+// Mapeamento bidirecional: ID semântico (novo) ↔ ID legado (antigo)
+// Quando um teste usar o ID novo, o Detox também tenta o legado (e vice-versa),
+// garantindo que qualquer uma das duas formas encontre o elemento na UI.
 const ID_ALIASES = {
+  // Inputs de treino
   'input-peso': ['input-peso', 'input-weight'],
   'input-weight': ['input-weight', 'input-peso'],
   'input-reps': ['input-reps'],
   'btn-salvar-serie': ['btn-salvar-serie', 'btn-save-set'],
   'btn-save-set': ['btn-save-set', 'btn-salvar-serie'],
+
+  // Telas semânticas (novo) ↔ legado (antigo)
+  screen_home: ['screen_home', 'screen-home', 'home-screen'],
+  'screen-home': ['screen-home', 'screen_home', 'home-screen'],
+  'home-screen': ['home-screen', 'screen-home', 'screen_home'],
+  screen_treinos: ['screen_treinos', 'screen-treinos'],
+  'screen-treinos': ['screen-treinos', 'screen_treinos'],
+  screen_profile: ['screen_profile', 'screen-perfil', 'screen-profile'],
+  'screen-perfil': ['screen-perfil', 'screen_profile'],
+  screen_login: ['screen_login', 'screen-login'],
+  'screen-login': ['screen-login', 'screen_login'],
+  screen_register: ['screen_register', 'screen-register', 'screen-cadastro'],
+  'screen-register': ['screen-register', 'screen_register'],
+
+  // Elementos bootstrap
+  app_root: ['app_root', 'app-root'],
+  'app-root': ['app-root', 'app_root'],
+  app_bootstrap_ready: ['app_bootstrap_ready', 'app-bootstrap-ready'],
+  'app-bootstrap-ready': ['app-bootstrap-ready', 'app_bootstrap_ready'],
+  home_ready: ['home_ready', 'home-ready'],
+  'home-ready': ['home-ready', 'home_ready'],
+
+  // Tabs semânticas (novo) ↔ legado (antigo)
+  tab_home: ['tab_home', 'tab-home'],
+  'tab-home': ['tab-home', 'tab_home'],
+  tab_treinos: ['tab_treinos', 'tab-treino'],
+  'tab-treino': ['tab-treino', 'tab_treinos'],
+  tab_nutricao: ['tab_nutricao', 'tab-nutricao'],
+  'tab-nutricao': ['tab-nutricao', 'tab_nutricao'],
+  tab_coach: ['tab_coach', 'tab-conversa'],
+  'tab-conversa': ['tab-conversa', 'tab_coach'],
+  tab_social: ['tab_social', 'tab-social'],
+  'tab-social': ['tab-social', 'tab_social'],
+  tab_profile: ['tab_profile', 'tab-perfil'],
+  'tab-perfil': ['tab-perfil', 'tab_profile'],
+
+  // Botões autenticação
+  btn_login: ['btn_login', 'btn-login'],
+  'btn-login': ['btn-login', 'btn_login'],
+  btn_register: ['btn_register', 'btn-register', 'btn-cadastrar'],
+  btn_go_login: ['btn_go_login', 'btn-go-login'],
+  btn_go_register: ['btn_go_register', 'btn-go-register'],
+  input_email: ['input_email', 'input-email'],
+  input_password: ['input_password', 'input-password', 'input-senha'],
+  input_name: ['input_name', 'input-name', 'input-nome'],
+
+  // Botões de ação
+  btn_start_workout: ['btn_start_workout', 'btn-iniciar-treino'],
+  'btn-iniciar-treino': ['btn-iniciar-treino', 'btn_start_workout'],
+  btn_logout: ['btn_logout', 'btn-profile-session-logout'],
+  'btn-profile-session-logout': ['btn-profile-session-logout', 'btn_logout'],
+  btn_google_login: ['btn_google_login', 'btn-profile-google-login'],
+  btn_google_logout: ['btn_google_logout', 'btn-profile-google-logout'],
+  btn_save_profile: ['btn_save_profile', 'btn-profile-save'],
+  'btn-profile-save': ['btn-profile-save', 'btn_save_profile'],
+  btn_open_admin: ['btn_open_admin', 'btn-open-admin'],
+  'btn-open-admin': ['btn-open-admin', 'btn_open_admin'],
+
+  // Video / player
+  btn_open_video_external: ['btn_open_video_external', 'btn-open-video-external'],
+  btn_enable_player: ['btn_enable_player', 'btn-enable-player'],
+  btn_player_fullscreen: ['btn_player_fullscreen', 'btn-video-fullscreen'],
+  'btn-video-fullscreen': ['btn-video-fullscreen', 'btn_player_fullscreen'],
+  btn_player_close: ['btn_player_close', 'btn-video-close-player'],
+  player_internal: ['player_internal', 'player-internal'],
 };
 
 function getIdCandidates(id) {
@@ -24,6 +93,13 @@ function getIdCandidates(id) {
 }
 
 const KNOWN_SCROLL_CONTAINERS = [
+  // IDs semânticos (novo padrão)
+  'screen_home',
+  'screen_treinos',
+  'screen_profile',
+  'screen_login',
+  'screen_register',
+  // IDs legados (mantidos por compatibilidade)
   'screen-workout',
   'screen-home',
   'screen-treinos',

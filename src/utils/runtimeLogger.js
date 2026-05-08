@@ -1,4 +1,6 @@
 import { logEvent, logRuntimeError } from '../core/observability';
+import { registerQaError } from '../qa/qaAutomationState';
+import { captureRuntimeError } from '../runtime_error_collector';
 
 const ALLOWED_TAGS = new Set([
   'AUTH',
@@ -46,6 +48,13 @@ export function logTaggedError(tag, error, payload = {}) {
   const safeError = error instanceof Error ? error : new Error(String(error || 'unknown_error'));
 
   console.error(`[${safeTag}]`, safeError.message, safePayload);
+  captureRuntimeError(safeError, {
+    tag: safeTag,
+    ...safePayload,
+  });
+  registerQaError(safeError, {
+    tag: safeTag,
+  });
 
   try {
     logRuntimeError(safeError, {

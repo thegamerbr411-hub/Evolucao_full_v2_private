@@ -17,6 +17,7 @@ const useGoogleAuth = typeof _useGoogleAuth === 'function' ? _useGoogleAuth : ()
 import { getOrCreateUserIdentity, saveUserIdentity } from '../services/appIdentityService';
 import { performFullSessionLogout } from '../services/sessionCleanupService';
 import { setQaRuntimeAuth } from '../utils/qaTransport';
+import { QA_ELEMENTS, QA_SCREENS, qaAliasProps, qaProps } from '../qa/selectorRegistry';
 
 const ADMIN_EMAILS = ['thegamerbr411@gmail.com'];
 
@@ -231,7 +232,7 @@ export default function ProfileScreen({ navigation }) {
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.screenWrapper}>
     <ScrollView
-      testID="screen-perfil"
+      {...qaAliasProps(QA_SCREENS.profile, 'screen-perfil')}
       style={styles.scrollArea}
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={styles.container}
@@ -382,7 +383,7 @@ export default function ProfileScreen({ navigation }) {
         {googleConfigured ? (
           <>
             <PrimaryButton
-              testID="btn-profile-google-login"
+              {...qaAliasProps(QA_ELEMENTS.btnGoogleLogin, 'btn-profile-google-login')}
               title={googleLoading ? 'Conectando Google...' : 'Entrar com Google'}
               onPress={() => {
                 if (googleLoading) return;
@@ -396,7 +397,7 @@ export default function ProfileScreen({ navigation }) {
               }}
             />
             <SecondaryButton
-              testID="btn-profile-google-logout"
+              {...qaAliasProps(QA_ELEMENTS.btnGoogleLogout, 'btn-profile-google-logout')}
               title={logoutLoading ? 'Trocando conta...' : 'Desconectar e usar identidade local'}
               onPress={async () => {
                 if (logoutLoading) {
@@ -424,7 +425,7 @@ export default function ProfileScreen({ navigation }) {
         )}
 
         <SecondaryButton
-          testID="btn-profile-session-logout"
+          {...qaAliasProps(QA_ELEMENTS.btnLogout, 'btn-profile-session-logout')}
           title={sessionLogoutLoading ? 'Encerrando sessao...' : 'Encerrar sessao completa'}
           onPress={async () => {
             if (sessionLogoutLoading) {
@@ -451,17 +452,27 @@ export default function ProfileScreen({ navigation }) {
         />
 
         <SecondaryButton
+          {...qaProps('btn_open_admin_profile')}
           title="Abrir painel Admin"
           onPress={() => navigation.navigate('Admin')}
           style={styles.secondaryButton}
         />
 
         {__DEV__ ? (
-          <SecondaryButton
-            title="Monitor ao vivo (debug)"
-            onPress={() => navigation.navigate('DebugObservability')}
-            style={styles.secondaryButton}
-          />
+          <>
+            <SecondaryButton
+              {...qaProps('btn_open_debug_observability')}
+              title="Monitor ao vivo (debug)"
+              onPress={() => navigation.navigate('DebugObservability')}
+              style={styles.secondaryButton}
+            />
+            <SecondaryButton
+              {...qaProps('btn_open_debug_health')}
+              title="QA health (debug)"
+              onPress={() => navigation.navigate('DebugHealth')}
+              style={styles.secondaryButton}
+            />
+          </>
         ) : null}
 
       </AppCard>
@@ -480,7 +491,7 @@ export default function ProfileScreen({ navigation }) {
         <Text style={styles.cardLabel}>Lembrete diario de creatina</Text>
         <Text style={styles.metric}>Ative um lembrete fixo para manter consistencia diaria.</Text>
         <SecondaryButton
-          testID="btn-profile-creatine-enable"
+          {...qaProps('btn_profile_creatine_enable')}
           title={creatineLoading ? 'Ativando lembrete...' : 'Ativar lembrete (09:00)'}
           onPress={async () => {
             if (creatineLoading) return;
@@ -499,7 +510,7 @@ export default function ProfileScreen({ navigation }) {
           }}
         />
         <SecondaryButton
-          testID="btn-profile-creatine-disable"
+          {...qaProps('btn_profile_creatine_disable')}
           title={creatineLoading ? 'Desativando...' : 'Desativar lembrete'}
           onPress={async () => {
             if (creatineLoading) return;
@@ -533,8 +544,7 @@ export default function ProfileScreen({ navigation }) {
     </ScrollView>
 
     <View
-      testID="btn-profile-save"
-      accessibilityLabel="Salvar perfil"
+      {...qaAliasProps(QA_ELEMENTS.btnSaveProfile, 'btn-profile-save')}
       collapsable={false}
       style={[styles.stickyFooter, { paddingBottom: Math.max(spacing.md, insets.bottom + 8) }]}
     >

@@ -9,6 +9,7 @@ import { colors, spacing, radius, typography } from '../theme';
 import { logEvent } from '../core/logger';
 import { isFeatureVariantEnabled, trackEmptyState, trackScreenAction } from '../core/observability';
 import { listExerciseNames, MUSCLE_GROUP_LABELS, searchExercises } from '../data/exercises.js';
+import { QA_ELEMENTS, QA_SCREENS, qaAliasProps, qaProps } from '../qa/selectorRegistry';
 
 function WorkoutStatBadge({ label, value, color }) {
   return (
@@ -63,10 +64,11 @@ export function WorkoutsHubView({
   return (
     <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: colors.background }}>
     <ScrollView
-      testID="screen-treinos"
+      {...qaAliasProps(QA_SCREENS.treinos, 'screen-treinos')}
       contentContainerStyle={styles.container}
       showsVerticalScrollIndicator={false}
     >
+      <View {...qaProps('workouts_hub_anchor')} style={{ width: 1, height: 1 }} />
       <ScreenHeader title="Treinos" subtitle="Execute, registre e evolua." />
 
       {/* Stats do dia */}
@@ -106,7 +108,7 @@ export function WorkoutsHubView({
             {smartSuggestions.map((exercise) => (
               <TouchableOpacity
                 key={exercise.id}
-                testID={`btn-smart-empty-${exercise.id}`}
+                {...qaProps(`btn_smart_empty_${exercise.id}`)}
                 style={styles.emptySuggestionButton}
                 onPress={() => onQuickAddSuggestion?.(exercise)}
               >
@@ -151,13 +153,13 @@ export function WorkoutsHubView({
 
       {/* CTAs principais */}
       <PrimaryButton
-        testID="btn-iniciar-treino"
+        {...qaAliasProps(QA_ELEMENTS.btnStartWorkout, 'btn-iniciar-treino')}
         title="Iniciar treino"
         onPress={() => navigation.navigate('TreinoHoje')}
       />
 
       <SecondaryButton
-        testID="btn-open-history"
+        {...qaProps('btn_open_history')}
         title="Ver histórico de treinos"
         onPress={() => navigation.navigate('Historico')}
       />
@@ -165,7 +167,7 @@ export function WorkoutsHubView({
       {/* Ações secundárias */}
       <View style={styles.actionsGrid}>
         <TouchableOpacity
-          testID="btn-open-free-workout"
+          {...qaProps('btn_open_free_workout')}
           style={styles.actionItem}
           onPress={() => navigation.navigate('TreinoLivre')}
         >
@@ -174,7 +176,7 @@ export function WorkoutsHubView({
         </TouchableOpacity>
 
         <TouchableOpacity
-          testID="btn-open-routines"
+          {...qaProps('btn_open_routines')}
           style={styles.actionItem}
           onPress={() => navigation.navigate('Rotinas')}
         >
@@ -183,7 +185,7 @@ export function WorkoutsHubView({
         </TouchableOpacity>
 
         <TouchableOpacity
-          testID="btn-open-import-workout"
+          {...qaProps('btn_open_import_workout')}
           style={styles.actionItem}
           onPress={() => navigation.navigate('ImportWorkout')}
         >
@@ -192,7 +194,7 @@ export function WorkoutsHubView({
         </TouchableOpacity>
 
         <TouchableOpacity
-          testID="btn-open-social"
+          {...qaProps('btn_open_social')}
           style={styles.actionItem}
           onPress={() => navigation.navigate('SocialChallenges')}
         >
@@ -201,7 +203,7 @@ export function WorkoutsHubView({
         </TouchableOpacity>
 
         <TouchableOpacity
-          testID="btn-open-ranking"
+          {...qaProps('btn_open_ranking')}
           style={styles.actionItem}
           onPress={() => navigation.navigate('RankingEvolution')}
         >
@@ -213,7 +215,7 @@ export function WorkoutsHubView({
       {/* Admin — somente para role admin */}
       {isAdmin && (
         <SecondaryButton
-          testID="btn-open-admin"
+          {...qaAliasProps(QA_ELEMENTS.btnOpenAdmin, 'btn-open-admin')}
           title="⚙️ Painel admin"
           onPress={() => navigation.navigate('Admin')}
           style={styles.adminBtn}

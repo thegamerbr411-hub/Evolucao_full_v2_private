@@ -10,6 +10,8 @@ import { colors, spacing, radius } from '../theme';
 import { getExerciseByName } from '../data/exercises.js';
 import { trackAppError } from '../utils/analytics';
 import { logTaggedError, logTaggedEvent } from '../utils/runtimeLogger';
+import { QA_ELEMENTS, QA_SCREENS, qaAliasProps, qaProps } from '../qa/selectorRegistry';
+import { setQaPlayerState } from '../qa/qaAutomationState';
 
 const TABS = [
   { key: 'resumo', label: 'Resumo' },
@@ -62,6 +64,12 @@ class ExerciseDetailErrorBoundary extends React.PureComponent {
   }
 
   componentDidCatch(error, errorInfo) {
+    setQaPlayerState({
+      active: false,
+      loading: false,
+      fullscreen: false,
+      exerciseName: null,
+    });
     safeTrackAppError(error || new Error('exercise_detail_render_failed'), {
       screen: 'ExerciseDetailScreen',
       action: 'render',
@@ -80,7 +88,7 @@ class ExerciseDetailErrorBoundary extends React.PureComponent {
     const canGoBack = typeof navigation?.canGoBack === 'function' ? navigation.canGoBack() : false;
 
     return (
-      <ScrollView contentContainerStyle={styles.container} testID="screen-exercise-detail-fallback">
+      <ScrollView {...qaAliasProps(QA_SCREENS.exerciseDetail, 'screen-exercise-detail-fallback')} contentContainerStyle={styles.container}>
         <ScreenHeader title="Detalhe do exercicio" subtitle="Modo seguro ativado para manter a navegacao." />
         <AppCard>
           <Text style={styles.sectionTitle}>Tela recuperada</Text>
@@ -164,6 +172,12 @@ function ExerciseDetailContent({ route, navigation }) {
   const handleVideoError = (error) => {
     setVideoFailed(true);
     setVideoLoading(false);
+    setQaPlayerState({
+      active: false,
+      loading: false,
+      fullscreen: false,
+      exerciseName: name,
+    });
     logTaggedError('VIDEO', error || new Error('exercise_video_failed'), {
       action: 'video_render',
       exerciseName: name,
@@ -185,6 +199,12 @@ function ExerciseDetailContent({ route, navigation }) {
     try {
       await player.pauseAsync?.();
       await player.unloadAsync?.();
+      setQaPlayerState({
+        active: false,
+        loading: false,
+        fullscreen: false,
+        exerciseName: name,
+      });
       logTaggedEvent('PLAYER', 'unload', {
         reason,
         exerciseName: name,
@@ -199,6 +219,12 @@ function ExerciseDetailContent({ route, navigation }) {
       bufferingRef.current = false;
       setVideoLoading(false);
       setVideoEnabled(false);
+      setQaPlayerState({
+        active: false,
+        loading: false,
+        fullscreen: false,
+        exerciseName: name,
+      });
     }
   }, [name]);
 
@@ -207,6 +233,12 @@ function ExerciseDetailContent({ route, navigation }) {
       exerciseName: name,
       hasDirectVideo: Boolean(directVideoUrl),
       hasThumbnail: canRenderThumbnail,
+    });
+    setQaPlayerState({
+      active: false,
+      loading: false,
+      fullscreen: false,
+      exerciseName: name,
     });
 
     return () => {
@@ -219,6 +251,12 @@ function ExerciseDetailContent({ route, navigation }) {
     setVideoLoading(false);
     setVideoEnabled(false);
     bufferingRef.current = false;
+    setQaPlayerState({
+      active: false,
+      loading: false,
+      fullscreen: false,
+      exerciseName: name,
+    });
   }, [directVideoUrl, name]);
 
   useEffect(() => {
@@ -248,7 +286,7 @@ function ExerciseDetailContent({ route, navigation }) {
   }, [name, unloadPlayer, videoEnabled]);
 
   return (
-    <ScrollView contentContainerStyle={styles.container} testID="screen-exercise-detail">
+    <ScrollView {...qaAliasProps(QA_SCREENS.exerciseDetail, 'screen-exercise-detail')} contentContainerStyle={styles.container}>
       <ScreenHeader title="Detalhe do exercicio" subtitle="Guia visual premium para executar melhor e com seguranca." />
 
       <AppCard>
@@ -256,6 +294,7 @@ function ExerciseDetailContent({ route, navigation }) {
           {canRenderVideo ? (
             <Video
               ref={videoRef}
+              {...qaProps(QA_ELEMENTS.playerInternal)}
               key={`video-${videoRetryKey}`}
               source={{ uri: directVideoUrl }}
               style={styles.video}
@@ -265,6 +304,12 @@ function ExerciseDetailContent({ route, navigation }) {
               shouldPlay={false}
               onLoadStart={() => {
                 setVideoLoading(true);
+                setQaPlayerState({
+                  active: true,
+                  loading: true,
+                  fullscreen: false,
+                  exerciseName: name,
+                });
                 logTaggedEvent('VIDEO', 'load_start', {
                   exerciseName: name,
                   videoUrl: directVideoUrl,
@@ -272,6 +317,12 @@ function ExerciseDetailContent({ route, navigation }) {
               }}
               onLoad={(status) => {
                 setVideoLoading(false);
+                setQaPlayerState({
+                  active: true,
+                  loading: false,
+                  fullscreen: false,
+                  exerciseName: name,
+                });
                 logTaggedEvent('VIDEO', 'loaded', {
                   exerciseName: name,
                   durationMillis: Number(status?.durationMillis || 0),
@@ -292,9 +343,17 @@ function ExerciseDetailContent({ route, navigation }) {
                 }
               }}
               onFullscreenUpdate={(status) => {
+                const fullscreenStatus = Number(status?.fullscreenUpdate || 0);
+                const isFullscreen = fullscreenStatus === 1 || fullscreenStatus === 3;
+                setQaPlayerState({
+                  active: true,
+                  loading: false,
+                  fullscreen: isFullscreen,
+                  exerciseName: name,
+                });
                 logTaggedEvent('PLAYER', 'fullscreen_update', {
                   exerciseName: name,
-                  fullscreenStatus: Number(status?.fullscreenUpdate || 0),
+                  fullscreenStatus,
                 });
               }}
               onError={handleVideoError}
@@ -305,6 +364,7 @@ function ExerciseDetailContent({ route, navigation }) {
               <Text style={styles.videoFallbackText}>Video pronto</Text>
               <Text style={styles.videoFallbackSubtext}>Use abertura externa (mais estável) ou player interno (beta).</Text>
               <TouchableOpacity
+                {...qaAliasProps(QA_ELEMENTS.btnOpenVideoExternal, 'btn-open-video-external')}
                 style={styles.retryVideoButton}
                 onPress={async () => {
                   try {
@@ -325,12 +385,19 @@ function ExerciseDetailContent({ route, navigation }) {
                 <Text style={styles.retryVideoButtonText}>Abrir video (estável)</Text>
               </TouchableOpacity>
               <TouchableOpacity
+                {...qaAliasProps(QA_ELEMENTS.btnEnablePlayer, 'btn-enable-player')}
                 style={styles.retryVideoButton}
                 onPress={() => {
                   setVideoFailed(false);
                   setVideoLoading(true);
                   setVideoEnabled(true);
                   setVideoRetryKey((prev) => prev + 1);
+                  setQaPlayerState({
+                    active: true,
+                    loading: true,
+                    fullscreen: false,
+                    exerciseName: name,
+                  });
                   logTaggedEvent('PLAYER', 'internal_player_enabled', {
                     exerciseName: name,
                     videoUrl: directVideoUrl,
@@ -348,6 +415,7 @@ function ExerciseDetailContent({ route, navigation }) {
               <Text style={styles.videoFallbackText}>Video indisponivel</Text>
               <Text style={styles.videoFallbackSubtext}>Sem bloqueio da tela. Use o resumo e o passo a passo abaixo.</Text>
               <TouchableOpacity
+                {...qaAliasProps(QA_ELEMENTS.btnOpenVideo, 'btn-open-video')}
                 style={styles.retryVideoButton}
                 onPress={async () => {
                   try {
@@ -369,12 +437,19 @@ function ExerciseDetailContent({ route, navigation }) {
               </TouchableOpacity>
               {directVideoUrl ? (
                 <TouchableOpacity
+                  {...qaAliasProps(QA_ELEMENTS.btnEnablePlayer, 'btn-enable-player-retry')}
                   style={styles.retryVideoButton}
                   onPress={() => {
                     setVideoFailed(false);
                     setVideoLoading(true);
                     setVideoEnabled(true);
                     setVideoRetryKey((prev) => prev + 1);
+                    setQaPlayerState({
+                      active: true,
+                      loading: true,
+                      fullscreen: false,
+                      exerciseName: name,
+                    });
                     logTaggedEvent('PLAYER', 'retry_internal_player', {
                       exerciseName: name,
                       videoUrl: directVideoUrl,
@@ -397,7 +472,7 @@ function ExerciseDetailContent({ route, navigation }) {
         {canRenderVideo ? (
           <View style={styles.playerActionsRow}>
             <TouchableOpacity
-              testID="btn-video-fullscreen"
+              {...qaAliasProps(QA_ELEMENTS.btnPlayerFullscreen, 'btn-video-fullscreen')}
               style={styles.retryVideoButton}
               onPress={async () => {
                 try {
@@ -416,7 +491,7 @@ function ExerciseDetailContent({ route, navigation }) {
               <Text style={styles.retryVideoButtonText}>Abrir em tela cheia</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              testID="btn-video-close-player"
+              {...qaAliasProps(QA_ELEMENTS.btnPlayerClose, 'btn-video-close-player')}
               style={styles.retryVideoButton}
               onPress={() => {
                 unloadPlayer('manual_close');
@@ -519,6 +594,7 @@ function ExerciseDetailContent({ route, navigation }) {
       <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
         <Text style={styles.backButtonText}>Voltar</Text>
       </TouchableOpacity>
+      <View {...qaProps(QA_ELEMENTS.playerStateAnchor)} style={{ width: 1, height: 1 }} />
     </ScrollView>
   );
 }
