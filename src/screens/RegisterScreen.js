@@ -1,5 +1,8 @@
 ﻿import React, { useState } from 'react';
 import {
+  ActivityIndicator,
+  Animated,
+  Easing,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -119,8 +122,44 @@ export default function RegisterScreen({ navigation }) {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [toast, setToast] = useState('');
   const [statusMessage, setStatusMessage] = useState('Informe seus dados e envie o codigo para o e-mail.');
+  const heroAnim = React.useRef(new Animated.Value(0)).current;
+  const cardAnim = React.useRef(new Animated.Value(0)).current;
+  const actionsAnim = React.useRef(new Animated.Value(0)).current;
   const { request, promptAsync, response } = useGoogleAuth();
   const googleConfigured = isGoogleAuthConfigured();
+  const statusTone = React.useMemo(() => {
+    if (loading || googleLoading || /enviando|validando|entrando|conectando|processando/i.test(statusMessage)) return 'loading';
+    if (/sucesso|concluido|validado|autenticado|liberado/i.test(statusMessage)) return 'success';
+    if (/erro|falha|invalido|expirado|nao encontrado/i.test(statusMessage)) return 'error';
+    return 'info';
+  }, [googleLoading, loading, statusMessage]);
+
+  const isBusy = loading || googleLoading;
+
+  React.useEffect(() => {
+    Animated.parallel([
+      Animated.timing(heroAnim, {
+        toValue: 1,
+        duration: 380,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(cardAnim, {
+        toValue: 1,
+        duration: 420,
+        delay: 90,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(actionsAnim, {
+        toValue: 1,
+        duration: 420,
+        delay: 180,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [actionsAnim, cardAnim, heroAnim]);
 
   const finalizeAuthenticatedSession = React.useCallback(async (nextUser, source = 'auth') => {
     const resolvedUser = nextUser || {};
@@ -548,11 +587,39 @@ export default function RegisterScreen({ navigation }) {
         <ScrollView {...qaProps(mode === 'login' ? QA_SCREENS.login : QA_SCREENS.register)} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <AnimatedToast message={toast} onHide={() => setToast('')} />
 
-          <View style={styles.hero}>
+          <Animated.View
+            style={[
+              styles.hero,
+              {
+                opacity: heroAnim,
+                transform: [
+                  {
+                    translateY: heroAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [14, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
             <Text style={styles.heroTitle}>Bem-vindo ao Evolucao</Text>
             <Text style={styles.heroSubtitle}>Treinos, nutricao e progresso em um lugar.</Text>
-          </View>
+          </Animated.View>
 
+          <Animated.View
+            style={{
+              opacity: cardAnim,
+              transform: [
+                {
+                  translateY: cardAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [12, 0],
+                  }),
+                },
+              ],
+            }}
+          >
           <AppCard style={styles.card}>
             <View style={styles.modeSwitchRow}>
               <TouchableOpacity
@@ -580,6 +647,7 @@ export default function RegisterScreen({ navigation }) {
             </View>
 
             <Text style={styles.cardTitle}>{mode === 'login' ? 'Entrar na conta' : 'Criar minha conta'}</Text>
+            <Text style={styles.sectionHint}>Fluxo seguro: enviar codigo, validar codigo e concluir acesso.</Text>
 
             {mode === 'register' ? (
               <>
@@ -590,6 +658,8 @@ export default function RegisterScreen({ navigation }) {
                   onChangeText={setName}
                   placeholder="Seu nome"
                   autoCapitalize="words"
+                  style={styles.inputWrap}
+                  inputStyle={styles.inputField}
                 />
                 <View style={styles.spacer} />
               </>
@@ -603,6 +673,8 @@ export default function RegisterScreen({ navigation }) {
               placeholder="voce@email.com"
               autoCapitalize="none"
               keyboardType="email-address"
+              style={styles.inputWrap}
+              inputStyle={styles.inputField}
             />
 
             <View style={styles.spacer} />
@@ -614,29 +686,36 @@ export default function RegisterScreen({ navigation }) {
               onChangeText={setPassword}
               placeholder="Minimo 6 caracteres"
               secureTextEntry
+              style={styles.inputWrap}
+              inputStyle={styles.inputField}
             />
 
-            <View style={styles.spacer} />
-            <AppInput
-              label="Codigo de verificacao"
-              value={verificationCode}
-              onChangeText={setVerificationCode}
+            <View style={styles.verificationBlock}>
+              <Text style={styles.verificationTitle}>Verificacao por e-mail</Text>
+              <Text style={styles.verificationSubtitle}>O acesso so e liberado apos validar o codigo.</Text>
+              <AppInput
+                label="Codigo de verificacao"
+                value={verificationCode}
+                onChangeText={setVerificationCode}
                   placeholder="Cole o codigo recebido no e-mail"
                   autoCapitalize="none"
-            />
-
-            <View style={styles.codeActionsRow}>
-              <PrimaryButton
-                title={loading ? 'Enviando...' : 'Enviar codigo'}
-                onPress={handleSendEmailCode}
-                style={styles.codeActionButton}
+                style={styles.inputWrap}
+                inputStyle={styles.inputField}
               />
 
-              <PrimaryButton
-                title={loading ? 'Validando...' : 'Validar codigo'}
-                onPress={handleValidateEmailCode}
-                style={styles.codeActionButton}
-              />
+              <View style={styles.codeActionsRow}>
+                <PrimaryButton
+                  title={loading ? 'Enviando...' : 'Enviar codigo'}
+                  onPress={handleSendEmailCode}
+                  style={styles.codeActionButton}
+                />
+
+                <PrimaryButton
+                  title={loading ? 'Validando...' : 'Validar codigo'}
+                  onPress={handleValidateEmailCode}
+                  style={styles.codeActionButton}
+                />
+              </View>
             </View>
 
             <Text style={styles.helperText}>
@@ -659,7 +738,21 @@ export default function RegisterScreen({ navigation }) {
 
             <View style={styles.statusBox}>
               <Text style={styles.statusLabel}>Status</Text>
-              <Text style={styles.statusText}>{statusMessage}</Text>
+              <View style={styles.statusRow}>
+                <View
+                  style={[
+                    styles.statusDot,
+                    statusTone === 'success'
+                      ? styles.statusDotSuccess
+                      : statusTone === 'error'
+                      ? styles.statusDotError
+                      : statusTone === 'loading'
+                      ? styles.statusDotLoading
+                      : styles.statusDotInfo,
+                  ]}
+                />
+                <Text style={styles.statusText}>{statusMessage}</Text>
+              </View>
             </View>
 
             {showForgotPassword && mode === 'login' ? (
@@ -671,7 +764,21 @@ export default function RegisterScreen({ navigation }) {
               />
             ) : null}
           </AppCard>
+          </Animated.View>
 
+          <Animated.View
+            style={{
+              opacity: actionsAnim,
+              transform: [
+                {
+                  translateY: actionsAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [10, 0],
+                  }),
+                },
+              ],
+            }}
+          >
           <PrimaryButton
             {...qaProps(mode === 'login' ? QA_ELEMENTS.btnLogin : QA_ELEMENTS.btnRegister)}
             title={loading ? 'Processando...' : mode === 'login' ? 'Entrar' : 'Cadastrar'}
@@ -717,8 +824,19 @@ export default function RegisterScreen({ navigation }) {
               style={styles.btnGoogleDisabled}
             />
           )}
+          </Animated.View>
 
           <Text style={styles.terms}>Acesso liberado somente apos validacao do codigo enviado por e-mail.</Text>
+
+          {isBusy ? (
+            <View style={styles.loadingOverlay} pointerEvents="none">
+              <View style={styles.loadingCard}>
+                <ActivityIndicator size="small" color="#0ea5e9" />
+                <Text style={styles.loadingTitle}>{googleLoading ? 'Conectando com Google' : 'Processando autenticacao'}</Text>
+                <Text style={styles.loadingSubtitle}>Aguarde alguns segundos...</Text>
+              </View>
+            </View>
+          ) : null}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -777,6 +895,23 @@ const styles = StyleSheet.create({
     color: '#0f172a',
     marginBottom: spacing.sm,
   },
+  sectionHint: {
+    color: '#475569',
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: spacing.md,
+    lineHeight: 18,
+  },
+  inputWrap: {
+    marginBottom: 0,
+  },
+  inputField: {
+    backgroundColor: '#f8fafc',
+    borderColor: '#cbd5e1',
+    borderWidth: 1,
+    borderRadius: 12,
+    minHeight: 50,
+  },
   modeSwitchRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -819,6 +954,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.sm,
   },
+  verificationBlock: {
+    marginTop: spacing.md,
+    borderWidth: 1,
+    borderColor: '#dbeafe',
+    backgroundColor: '#f8fbff',
+    borderRadius: 14,
+    padding: spacing.md,
+  },
+  verificationTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  verificationSubtitle: {
+    fontSize: 12,
+    color: '#475569',
+    fontWeight: '600',
+    marginBottom: spacing.sm,
+  },
   codeActionButton: {
     flex: 1,
   },
@@ -853,10 +1010,34 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
   },
   statusText: {
+    flex: 1,
     fontSize: 13,
     fontWeight: '600',
     color: '#1e293b',
     lineHeight: 19,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  statusDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 99,
+    marginTop: 4,
+  },
+  statusDotInfo: {
+    backgroundColor: '#64748b',
+  },
+  statusDotLoading: {
+    backgroundColor: '#0ea5e9',
+  },
+  statusDotSuccess: {
+    backgroundColor: '#16a34a',
+  },
+  statusDotError: {
+    backgroundColor: '#dc2626',
   },
   linkText: {
     marginTop: spacing.sm,
@@ -896,5 +1077,42 @@ const styles = StyleSheet.create({
     color: '#475569',
     textAlign: 'center',
     lineHeight: 17,
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(15,23,42,0.18)',
+  },
+  loadingCard: {
+    width: '78%',
+    borderRadius: 16,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#dbeafe',
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.16,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  loadingTitle: {
+    marginTop: 8,
+    color: '#0f172a',
+    fontWeight: '800',
+    fontSize: 13,
+  },
+  loadingSubtitle: {
+    marginTop: 4,
+    color: '#475569',
+    fontWeight: '600',
+    fontSize: 12,
   },
 });
