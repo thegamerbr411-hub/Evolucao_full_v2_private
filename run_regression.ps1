@@ -1,255 +1,235 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-  Regression Suite completa — suite semântica Phase 3 + suite legada com screenshot e artifacts.
-.DESCRIPTION
-  Executa TODOS os testes e2e (semânticos + legados numerados) em sequência.
-  Captura screenrecord via adb, logcat, screenshots e gera relatório de regressão completo.
-  Ideal para validação de releases ou branches de feature antes de merge.
-.PARAMETER AdbName
-  Serial do device. Se omitido, usa o primeiro físico detectado.
-.PARAMETER Reuse
-  Se $true, não reinstala o app. Padrão: $true.
-.PARAMETER SuiteFilter
-  Regex para filtrar quais testes executar. Padrão: '' (todos).
-.PARAMETER ArtifactsDir
-  Diretório raiz para artefatos. Padrão: qa_runs/regression/run_TIMESTAMP/
-.PARAMETER StopOnFail
-  Se $true, para a suite no primeiro teste que falhar. Padrão: $false.
+  Full regression suite - semantic Phase 3 + legacy tests.
 #>
 
 param(
-  [string]$AdbName      = $env:DETOX_ADB_NAME,
-  [switch]$Reuse        = $true,
-  [string]$SuiteFilter  = '',
+  [string]$AdbName = $env:DETOX_ADB_NAME,
+  [switch]$Reuse = $true,
+  [string]$DetoxConfiguration = $(if ($env:DETOX_CONFIGURATION) { $env:DETOX_CONFIGURATION } else { 'android.attached.debug' }),
+  [string]$SuiteFilter = '',
   [string]$ArtifactsDir = '',
-  [switch]$StopOnFail   = $false
+  [switch]$StopOnFail = $false
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-# ──────────────────────────────────────────────
-# Configuração
-# ──────────────────────────────────────────────
 $ProjectRoot = $PSScriptRoot
-$Timestamp   = (Get-Date).ToString('yyyyMMdd_HHmmss')
-$RunDir      = if ($ArtifactsDir) { $ArtifactsDir } else { Join-Path $ProjectRoot "qa_runs\regression\run_$Timestamp" }
 
-foreach ($Sub in @('logs','screenshots','video')) {
-  New-Item -ItemType Directory -Path (Join-Path $RunDir $Sub) -Force | Out-Null
+$AdbExe = (Join-Path $env:LOCALAPPDATA 'Android\Sdk\platform-tools\adb.exe')
+if (-not (Test-Path $AdbExe)) { $AdbExe = 'adb' }
+
+$Timestamp = (Get-Date).ToString('yyyyMMdd_HHmmss')
+$RunDir = if ($ArtifactsDir) { $ArtifactsDir } else { Join-Path $ProjectRoot "qa_runs\regression\run_$Timestamp" }
+
+foreach ($sub in @('logs', 'screenshots', 'video')) {
+  New-Item -ItemType Directory -Path (Join-Path $RunDir $sub) -Force | Out-Null
 }
 
-$LogFile    = Join-Path $RunDir 'logs\regression.log'
+$LogFile = Join-Path $RunDir 'logs\regression.log'
 $ReportFile = Join-Path $RunDir 'report.md'
 
 function Write-Log {
   param([string]$Msg, [string]$Level = 'INFO')
-  $Line = "[$Level] $(Get-Date -Format 'HH:mm:ss') $Msg"
-  Write-Host $Line
-  Add-Content -Path $LogFile -Value $Line
+  $line = "[$Level] $(Get-Date -Format 'HH:mm:ss') $Msg"
+  Write-Host $line
+  Add-Content -Path $LogFile -Value $line
 }
 
-Write-Log "=== EVOLUÇÃO QA REGRESSION SUITE ==="
+Write-Log '=== QA REGRESSION SUITE ==='
 Write-Log "Run dir: $RunDir"
 
-# ──────────────────────────────────────────────
-# Detectar device
-# ──────────────────────────────────────────────
-try { $AdbDevices = & adb devices 2>&1 }
-catch { Write-Log "adb não encontrado." 'ERROR'; exit 1 }
+try {
+  $adbDevices = & $AdbExe devices 2>&1
+} catch {
+  Write-Log 'adb not found.' 'ERROR'
+  exit 1
+}
 
 $DeviceSerial = $AdbName
 if (-not $DeviceSerial) {
-  $Lines = ($AdbDevices | Select-String '\tdevice$') -replace '\tdevice',''
-  $Physical = $Lines | Where-Object { $_ -notmatch 'emulator-' } | Select-Object -First 1
-  $DeviceSerial = if ($Physical) { $Physical.ToString().Trim() }
+  $lines = ($adbDevices | Select-String '\tdevice$') -replace '\tdevice', ''
+  if ($lines) {
+    $physical = $lines | Where-Object { $_ -notmatch 'emulator-' } | Select-Object -First 1
+    $DeviceSerial = if ($physical) { $physical.ToString().Trim() } else { ($lines | Select-Object -First 1).ToString().Trim() }
+  }
 }
 
 if ($DeviceSerial) {
-  Write-Log "Device: $DeviceSerial"
   $env:DETOX_ADB_NAME = $DeviceSerial
+  Write-Log "Device: $DeviceSerial"
 } else {
-  Write-Log "Nenhum device detectado." 'WARN'
+  Write-Log 'No device serial provided; detox auto-detect mode.' 'WARN'
 }
 
-# ──────────────────────────────────────────────
-# Configurar Detox
-# ──────────────────────────────────────────────
-if ($Reuse) { $env:DETOX_REUSE_APP = '1'; $env:DETOX_CLEAR_APP_DATA = '0' }
+$env:DETOX_CONFIGURATION = $DetoxConfiguration
+Write-Log "Detox configuration: $DetoxConfiguration"
+
+if ($Reuse) {
+  $env:DETOX_REUSE_APP = '1'
+  $env:DETOX_CLEAR_APP_DATA = '0'
+  Write-Log 'Reuse mode enabled.'
+}
+
 $env:DETOX_ARTIFACTS_LOCATION = Join-Path $RunDir 'screenshots'
 
-# ──────────────────────────────────────────────
-# Screenrecord em background (Android)
-# ──────────────────────────────────────────────
-$VideoOnDevice = '/sdcard/qa_regression.mp4'
-$VideoLocal    = Join-Path $RunDir 'video\regression.mp4'
-$RecordJob     = $null
+$LogcatFile = Join-Path $RunDir 'logs\logcat.txt'
+$logcatArgs = @('logcat', '-v', 'time')
+if ($DeviceSerial) { $logcatArgs = @('-s', $DeviceSerial) + $logcatArgs }
+$logcatJob = Start-Job -ScriptBlock {
+  param($a, $o, $exe) & $exe @a *> $o
+} -ArgumentList $logcatArgs, $LogcatFile, $AdbExe
+
+$videoOnDevice = '/sdcard/qa_regression.mp4'
+$videoLocal = Join-Path $RunDir 'video\regression.mp4'
+$recordJob = $null
 
 if ($DeviceSerial) {
-  Write-Log "Iniciando screenrecord no device..."
-  $RecordArgs = @('-s', $DeviceSerial, 'shell', 'screenrecord', '--size', '720x1280', '--bit-rate', '2000000', $VideoOnDevice)
-  $RecordJob  = Start-Job -ScriptBlock { param($A) & adb @A } -ArgumentList (,$RecordArgs)
-  Write-Log "Screenrecord job $($RecordJob.Id) iniciado."
+  Write-Log 'Starting screenrecord on device...'
+  $recordArgs = @('-s', $DeviceSerial, 'shell', 'screenrecord', '--size', '720x1280', '--bit-rate', '2000000', $videoOnDevice)
+  $recordJob = Start-Job -ScriptBlock {
+    param($a, $exe) & $exe @a
+  } -ArgumentList (,$recordArgs), $AdbExe
 }
 
-# ──────────────────────────────────────────────
-# Logcat em background
-# ──────────────────────────────────────────────
-$LogcatFile = Join-Path $RunDir 'logs\logcat.txt'
-$LogcatArgs = @('logcat', '-v', 'time')
-if ($DeviceSerial) { $LogcatArgs = @('-s', $DeviceSerial) + $LogcatArgs }
-$LogcatJob  = Start-Job -ScriptBlock { param($A,$O) & adb @A *> $O } -ArgumentList $LogcatArgs, $LogcatFile
-Write-Log "Logcat job $($LogcatJob.Id) iniciado."
-
-# ──────────────────────────────────────────────
-# Suite completa de testes
-# ──────────────────────────────────────────────
-$AllTests = @(
-  # Semânticos Phase 3 (primeiro)
+$allTests = @(
   'e2e/semantic/00-semantic-smoke.e2e.js',
   'e2e/semantic/01-semantic-auth.e2e.js',
   'e2e/semantic/02-semantic-navigation.e2e.js',
   'e2e/semantic/03-semantic-logout.e2e.js',
   'e2e/semantic/04-semantic-qa-health.e2e.js',
-  # Legados numerados (regressão)
   'e2e/01-onboarding.e2e.js',
   'e2e/08-navigation.e2e.js',
+  'e2e/13-social-ux-audit.e2e.js',
   'e2e/16-treino-tab-smoke.e2e.js',
-  'e2e/21-profile-save.e2e.js'
+  'e2e/18-visual-map-audit.e2e.js',
+  'e2e/20-visual-fim.e2e.js',
+  'e2e/21-profile-save.e2e.js',
+  'e2e/22-paywall-trial.e2e.js'
 )
 
-$SuiteTests = if ($SuiteFilter) {
-  $AllTests | Where-Object { $_ -match $SuiteFilter }
+$suiteTests = if ($SuiteFilter) {
+  $allTests | Where-Object { $_ -match $SuiteFilter }
 } else {
-  $AllTests
+  $allTests
 }
 
-Write-Log "Suite: $($SuiteTests.Count) testes"
+$results = New-Object System.Collections.Generic.List[object]
+$totalStart = Get-Date
+$overallExit = 0
+$passCount = 0
+$failCount = 0
 
-$Results   = @()
-$TotalStart = Get-Date
-$OverallExit = 0
-$PassCount  = 0
-$FailCount  = 0
+foreach ($test in $suiteTests) {
+  $testName = Split-Path $test -Leaf
+  $isLegacy = $test -notmatch 'semantic'
+  $suiteLabel = if ($isLegacy) { 'legacy' } else { 'semantic' }
+  $testStart = Get-Date
+  $testLog = Join-Path $RunDir ("logs\" + ($testName -replace '\.e2e\.js$', '.log'))
+  $testExit = 0
 
-foreach ($Test in $SuiteTests) {
-  $TestName  = Split-Path $Test -Leaf
-  $IsLegacy  = $Test -notmatch 'semantic'
-  $TestLabel = if ($IsLegacy) { "[LEGADO] $TestName" } else { "[SEMÂNTICO] $TestName" }
-  Write-Log "▶ $TestLabel"
-
-  $TestStart = Get-Date
-  $TestLog   = Join-Path $RunDir "logs\$($TestName -replace '\.e2e\.js','.log')"
-  $TestExit  = 0
+  Write-Log "[$suiteLabel] Running: $testName"
 
   try {
     Push-Location $ProjectRoot
-    & node node_modules/.bin/jest `
-      --config e2e/jest.config.js `
-      --testPathPattern ([regex]::Escape($Test.Replace('/','\/'))) `
-      --forceExit --detectOpenHandles `
-      2>&1 | Tee-Object -FilePath $TestLog
-    $TestExit = $LASTEXITCODE
+    $testPatternArg = [regex]::Escape($test.Replace('/', '\/'))
+    $jestCommand = '.\\node_modules\\.bin\\jest.cmd --config e2e/jest.config.js --testPathPattern "' + $testPatternArg + '" --forceExit --detectOpenHandles'
+    $prevErrorAction = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    cmd /c $jestCommand 2>&1 | Tee-Object -FilePath $testLog
+    $ErrorActionPreference = $prevErrorAction
+    $testExit = $LASTEXITCODE
   } catch {
-    Write-Log "Erro: $_" 'ERROR'
-    $TestExit = 1
+    Write-Log "Error running ${testName}: $_" 'ERROR'
+    $testExit = 1
   } finally {
+    $ErrorActionPreference = 'Stop'
     Pop-Location
   }
 
-  $Dur    = ((Get-Date) - $TestStart).TotalSeconds
-  $Icon   = if ($TestExit -eq 0) { '✅'; $PassCount++ } else { '❌'; $FailCount++; $OverallExit = 1 }
-  $Suite  = if ($IsLegacy) { 'legado' } else { 'semântico' }
+  $dur = ((Get-Date) - $testStart).TotalSeconds
+  $status = if ($testExit -eq 0) { 'PASS' } else { 'FAIL' }
+  if ($testExit -eq 0) { $passCount++ } else { $failCount++; $overallExit = 1 }
 
-  $Results += [PSCustomObject]@{
-    Test     = $TestName
-    Suite    = $Suite
-    Status   = $Icon
-    Duration = "$([Math]::Round($Dur,1))s"
-    ExitCode = $TestExit
-  }
+  $results.Add([PSCustomObject]@{
+    suite = $suiteLabel
+    test = $testName
+    status = $status
+    duration = [Math]::Round($dur, 1)
+    exitCode = $testExit
+  })
 
-  Write-Log "$Icon $TestLabel — $([Math]::Round($Dur,1))s"
+  Write-Log "$status [$suiteLabel] $testName ${dur}s"
 
-  if ($StopOnFail -and $TestExit -ne 0) {
-    Write-Log "StopOnFail ativo — interrompendo suite." 'WARN'
+  if ($StopOnFail -and $testExit -ne 0) {
+    Write-Log 'StopOnFail - aborting suite.' 'WARN'
     break
   }
 }
 
-$TotalDur = ((Get-Date) - $TotalStart).TotalSeconds
+$totalDur = ((Get-Date) - $totalStart).TotalSeconds
 
-# ──────────────────────────────────────────────
-# Parar jobs de background
-# ──────────────────────────────────────────────
-if ($RecordJob) {
-  Stop-Job  -Job $RecordJob -ErrorAction SilentlyContinue
-  Remove-Job -Job $RecordJob -ErrorAction SilentlyContinue
-  # Pull vídeo do device
+if ($recordJob) {
+  Stop-Job -Job $recordJob -ErrorAction SilentlyContinue
+  Remove-Job -Job $recordJob -ErrorAction SilentlyContinue
   if ($DeviceSerial) {
     try {
-      & adb -s $DeviceSerial pull $VideoOnDevice $VideoLocal 2>&1 | Out-Null
-      & adb -s $DeviceSerial shell rm $VideoOnDevice 2>&1 | Out-Null
-      Write-Log "Vídeo salvo: $VideoLocal"
+      & $AdbExe -s $DeviceSerial pull $videoOnDevice $videoLocal 2>&1 | Out-Null
+      & $AdbExe -s $DeviceSerial shell rm $videoOnDevice 2>&1 | Out-Null
+      Write-Log "Video saved: $videoLocal"
     } catch {
-      Write-Log "Não foi possível puxar o vídeo do device." 'WARN'
+      Write-Log 'Could not pull video from device.' 'WARN'
     }
   }
 }
-Stop-Job  -Job $LogcatJob -ErrorAction SilentlyContinue
-Remove-Job -Job $LogcatJob -ErrorAction SilentlyContinue
-Write-Log "Jobs de background parados."
 
-# ──────────────────────────────────────────────
-# Gerar report.md
-# ──────────────────────────────────────────────
-$OverallStatus = if ($OverallExit -eq 0) { '✅ PASSOU' } else { '❌ FALHOU' }
-$TableRows = ($Results | ForEach-Object { "| $($_.Suite) | $($_.Test) | $($_.Status) | $($_.Duration) | $($_.ExitCode) |" }) -join "`n"
+Stop-Job -Job $logcatJob -ErrorAction SilentlyContinue
+Remove-Job -Job $logcatJob -ErrorAction SilentlyContinue
 
-$ReportContent = @"
-# QA Regression Report — Evolução App
+$overallStatus = if ($overallExit -eq 0) { 'PASS' } else { 'FAIL' }
 
-**Status:** $OverallStatus
-**Data:** $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
-**Duração Total:** $([Math]::Round($TotalDur, 1))s
-**Device:** $($DeviceSerial -or 'auto-detectado')
-**Run dir:** $RunDir
+$tableRows = @()
+foreach ($row in $results) {
+  $tableRows += "| $($row.suite) | $($row.test) | $($row.status) | $($row.duration)s | $($row.exitCode) |"
+}
 
-## Resumo
+$reportLines = @(
+  '# QA Regression Report - Evolucao App',
+  '',
+  "**Status:** $overallStatus",
+  "**Data:** $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')",
+  "**Duracao Total:** $([Math]::Round($totalDur, 1))s",
+  "**Device:** $($DeviceSerial -or 'auto-detectado')",
+  "**Run dir:** $RunDir",
+  '',
+  '## Resumo',
+  '| Metrica | Valor |',
+  '| ------- | ----- |',
+  "| Total | $($suiteTests.Count) |",
+  "| Passou | $passCount |",
+  "| Falhou | $failCount |",
+  "| Duracao | $([Math]::Round($totalDur,1))s |",
+  '',
+  '## Resultados por Teste',
+  '| Suite | Teste | Status | Duracao | Exit |',
+  '| ----- | ----- | ------ | ------- | ---- |'
+)
+$reportLines += $tableRows
+$reportLines += @(
+  '',
+  '## Artefatos',
+  '- Logs por teste: logs/<nome>.log',
+  '- Logcat completo: logs/logcat.txt',
+  '- Screenshots: screenshots/',
+  '- Video de tela: video/regression.mp4',
+  '',
+  "## Exit Code: $overallExit"
+)
 
-| Métrica | Valor |
-|---------|-------|
-| Total | $($SuiteTests.Count) |
-| Passou | $PassCount |
-| Falhou | $FailCount |
-| Duração | $([Math]::Round($TotalDur,1))s |
+Set-Content -Path $ReportFile -Value $reportLines -Encoding UTF8
+Write-Log "Report generated: $ReportFile"
+Write-Log "=== REGRESSION DONE - Exit: $overallExit (${passCount} pass, ${failCount} fail) ==="
 
-## Resultados por Teste
-
-| Suite | Teste | Status | Duração | Exit |
-|-------|-------|--------|---------|------|
-$TableRows
-
-## Artefatos
-
-- Logs por teste: \`logs/<nome>.log\`
-- Logcat completo: \`logs/logcat.txt\`
-- Screenshots: \`screenshots/\`
-- Vídeo de tela: \`video/regression.mp4\`
-
-## Exit Code: $OverallExit
-"@
-
-Set-Content -Path $ReportFile -Value $ReportContent -Encoding UTF8
-Write-Log "Report: $ReportFile"
-Write-Log "=== REGRESSION CONCLUÍDA — Exit: $OverallExit ($PassCount pass, $FailCount fail) ==="
-Write-Host ""
-Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-Write-Host " RESULTADO:  $OverallStatus"
-Write-Host " Testes:     $PassCount/$($SuiteTests.Count) passaram"
-Write-Host " Duração:    $([Math]::Round($TotalDur,1))s"
-Write-Host " Report:     $ReportFile"
-Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
-exit $OverallExit
+exit $overallExit
