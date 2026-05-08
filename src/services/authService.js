@@ -1,6 +1,7 @@
 import { getIdTokenResult, GoogleAuthProvider, sendPasswordResetEmail, signInAnonymously, signInWithCredential } from 'firebase/auth';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
+import { Platform } from 'react-native';
 import { auth } from './firebase.js';
 import { logCriticalError } from './loggingService.js';
 import api from './api';
@@ -10,11 +11,11 @@ import { setQaRuntimeAuth } from '../utils/qaTransport';
 WebBrowser.maybeCompleteAuthSession();
 
 function getGoogleClientConfig() {
-  const sharedClientId = String(process?.env?.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '').trim();
-  const webClientId = String(process?.env?.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '').trim();
-  const androidClientId = String(process?.env?.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '').trim();
-  const expoClientId = String(process?.env?.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID || '').trim();
-  const iosClientId = String(process?.env?.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '').trim();
+  const sharedClientId = String(process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '').trim();
+  const webClientId = String(process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '').trim();
+  const androidClientId = String(process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '').trim();
+  const expoClientId = String(process.env.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID || '').trim();
+  const iosClientId = String(process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '').trim();
 
   return {
     androidClientId: androidClientId || sharedClientId,
@@ -32,11 +33,11 @@ export function isGoogleAuthConfigured() {
 
 export function useGoogleAuth() {
   const cfg = getGoogleClientConfig();
-  const useAuthRequestHook = Google && typeof Google.useAuthRequest === 'function'
-    ? Google.useAuthRequest
+  const useIdTokenAuthRequestHook = Google && typeof Google.useIdTokenAuthRequest === 'function'
+    ? Google.useIdTokenAuthRequest
     : null;
 
-  if (!useAuthRequestHook) {
+  if (!useIdTokenAuthRequestHook) {
     return {
       request: null,
       response: null,
@@ -47,17 +48,20 @@ export function useGoogleAuth() {
     };
   }
 
-  // Evita crash em ambientes QA/E2E sem OAuth configurado; o botao de login continua desabilitado.
-  const safeAndroidClientId = cfg.androidClientId || 'detox-placeholder.apps.googleusercontent.com';
-  const [request, response, promptAsync] = useAuthRequestHook({
+  // Evita erro de "custom scheme" em Android usando apenas client nativo no fluxo mobile.
+  const safeAndroidClientId = cfg.androidClientId || undefined;
+  const requestConfig = {
     androidClientId: safeAndroidClientId,
-    webClientId: cfg.webClientId || undefined,
-    expoClientId: cfg.expoClientId || undefined,
     iosClientId: cfg.iosClientId || undefined,
     scopes: ['openid', 'profile', 'email'],
-    responseType: 'id_token',
     selectAccount: true,
-  });
+  };
+
+  if (Platform.OS === 'web') {
+    requestConfig.webClientId = cfg.webClientId || undefined;
+  }
+
+  const [request, response, promptAsync] = useIdTokenAuthRequestHook(requestConfig);
 
   return { request, response, promptAsync };
 }
@@ -194,5 +198,50 @@ export const requestPasswordReset = async (email) => {
   } catch (error) {
     await logCriticalError('authService.requestPasswordReset', error);
     return { ok: false, message: 'Não foi possível enviar o e-mail de recuperação agora.' };
+  }
+};
+
+export const sendLoginCode = async (email) => {
+  const safeEmail = String(email || '').trim().toLowerCase();
+  if (!safeEmail) {
+    return { ok: false, message: 'Informe um e-mail válido.' };
+  }
+
+  try {
+    const response = await api.post('/auth/send-code', { email: safeEmail });
+    const delivery = String(response?.data?.delivery || 'email').toLowerCase();
+    const code = response?.data?.code ? String(response.data.code) : null;
+
+    return {
+      ok: Boolean(response?.data?.ok),
+      delivery,
+      code,
+    };
+  } catch (error) {
+    await logCriticalError('authService.sendLoginCode', error);
+    const message = String(error?.response?.data?.error || 'Não foi possível enviar o código agora.');
+    return { ok: false, message };
+  }
+};
+
+export const verifyLoginCode = async ({ email, code }) => {
+  const safeEmail = String(email || '').trim().toLowerCase();
+  const safeCode = String(code || '').trim();
+
+  if (!safeEmail || !safeCode) {
+    return { ok: false, message: 'Informe e-mail e código para validar.' };
+  }
+
+  try {
+    const response = await api.post('/auth/verify-code', {
+      email: safeEmail,
+      code: safeCode,
+    });
+
+    return { ok: Boolean(response?.data?.ok) };
+  } catch (error) {
+    await logCriticalError('authService.verifyLoginCode', error);
+    const message = String(error?.response?.data?.error || 'Código inválido ou expirado.');
+    return { ok: false, message };
   }
 };

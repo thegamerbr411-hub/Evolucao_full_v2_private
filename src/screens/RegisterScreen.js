@@ -1,13 +1,14 @@
-﻿import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   ActivityIndicator,
-  Animated,
-  Easing,
+  Dimensions,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -15,1104 +16,815 @@ import {
   applyActionCode,
   createUserWithEmailAndPassword,
   fetchSignInMethodsForEmail,
-  sendPasswordResetEmail,
   sendEmailVerification,
   signInWithEmailAndPassword,
-  signOut,
   updateProfile,
-  verifyPasswordResetCode,
 } from 'firebase/auth';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
-import { AnimatedToast, AppCard, AppInput, PrimaryButton } from '../components/ui';
+import { AnimatedToast } from '../components/ui';
 import { getOrCreateUserIdentity, saveUserIdentity } from '../services/appIdentityService';
 import { auth, isFirebaseConfigured } from '../services/firebase';
 import {
   isGoogleAuthConfigured,
   loginWithGoogleToken,
-  logoutGoogleSession,
-  requestPasswordReset,
   useGoogleAuth,
 } from '../services/authService.js';
 import { setQaRuntimeAuth } from '../utils/qaTransport';
-import { colors, spacing } from '../theme';
-import { QA_ELEMENTS, QA_SCREENS, qaProps } from '../qa/selectorRegistry';
-import { setQaAuthState, setQaLoadingState } from '../qa/qaAutomationState';
+import { QA_SCREENS, qaProps } from '../qa/selectorRegistry';
+import { setQaAuthState } from '../qa/qaAutomationState';
 
-const FIREBASE_AUTH_TIMEOUT_MS = 8000;
-const UI_LOADING_WATCHDOG_MS = 12000;
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const FIREBASE_TIMEOUT_MS = 8000;
 
-function startLoadingWatchdog(setLoading, setToast, timeoutMs = UI_LOADING_WATCHDOG_MS) {
-  const safeTimeout = Math.max(8000, Number(timeoutMs || UI_LOADING_WATCHDOG_MS));
-  const timerId = setTimeout(() => {
-    setLoading(false);
-    setToast('A operacao demorou mais do que o esperado. Tente novamente.');
-  }, safeTimeout);
-
-  return () => clearTimeout(timerId);
-}
-
-async function withPromiseTimeout(promise, timeoutMs = FIREBASE_AUTH_TIMEOUT_MS, timeoutMessage = 'Tempo limite de autenticacao excedido.') {
-  const safeTimeout = Math.max(2000, Number(timeoutMs || FIREBASE_AUTH_TIMEOUT_MS));
-  let timeoutId;
-  const timeoutPromise = new Promise((_, reject) => {
-    timeoutId = setTimeout(() => reject(new Error(timeoutMessage)), safeTimeout);
-  });
-
-  try {
-    return await Promise.race([promise, timeoutPromise]);
-  } finally {
-    clearTimeout(timeoutId);
-  }
-}
-
-function logAuth(step, meta = {}) {
-  if (__DEV__) {
-    console.log('[AUTH_FLOW]', step, meta);
-  }
-}
+// ============================================================================
+// UTILITIES
+// ============================================================================
 
 function mapFirebaseAuthError(error) {
   const code = String(error?.code || '').toLowerCase();
-  if (code.includes('auth/invalid-email')) return 'E-mail invalido.';
-  if (code.includes('auth/operation-not-allowed')) return 'Metodo de login nao habilitado no Firebase Console.';
-  if (code.includes('auth/invalid-action-code')) return 'Codigo invalido ou expirado. Solicite um novo codigo.';
-  if (code.includes('auth/user-not-found')) return 'Conta nao encontrada.';
+  if (code.includes('auth/invalid-email')) return 'E-mail inválido.';
+  if (code.includes('auth/user-not-found')) return 'Conta não encontrada.';
   if (code.includes('auth/wrong-password')) return 'Senha incorreta.';
-  if (code.includes('auth/invalid-credential')) return 'Credenciais invalidas.';
-  if (code.includes('auth/email-already-in-use')) return 'Este e-mail ja esta em uso.';
-  if (code.includes('auth/weak-password')) return 'Senha fraca. Use pelo menos 6 caracteres.';
-  if (code.includes('auth/network-request-failed')) return 'Falha de rede. Verifique sua conexao e tente novamente.';
-  if (code.includes('auth/too-many-requests')) return 'Muitas tentativas. Aguarde alguns minutos e tente novamente.';
-  return String(error?.message || 'Falha na autenticacao. Tente novamente.');
+  if (code.includes('auth/email-already-in-use')) return 'E-mail já em uso.';
+  if (code.includes('auth/weak-password')) return 'Senha fraca (mín. 6 caracteres).';
+  if (code.includes('auth/invalid-action-code')) return 'Link expirado ou inválido.';
+  if (code.includes('auth/too-many-requests')) return 'Muitas tentativas. Aguarde alguns minutos.';
+  if (code.includes('auth/network-request-failed')) return 'Sem conexão. Verifique internet.';
+  return String(error?.message || 'Erro na autenticação.');
 }
 
-async function runAuthOperation(label, operation, maxRetries = 1) {
-  let attempt = 0;
-  while (attempt <= maxRetries) {
-    try {
-      return await operation();
-    } catch (error) {
-      const code = String(error?.code || '').toLowerCase();
-      const isTransient = code.includes('network-request-failed') || code.includes('too-many-requests');
-      if (!isTransient || attempt >= maxRetries) {
-        throw error;
-      }
-      logAuth(`${label}_retry`, { attempt: attempt + 1, code });
-    }
-    attempt += 1;
-  }
-
-  throw new Error('AUTH_OPERATION_FAILED');
+async function withTimeout(promise, timeoutMs = FIREBASE_TIMEOUT_MS) {
+  const timeoutPromise = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('Operação expirou. Tente novamente.')), timeoutMs)
+  );
+  return Promise.race([promise, timeoutPromise]);
 }
+
+// ============================================================================
+// COMPONENT
+// ============================================================================
 
 export default function RegisterScreen({ navigation }) {
   const { setUser } = useApp();
-  const [mode, setMode] = useState('register');
+  
+  // Auth state
+  const [mode, setMode] = useState('login');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [verificationCode, setVerificationCode] = useState('');
-  const [codeMode, setCodeMode] = useState('verify_email');
-  const [isCodeVerified, setIsCodeVerified] = useState(false);
-  const [codeSentAt, setCodeSentAt] = useState(0);
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [linkSentAt, setLinkSentAt] = useState(0);
   const [pendingGoogleUser, setPendingGoogleUser] = useState(null);
-  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  
+  // UI state
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [toast, setToast] = useState('');
-  const [statusMessage, setStatusMessage] = useState('Informe seus dados e envie o codigo para o e-mail.');
-  const heroAnim = React.useRef(new Animated.Value(0)).current;
-  const cardAnim = React.useRef(new Animated.Value(0)).current;
-  const actionsAnim = React.useRef(new Animated.Value(0)).current;
+  const [statusMsg, setStatusMsg] = useState('');
+  
+  // Google auth
   const { request, promptAsync, response } = useGoogleAuth();
   const googleConfigured = isGoogleAuthConfigured();
-  const statusTone = React.useMemo(() => {
-    if (loading || googleLoading || /enviando|validando|entrando|conectando|processando/i.test(statusMessage)) return 'loading';
-    if (/sucesso|concluido|validado|autenticado|liberado/i.test(statusMessage)) return 'success';
-    if (/erro|falha|invalido|expirado|nao encontrado/i.test(statusMessage)) return 'error';
-    return 'info';
-  }, [googleLoading, loading, statusMessage]);
 
-  const isBusy = loading || googleLoading;
+  setQaAuthState({ hydrated: true, hasAccount: false, userId: null });
 
-  React.useEffect(() => {
-    Animated.parallel([
-      Animated.timing(heroAnim, {
-        toValue: 1,
-        duration: 380,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(cardAnim, {
-        toValue: 1,
-        duration: 420,
-        delay: 90,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(actionsAnim, {
-        toValue: 1,
-        duration: 420,
-        delay: 180,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [actionsAnim, cardAnim, heroAnim]);
-
-  const finalizeAuthenticatedSession = React.useCallback(async (nextUser, source = 'auth') => {
-    const resolvedUser = nextUser || {};
-    const resolvedId = String(resolvedUser.id || '').trim();
-    const identity = resolvedId ? { userId: resolvedId } : await getOrCreateUserIdentity();
-    const userId = resolvedId || identity.userId;
-
-    await saveUserIdentity({ userId, source });
-    setQaRuntimeAuth({ userId });
-    setUser({
-      id: userId,
-      role: resolvedUser.role || 'user',
-      name: resolvedUser.name || 'Usuario',
-      email: resolvedUser.email || null,
-    });
-    setStatusMessage('Autenticado com sucesso. Redirecionando...');
-    navigation.replace('MainTabs');
-  }, [navigation, setUser]);
-
-  React.useEffect(() => {
-    setQaAuthState({
-      hydrated: true,
-      hasAccount: false,
-      userId: null,
-    });
-  }, []);
-
-  React.useEffect(() => {
-    setQaLoadingState(loading, loading ? `register_${mode}` : null);
-  }, [loading, mode]);
-
-  React.useEffect(() => {
-    setIsCodeVerified(false);
-    setVerificationCode('');
-    setCodeSentAt(0);
-    setCodeMode(mode === 'register' ? 'verify_email' : 'password_reset');
-    if (mode !== 'login') {
-      setPendingGoogleUser(null);
-    }
+  // Reset state when mode/email changes
+  useEffect(() => {
+    setEmailVerified(false);
+    setLinkSentAt(0);
   }, [email, mode]);
 
-  React.useEffect(() => {
-    const handleGoogleResponse = async () => {
-      if (!response || response.type !== 'success') {
-        if (response?.type === 'error') {
-          const responseError = String(response?.error?.message || response?.params?.error_description || response?.params?.error || 'Falha na autenticacao Google.');
-          setToast(`Erro no login Google: ${responseError}`);
-          setStatusMessage(`Erro Google: ${responseError}`);
-        }
-        return;
-      }
+  // Handle deep link from Firebase action link
+  useEffect(() => {
+    const handleDeepLink = async (url) => {
+      const raw = String(url || '').trim();
+      if (!raw || !raw.includes('oobCode')) return;
 
-      setGoogleLoading(true);
-      const clearWatchdog = startLoadingWatchdog(setGoogleLoading, setToast);
+      const decoded = decodeURIComponent(raw);
+      const modeMatch = decoded.match(/[?&#]mode=([^&#]+)/i);
+      const codeMatch = decoded.match(/[?&#]oobCode=([^&#]+)/i);
+      
+      const actionMode = String(modeMatch?.[1] || '').trim();
+      const oobCode = String(codeMatch?.[1] || '').trim();
+
+      if (actionMode !== 'verifyEmail' || !oobCode) return;
+      if (!isFirebaseConfigured || !auth) return;
+
+      setLoading(true);
       try {
-        const authData = response.authentication || {};
-        const idToken = authData.idToken || response?.params?.id_token || null;
+        await withTimeout(applyActionCode(auth, oobCode));
+        if (auth.currentUser) {
+          await auth.currentUser.reload().catch(() => {});
+        }
+        setEmailVerified(true);
+        setStatusMsg('✓ E-mail verificado. Acesso liberado.');
+        setToast('Link validado. Prossiga com o cadastro ou login.');
+      } catch (err) {
+        setStatusMsg('✗ Link expirado ou inválido.');
+        setToast(mapFirebaseAuthError(err));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    Linking.getInitialURL()
+      .then((url) => url && handleDeepLink(url))
+      .catch(() => {});
+
+    const sub = Linking.addEventListener('url', ({ url }) => handleDeepLink(url));
+    return () => sub?.remove?.();
+  }, []);
+
+  // Handle Google response
+  useEffect(() => {
+    if (!response || response.type !== 'success') return;
+
+    const processGoogleAuth = async () => {
+      setGoogleLoading(true);
+      try {
+        const idToken = response.authentication?.idToken;
+        if (!idToken) throw new Error('Sem token do Google');
+
         const loggedUser = await loginWithGoogleToken({
-          accessToken: authData.accessToken || null,
           idToken,
+          accessToken: response.authentication?.accessToken || null,
         });
 
-        if (!loggedUser?.id) {
-          setToast('Falha no login Google. Nao foi possivel obter usuario valido.');
-          setStatusMessage('Google respondeu, mas sem usuario valido.');
-          return;
-        }
-
-        const resolvedEmail = String(loggedUser.email || email || '').trim().toLowerCase();
-        if (!resolvedEmail) {
-          setToast('Google autenticou, mas nao retornou e-mail valido.');
-          setStatusMessage('Google sem e-mail valido para verificacao por codigo.');
-          return;
-        }
+        if (!loggedUser?.id) throw new Error('Google sem usuário válido');
 
         setMode('login');
-        setEmail(resolvedEmail);
-        if (loggedUser.name && !String(name || '').trim()) {
-          setName(loggedUser.name);
-        }
+        setEmail(loggedUser.email || '');
+        if (loggedUser.name) setName(loggedUser.name);
+        
+        // Google users are pre-verified by the provider
         setPendingGoogleUser({
           id: loggedUser.id,
+          name: loggedUser.name || 'Usuário',
+          email: loggedUser.email,
           role: loggedUser.role || 'user',
-          name: loggedUser.name || name || 'Usuario',
-          email: resolvedEmail,
-          source: loggedUser.source || 'google',
         });
-        setCodeMode('password_reset');
-        setIsCodeVerified(false);
-        setCodeSentAt(0);
-        setToast('Google conectado. Envie e valide o codigo do e-mail para concluir a entrada.');
-        setStatusMessage('Google conectado. Falta validar o codigo recebido por e-mail.');
-      } catch (error) {
-        setToast(`Erro no login Google: ${String(error?.message || 'Nao foi possivel autenticar agora.')}`);
-        setStatusMessage(`Erro Google: ${String(error?.message || 'nao foi possivel autenticar agora.')}`);
+        setEmailVerified(true);
+        setStatusMsg('✓ Google conectado e verificado.');
+        setToast('Toque em Entrar para continuar.');
+      } catch (err) {
+        setStatusMsg('✗ Erro ao conectar com Google.');
+        setToast(mapFirebaseAuthError(err));
       } finally {
-        clearWatchdog();
         setGoogleLoading(false);
       }
     };
 
-    handleGoogleResponse();
-  }, [email, finalizeAuthenticatedSession, name, response]);
+    processGoogleAuth();
+  }, [response]);
 
-  const handleForgotPassword = async () => {
-    const safeEmail = String(email || '').trim().toLowerCase();
-    if (!safeEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(safeEmail)) {
-      setToast('Informe seu e-mail para recuperar a senha.');
-      setStatusMessage('Informe um e-mail valido para recuperar a senha.');
+  // Send verification link
+  const handleSendLink = useCallback(async () => {
+    const emailLower = email.trim().toLowerCase();
+    if (!emailLower || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailLower)) {
+      setToast('E-mail inválido.');
       return;
     }
 
-    setLoading(true);
-    const clearWatchdog = startLoadingWatchdog(setLoading, setToast);
-    try {
-      const result = await requestPasswordReset(safeEmail);
-      if (!result?.ok) {
-        setToast(result?.message || 'Nao foi possivel enviar o e-mail de recuperacao.');
-        setStatusMessage(result?.message || 'Falha no envio de recuperacao.');
-        return;
-      }
-
-      setToast('Enviamos um link de recuperacao para seu e-mail. Verifique inbox e spam.');
-      setStatusMessage('Link de recuperacao enviado para o e-mail.');
-      setShowForgotPassword(false);
-    } finally {
-      clearWatchdog();
-      setLoading(false);
-    }
-  };
-
-  const handleSendEmailCode = async () => {
-    const safeName = String(name || '').trim();
-    const safeEmail = String(email || '').trim().toLowerCase();
-    const safePassword = String(password || '').trim();
-    const requiresPasswordForCode = mode === 'register' || (mode === 'login' && !pendingGoogleUser);
-
-    if (!safeEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(safeEmail)) {
-      setToast('Informe um e-mail valido para receber o codigo.');
-      setStatusMessage('E-mail invalido para envio de codigo.');
+    if (mode === 'register' && (!name.trim() || password.length < 6)) {
+      setToast('Nome e senha (mín. 6) obrigatórios.');
       return;
     }
 
-    if (requiresPasswordForCode && (!safePassword || safePassword.length < 6)) {
-      setToast('Defina uma senha com pelo menos 6 caracteres antes de enviar o codigo.');
-      setStatusMessage('Senha precisa ter ao menos 6 caracteres.');
-      return;
-    }
-
-    if (mode === 'register' && !safeName) {
-      setToast('Informe seu nome antes de enviar o codigo.');
-      setStatusMessage('Preencha seu nome antes do envio de codigo.');
+    if (mode === 'login' && !pendingGoogleUser && password.length < 6) {
+      setToast('Senha obrigatória (mín. 6 caracteres).');
       return;
     }
 
     if (!isFirebaseConfigured || !auth) {
-      setToast('Firebase nao configurado. Verifique EXPO_PUBLIC_FIREBASE_* e tente novamente.');
-      setStatusMessage('Firebase nao configurado neste build.');
+      setToast('Firebase não configurado.');
       return;
     }
 
     setLoading(true);
-    setStatusMessage('Enviando codigo de verificacao...');
-    const clearWatchdog = startLoadingWatchdog(setLoading, setToast);
+    setStatusMsg('Enviando link...');
     try {
       let firebaseUser = null;
-      const methods = await withPromiseTimeout(
-        fetchSignInMethodsForEmail(auth, safeEmail),
-        FIREBASE_AUTH_TIMEOUT_MS,
-        'Consulta de conta demorou para responder.'
-      );
 
-      if (Array.isArray(methods) && methods.length > 0) {
-        await withPromiseTimeout(
-          sendPasswordResetEmail(auth, safeEmail),
-          FIREBASE_AUTH_TIMEOUT_MS,
-          'Envio do codigo por e-mail demorou para responder.'
-        );
-        setCodeMode('password_reset');
-        setIsCodeVerified(false);
-        setCodeSentAt(Date.now());
-        setToast('Codigo enviado para seu e-mail. Copie o oobCode do link e valide no app.');
-        setStatusMessage('Codigo enviado para e-mail de conta existente. Valide o oobCode para continuar.');
-        return;
-      } else {
-        if (mode === 'register') {
-          const createResult = await withPromiseTimeout(
-            createUserWithEmailAndPassword(auth, safeEmail, safePassword),
-            FIREBASE_AUTH_TIMEOUT_MS,
-            'Criacao da conta demorou para responder.'
+      // Check existing methods
+      const methods = await withTimeout(fetchSignInMethodsForEmail(auth, emailLower));
+
+      if (mode === 'register') {
+        if (Array.isArray(methods) && methods.length > 0) {
+          // Account exists, sign in
+          const result = await withTimeout(
+            signInWithEmailAndPassword(auth, emailLower, password)
           );
-          firebaseUser = createResult?.user || null;
-          setCodeMode('verify_email');
-          if (firebaseUser) {
-            await updateProfile(firebaseUser, { displayName: safeName }).catch(() => {});
-          }
+          firebaseUser = result.user;
         } else {
-          setToast('Conta nao encontrada para este e-mail.');
-          setStatusMessage('Conta nao encontrada para envio de codigo.');
+          // New account, create it
+          const result = await withTimeout(
+            createUserWithEmailAndPassword(auth, emailLower, password)
+          );
+          firebaseUser = result.user;
+          if (name.trim()) {
+            await updateProfile(firebaseUser, { displayName: name }).catch(() => {});
+          }
+        }
+      } else {
+        if (pendingGoogleUser) {
+          setEmailVerified(true);
+          setStatusMsg('✓ Google verificado. Prossiga.');
+          setToast('Toque em Entrar para continuar.');
           return;
         }
+
+        // Login mode: check account exists
+        if (!Array.isArray(methods) || methods.length === 0) {
+          setToast('Conta não encontrada.');
+          setStatusMsg('✗ E-mail não registrado.');
+          return;
+        }
+
+        // Sign in with password
+        const result = await withTimeout(
+          signInWithEmailAndPassword(auth, emailLower, password)
+        );
+        firebaseUser = result.user;
       }
 
       if (!firebaseUser) {
-        setToast('Nao foi possivel preparar a conta para envio do codigo.');
-        setStatusMessage('Falha ao preparar conta para envio do codigo.');
-        return;
+        throw new Error('Falha ao preparar conta');
       }
 
+      // Check if already verified
       if (firebaseUser.emailVerified) {
-        setIsCodeVerified(true);
-        setCodeSentAt(Date.now());
-        setToast('Este e-mail ja esta verificado. Voce ja pode concluir.');
-        setStatusMessage('E-mail ja verificado. Fluxo liberado.');
+        setEmailVerified(true);
+        setStatusMsg('✓ E-mail já verificado. Prossiga.');
+        setToast('Acesso liberado. Toque em Entrar/Cadastrar.');
         return;
       }
 
-      await withPromiseTimeout(
-        sendEmailVerification(firebaseUser),
-        FIREBASE_AUTH_TIMEOUT_MS,
-        'Envio do codigo por e-mail demorou para responder.'
+      // Send verification link
+      await withTimeout(
+        sendEmailVerification(firebaseUser, {
+          handleCodeInApp: true,
+          url: 'https://t-evo-b069a.firebaseapp.com/auth-complete',
+          android: {
+            packageName: 'com.tipolt.evolucaofullv2',
+            installApp: true,
+            minimumVersion: '1',
+          },
+        })
       );
-      await signOut(auth).catch(() => {});
 
-      setIsCodeVerified(false);
-      setCodeSentAt(Date.now());
-      setToast('Codigo enviado para seu e-mail. Copie o valor oobCode do link recebido e valide no app.');
-      setStatusMessage('Codigo enviado. Agora valide o oobCode no campo abaixo.');
-    } catch (error) {
-      setToast(mapFirebaseAuthError(error));
-      setStatusMessage(mapFirebaseAuthError(error));
-      logAuth('send_code_error', { code: String(error?.code || ''), email: safeEmail });
+      setLinkSentAt(Date.now());
+      setStatusMsg('✓ Link enviado. Abra o e-mail.');
+      setToast('Verifique inbox/spam. Toque no link e volte ao app.');
+    } catch (err) {
+      setStatusMsg(`✗ ${mapFirebaseAuthError(err)}`);
+      setToast(mapFirebaseAuthError(err));
     } finally {
-      clearWatchdog();
       setLoading(false);
     }
-  };
+  }, [email, name, password, mode, pendingGoogleUser]);
 
-  const handleValidateEmailCode = async () => {
-    const safeCode = String(verificationCode || '').trim();
-    if (!safeCode) {
-      setToast('Informe o codigo recebido por e-mail para validar.');
-      setStatusMessage('Preencha o codigo recebido por e-mail.');
-      return;
-    }
-
+  // Check verification status
+  const handleCheckVerification = useCallback(async () => {
     if (!isFirebaseConfigured || !auth) {
-      setToast('Firebase nao configurado. Verifique EXPO_PUBLIC_FIREBASE_* e tente novamente.');
-      setStatusMessage('Firebase nao configurado neste build.');
+      setToast('Firebase não configurado.');
       return;
     }
 
     setLoading(true);
-    setStatusMessage('Validando codigo...');
-    const clearWatchdog = startLoadingWatchdog(setLoading, setToast);
+    setStatusMsg('Conferindo...');
     try {
-      if (codeMode === 'password_reset') {
-        await withPromiseTimeout(
-          verifyPasswordResetCode(auth, safeCode),
-          FIREBASE_AUTH_TIMEOUT_MS,
-          'Validacao do codigo demorou para responder.'
-        );
-      } else {
-        await withPromiseTimeout(
-          applyActionCode(auth, safeCode),
-          FIREBASE_AUTH_TIMEOUT_MS,
-          'Validacao do codigo demorou para responder.'
-        );
+      const emailLower = email.trim().toLowerCase();
+
+      // If we need to sign in first
+      if (!auth.currentUser && !pendingGoogleUser && mode === 'login' && password) {
+        await withTimeout(signInWithEmailAndPassword(auth, emailLower, password));
       }
-      setIsCodeVerified(true);
-      setToast('Codigo validado com sucesso. Fluxo liberado.');
-      setStatusMessage(mode === 'login' ? 'Codigo validado. Toque em Entrar para concluir.' : 'Codigo validado. Toque em Cadastrar para concluir.');
-    } catch (error) {
-      setIsCodeVerified(false);
-      const mapped = mapFirebaseAuthError(error);
-      setToast(mapped);
-      setStatusMessage(mapped);
-      logAuth('verify_code_error', { code: String(error?.code || '') });
+
+      if (pendingGoogleUser) {
+        setEmailVerified(true);
+        setStatusMsg('✓ Google verificado.');
+        return;
+      }
+
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        setStatusMsg('✗ Sessão não encontrada. Abra o link novamente.');
+        return;
+      }
+
+      await currentUser.reload().catch(() => {});
+      if (currentUser.emailVerified) {
+        setEmailVerified(true);
+        setStatusMsg('✓ E-mail verificado. Acesso liberado.');
+        setToast('Pronto para prosseguir.');
+      } else {
+        setStatusMsg('✗ E-mail ainda não verificado.');
+        setToast('Abra o link recebido e volte ao app.');
+      }
+    } catch (err) {
+      setStatusMsg(`✗ ${mapFirebaseAuthError(err)}`);
+      setToast(mapFirebaseAuthError(err));
     } finally {
-      clearWatchdog();
       setLoading(false);
     }
-  };
+  }, [email, password, mode, pendingGoogleUser]);
 
-  const handleSubmit = async () => {
-    const safeName = String(name || '').trim();
-    const safeEmail = String(email || '').trim().toLowerCase();
-    const safePassword = String(password || '').trim();
-
-    if (!safeEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(safeEmail)) {
-      setToast('Informe um e-mail valido para continuar.');
-      setStatusMessage('Informe um e-mail valido.');
+  // Submit registration/login
+  const handleSubmit = useCallback(async () => {
+    const emailLower = email.trim().toLowerCase();
+    
+    if (!emailLower || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailLower)) {
+      setToast('E-mail inválido.');
       return;
     }
 
-    if (!pendingGoogleUser && (!safePassword || safePassword.length < 6)) {
-      setToast('Senha obrigatoria com pelo menos 6 caracteres.');
-      setStatusMessage('Senha invalida: minimo de 6 caracteres.');
+    if (!emailVerified) {
+      setToast('Valide o e-mail pelo link antes de continuar.');
+      setStatusMsg('✗ E-mail não verificado.');
       return;
     }
 
-    if (mode === 'register' && !safeName) {
-      setToast('Informe seu nome para continuar.');
-      setStatusMessage('Preencha seu nome para continuar.');
+    if (mode === 'register' && !name.trim()) {
+      setToast('Informe seu nome.');
       return;
     }
 
-    if (!isCodeVerified) {
-      setToast('Valide o codigo enviado para seu e-mail antes de cadastrar.');
-      setStatusMessage('Valide o codigo de e-mail antes de concluir.');
+    if (!pendingGoogleUser && password.length < 6) {
+      setToast('Senha inválida.');
       return;
     }
 
     setLoading(true);
-    setStatusMessage(mode === 'login' ? 'Entrando na conta...' : 'Concluindo cadastro...');
-    const clearWatchdog = startLoadingWatchdog(setLoading, setToast);
+    setStatusMsg(mode === 'login' ? 'Entrando...' : 'Cadastrando...');
     try {
       if (!isFirebaseConfigured || !auth) {
-        setToast('Firebase nao configurado. Verifique EXPO_PUBLIC_FIREBASE_* e tente novamente.');
-        setStatusMessage('Firebase nao configurado neste build.');
-        logAuth('firebase_not_configured', { safeEmail });
-        return;
+        throw new Error('Firebase não configurado');
       }
 
-      if (mode === 'login') {
-        if (pendingGoogleUser) {
-          await finalizeAuthenticatedSession({
-            id: pendingGoogleUser.id,
-            role: pendingGoogleUser.role || 'user',
-            name: pendingGoogleUser.name || 'Usuario',
-            email: pendingGoogleUser.email || safeEmail,
-          }, pendingGoogleUser.source || 'google');
+      let finalUser = null;
 
-          setPendingGoogleUser(null);
-          setToast('Login Google concluido com sucesso.');
-          setStatusMessage('Login Google realizado com sucesso.');
-          return;
+      if (pendingGoogleUser) {
+        // Google login path
+        finalUser = {
+          id: pendingGoogleUser.id,
+          name: pendingGoogleUser.name,
+          email: pendingGoogleUser.email,
+          role: pendingGoogleUser.role,
+          source: 'google',
+        };
+      } else if (mode === 'login') {
+        // Email login path
+        const result = await withTimeout(
+          signInWithEmailAndPassword(auth, emailLower, password)
+        );
+        if (!result?.user?.emailVerified) {
+          throw new Error('E-mail não foi verificado após o login');
         }
-
-        try {
-          logAuth('login_start', { safeEmail });
-          const signInResult = await runAuthOperation('login', () => withPromiseTimeout(
-            signInWithEmailAndPassword(auth, safeEmail, safePassword),
-            FIREBASE_AUTH_TIMEOUT_MS,
-            'Login demorou para responder. Tente novamente.'
-          ));
-
-          const firebaseUser = signInResult?.user;
-          if (!firebaseUser) {
-            setToast('Falha no login. Tente novamente.');
-            setStatusMessage('Falha no login: usuario nao retornado.');
-            return;
-          }
-
-          await finalizeAuthenticatedSession({
-            id: firebaseUser.uid,
-            role: 'user',
-            name: String(firebaseUser.displayName || safeName || 'Usuario'),
-            email: safeEmail,
-          }, 'firebase_login');
-
-          logAuth('login_success', { uid: firebaseUser.uid, safeEmail });
-          setToast('Login concluido com sucesso.');
-          setStatusMessage('Login realizado com sucesso.');
-          return;
-        } catch (error) {
-          const mapped = mapFirebaseAuthError(error);
-          setToast(mapped);
-          setStatusMessage(mapped);
-          logAuth('login_error', { safeEmail, code: String(error?.code || '') });
-          return;
-        }
-      }
-
-      try {
-        logAuth('register_start', { safeEmail });
-        const signInResult = await runAuthOperation('register_signin', () => withPromiseTimeout(
-          signInWithEmailAndPassword(auth, safeEmail, safePassword),
-          FIREBASE_AUTH_TIMEOUT_MS,
-          'Cadastro demorou para responder. Tente novamente.'
-        ));
-
-        const firebaseUser = signInResult?.user;
-        if (!firebaseUser) {
-          setToast('Nao foi possivel concluir o cadastro.');
-          setStatusMessage('Falha ao concluir cadastro.');
-          return;
-        }
-
-        await firebaseUser.reload().catch(() => {});
-        if (!firebaseUser.emailVerified) {
-          setToast('Codigo ainda nao confirmado. Valide o codigo enviado no e-mail.');
-          setStatusMessage('Codigo nao confirmado. Valide o codigo de e-mail.');
-          return;
-        }
-
-        await finalizeAuthenticatedSession({
-          id: firebaseUser.uid,
+        finalUser = {
+          id: result.user.uid,
+          name: result.user.displayName || name || 'Usuário',
+          email: emailLower,
           role: 'user',
-          name: safeName || firebaseUser.displayName || 'Usuario',
-          email: safeEmail,
-        }, 'firebase_register');
+          source: 'email',
+        };
+      } else {
+        // Email register path
+        const methods = await withTimeout(fetchSignInMethodsForEmail(auth, emailLower));
+        let result;
+        
+        if (Array.isArray(methods) && methods.length > 0) {
+          result = await withTimeout(signInWithEmailAndPassword(auth, emailLower, password));
+        } else {
+          result = await withTimeout(createUserWithEmailAndPassword(auth, emailLower, password));
+          if (name.trim()) {
+            await updateProfile(result.user, { displayName: name }).catch(() => {});
+          }
+        }
 
-        logAuth('register_success', { uid: firebaseUser.uid, safeEmail });
-        setToast('Conta criada com sucesso.');
-        setStatusMessage('Cadastro concluido com sucesso.');
-      } catch (error) {
-        const mapped = mapFirebaseAuthError(error);
-        setToast(mapped);
-        setStatusMessage(mapped);
-        logAuth('register_error', { safeEmail, code: String(error?.code || '') });
+        if (!result?.user?.emailVerified) {
+          throw new Error('E-mail não foi verificado após cadastro');
+        }
+
+        finalUser = {
+          id: result.user.uid,
+          name: result.user.displayName || name,
+          email: emailLower,
+          role: 'user',
+          source: 'email',
+        };
       }
-    } catch {
-      setToast('Erro inesperado. Tente novamente.');
-      setStatusMessage('Erro inesperado. Tente novamente.');
+
+      // Save identity
+      const identity = await getOrCreateUserIdentity();
+      await saveUserIdentity({ userId: finalUser.id, source: finalUser.source });
+      setQaRuntimeAuth({ userId: finalUser.id });
+
+      // Update app context
+      setUser({
+        id: finalUser.id,
+        name: finalUser.name,
+        email: finalUser.email,
+        role: finalUser.role,
+      });
+
+      setStatusMsg('✓ Autenticado com sucesso.');
+      navigation.replace('MainTabs');
+    } catch (err) {
+      setStatusMsg(`✗ ${mapFirebaseAuthError(err)}`);
+      setToast(mapFirebaseAuthError(err));
     } finally {
-      clearWatchdog();
       setLoading(false);
     }
-  };
+  }, [email, password, name, mode, emailVerified, pendingGoogleUser, navigation, setUser]);
+
+  // Render
+  const canSubmit = emailVerified && email.trim() && (mode === 'login' || name.trim());
+  const linkExpired = linkSentAt > 0 && Date.now() - linkSentAt > 10 * 60 * 1000; // 10 min
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.flex}>
-        <ScrollView {...qaProps(mode === 'login' ? QA_SCREENS.login : QA_SCREENS.register)} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        {/* Background blobs */}
+        <View pointerEvents="none" style={styles.bgLayer}>
+          <View style={[styles.blob, styles.blobTop]} />
+          <View style={[styles.blob, styles.blobMid]} />
+          <View style={[styles.blob, styles.blobBtm]} />
+        </View>
+
+        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           <AnimatedToast message={toast} onHide={() => setToast('')} />
 
-          <Animated.View
-            style={[
-              styles.hero,
-              {
-                opacity: heroAnim,
-                transform: [
-                  {
-                    translateY: heroAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [14, 0],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          >
-            <Text style={styles.heroTitle}>Bem-vindo ao Evolucao</Text>
-            <Text style={styles.heroSubtitle}>Treinos, nutricao e progresso em um lugar.</Text>
-          </Animated.View>
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.title}>Evolução</Text>
+            <Text style={styles.subtitle}>Treinos, nutrição e progresso</Text>
+          </View>
 
-          <Animated.View
-            style={{
-              opacity: cardAnim,
-              transform: [
-                {
-                  translateY: cardAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [12, 0],
-                  }),
-                },
-              ],
-            }}
-          >
-          <AppCard style={styles.card}>
-            <View style={styles.modeSwitchRow}>
-              <TouchableOpacity
-                {...qaProps(QA_ELEMENTS.btnGoRegister)}
-                onPress={() => {
-                  setMode('register');
-                  setShowForgotPassword(false);
-                  setStatusMessage('Modo cadastro ativo.');
-                }}
-                style={[styles.modeToggle, mode === 'register' ? styles.modeToggleActive : styles.modeToggleInactive]}
-              >
-                <Text style={[styles.modeToggleText, mode === 'register' ? styles.modeToggleTextActive : null]}>Cadastrar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                {...qaProps(QA_ELEMENTS.btnGoLogin)}
-                onPress={() => {
-                  setMode('login');
-                  setShowForgotPassword(false);
-                  setStatusMessage('Modo login ativo.');
-                }}
-                style={[styles.modeToggle, mode === 'login' ? styles.modeToggleActive : styles.modeToggleInactive]}
-              >
-                <Text style={[styles.modeToggleText, mode === 'login' ? styles.modeToggleTextActive : null]}>Entrar</Text>
-              </TouchableOpacity>
+          {/* Auth Card */}
+          <View style={styles.card}>
+            {/* Mode tabs */}
+            <View style={styles.tabs}>
+              {['login', 'register'].map((m) => (
+                <TouchableOpacity
+                  key={m}
+                  onPress={() => {
+                    setMode(m);
+                    setEmailVerified(false);
+                  }}
+                  style={[styles.tab, mode === m && styles.tabActive]}
+                >
+                  <Text style={[styles.tabLabel, mode === m && styles.tabLabelActive]}>
+                    {m === 'login' ? 'Entrar' : 'Cadastrar'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
 
-            <Text style={styles.cardTitle}>{mode === 'login' ? 'Entrar na conta' : 'Criar minha conta'}</Text>
-            <Text style={styles.sectionHint}>Fluxo seguro: enviar codigo, validar codigo e concluir acesso.</Text>
+            <Text style={styles.hint}>Valide seu e-mail via link para acessar</Text>
 
-            {mode === 'register' ? (
-              <>
-                <AppInput
-                  {...qaProps(QA_ELEMENTS.inputName)}
-                  label="Nome"
+            {/* Form */}
+            {mode === 'register' && (
+              <View>
+                <Text style={styles.label}>Nome</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Seu nome"
+                  placeholderTextColor="#64748b"
                   value={name}
                   onChangeText={setName}
-                  placeholder="Seu nome"
                   autoCapitalize="words"
-                  style={styles.inputWrap}
-                  inputStyle={styles.inputField}
-                />
-                <View style={styles.spacer} />
-              </>
-            ) : null}
-
-            <AppInput
-              {...qaProps(QA_ELEMENTS.inputEmail)}
-              label="E-mail"
-              value={email}
-              onChangeText={setEmail}
-              placeholder="voce@email.com"
-              autoCapitalize="none"
-              keyboardType="email-address"
-              style={styles.inputWrap}
-              inputStyle={styles.inputField}
-            />
-
-            <View style={styles.spacer} />
-
-            <AppInput
-              {...qaProps(QA_ELEMENTS.inputPassword)}
-              label="Senha"
-              value={password}
-              onChangeText={setPassword}
-              placeholder="Minimo 6 caracteres"
-              secureTextEntry
-              style={styles.inputWrap}
-              inputStyle={styles.inputField}
-            />
-
-            <View style={styles.verificationBlock}>
-              <Text style={styles.verificationTitle}>Verificacao por e-mail</Text>
-              <Text style={styles.verificationSubtitle}>O acesso so e liberado apos validar o codigo.</Text>
-              <AppInput
-                label="Codigo de verificacao"
-                value={verificationCode}
-                onChangeText={setVerificationCode}
-                  placeholder="Cole o codigo recebido no e-mail"
-                  autoCapitalize="none"
-                style={styles.inputWrap}
-                inputStyle={styles.inputField}
-              />
-
-              <View style={styles.codeActionsRow}>
-                <PrimaryButton
-                  title={loading ? 'Enviando...' : 'Enviar codigo'}
-                  onPress={handleSendEmailCode}
-                  style={styles.codeActionButton}
-                />
-
-                <PrimaryButton
-                  title={loading ? 'Validando...' : 'Validar codigo'}
-                  onPress={handleValidateEmailCode}
-                  style={styles.codeActionButton}
+                  editable={!loading}
                 />
               </View>
+            )}
+
+            <View>
+              <Text style={styles.label}>E-mail</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="you@email.com"
+                placeholderTextColor="#64748b"
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                editable={!loading}
+              />
             </View>
 
-            <Text style={styles.helperText}>
-              {isCodeVerified
-                ? mode === 'login'
-                  ? 'Codigo validado. Toque em Entrar para concluir.'
-                  : 'Codigo validado. Toque em Cadastrar para concluir.'
-                : codeSentAt
-                ? 'Codigo enviado. Valide o codigo para liberar o acesso.'
-                : mode === 'login'
-                ? 'Entrar exige validacao por codigo no e-mail antes do acesso.'
-                : 'Cadastrar exige validacao por codigo no e-mail antes do acesso.'}
-            </Text>
+            {!pendingGoogleUser && (
+              <View>
+                <Text style={styles.label}>Senha</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Mín. 6 caracteres"
+                  placeholderTextColor="#64748b"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                  editable={!loading}
+                />
+              </View>
+            )}
 
-            {mode === 'login' ? (
-              <Text style={styles.linkText} onPress={() => setShowForgotPassword((prev) => !prev)}>
-                Esqueci minha senha
+            {/* Verification block */}
+            <View style={styles.verifyBlock}>
+              <Text style={styles.verifyTitle}>Verificação por e-mail</Text>
+              <Text style={styles.verifyHint}>
+                {linkSentAt
+                  ? linkExpired
+                    ? 'Link expirado. Reenvie.'
+                    : 'Link enviado. Abra o e-mail e toque no link.'
+                  : 'Envie um link de verificação para sua caixa de e-mail.'}
               </Text>
-            ) : null}
 
-            <View style={styles.statusBox}>
-              <Text style={styles.statusLabel}>Status</Text>
-              <View style={styles.statusRow}>
-                <View
-                  style={[
-                    styles.statusDot,
-                    statusTone === 'success'
-                      ? styles.statusDotSuccess
-                      : statusTone === 'error'
-                      ? styles.statusDotError
-                      : statusTone === 'loading'
-                      ? styles.statusDotLoading
-                      : styles.statusDotInfo,
-                  ]}
-                />
-                <Text style={styles.statusText}>{statusMessage}</Text>
+              <View style={styles.verifyBtns}>
+                <TouchableOpacity
+                  onPress={handleSendLink}
+                  disabled={loading}
+                  style={[styles.btn, styles.btnPrimary, loading && styles.btnDisabled]}
+                >
+                  <Text style={styles.btnLabel}>
+                    {loading ? 'Enviando...' : linkSentAt && !linkExpired ? 'Reenviar' : 'Enviar link'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={handleCheckVerification}
+                  disabled={loading}
+                  style={[styles.btn, styles.btnSecondary, loading && styles.btnDisabled]}
+                >
+                  <Text style={styles.btnLabelSec}>
+                    {loading ? 'Conferindo...' : 'Validei'}
+                  </Text>
+                </TouchableOpacity>
               </View>
             </View>
 
-            {showForgotPassword && mode === 'login' ? (
-              <PrimaryButton
-                {...qaProps(QA_ELEMENTS.btnForgotPassword)}
-                title={loading ? 'Enviando...' : 'Enviar link de recuperacao'}
-                onPress={handleForgotPassword}
-                style={styles.btnInline}
-              />
-            ) : null}
-          </AppCard>
-          </Animated.View>
-
-          <Animated.View
-            style={{
-              opacity: actionsAnim,
-              transform: [
-                {
-                  translateY: actionsAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [10, 0],
-                  }),
-                },
-              ],
-            }}
-          >
-          <PrimaryButton
-            {...qaProps(mode === 'login' ? QA_ELEMENTS.btnLogin : QA_ELEMENTS.btnRegister)}
-            title={loading ? 'Processando...' : mode === 'login' ? 'Entrar' : 'Cadastrar'}
-            onPress={handleSubmit}
-            style={[styles.btn, !isCodeVerified ? styles.btnDisabledVisual : null]}
-          />
-
-          {googleConfigured ? (
-            <PrimaryButton
-              {...qaProps(QA_ELEMENTS.btnGoogleLogin)}
-              title={googleLoading ? 'Conectando Google...' : 'Entrar com Google'}
-              onPress={() => {
-                if (googleLoading) return;
-                if (!request) {
-                  setToast('Google carregando. Aguarde alguns segundos e tente novamente.');
-                  setStatusMessage('Aguardando inicializacao do Google Sign-In...');
-                  return;
-                }
-
-                promptAsync({ useProxy: false }).catch(() => {
-                  setToast('Falha no login. Nao foi possivel abrir o fluxo do Google.');
-                  setStatusMessage('Falha ao abrir o fluxo Google.');
-                });
-              }}
-              style={styles.btnGoogle}
-            />
-          ) : (
-            <PrimaryButton
-              {...qaProps(QA_ELEMENTS.btnGoogleLogout)}
-              title={googleLoading ? 'Sincronizando...' : 'Google indisponivel neste build'}
-              onPress={async () => {
-                if (googleLoading) return;
-                setGoogleLoading(true);
-                const clearWatchdog = startLoadingWatchdog(setGoogleLoading, setToast);
-                try {
-                  await logoutGoogleSession();
-                  setToast('Google OAuth nao esta configurado neste build. Verifique google-services e IDs de cliente.');
-                } finally {
-                  clearWatchdog();
-                  setGoogleLoading(false);
-                }
-              }}
-              style={styles.btnGoogleDisabled}
-            />
-          )}
-          </Animated.View>
-
-          <Text style={styles.terms}>Acesso liberado somente apos validacao do codigo enviado por e-mail.</Text>
-
-          {isBusy ? (
-            <View style={styles.loadingOverlay} pointerEvents="none">
-              <View style={styles.loadingCard}>
-                <ActivityIndicator size="small" color="#0ea5e9" />
-                <Text style={styles.loadingTitle}>{googleLoading ? 'Conectando com Google' : 'Processando autenticacao'}</Text>
-                <Text style={styles.loadingSubtitle}>Aguarde alguns segundos...</Text>
-              </View>
+            {/* Status */}
+            <View style={[styles.status, emailVerified && styles.statusOk]}>
+              <Text style={styles.statusText}>{statusMsg || 'Aguardando verificação'}</Text>
             </View>
-          ) : null}
+
+            {/* Main CTA */}
+            <TouchableOpacity
+              onPress={handleSubmit}
+              disabled={loading || !canSubmit}
+              style={[styles.btn, styles.btnMain, (!canSubmit || loading) && styles.btnDisabled]}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.btnLabel}>
+                  {mode === 'login' ? 'Entrar' : 'Cadastrar'}
+                </Text>
+              )}
+            </TouchableOpacity>
+
+            {/* Google button */}
+            {googleConfigured && (
+              <TouchableOpacity
+                onPress={() => {
+                  if (googleLoading || !request) return;
+                  promptAsync({ useProxy: false }).catch(() => {
+                    setToast('Falha ao abrir Google Sign-In');
+                  });
+                }}
+                disabled={googleLoading || !request}
+                style={[styles.btn, styles.btnGoogle, (googleLoading || !request) && styles.btnDisabled]}
+              >
+                {googleLoading ? (
+                  <ActivityIndicator color="#1f2937" size="small" />
+                ) : (
+                  <Text style={styles.btnLabelGoogle}>Entrar com Google</Text>
+                )}
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <Text style={styles.terms}>
+            Acesso concedido somente após validação do link de verificação.
+          </Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
+// ============================================================================
+// STYLES
+// ============================================================================
+
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#0a0f1b',
   },
   flex: {
     flex: 1,
   },
-  container: {
+  scroll: {
     flexGrow: 1,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xl + 6,
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 60,
   },
-  hero: {
+  bgLayer: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  blob: {
+    position: 'absolute',
+    borderRadius: 999,
+  },
+  blobTop: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_WIDTH,
+    right: -SCREEN_WIDTH * 0.25,
+    top: -SCREEN_WIDTH * 0.3,
+    backgroundColor: 'rgba(56,189,248,0.12)',
+  },
+  blobMid: {
+    width: SCREEN_WIDTH * 0.7,
+    height: SCREEN_WIDTH * 0.7,
+    left: -SCREEN_WIDTH * 0.3,
+    top: SCREEN_WIDTH * 0.35,
+    backgroundColor: 'rgba(59,130,246,0.1)',
+  },
+  blobBtm: {
+    width: SCREEN_WIDTH * 0.9,
+    height: SCREEN_WIDTH * 0.9,
+    right: -SCREEN_WIDTH * 0.15,
+    bottom: -SCREEN_WIDTH * 0.4,
+    backgroundColor: 'rgba(16,185,129,0.08)',
+  },
+  header: {
     alignItems: 'center',
-    marginBottom: spacing.lg,
-    paddingVertical: spacing.md,
-    borderRadius: 20,
-    backgroundColor: '#f3f7ff',
-    borderWidth: 1,
-    borderColor: '#dbeafe',
+    marginBottom: 32,
+    paddingVertical: 20,
   },
-  heroTitle: {
-    fontSize: 30,
+  title: {
+    fontSize: 32,
     fontWeight: '900',
-    color: '#0b1220',
-    textAlign: 'center',
+    color: '#f8fafc',
     marginBottom: 6,
-    letterSpacing: -0.6,
   },
-  heroSubtitle: {
-    fontSize: 15,
+  subtitle: {
+    fontSize: 14,
     fontWeight: '500',
-    color: '#334155',
-    textAlign: 'center',
-    lineHeight: 21,
-    paddingHorizontal: spacing.md,
+    color: '#cbd5e1',
   },
   card: {
-    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: '#1e293b',
+    backgroundColor: 'rgba(15,23,42,0.9)',
     borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    backgroundColor: '#ffffff',
+    padding: 24,
+    marginBottom: 24,
   },
-  cardTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#0f172a',
-    marginBottom: spacing.sm,
-  },
-  sectionHint: {
-    color: '#475569',
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: spacing.md,
-    lineHeight: 18,
-  },
-  inputWrap: {
-    marginBottom: 0,
-  },
-  inputField: {
-    backgroundColor: '#f8fafc',
-    borderColor: '#cbd5e1',
-    borderWidth: 1,
-    borderRadius: 12,
-    minHeight: 50,
-  },
-  modeSwitchRow: {
+  tabs: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-    backgroundColor: '#f1f5f9',
+    gap: 8,
+    marginBottom: 20,
+    backgroundColor: '#0b1220',
     borderRadius: 12,
     padding: 4,
   },
-  modeToggle: {
+  tab: {
     flex: 1,
-    minHeight: 46,
+    paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',
-    justifyContent: 'center',
   },
-  modeToggleActive: {
-    backgroundColor: '#111827',
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 1,
+  tabActive: {
+    backgroundColor: '#1e293b',
   },
-  modeToggleInactive: {
-    backgroundColor: 'transparent',
+  tabLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#94a3b8',
   },
-  modeToggleText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#475569',
-  },
-  modeToggleTextActive: {
+  tabLabelActive: {
     color: '#f8fafc',
   },
-  spacer: {
-    height: spacing.sm,
+  hint: {
+    fontSize: 12,
+    color: '#94a3b8',
+    marginBottom: 20,
+    fontWeight: '500',
   },
-  codeActionsRow: {
-    marginTop: spacing.md,
-    flexDirection: 'row',
-    gap: spacing.sm,
+  label: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#e2e8f0',
+    marginBottom: 6,
   },
-  verificationBlock: {
-    marginTop: spacing.md,
+  input: {
     borderWidth: 1,
-    borderColor: '#dbeafe',
-    backgroundColor: '#f8fbff',
-    borderRadius: 14,
-    padding: spacing.md,
+    borderColor: '#334155',
+    backgroundColor: '#0b1220',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: '#f8fafc',
+    fontSize: 14,
+    marginBottom: 16,
   },
-  verificationTitle: {
+  verifyBlock: {
+    borderWidth: 1,
+    borderColor: '#334155',
+    backgroundColor: '#0b1220',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 16,
+  },
+  verifyTitle: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#0f172a',
-    marginBottom: 2,
+    color: '#93c5fd',
+    marginBottom: 4,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
   },
-  verificationSubtitle: {
+  verifyHint: {
     fontSize: 12,
-    color: '#475569',
-    fontWeight: '600',
-    marginBottom: spacing.sm,
+    color: '#cbd5e1',
+    lineHeight: 18,
+    marginBottom: 12,
+    fontWeight: '500',
   },
-  codeActionButton: {
-    flex: 1,
-  },
-  helperText: {
-    marginTop: spacing.md,
-    color: '#334155',
-    fontSize: 12,
-    fontWeight: '600',
-    lineHeight: 19,
-    backgroundColor: '#f8fafc',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-  },
-  statusBox: {
-    marginTop: spacing.md,
-    borderWidth: 1,
-    borderColor: '#dbe7ff',
-    backgroundColor: '#f8fbff',
-    borderRadius: 12,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 10,
-  },
-  statusLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#64748b',
-    marginBottom: 2,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-  },
-  statusText: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#1e293b',
-    lineHeight: 19,
-  },
-  statusRow: {
+  verifyBtns: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
     gap: 8,
   },
-  statusDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 99,
-    marginTop: 4,
+  status: {
+    borderWidth: 1,
+    borderColor: '#334155',
+    backgroundColor: '#0b1220',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 16,
   },
-  statusDotInfo: {
-    backgroundColor: '#64748b',
+  statusOk: {
+    borderColor: '#10b981',
+    backgroundColor: 'rgba(16,185,129,0.1)',
   },
-  statusDotLoading: {
-    backgroundColor: '#0ea5e9',
-  },
-  statusDotSuccess: {
-    backgroundColor: '#16a34a',
-  },
-  statusDotError: {
-    backgroundColor: '#dc2626',
-  },
-  linkText: {
-    marginTop: spacing.sm,
-    color: '#1d4ed8',
+  statusText: {
     fontSize: 13,
-    fontWeight: '700',
-  },
-  btnInline: {
-    marginTop: spacing.sm,
+    fontWeight: '600',
+    color: '#e2e8f0',
+    lineHeight: 19,
   },
   btn: {
-    marginTop: spacing.sm,
-    minHeight: 54,
-    borderRadius: 14,
-  },
-  btnDisabledVisual: {
-    opacity: 0.88,
-  },
-  btnGoogle: {
-    marginTop: spacing.sm,
-    minHeight: 52,
-    borderRadius: 14,
-    backgroundColor: '#1f2937',
-    borderColor: '#1f2937',
-    borderWidth: 1,
-  },
-  btnGoogleDisabled: {
-    marginTop: spacing.sm,
-    minHeight: 52,
-    borderRadius: 14,
-    opacity: 0.85,
-  },
-  terms: {
-    marginTop: spacing.md,
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#475569',
-    textAlign: 'center',
-    lineHeight: 17,
-  },
-  loadingOverlay: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
+    borderRadius: 12,
+    paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(15,23,42,0.18)',
+    marginBottom: 10,
   },
-  loadingCard: {
-    width: '78%',
-    borderRadius: 16,
-    backgroundColor: '#ffffff',
+  btnPrimary: {
+    flex: 1,
+    backgroundColor: '#0f172a',
     borderWidth: 1,
-    borderColor: '#dbeafe',
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    alignItems: 'center',
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.16,
-    shadowRadius: 16,
-    elevation: 6,
+    borderColor: '#334155',
   },
-  loadingTitle: {
-    marginTop: 8,
-    color: '#0f172a',
-    fontWeight: '800',
-    fontSize: 13,
+  btnSecondary: {
+    flex: 1,
+    backgroundColor: '#0b1220',
+    borderWidth: 1,
+    borderColor: '#334155',
   },
-  loadingSubtitle: {
-    marginTop: 4,
-    color: '#475569',
-    fontWeight: '600',
-    fontSize: 12,
+  btnMain: {
+    backgroundColor: '#0ea5e9',
+    marginBottom: 12,
+  },
+  btnGoogle: {
+    backgroundColor: '#f3f4f6',
+  },
+  btnDisabled: {
+    opacity: 0.5,
+  },
+  btnLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#e2e8f0',
+  },
+  btnLabelSec: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#94a3b8',
+  },
+  btnLabelGoogle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1f2937',
+  },
+  terms: {
+    fontSize: 11,
+    color: '#64748b',
+    textAlign: 'center',
+    fontWeight: '500',
+    lineHeight: 16,
   },
 });
