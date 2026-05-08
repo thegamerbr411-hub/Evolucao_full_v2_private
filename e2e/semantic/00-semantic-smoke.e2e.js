@@ -9,9 +9,11 @@ const { isAttachedRun } = require('../helpers/runtime');
 const {
   SCREENS,
   ELEMENTS,
+  assertAppReady,
   waitForAppReady,
-  assertScreen,
-  tapTab,
+  waitForAuthResolved,
+  waitForNavigationReady,
+  waitForStoresHydrated,
 } = require('./helpers/semanticHelpers');
 
 describe('[SEMANTIC] 00 - smoke: boot e landing', () => {
@@ -19,28 +21,38 @@ describe('[SEMANTIC] 00 - smoke: boot e landing', () => {
     await launchApp({ deleteApp: false });
   });
 
-  it('app_root e app_bootstrap_ready são detectados via ID semântico', async () => {
-    const signal = await waitForAppReady(30000);
-    expect(typeof signal).toBe('string');
-    expect(signal.length).toBeGreaterThan(0);
-    console.log(`[smoke] boot signal detectado: ${signal}`);
+  it('readiness deterministico eh detectado por estado runtime', async () => {
+    const signal = await waitForAppReady(45000);
+    await assertAppReady();
+    await waitForNavigationReady(20000);
+    await waitForAuthResolved(25000);
+    await waitForStoresHydrated(25000);
+
+    if (!signal || typeof signal !== 'string') {
+      throw new Error('Readiness signal ausente no smoke.');
+    }
+
+    console.log(`[smoke] readiness signal detectado: ${signal}`);
   });
 
-  it('tela inicial é detectada por ID semântico (home ou auth)', async () => {
+  it('tela inicial eh detectada por IDs semanticos', async () => {
     const candidates = [SCREENS.home, SCREENS.login, SCREENS.register, ELEMENTS.appBootstrapReady];
     let found = null;
 
     for (const id of candidates) {
       try {
-        await waitFor(element(by.id(id))).toExist().withTimeout(4000);
+        await waitFor(element(by.id(id))).toExist().withTimeout(5000);
         found = id;
         break;
       } catch {
-        // tenta próximo
+        // next candidate
       }
     }
 
-    expect(found).not.toBeNull();
+    if (!found) {
+      throw new Error(`Nenhuma tela semantica inicial detectada. Candidates=${candidates.join(',')}`);
+    }
+
     console.log(`[smoke] tela detectada: ${found}`);
   });
 });

@@ -49,6 +49,20 @@ const ELEMENTS = Object.freeze({
   playerInternal: 'player_internal',
   playerStateAnchor: 'player_state_anchor',
   qaHealthExport: 'qa_health_export',
+  appRuntimeBooting: 'app_runtime_state_booting',
+  appRuntimeInitializing: 'app_runtime_state_initializing',
+  appRuntimeRestoringAuth: 'app_runtime_state_restoring_auth',
+  appRuntimeHydratingStores: 'app_runtime_state_hydrating_stores',
+  appRuntimeNavigationReady: 'app_runtime_state_navigation_ready',
+  appRuntimeReady: 'app_runtime_state_ready',
+  appRuntimeBackground: 'app_runtime_state_background',
+  appRuntimeRestoringFromBackground: 'app_runtime_state_restoring_from_background',
+  appRuntimeError: 'app_runtime_state_error',
+  appReadinessNavigationReady: 'app_readiness_navigation_ready',
+  appReadinessAuthResolved: 'app_readiness_auth_resolved',
+  appReadinessStoresHydrated: 'app_readiness_stores_hydrated',
+  appReadinessSplashFinished: 'app_readiness_splash_finished',
+  appReadinessRuntimeSynchronized: 'app_readiness_runtime_synchronized',
 });
 
 /**
@@ -101,28 +115,110 @@ async function assertScreen(screenId, timeoutMs = 12000) {
 }
 
 /**
- * Aguarda o app boostrapping terminar.
- * Testa primeiro o sinal de ready, depois o root, para máxima resiliência.
+ * Aguarda estado runtime explicito.
  */
-async function waitForAppReady(timeoutMs = 30000) {
-  const signals = [ELEMENTS.appBootstrapReady, ELEMENTS.appRoot, SCREENS.home, SCREENS.login, SCREENS.register];
-  const start = Date.now();
+async function waitForRuntimeState(runtimeState, timeoutMs = 25000) {
+  const states = Array.isArray(runtimeState) ? runtimeState : [runtimeState];
+  const normalizedIds = states
+    .map((value) => `app_runtime_state_${String(value || '').toLowerCase()}`)
+    .filter(Boolean);
 
-  while (Date.now() - start < timeoutMs) {
-    for (const signal of signals) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    for (const stateId of normalizedIds) {
       try {
-        await waitFor(element(bySemanticId(signal)))
-          .toExist()
-          .withTimeout(1500);
-        return signal;
+        await waitFor(element(bySemanticId(stateId))).toExist().withTimeout(1200);
+        return stateId;
       } catch {
-        // tenta próximo sinal
+        // try next state
       }
     }
-    await new Promise((res) => setTimeout(res, 300));
+    await new Promise((resolve) => setTimeout(resolve, 220));
   }
 
-  throw new Error(`App não ficou pronto após ${timeoutMs}ms`);
+  throw new Error(`Runtime state not reached in ${timeoutMs}ms: ${normalizedIds.join(', ')}`);
+}
+
+async function waitForNavigationReady(timeoutMs = 18000) {
+  await waitFor(element(bySemanticId(ELEMENTS.appReadinessNavigationReady))).toExist().withTimeout(timeoutMs);
+  return ELEMENTS.appReadinessNavigationReady;
+}
+
+async function waitForStoresHydrated(timeoutMs = 20000) {
+  await waitFor(element(bySemanticId(ELEMENTS.appReadinessStoresHydrated))).toExist().withTimeout(timeoutMs);
+  return ELEMENTS.appReadinessStoresHydrated;
+}
+
+async function waitForAuthResolved(timeoutMs = 20000) {
+  await waitFor(element(bySemanticId(ELEMENTS.appReadinessAuthResolved))).toExist().withTimeout(timeoutMs);
+  return ELEMENTS.appReadinessAuthResolved;
+}
+
+/**
+ * Wait for deterministic readiness signal instead of timing guesses.
+ */
+async function waitForAppReady(timeoutMs = 35000) {
+  await waitForRuntimeState(['ready', 'navigation_ready'], timeoutMs);
+  await waitFor(element(bySemanticId(ELEMENTS.appBootstrapReady))).toExist().withTimeout(Math.max(8000, Math.floor(timeoutMs / 2)));
+
+  try {
+    await waitFor(element(bySemanticId(ELEMENTS.appReadinessRuntimeSynchronized))).toExist().withTimeout(5000);
+    return ELEMENTS.appReadinessRuntimeSynchronized;
+  } catch {
+    await waitForNavigationReady(Math.max(7000, Math.floor(timeoutMs / 3)));
+    await waitForAuthResolved(Math.max(7000, Math.floor(timeoutMs / 3)));
+    await waitForStoresHydrated(Math.max(7000, Math.floor(timeoutMs / 3)));
+    return ELEMENTS.appReadinessNavigationReady;
+  }
+}
+
+async function assertAppReady() {
+  const readySignals = [ELEMENTS.appRuntimeReady, ELEMENTS.appRuntimeNavigationReady];
+  let hasRuntimeSignal = false;
+
+  for (const signal of readySignals) {
+    try {
+      await waitFor(element(bySemanticId(signal))).toExist().withTimeout(2000);
+      hasRuntimeSignal = true;
+      break;
+    } catch {
+      // try next signal
+    }
+  }
+
+  if (!hasRuntimeSignal) {
+    throw new Error('Runtime did not expose READY or NAVIGATION_READY anchors.');
+  }
+
+  try {
+    await expect(element(bySemanticId(ELEMENTS.appReadinessRuntimeSynchronized))).toExist();
+  } catch {
+    await expect(element(bySemanticId(ELEMENTS.appReadinessNavigationReady))).toExist();
+    await expect(element(bySemanticId(ELEMENTS.appReadinessAuthResolved))).toExist();
+    await expect(element(bySemanticId(ELEMENTS.appReadinessStoresHydrated))).toExist();
+  }
+}
+
+async function waitForNavigationIdle(timeoutMs = 12000) {
+  await waitFor(element(bySemanticId(ELEMENTS.appRuntimeNavigationReady))).toExist().withTimeout(timeoutMs);
+  return ELEMENTS.appRuntimeNavigationReady;
+}
+
+async function waitForPlayerReady(timeoutMs = 16000) {
+  await waitFor(element(bySemanticId(ELEMENTS.playerInternal))).toExist().withTimeout(timeoutMs);
+  return ELEMENTS.playerInternal;
+}
+
+async function waitForScreenStable(screenId, timeoutMs = 12000) {
+  await waitFor(element(bySemanticId(screenId))).toBeVisible().withTimeout(timeoutMs);
+  await waitForNavigationIdle(Math.min(timeoutMs, 9000));
+  return screenId;
+}
+
+async function waitForNoPendingRequests(timeoutMs = 9000) {
+  // Current contract approximates network idle by synchronized runtime readiness.
+  await waitFor(element(bySemanticId(ELEMENTS.appReadinessRuntimeSynchronized))).toExist().withTimeout(timeoutMs);
+  return ELEMENTS.appReadinessRuntimeSynchronized;
 }
 
 /**
@@ -143,6 +239,15 @@ module.exports = {
   tapSemantic,
   typeSemantic,
   assertScreen,
+  waitForRuntimeState,
+  waitForNavigationReady,
+  waitForStoresHydrated,
+  waitForAuthResolved,
   waitForAppReady,
+  assertAppReady,
+  waitForNavigationIdle,
+  waitForPlayerReady,
+  waitForScreenStable,
+  waitForNoPendingRequests,
   tapTab,
 };

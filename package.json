@@ -46,6 +46,8 @@
     "qa:optional:night": "npm run qa:night:once",
     "qa:phase4:run": "powershell -ExecutionPolicy Bypass -File scripts/qa_phase4/run_phase4_hardening.ps1",
     "qa:phase4:analyze": "node scripts/qa_phase4/analyze_phase4_results.js",
+    "qa:phase5:run": "powershell -ExecutionPolicy Bypass -File scripts/qa_phase5/run_phase5_runtime_stabilization.ps1",
+    "qa:phase5:analyze": "node scripts/qa_phase5/analyze_runtime_phase5.js",
     "qa:stress:ux": "node scripts/ux-stress-loop.js",
     "qa:stress:ux:10m": "node scripts/ux-stress-loop.js --duration-ms=600000",
     "qa:stress:ux:1h": "node scripts/ux-stress-loop.js --duration-ms=3600000",

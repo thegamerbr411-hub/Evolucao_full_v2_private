@@ -42,6 +42,20 @@ export const QA_ELEMENTS = Object.freeze({
   playerInternal: 'player_internal',
   playerStateAnchor: 'player_state_anchor',
   qaHealthExport: 'qa_health_export',
+  appRuntimeBooting: 'app_runtime_state_booting',
+  appRuntimeInitializing: 'app_runtime_state_initializing',
+  appRuntimeRestoringAuth: 'app_runtime_state_restoring_auth',
+  appRuntimeHydratingStores: 'app_runtime_state_hydrating_stores',
+  appRuntimeNavigationReady: 'app_runtime_state_navigation_ready',
+  appRuntimeReady: 'app_runtime_state_ready',
+  appRuntimeBackground: 'app_runtime_state_background',
+  appRuntimeRestoringFromBackground: 'app_runtime_state_restoring_from_background',
+  appRuntimeError: 'app_runtime_state_error',
+  appReadinessNavigationReady: 'app_readiness_navigation_ready',
+  appReadinessAuthResolved: 'app_readiness_auth_resolved',
+  appReadinessStoresHydrated: 'app_readiness_stores_hydrated',
+  appReadinessSplashFinished: 'app_readiness_splash_finished',
+  appReadinessRuntimeSynchronized: 'app_readiness_runtime_synchronized',
 });
 
 export const QA_ALIASES = Object.freeze({

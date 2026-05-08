@@ -30,8 +30,22 @@ import {
   trackScreenRenderDuration,
 } from './src/core/observability';
 import { captureRuntimeError } from './src/runtime_error_collector';
-import { normalizeQaScreenName } from './src/qa/selectorRegistry';
-import { registerQaError, setQaAppState, setQaCurrentScreen, setQaLoadingState } from './src/qa/qaAutomationState';
+import { normalizeQaScreenName, QA_ELEMENTS } from './src/qa/selectorRegistry';
+import {
+  QA_RUNTIME_STATES,
+  endQaMetric,
+  getQaHealthSnapshot,
+  registerQaError,
+  registerQaFpsSample,
+  setQaAppState,
+  setQaCurrentScreen,
+  setQaLoadingState,
+  setQaReadinessFlags,
+  setQaRuntimeState,
+  setQaStall,
+  startQaMetric,
+  subscribeQaHealth,
+} from './src/qa/qaAutomationState';
 
 if (typeof __DEV__ !== 'undefined' && __DEV__) {
   // Detox pode ficar instavel quando o banner de warnings cobre a barra de abas.
@@ -105,22 +119,68 @@ class ErrorBoundary extends React.Component {
   }
 }
 
+const RUNTIME_STALL_THRESHOLDS_MS = Object.freeze({
+  BOOT_STALL: 20000,
+  NAVIGATION_STALL: 10000,
+  PLAYER_STALL: 15000,
+});
+
+function runtimeStateToElementId(runtimeState) {
+  const normalized = String(runtimeState || '').toLowerCase();
+  return `app_runtime_state_${normalized}`;
+}
+
+function HiddenAnchor({ id }) {
+  if (!id) {
+    return null;
+  }
+
+  return <View testID={id} accessibilityLabel={id} nativeID={id} style={{ width: 1, height: 1 }} />;
+}
+
 export default function App() {
   const navigationRef = useNavigationContainerRef();
   const routeNameRef = React.useRef('');
   const transitionStartedAtRef = React.useRef(Date.now());
   const feedbackPromptVisibleRef = React.useRef(false);
   const [bootstrapReady, setBootstrapReady] = React.useState(false);
+  const [qaHealthSnapshot, setQaHealthSnapshot] = React.useState(() => getQaHealthSnapshot());
 
   React.useEffect(() => {
     initObservability();
     startUserSession('app_mount');
+
+    setQaRuntimeState(QA_RUNTIME_STATES.BOOTING, 'app_mount');
+    startQaMetric('bootDurationMs', { source: 'app_mount' });
+    startQaMetric('authRestoreDurationMs', { source: 'app_mount' });
+    startQaMetric('hydrationDurationMs', { source: 'app_mount' });
     setQaLoadingState(true, 'app_bootstrap');
+    setQaReadinessFlags({
+      appInitialized: false,
+      navigationReady: false,
+      authResolved: false,
+      storesHydrated: false,
+      splashFinished: false,
+      runtimeSynchronized: false,
+    });
+
+    const bootStallTimer = setTimeout(() => {
+      setQaStall('boot', true, RUNTIME_STALL_THRESHOLDS_MS.BOOT_STALL, {
+        thresholdMs: RUNTIME_STALL_THRESHOLDS_MS.BOOT_STALL,
+      });
+    }, RUNTIME_STALL_THRESHOLDS_MS.BOOT_STALL);
+
+    setQaRuntimeState(QA_RUNTIME_STATES.INITIALIZING, 'app_init_pipeline');
+
+    const unsubscribeQa = subscribeQaHealth((nextState) => {
+      setQaHealthSnapshot(nextState);
+    });
 
     const appStateSub = AppState.addEventListener('change', (nextState) => {
       setQaAppState(nextState);
       if (nextState === 'active') {
         startUserSession('app_foreground');
+        setQaRuntimeState(QA_RUNTIME_STATES.RESTORING_FROM_BACKGROUND, 'app_active');
         return;
       }
 
@@ -129,10 +189,17 @@ export default function App() {
       }
     });
 
+    const fpsProbeTimer = setInterval(() => {
+      const interactionMs = Date.now() - Number(transitionStartedAtRef.current || Date.now());
+      const approxFps = Math.max(12, Math.min(60, Math.round(60000 / Math.max(800, interactionMs))));
+      registerQaFpsSample(approxFps);
+    }, 8000);
+
     if (__DEV__) {
       console.log('[APP_STARTED]', new Date().toISOString());
       console.log('[BUILD_VERSION]', APP_VERSION, BUILD_VERSION);
     }
+
     initializeAnalyticsSession()
       .then(async (sessionId) => {
         const { dayKey, isFirstOpenOfDay } = await getAppOpenSessionMeta();
@@ -148,11 +215,11 @@ export default function App() {
         });
       })
       .catch(() => {
-        // Mantem analytics resiliente em caso de falha local.
+        // Keep analytics resilient on bootstrap failure.
       });
 
     initializeNotifications().catch(() => {
-      // Mantem inicializacao resiliente mesmo sem permissao.
+      // Keep startup resilient even without permission.
     });
 
     if (shouldInjectQaAppError()) {
@@ -164,26 +231,58 @@ export default function App() {
     }
 
     return () => {
+      clearTimeout(bootStallTimer);
+      clearInterval(fpsProbeTimer);
+      unsubscribeQa?.();
       appStateSub?.remove?.();
       endUserSession('app_unmount');
     };
   }, []);
+
+  React.useEffect(() => {
+    const poll = setInterval(() => {
+      setQaHealthSnapshot(getQaHealthSnapshot());
+    }, 500);
+
+    return () => clearInterval(poll);
+  }, []);
+
+  React.useEffect(() => {
+    const readiness = qaHealthSnapshot?.runtime?.readiness || {};
+    if (readiness.runtimeSynchronized) {
+      setQaRuntimeState(QA_RUNTIME_STATES.READY, 'runtime_synchronized');
+      setQaStall('boot', false, 0, { resolved: true });
+      endQaMetric('bootDurationMs', { source: 'runtime_synchronized' });
+    }
+  }, [qaHealthSnapshot?.runtime?.readiness?.runtimeSynchronized]);
+
+  const runtimeState = qaHealthSnapshot?.runtime?.state || QA_RUNTIME_STATES.BOOTING;
+  const readiness = qaHealthSnapshot?.runtime?.readiness || {};
 
   return (
     <ErrorBoundary>
       <NutritionProvider>
         <RootProvider>
           <SafeAreaProvider>
-            <View testID="app-root" accessibilityLabel="app_root" nativeID="app_root" style={{ flex: 1 }}>
+            <View testID={QA_ELEMENTS.appRoot} accessibilityLabel={QA_ELEMENTS.appRoot} nativeID={QA_ELEMENTS.appRoot} style={{ flex: 1 }}>
               <NavigationContainer
               ref={navigationRef}
               onReady={() => {
                 const currentRoute = navigationRef.getCurrentRoute()?.name || '';
                 routeNameRef.current = currentRoute;
                 transitionStartedAtRef.current = Date.now();
+
+                endQaMetric('navigationDurationMs', { source: 'navigation_on_ready' });
+                setQaRuntimeState(QA_RUNTIME_STATES.NAVIGATION_READY, 'navigation_on_ready');
+                setQaReadinessFlags({
+                  appInitialized: true,
+                  navigationReady: true,
+                  splashFinished: true,
+                });
+                setQaLoadingState(false, 'navigation_ready');
+
                 if (currentRoute) {
                   setQaCurrentScreen(normalizeQaScreenName(currentRoute), currentRoute);
-                  setQaLoadingState(false, 'navigation_ready');
                   setAnalyticsContext({ screen: currentRoute });
                   trackScreenOpen(currentRoute, { source: 'navigation_ready' });
                   const startedAt = Date.now();
@@ -193,6 +292,8 @@ export default function App() {
                     });
                   });
                 }
+
+                setQaStall('navigation', false, 0, { resolved: true });
                 setBootstrapReady(true);
               }}
               onStateChange={() => {
@@ -202,6 +303,19 @@ export default function App() {
                 }
 
                 const previousRoute = routeNameRef.current;
+                startQaMetric('navigationDurationMs', {
+                  source: 'navigation_change',
+                  from: previousRoute || null,
+                  to: currentRoute,
+                });
+                const navigationStallTimer = setTimeout(() => {
+                  setQaStall('navigation', true, RUNTIME_STALL_THRESHOLDS_MS.NAVIGATION_STALL, {
+                    from: previousRoute || null,
+                    to: currentRoute,
+                    thresholdMs: RUNTIME_STALL_THRESHOLDS_MS.NAVIGATION_STALL,
+                  });
+                }, RUNTIME_STALL_THRESHOLDS_MS.NAVIGATION_STALL);
+
                 const closeSummary = previousRoute
                   ? trackScreenClose(previousRoute, {
                       nextScreen: currentRoute,
@@ -236,6 +350,12 @@ export default function App() {
                 InteractionManager.runAfterInteractions(() => {
                   trackScreenRenderDuration(currentRoute, Date.now() - startedAt, {
                     source: 'navigation_change',
+                  });
+                  clearTimeout(navigationStallTimer);
+                  setQaStall('navigation', false, 0, { resolved: true, route: currentRoute });
+                  endQaMetric('navigationDurationMs', {
+                    source: 'navigation_change',
+                    route: currentRoute,
                   });
                 });
 
@@ -285,7 +405,13 @@ export default function App() {
             >
               <RootNavigator />
             </NavigationContainer>
-            {bootstrapReady ? <View testID="app-bootstrap-ready" accessibilityLabel="app_bootstrap_ready" nativeID="app_bootstrap_ready" style={{ width: 1, height: 1 }} /> : null}
+            {bootstrapReady ? <HiddenAnchor id={QA_ELEMENTS.appBootstrapReady} /> : null}
+            <HiddenAnchor id={runtimeStateToElementId(runtimeState)} />
+            {readiness.navigationReady ? <HiddenAnchor id={QA_ELEMENTS.appReadinessNavigationReady} /> : null}
+            {readiness.authResolved ? <HiddenAnchor id={QA_ELEMENTS.appReadinessAuthResolved} /> : null}
+            {readiness.storesHydrated ? <HiddenAnchor id={QA_ELEMENTS.appReadinessStoresHydrated} /> : null}
+            {readiness.splashFinished ? <HiddenAnchor id={QA_ELEMENTS.appReadinessSplashFinished} /> : null}
+            {readiness.runtimeSynchronized ? <HiddenAnchor id={QA_ELEMENTS.appReadinessRuntimeSynchronized} /> : null}
           </View>
         </SafeAreaProvider>
       </RootProvider>

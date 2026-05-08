@@ -29,7 +29,16 @@ import ExerciseDetailScreen from '../screens/ExerciseDetailScreen';
 import WorkoutCompleteScreen from '../screens/WorkoutCompleteScreen';
 import MainTabs from './MainTabs';
 import { QA_SCREENS } from '../qa/selectorRegistry';
-import { setQaAuthState, setQaLoadedStores, setQaLoadingState } from '../qa/qaAutomationState';
+import {
+  QA_RUNTIME_STATES,
+  endQaMetric,
+  setQaAuthState,
+  setQaLoadedStores,
+  setQaLoadingState,
+  setQaReadinessFlags,
+  setQaRuntimeState,
+  startQaMetric,
+} from '../qa/qaAutomationState';
 
 const Stack = createNativeStackNavigator();
 
@@ -42,17 +51,36 @@ export default function RootNavigator(){
   const hasAccount = Boolean(user && (user.name || user.id));
 
   React.useEffect(() => {
+    if (!isHydrated) {
+      setQaRuntimeState(QA_RUNTIME_STATES.RESTORING_AUTH, 'root_navigator_waiting_hydration');
+      startQaMetric('authRestoreDurationMs', { source: 'root_navigator' });
+      startQaMetric('hydrationDurationMs', { source: 'root_navigator' });
+    }
+
     setQaAuthState({
       hydrated: isHydrated,
       hasAccount,
       userId: user?.id || null,
     });
-    setQaLoadingState(!isHydrated, !isHydrated ? 'user_store_hydration' : null);
-    setQaLoadedStores([
+
+    const loadedStores = [
       'user.store.v1',
       'app.store',
       hasPersistedProfile ? 'profile.persisted' : null,
-    ].filter(Boolean));
+    ].filter(Boolean);
+
+    setQaLoadedStores(loadedStores);
+    setQaLoadingState(!isHydrated, !isHydrated ? 'user_store_hydration' : null);
+    setQaReadinessFlags({
+      authResolved: Boolean(isHydrated),
+      storesHydrated: Boolean(isHydrated && loadedStores.length > 0),
+    });
+
+    if (isHydrated) {
+      endQaMetric('authRestoreDurationMs', { source: 'root_navigator' });
+      endQaMetric('hydrationDurationMs', { source: 'root_navigator' });
+      setQaRuntimeState(QA_RUNTIME_STATES.HYDRATING_STORES, 'root_navigator_hydrated');
+    }
   }, [hasAccount, hasPersistedProfile, isHydrated, user?.id]);
 
   if (!isHydrated) {

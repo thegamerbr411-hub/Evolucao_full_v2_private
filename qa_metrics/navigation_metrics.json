@@ -1,0 +1,18 @@
+{
+  "collectedAt": "2026-05-08T15:01:09.830Z",
+  "metric": {
+    "count": 5,
+    "avg": 1420,
+    "min": 200,
+    "max": 3900,
+    "values": [
+      300,
+      2400,
+      200,
+      300,
+      3900
+    ]
+  },
+  "stalls": 0,
+  "source": "report_duration_fallback"
+}
