@@ -1,13 +1,13 @@
 # VIDEO FULL VALIDATION
 
-Date: 2026-05-08T16:00:10.736Z
+Date: 2026-05-08T16:42:32.317Z
 
 ## Artefatos de video detectados
-- videos indexados: 6
-- screenshots indexados: 35
+- videos indexados: 7
+- screenshots indexados: 81
 
 ## Sinais de player/lifecycle
-- fullscreen events: 1047
+- fullscreen events: 1786
 - buffering events: 4
 - runtime busy anchors: 0
 - runtime idle anchors: 0

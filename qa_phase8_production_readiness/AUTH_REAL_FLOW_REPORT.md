@@ -1,6 +1,6 @@
 # AUTH REAL FLOW REPORT
 
-Date: 2026-05-08T16:00:10.736Z
+Date: 2026-05-08T16:42:32.317Z
 
 ## Firebase / Google readiness
 - firebase project id (google-services): t-evo-b069a
@@ -15,7 +15,7 @@ Date: 2026-05-08T16:00:10.736Z
 - erros de auth: 0
 
 ## Persistencia / restore / reconnect
-- reconnect signals: 127
+- reconnect signals: 597
 - Persistencia por SecureStore/MMKV permanece implementada no app; validacao manual real depende de credenciais ativas.
 
 ## Status

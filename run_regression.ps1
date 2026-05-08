@@ -134,8 +134,8 @@ foreach ($test in $suiteTests) {
 
   try {
     Push-Location $ProjectRoot
-    $testPatternArg = [regex]::Escape($test.Replace('/', '\/'))
-    $jestCommand = '.\\node_modules\\.bin\\jest.cmd --config e2e/jest.config.js --testPathPattern "' + $testPatternArg + '" --forceExit --detectOpenHandles'
+    $testFileArg = $test.Replace('/', '\\')
+    $jestCommand = '.\\node_modules\\.bin\\jest.cmd --config e2e/jest.config.js --runTestsByPath "' + $testFileArg + '" --forceExit --detectOpenHandles'
     $prevErrorAction = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
     cmd /c $jestCommand 2>&1 | Tee-Object -FilePath $testLog

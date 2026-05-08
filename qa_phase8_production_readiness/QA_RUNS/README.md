@@ -1,12 +1,15 @@
 # QA RUNS - PHASE 8 PRODUCTION READINESS
 
-Generated at: 2026-05-08T16:00:10.736Z
-Reports scanned: 25
-Logs scanned: 133
-Screenshots indexed: 35
-Videos indexed: 6
+Generated at: 2026-05-08T16:42:32.318Z
+Reports scanned: 28
+Logs scanned: 203
+Screenshots indexed: 81
+Videos indexed: 7
 
 ## Latest Runs
+- FAIL | regression | 1543.2s | qa_phase8_production_readiness/QA_RUNS/regression/run_20260508_131001/report.md
+- FAIL | warm_start | 296.3s | qa_phase8_production_readiness/QA_RUNS/cycle/run_20260508_131001/report.md
+- FAIL | cold_start | 89.7s | qa_phase8_production_readiness/QA_RUNS/smoke/run_20260508_131001/report.md
 - FAIL | regression | 6.7s | qa_phase8_production_readiness/QA_RUNS/regression/run_20260508_125452/report.md
 - FAIL | warm_start | 2.4s | qa_phase8_production_readiness/QA_RUNS/cycle/run_20260508_125452/report.md
 - FAIL | cold_start | 91.2s | qa_phase8_production_readiness/QA_RUNS/smoke/run_20260508_125452/report.md
