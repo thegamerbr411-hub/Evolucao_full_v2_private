@@ -1,5 +1,6 @@
 import React, { useRef, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { CommonActions } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { AnimatedToast, AppCard, AppInput, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
@@ -14,6 +15,7 @@ const loginWithGoogleToken = typeof _loginWithGoogleToken === 'function' ? _logi
 const logoutGoogleSession = typeof _logoutGoogleSession === 'function' ? _logoutGoogleSession : async () => ({ ok: false });
 const useGoogleAuth = typeof _useGoogleAuth === 'function' ? _useGoogleAuth : () => ({ request: null, response: null, promptAsync: async () => {} });
 import { getOrCreateUserIdentity, saveUserIdentity } from '../services/appIdentityService';
+import { performFullSessionLogout } from '../services/sessionCleanupService';
 import { setQaRuntimeAuth } from '../utils/qaTransport';
 
 const ADMIN_EMAILS = ['thegamerbr411@gmail.com'];
@@ -67,6 +69,7 @@ export default function ProfileScreen({ navigation }) {
   const [currentPain, setCurrentPain] = useState(String(profile?.currentPain || profile?.pain || ''));
   const [googleLoading, setGoogleLoading] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
+  const [sessionLogoutLoading, setSessionLogoutLoading] = useState(false);
   const [creatineLoading, setCreatineLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const insets = useSafeAreaInsets();
@@ -419,6 +422,33 @@ export default function ProfileScreen({ navigation }) {
         ) : (
           <Text style={styles.metric}>Google nao configurado nesta build. Ative EXPO_PUBLIC_GOOGLE_* para login no release.</Text>
         )}
+
+        <SecondaryButton
+          testID="btn-profile-session-logout"
+          title={sessionLogoutLoading ? 'Encerrando sessao...' : 'Encerrar sessao completa'}
+          onPress={async () => {
+            if (sessionLogoutLoading) {
+              return;
+            }
+
+            setSessionLogoutLoading(true);
+            try {
+              await performFullSessionLogout({ reason: 'profile_manual_logout' });
+              navigation.dispatch(
+                CommonActions.reset({
+                  index: 0,
+                  routes: [{ name: 'Cadastro' }],
+                })
+              );
+              setToastMessage('Sessao encerrada com limpeza completa do estado local.');
+            } catch {
+              setToastMessage('Falha ao encerrar a sessao por completo. Tente novamente.');
+            } finally {
+              setSessionLogoutLoading(false);
+            }
+          }}
+          style={styles.secondaryButton}
+        />
 
         <SecondaryButton
           title="Abrir painel Admin"

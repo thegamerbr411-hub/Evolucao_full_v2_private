@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from 'react';
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, AppState, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useIsFocused } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Video, ResizeMode } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,6 +9,7 @@ import { AppCard, ScreenHeader } from '../components/ui';
 import { colors, spacing, radius } from '../theme';
 import { getExerciseByName } from '../data/exercises.js';
 import { trackAppError } from '../utils/analytics';
+import { logTaggedError, logTaggedEvent } from '../utils/runtimeLogger';
 
 const TABS = [
   { key: 'resumo', label: 'Resumo' },
@@ -107,11 +109,15 @@ class ExerciseDetailErrorBoundary extends React.PureComponent {
 }
 
 function ExerciseDetailContent({ route, navigation }) {
+  const isFocused = useIsFocused();
   const [activeTab, setActiveTab] = useState('resumo');
   const [videoEnabled, setVideoEnabled] = useState(false);
   const [videoFailed, setVideoFailed] = useState(false);
   const [videoLoading, setVideoLoading] = useState(false);
   const [videoRetryKey, setVideoRetryKey] = useState(0);
+  const videoRef = useRef(null);
+  const appStateRef = useRef(AppState.currentState);
+  const bufferingRef = useRef(false);
   const input = route?.params?.exercise || null;
 
   const exercise = useMemo(() => {
@@ -158,12 +164,88 @@ function ExerciseDetailContent({ route, navigation }) {
   const handleVideoError = (error) => {
     setVideoFailed(true);
     setVideoLoading(false);
+    logTaggedError('VIDEO', error || new Error('exercise_video_failed'), {
+      action: 'video_render',
+      exerciseName: name,
+      videoUrl: directVideoUrl || videoUrl,
+    });
     safeTrackAppError(error || new Error('exercise_video_failed'), {
       screen: 'ExerciseDetailScreen',
       action: 'video_render',
       context: { exerciseName: name, videoUrl: directVideoUrl || videoUrl },
     });
   };
+
+  const unloadPlayer = useCallback(async (reason = 'manual_cleanup') => {
+    const player = videoRef.current;
+    if (!player) {
+      return;
+    }
+
+    try {
+      await player.pauseAsync?.();
+      await player.unloadAsync?.();
+      logTaggedEvent('PLAYER', 'unload', {
+        reason,
+        exerciseName: name,
+      });
+    } catch (error) {
+      logTaggedError('PLAYER', error, {
+        action: 'unload',
+        reason,
+        exerciseName: name,
+      });
+    } finally {
+      bufferingRef.current = false;
+      setVideoLoading(false);
+      setVideoEnabled(false);
+    }
+  }, [name]);
+
+  useEffect(() => {
+    logTaggedEvent('VIDEO', 'screen_ready', {
+      exerciseName: name,
+      hasDirectVideo: Boolean(directVideoUrl),
+      hasThumbnail: canRenderThumbnail,
+    });
+
+    return () => {
+      unloadPlayer('screen_unmount');
+    };
+  }, [canRenderThumbnail, directVideoUrl, name, unloadPlayer]);
+
+  useEffect(() => {
+    setVideoFailed(false);
+    setVideoLoading(false);
+    setVideoEnabled(false);
+    bufferingRef.current = false;
+  }, [directVideoUrl, name]);
+
+  useEffect(() => {
+    if (!isFocused && videoEnabled) {
+      unloadPlayer('screen_blur');
+    }
+  }, [isFocused, unloadPlayer, videoEnabled]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      const previousState = appStateRef.current;
+      appStateRef.current = nextState;
+
+      logTaggedEvent('VIDEO', 'app_state_change', {
+        exerciseName: name,
+        previousState,
+        nextState,
+      });
+
+      const wentToBackground = previousState === 'active' && (nextState === 'inactive' || nextState === 'background');
+      if (wentToBackground && videoEnabled) {
+        unloadPlayer(`app_${nextState}`);
+      }
+    });
+
+    return () => subscription?.remove?.();
+  }, [name, unloadPlayer, videoEnabled]);
 
   return (
     <ScrollView contentContainerStyle={styles.container} testID="screen-exercise-detail">
@@ -173,6 +255,7 @@ function ExerciseDetailContent({ route, navigation }) {
         <View style={styles.videoWrap}>
           {canRenderVideo ? (
             <Video
+              ref={videoRef}
               key={`video-${videoRetryKey}`}
               source={{ uri: directVideoUrl }}
               style={styles.video}
@@ -180,8 +263,40 @@ function ExerciseDetailContent({ route, navigation }) {
               resizeMode={ResizeMode.COVER}
               isLooping
               shouldPlay={false}
-              onLoadStart={() => setVideoLoading(true)}
-              onLoad={() => setVideoLoading(false)}
+              onLoadStart={() => {
+                setVideoLoading(true);
+                logTaggedEvent('VIDEO', 'load_start', {
+                  exerciseName: name,
+                  videoUrl: directVideoUrl,
+                });
+              }}
+              onLoad={(status) => {
+                setVideoLoading(false);
+                logTaggedEvent('VIDEO', 'loaded', {
+                  exerciseName: name,
+                  durationMillis: Number(status?.durationMillis || 0),
+                });
+              }}
+              onPlaybackStatusUpdate={(status) => {
+                if (!status || !status.isLoaded) {
+                  return;
+                }
+
+                const isBuffering = Boolean(status.isBuffering);
+                if (bufferingRef.current !== isBuffering) {
+                  bufferingRef.current = isBuffering;
+                  logTaggedEvent('PLAYER', isBuffering ? 'buffering_start' : 'buffering_end', {
+                    exerciseName: name,
+                    positionMillis: Number(status.positionMillis || 0),
+                  });
+                }
+              }}
+              onFullscreenUpdate={(status) => {
+                logTaggedEvent('PLAYER', 'fullscreen_update', {
+                  exerciseName: name,
+                  fullscreenStatus: Number(status?.fullscreenUpdate || 0),
+                });
+              }}
               onError={handleVideoError}
             />
           ) : directVideoUrl && !videoEnabled ? (
@@ -193,6 +308,10 @@ function ExerciseDetailContent({ route, navigation }) {
                 style={styles.retryVideoButton}
                 onPress={async () => {
                   try {
+                    logTaggedEvent('VIDEO', 'external_open', {
+                      exerciseName: name,
+                      videoUrl: fallbackVideoUrl,
+                    });
                     await WebBrowser.openBrowserAsync(fallbackVideoUrl);
                   } catch (error) {
                     safeTrackAppError(error || new Error('exercise_video_external_open_failed'), {
@@ -212,6 +331,10 @@ function ExerciseDetailContent({ route, navigation }) {
                   setVideoLoading(true);
                   setVideoEnabled(true);
                   setVideoRetryKey((prev) => prev + 1);
+                  logTaggedEvent('PLAYER', 'internal_player_enabled', {
+                    exerciseName: name,
+                    videoUrl: directVideoUrl,
+                  });
                 }}
               >
                 <Text style={styles.retryVideoButtonText}>Tentar player interno (beta)</Text>
@@ -228,6 +351,10 @@ function ExerciseDetailContent({ route, navigation }) {
                 style={styles.retryVideoButton}
                 onPress={async () => {
                   try {
+                    logTaggedEvent('VIDEO', 'external_open', {
+                      exerciseName: name,
+                      videoUrl: fallbackVideoUrl,
+                    });
                     await WebBrowser.openBrowserAsync(fallbackVideoUrl);
                   } catch (error) {
                     safeTrackAppError(error || new Error('exercise_video_external_open_failed'), {
@@ -248,6 +375,10 @@ function ExerciseDetailContent({ route, navigation }) {
                     setVideoLoading(true);
                     setVideoEnabled(true);
                     setVideoRetryKey((prev) => prev + 1);
+                    logTaggedEvent('PLAYER', 'retry_internal_player', {
+                      exerciseName: name,
+                      videoUrl: directVideoUrl,
+                    });
                   }}
                 >
                   <Text style={styles.retryVideoButtonText}>Tentar novamente</Text>
@@ -262,6 +393,39 @@ function ExerciseDetailContent({ route, navigation }) {
             </View>
           ) : null}
         </View>
+
+        {canRenderVideo ? (
+          <View style={styles.playerActionsRow}>
+            <TouchableOpacity
+              testID="btn-video-fullscreen"
+              style={styles.retryVideoButton}
+              onPress={async () => {
+                try {
+                  await videoRef.current?.presentFullscreenPlayer?.();
+                  logTaggedEvent('PLAYER', 'fullscreen_requested', {
+                    exerciseName: name,
+                  });
+                } catch (error) {
+                  logTaggedError('PLAYER', error, {
+                    action: 'present_fullscreen',
+                    exerciseName: name,
+                  });
+                }
+              }}
+            >
+              <Text style={styles.retryVideoButtonText}>Abrir em tela cheia</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              testID="btn-video-close-player"
+              style={styles.retryVideoButton}
+              onPress={() => {
+                unloadPlayer('manual_close');
+              }}
+            >
+              <Text style={styles.retryVideoButtonText}>Fechar player</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
 
         <Text style={styles.exerciseName}>{name}</Text>
         <Text style={styles.metaLine}>
@@ -451,6 +615,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+  },
+  playerActionsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: spacing.sm,
   },
   primaryTag: {
     paddingHorizontal: 10,
