@@ -118,7 +118,7 @@ export default function RegisterScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [toast, setToast] = useState('');
-  const [statusMessage, setStatusMessage] = useState('Preencha seus dados para continuar.');
+  const [statusMessage, setStatusMessage] = useState('Informe seus dados e envie o codigo para o e-mail.');
   const { request, promptAsync, response } = useGoogleAuth();
   const googleConfigured = isGoogleAuthConfigured();
 
@@ -621,8 +621,8 @@ export default function RegisterScreen({ navigation }) {
               label="Codigo de verificacao"
               value={verificationCode}
               onChangeText={setVerificationCode}
-              placeholder="Digite o codigo recebido no e-mail"
-              keyboardType="number-pad"
+                  placeholder="Cole o codigo recebido no e-mail"
+                  autoCapitalize="none"
             />
 
             <View style={styles.codeActionsRow}>
@@ -646,7 +646,9 @@ export default function RegisterScreen({ navigation }) {
                   : 'Codigo validado. Toque em Cadastrar para concluir.'
                 : codeSentAt
                 ? 'Codigo enviado. Valide o codigo para liberar o acesso.'
-                : 'Primeiro envie e valide o codigo do seu e-mail.'}
+                : mode === 'login'
+                ? 'Entrar exige validacao por codigo no e-mail antes do acesso.'
+                : 'Cadastrar exige validacao por codigo no e-mail antes do acesso.'}
             </Text>
 
             {mode === 'login' ? (
@@ -674,7 +676,7 @@ export default function RegisterScreen({ navigation }) {
             {...qaProps(mode === 'login' ? QA_ELEMENTS.btnLogin : QA_ELEMENTS.btnRegister)}
             title={loading ? 'Processando...' : mode === 'login' ? 'Entrar' : 'Cadastrar'}
             onPress={handleSubmit}
-            style={styles.btn}
+            style={[styles.btn, !isCodeVerified ? styles.btnDisabledVisual : null]}
           />
 
           {googleConfigured ? (
@@ -716,7 +718,7 @@ export default function RegisterScreen({ navigation }) {
             />
           )}
 
-          <Text style={styles.terms}>Seus dados sao protegidos com Firebase Auth e persistencia local segura.</Text>
+          <Text style={styles.terms}>Acesso liberado somente apos validacao do codigo enviado por e-mail.</Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -734,60 +736,75 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.xl,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xl + 6,
   },
   hero: {
     alignItems: 'center',
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
+    paddingVertical: spacing.md,
+    borderRadius: 20,
+    backgroundColor: '#f3f7ff',
+    borderWidth: 1,
+    borderColor: '#dbeafe',
   },
   heroTitle: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: '900',
-    color: colors.textPrimary,
+    color: '#0b1220',
     textAlign: 'center',
-    marginBottom: spacing.sm,
-    letterSpacing: -0.5,
+    marginBottom: 6,
+    letterSpacing: -0.6,
   },
   heroSubtitle: {
     fontSize: 15,
-    fontWeight: '600',
-    color: colors.textSecondary,
+    fontWeight: '500',
+    color: '#334155',
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 21,
+    paddingHorizontal: spacing.md,
   },
   card: {
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#ffffff',
   },
   cardTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '800',
-    color: colors.textPrimary,
-    marginBottom: spacing.md,
+    color: '#0f172a',
+    marginBottom: spacing.sm,
   },
   modeSwitchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: spacing.md,
-    backgroundColor: '#edf2f7',
-    borderRadius: 14,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 12,
     padding: 4,
   },
   modeToggle: {
     flex: 1,
-    minHeight: 44,
+    minHeight: 46,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   modeToggleActive: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#111827',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 1,
   },
   modeToggleInactive: {
     backgroundColor: 'transparent',
   },
   modeToggleText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
     color: '#475569',
   },
@@ -798,7 +815,7 @@ const styles = StyleSheet.create({
     height: spacing.sm,
   },
   codeActionsRow: {
-    marginTop: spacing.sm,
+    marginTop: spacing.md,
     flexDirection: 'row',
     gap: spacing.sm,
   },
@@ -806,20 +823,26 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   helperText: {
-    marginTop: spacing.sm,
-    color: colors.textMuted,
+    marginTop: spacing.md,
+    color: '#334155',
     fontSize: 12,
     fontWeight: '600',
-    lineHeight: 18,
+    lineHeight: 19,
+    backgroundColor: '#f8fafc',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
   },
   statusBox: {
-    marginTop: spacing.sm,
+    marginTop: spacing.md,
     borderWidth: 1,
-    borderColor: '#cbd5e1',
-    backgroundColor: '#f8fafc',
+    borderColor: '#dbe7ff',
+    backgroundColor: '#f8fbff',
     borderRadius: 12,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: 10,
   },
   statusLabel: {
     fontSize: 11,
@@ -832,12 +855,12 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#0f172a',
-    lineHeight: 18,
+    color: '#1e293b',
+    lineHeight: 19,
   },
   linkText: {
     marginTop: spacing.sm,
-    color: colors.primary,
+    color: '#1d4ed8',
     fontSize: 13,
     fontWeight: '700',
   },
@@ -845,22 +868,32 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   btn: {
-    marginTop: spacing.md,
+    marginTop: spacing.sm,
+    minHeight: 54,
+    borderRadius: 14,
+  },
+  btnDisabledVisual: {
+    opacity: 0.88,
   },
   btnGoogle: {
     marginTop: spacing.sm,
-    backgroundColor: '#0f172a',
-    borderColor: '#0f172a',
+    minHeight: 52,
+    borderRadius: 14,
+    backgroundColor: '#1f2937',
+    borderColor: '#1f2937',
+    borderWidth: 1,
   },
   btnGoogleDisabled: {
     marginTop: spacing.sm,
-    opacity: 0.82,
+    minHeight: 52,
+    borderRadius: 14,
+    opacity: 0.85,
   },
   terms: {
     marginTop: spacing.md,
     fontSize: 11,
-    fontWeight: '600',
-    color: colors.textMuted,
+    fontWeight: '700',
+    color: '#475569',
     textAlign: 'center',
     lineHeight: 17,
   },

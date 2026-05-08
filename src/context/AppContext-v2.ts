@@ -138,17 +138,6 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
             await appStore.hydrateAppStore();
           }
 
-          const firebaseUser = auth?.currentUser;
-          if (firebaseUser?.uid) {
-            const previousUser = useUserStore.getState().user;
-            setUserInStore({
-              id: firebaseUser.uid,
-              role: previousUser?.role === 'admin' ? 'admin' : 'user',
-              name: firebaseUser.displayName || previousUser?.name || null,
-              email: firebaseUser.email || previousUser?.email || null,
-            });
-          }
-
           setUserHydrated(true);
         } catch (error) {
           logError(error, { screen: SCREENS?.CONTEXT || 'Context', action: 'hydrateApp' });
@@ -165,26 +154,14 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       return undefined;
     }
 
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      const previousUser = useUserStore.getState().user;
-      if (firebaseUser?.uid) {
-        setUserInStore({
-          id: firebaseUser.uid,
-          role: previousUser?.role === 'admin' ? 'admin' : 'user',
-          name: firebaseUser.displayName || previousUser?.name || null,
-          email: firebaseUser.email || previousUser?.email || null,
-        });
-      } else if (previousUser?.id) {
-        logoutUserInStore();
-      }
-
+    const unsubscribe = onAuthStateChanged(auth, () => {
       if (!useUserStore.getState().isHydrated) {
         setUserHydrated(true);
       }
     });
 
     return () => unsubscribe();
-  }, [logoutUserInStore, setUserHydrated, setUserInStore]);
+  }, [setUserHydrated, setUserInStore]);
 
   useEffect(() => {
     const today = getTodayKey();

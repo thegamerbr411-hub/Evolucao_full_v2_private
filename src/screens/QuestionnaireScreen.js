@@ -145,7 +145,12 @@ export default function QuestionnaireScreen({ navigation }) {
     }
 
     try {
-      saveQuestionnaire(payload);
+      const result = saveQuestionnaire(payload);
+      if (!result?.ok) {
+        setToastMessage('Algo deu errado ao salvar o questionario. Revise os dados e tente novamente.');
+        return;
+      }
+
       navigation.reset({
         index: 0,
         routes: [{ name: 'MainTabs' }],
