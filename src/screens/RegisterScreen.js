@@ -7,10 +7,11 @@ import {
   Text,
   View,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-  reload,
+  createUserWithEmailAndPassword,
+  sendEmailVerification,
   signInWithEmailAndPassword,
+  updateProfile,
 } from 'firebase/auth';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
@@ -18,15 +19,9 @@ import { AnimatedToast, AppCard, AppInput, PrimaryButton } from '../components/u
 import { getOrCreateUserIdentity, saveUserIdentity } from '../services/appIdentityService';
 import { auth, isFirebaseConfigured } from '../services/firebase';
 import { setQaRuntimeAuth } from '../utils/qaTransport';
-import { API_BASE_URL } from '../services/api';
-import { requestPasswordReset } from '../services/authService';
-import { loginWithGoogleToken } from '../services/authService';
+import { requestPasswordReset, loginWithGoogleToken } from '../services/authService';
 import { colors, spacing } from '../theme';
 
-const LOCAL_ACCOUNTS_KEY = 'auth.local.accounts.v1';
-const TEMP_FALLBACK_PASSWORDS = new Set(['123456', '12345678', 'evolucao123', 'temp123456']);
-const ALLOW_LOCAL_CODE_FALLBACK = false;
-const AUTH_REQUEST_TIMEOUT_MS = 8000;
 const FIREBASE_AUTH_TIMEOUT_MS = 8000;
 const UI_LOADING_WATCHDOG_MS = 12000;
 
@@ -54,60 +49,42 @@ async function withPromiseTimeout(promise, timeoutMs = FIREBASE_AUTH_TIMEOUT_MS,
   }
 }
 
-async function withTimeout(requestFactory, timeoutMs = AUTH_REQUEST_TIMEOUT_MS) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), Math.max(2000, Number(timeoutMs || AUTH_REQUEST_TIMEOUT_MS)));
-  try {
-    return await requestFactory(controller.signal);
-  } finally {
-    clearTimeout(timeoutId);
+function logAuth(step, meta = {}) {
+  if (__DEV__) {
+    console.log('[AUTH_FLOW]', step, meta);
   }
 }
 
-async function sendCodeViaBackend(email) {
-  try {
-    const res = await withTimeout((signal) => fetch(`${API_BASE_URL}/auth/send-code`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
-      signal,
-    }));
-    const data = await res.json();
-    if (!res.ok) return { ok: false, error: data?.error || 'Falha ao enviar código.' };
-    return { ok: true, delivery: data.delivery, code: data.code };
-  } catch {
-    return { ok: false, error: 'Servidor de verificacao indisponivel ou sem resposta.' };
-  }
+function mapFirebaseAuthError(error) {
+  const code = String(error?.code || '').toLowerCase();
+  if (code.includes('auth/invalid-email')) return 'E-mail invalido.';
+  if (code.includes('auth/user-not-found')) return 'Conta nao encontrada.';
+  if (code.includes('auth/wrong-password')) return 'Senha incorreta.';
+  if (code.includes('auth/invalid-credential')) return 'Credenciais invalidas.';
+  if (code.includes('auth/email-already-in-use')) return 'Este e-mail ja esta em uso.';
+  if (code.includes('auth/weak-password')) return 'Senha fraca. Use pelo menos 6 caracteres.';
+  if (code.includes('auth/network-request-failed')) return 'Falha de rede. Verifique sua conexao e tente novamente.';
+  if (code.includes('auth/too-many-requests')) return 'Muitas tentativas. Aguarde alguns minutos e tente novamente.';
+  return String(error?.message || 'Falha na autenticacao. Tente novamente.');
 }
 
-async function verifyCodeViaBackend(email, code) {
-  try {
-    const res = await withTimeout((signal) => fetch(`${API_BASE_URL}/auth/verify-code`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, code }),
-      signal,
-    }));
-    const data = await res.json();
-    if (!res.ok) return { ok: false, error: data?.error || 'Código inválido.' };
-    return { ok: true };
-  } catch {
-    return { ok: false, error: 'Servidor de verificacao indisponivel ou sem resposta.' };
+async function runAuthOperation(label, operation, maxRetries = 1) {
+  let attempt = 0;
+  while (attempt <= maxRetries) {
+    try {
+      return await operation();
+    } catch (error) {
+      const code = String(error?.code || '').toLowerCase();
+      const isTransient = code.includes('network-request-failed') || code.includes('too-many-requests');
+      if (!isTransient || attempt >= maxRetries) {
+        throw error;
+      }
+      logAuth(`${label}_retry`, { attempt: attempt + 1, code });
+    }
+    attempt += 1;
   }
-}
 
-async function loadLocalAccounts() {
-  try {
-    const raw = await AsyncStorage.getItem(LOCAL_ACCOUNTS_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-async function saveLocalAccounts(accounts) {
-  await AsyncStorage.setItem(LOCAL_ACCOUNTS_KEY, JSON.stringify(Array.isArray(accounts) ? accounts : []));
+  throw new Error('AUTH_OPERATION_FAILED');
 }
 
 export default function RegisterScreen({ navigation }) {
@@ -116,8 +93,6 @@ export default function RegisterScreen({ navigation }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [verificationCode, setVerificationCode] = useState('');
-  const [pendingVerification, setPendingVerification] = useState(null);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState('');
@@ -217,84 +192,49 @@ export default function RegisterScreen({ navigation }) {
     setLoading(true);
     const clearWatchdog = startLoadingWatchdog(setLoading, setToast);
     try {
-      const accounts = await loadLocalAccounts();
+      if (!isFirebaseConfigured || !auth) {
+        setToast('Firebase nao configurado. Verifique as variaveis EXPO_PUBLIC_FIREBASE_* e tente novamente.');
+        logAuth('firebase_not_configured', { safeEmail });
+        return;
+      }
 
       if (mode === 'login') {
-        if (TEMP_FALLBACK_PASSWORDS.has(String(password || '').trim().toLowerCase())) {
-          setShowForgotPassword(true);
-          setToast('Senha temporária detectada. Redefina sua senha para continuar.');
-          return;
-        }
+        try {
+          logAuth('login_start', { safeEmail });
+          const signInResult = await runAuthOperation('login', () => withPromiseTimeout(
+            signInWithEmailAndPassword(auth, safeEmail, String(password || '')),
+            FIREBASE_AUTH_TIMEOUT_MS,
+            'Login demorou para responder. Tente novamente.'
+          ));
 
-        const account = accounts.find((item) => String(item?.email || '').toLowerCase() === safeEmail);
-        if (account) {
-          if (!account.emailVerified) {
-            setToast('E-mail ainda não verificado. Conclua a verificação para entrar.');
-            return;
-          }
-
-          if (String(account.password || '') !== String(password || '')) {
-            setToast('Senha incorreta.');
+          const firebaseUser = signInResult?.user;
+          if (!firebaseUser) {
+            setToast('Falha no login. Tente novamente.');
+            logAuth('login_failed_no_user', { safeEmail });
             return;
           }
 
           const identity = await getOrCreateUserIdentity();
-          await saveUserIdentity({ userId: account.userId || identity.userId, source: 'local_login' });
-          setQaRuntimeAuth({ userId: account.userId || identity.userId });
+          await saveUserIdentity({ userId: firebaseUser.uid || identity.userId, source: 'firebase_login' });
+          setQaRuntimeAuth({ userId: firebaseUser.uid || identity.userId });
 
           setUser({
-            id: account.userId || identity.userId,
+            id: firebaseUser.uid || identity.userId,
             role: 'user',
-            name: account.name || safeName || 'Usuário',
+            name: String(firebaseUser.displayName || safeName || 'Usuario'),
             email: safeEmail,
           });
-          navigation.replace('Questionario');
+
+          logAuth('login_success', { uid: firebaseUser.uid, safeEmail });
+          setToast('Login concluido com sucesso.');
+          navigation.replace('MainTabs');
+          return;
+        } catch (error) {
+          const message = mapFirebaseAuthError(error);
+          setToast(message);
+          logAuth('login_error', { safeEmail, code: String(error?.code || ''), message: String(error?.message || '') });
           return;
         }
-
-        if (isFirebaseConfigured && auth) {
-          try {
-            const signInResult = await withPromiseTimeout(
-              signInWithEmailAndPassword(auth, safeEmail, String(password || '')),
-              FIREBASE_AUTH_TIMEOUT_MS,
-              'Login demorou para responder. Tente novamente.'
-            );
-            const firebaseUser = signInResult?.user;
-            if (!firebaseUser) {
-              setToast('Falha no login. Tente novamente.');
-              return;
-            }
-
-            await withPromiseTimeout(
-              reload(firebaseUser),
-              FIREBASE_AUTH_TIMEOUT_MS,
-              'Nao foi possivel validar seu e-mail agora. Tente novamente.'
-            );
-            if (!firebaseUser.emailVerified) {
-              setToast('E-mail ainda não verificado. Abra sua caixa de entrada e confirme o cadastro.');
-              return;
-            }
-
-            const identity = await getOrCreateUserIdentity();
-            await saveUserIdentity({ userId: firebaseUser.uid || identity.userId, source: 'firebase_login' });
-            setQaRuntimeAuth({ userId: firebaseUser.uid || identity.userId });
-
-            setUser({
-              id: firebaseUser.uid || identity.userId,
-              role: 'user',
-              name: safeName || String(firebaseUser.displayName || 'Usuário'),
-              email: safeEmail,
-            });
-            navigation.replace('Questionario');
-            return;
-          } catch {
-            setToast('Falha no login online. Verifique e-mail/senha e sua conexão.');
-            return;
-          }
-        }
-
-        setToast('Conta não encontrada neste dispositivo. Faça cadastro primeiro.');
-        return;
       }
 
       if (!safeName) {
@@ -302,110 +242,52 @@ export default function RegisterScreen({ navigation }) {
         return;
       }
 
-      const duplicate = accounts.some((item) => String(item?.email || '').toLowerCase() === safeEmail);
-      if (duplicate) {
-        setToast('Já existe conta com esse e-mail. Use a opção Entrar.');
-        return;
-      }
+      try {
+        logAuth('register_start', { safeEmail });
+        const registerResult = await runAuthOperation('register', () => withPromiseTimeout(
+          createUserWithEmailAndPassword(auth, safeEmail, String(password || '')),
+          FIREBASE_AUTH_TIMEOUT_MS,
+          'Cadastro demorou para responder. Tente novamente.'
+        ));
 
-      const identity = await getOrCreateUserIdentity();
-      const backendResult = await sendCodeViaBackend(safeEmail);
-      if (backendResult.ok) {
-        if (backendResult.delivery !== 'email' && !ALLOW_LOCAL_CODE_FALLBACK) {
-          setToast('Nao foi possivel enviar codigo por e-mail agora. Tente novamente em alguns instantes.');
+        const firebaseUser = registerResult?.user;
+        if (!firebaseUser) {
+          setToast('Nao foi possivel criar a conta. Tente novamente.');
+          logAuth('register_failed_no_user', { safeEmail });
           return;
         }
 
-        setPendingVerification({
-          delivery: backendResult.delivery,
-          userId: identity.userId,
-          name: safeName,
-          email: safeEmail,
-          password: String(password || ''),
-          code: backendResult.delivery === 'local' ? backendResult.code : undefined,
+        await updateProfile(firebaseUser, { displayName: safeName }).catch(() => {
+          logAuth('register_update_profile_failed', { safeEmail });
         });
-        if (backendResult.delivery === 'email') {
-          setToast('Código enviado por e-mail. Verifique sua caixa de entrada e spam.');
-        }
-      } else {
-        // Fallback local somente em ambiente de desenvolvimento.
-        if (!ALLOW_LOCAL_CODE_FALLBACK) {
-          setToast('Servico de envio de codigo indisponivel no momento. Tente novamente mais tarde.');
-          return;
-        }
 
-        const code = String(Math.floor(100000 + Math.random() * 900000));
-        setPendingVerification({
-          delivery: 'local',
-          userId: identity.userId,
+        await sendEmailVerification(firebaseUser).then(() => {
+          logAuth('register_verification_email_sent', { safeEmail });
+        }).catch((error) => {
+          logAuth('register_verification_email_failed', { safeEmail, code: String(error?.code || '') });
+        });
+
+        const identity = await getOrCreateUserIdentity();
+        await saveUserIdentity({ userId: firebaseUser.uid || identity.userId, source: 'firebase_register' });
+        setQaRuntimeAuth({ userId: firebaseUser.uid || identity.userId });
+
+        setUser({
+          id: firebaseUser.uid || identity.userId,
+          role: 'user',
           name: safeName,
           email: safeEmail,
-          password: String(password || ''),
-          code,
         });
+
+        logAuth('register_success', { uid: firebaseUser.uid, safeEmail });
+        setToast('Conta criada com sucesso.');
+        navigation.replace('MainTabs');
+      } catch (error) {
+        const message = mapFirebaseAuthError(error);
+        setToast(message);
+        logAuth('register_error', { safeEmail, code: String(error?.code || ''), message: String(error?.message || '') });
       }
-      // Código exibido permanentemente no card abaixo — não usa toast para não sumir
     } catch {
       setToast('Erro ao criar conta. Tente novamente.');
-    } finally {
-      clearWatchdog();
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyEmail = async () => {
-    if (!pendingVerification) {
-      return;
-    }
-
-    setLoading(true);
-    const clearWatchdog = startLoadingWatchdog(setLoading, setToast);
-    try {
-      // Backend email code verification (6-digit code sent by backend SMTP)
-      const codeInput = String(verificationCode || '').trim();
-      if (!codeInput) {
-        setToast('Digite o código de verificação.');
-        return;
-      }
-
-      if (pendingVerification.delivery === 'email' && !pendingVerification.code) {
-        // Code was sent by backend SMTP — validate remotely
-        const verifyResult = await verifyCodeViaBackend(pendingVerification.email, codeInput);
-        if (!verifyResult.ok) {
-          setToast(verifyResult.error || 'Código inválido.');
-          return;
-        }
-      } else if (codeInput !== String(pendingVerification.code || '')) {
-        setToast('Código inválido. Confira e tente novamente.');
-        return;
-      }
-
-      const accounts = await loadLocalAccounts();
-      const nextAccounts = [
-        {
-          userId: pendingVerification.userId,
-          name: pendingVerification.name,
-          email: pendingVerification.email,
-          password: pendingVerification.password,
-          emailVerified: true,
-          createdAt: new Date().toISOString(),
-        },
-        ...accounts,
-      ];
-      await saveLocalAccounts(nextAccounts);
-      await saveUserIdentity({ userId: pendingVerification.userId, source: 'local_verified' });
-      setQaRuntimeAuth({ userId: pendingVerification.userId });
-
-      setUser({
-        id: pendingVerification.userId,
-        role: 'user',
-        name: pendingVerification.name,
-        email: pendingVerification.email,
-      });
-
-      navigation.replace('Questionario');
-    } catch {
-      setToast('Falha ao verificar e-mail. Tente novamente.');
     } finally {
       clearWatchdog();
       setLoading(false);
@@ -474,73 +356,10 @@ export default function RegisterScreen({ navigation }) {
             <Text style={styles.cardTitle}>{mode === 'login' ? 'Entrar na conta' : 'Criar minha conta'}</Text>
 
             {mode === 'register' ? (
-              <>
-                <AppInput
-                  label="Seu nome"
-                  value={name}
-                  onChangeText={setName}
-                  placeholder="Como gostaria de ser chamado?"
-                  autoCapitalize="words"
-                  autoFocus
-                />
-
-                <View style={styles.spacer} />
-              </>
-            ) : null}
-
-            <AppInput
-              label="E-mail"
-              value={email}
-              onChangeText={setEmail}
-              placeholder="seu@email.com"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-
-            <View style={styles.spacer} />
-
-            <AppInput
-              label="Senha"
-              value={password}
-              onChangeText={setPassword}
-              placeholder="Mínimo 6 caracteres"
-              secureTextEntry
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-
-            {mode === 'login' ? (
-              <Text style={styles.resendLink} onPress={() => setShowForgotPassword((prev) => !prev)}>
-                {showForgotPassword ? 'Cancelar recuperação de senha' : 'Esqueci minha senha'}
+              <Text style={styles.codeBoxHint}>
+                Cadastro temporariamente padronizado em Firebase Auth para garantir estabilidade no QA.
               </Text>
             ) : null}
-
-            {mode === 'login' && showForgotPassword ? (
-              <>
-                <View style={styles.codeBox}>
-                  <Text style={styles.codeBoxLabel}>Recuperação de senha</Text>
-                  <Text style={styles.codeBoxHint}>
-                    Vamos enviar um link de redefinição para {String(email || '').trim() || 'seu e-mail'}.
-                  </Text>
-                </View>
-                <PrimaryButton
-                  title={loading ? 'Enviando link...' : 'Enviar link de recuperação'}
-                  onPress={handleForgotPassword}
-                  style={styles.btnInline}
-                />
-              </>
-            ) : null}
-
-            {pendingVerification && mode === 'register' ? (
-              <>
-                <View style={styles.spacer} />
-                <>
-                    {/* Caixa do código — backend SMTP ou local */}
-                    <View style={styles.codeBox}>
-                      <Text style={styles.codeBoxLabel}>
-                        {pendingVerification.delivery === 'email' && !pendingVerification.code
-                          ? '📧 Código enviado por e-mail'
                           : 'Seu código de verificação'}
                       </Text>
                       {pendingVerification.delivery === 'email' && !pendingVerification.code ? (

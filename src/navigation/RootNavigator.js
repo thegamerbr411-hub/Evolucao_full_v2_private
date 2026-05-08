@@ -54,6 +54,7 @@ export default function RootNavigator(){
 
   return(
     <Stack.Navigator
+      key={`${hasAccount ? 'auth' : 'guest'}-${hasCompletedQuestionnaire || hasPersistedProfile ? 'ready' : 'onboarding'}`}
       initialRouteName={getInitialRoute()}
       screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}
     >
