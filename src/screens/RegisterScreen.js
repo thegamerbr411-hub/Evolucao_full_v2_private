@@ -18,8 +18,14 @@ import { useApp } from '../context/AppContext';
 import { AnimatedToast, AppCard, AppInput, PrimaryButton } from '../components/ui';
 import { getOrCreateUserIdentity, saveUserIdentity } from '../services/appIdentityService';
 import { auth, isFirebaseConfigured } from '../services/firebase';
+import {
+  isGoogleAuthConfigured,
+  loginWithGoogleToken,
+  logoutGoogleSession,
+  requestPasswordReset,
+  useGoogleAuth,
+} from '../services/authService';
 import { setQaRuntimeAuth } from '../utils/qaTransport';
-import { requestPasswordReset } from '../services/authService';
 import { colors, spacing } from '../theme';
 import { QA_ELEMENTS, QA_SCREENS, qaProps } from '../qa/selectorRegistry';
 import { setQaAuthState, setQaLoadingState } from '../qa/qaAutomationState';
@@ -97,7 +103,27 @@ export default function RegisterScreen({ navigation }) {
   const [password, setPassword] = useState('');
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [toast, setToast] = useState('');
+  const { request, promptAsync, response } = useGoogleAuth();
+  const googleConfigured = isGoogleAuthConfigured();
+
+  const finalizeAuthenticatedSession = React.useCallback(async (nextUser, source = 'auth') => {
+    const resolvedUser = nextUser || {};
+    const resolvedId = String(resolvedUser.id || '').trim();
+    const identity = resolvedId ? { userId: resolvedId } : await getOrCreateUserIdentity();
+    const userId = resolvedId || identity.userId;
+
+    await saveUserIdentity({ userId, source });
+    setQaRuntimeAuth({ userId });
+    setUser({
+      id: userId,
+      role: resolvedUser.role || 'user',
+      name: resolvedUser.name || 'Usuario',
+      email: resolvedUser.email || null,
+    });
+    navigation.replace('MainTabs');
+  }, [navigation, setUser]);
 
   React.useEffect(() => {
     setQaAuthState({
@@ -110,6 +136,48 @@ export default function RegisterScreen({ navigation }) {
   React.useEffect(() => {
     setQaLoadingState(loading, loading ? `register_${mode}` : null);
   }, [loading, mode]);
+
+  React.useEffect(() => {
+    const handleGoogleResponse = async () => {
+      if (!response || response.type !== 'success') {
+        if (response?.type === 'error') {
+          const responseError = String(response?.error?.message || response?.params?.error_description || response?.params?.error || 'Falha na autenticacao Google.');
+          setToast(`Erro no login Google: ${responseError}`);
+        }
+        return;
+      }
+
+      setGoogleLoading(true);
+      const clearWatchdog = startLoadingWatchdog(setGoogleLoading, setToast);
+      try {
+        const authData = response.authentication || {};
+        const idToken = authData.idToken || response?.params?.id_token || null;
+        const loggedUser = await loginWithGoogleToken({
+          accessToken: authData.accessToken || null,
+          idToken,
+        });
+
+        if (!loggedUser?.id) {
+          setToast('Falha no login Google. Nao foi possivel obter usuario valido.');
+          return;
+        }
+
+        await finalizeAuthenticatedSession({
+          id: loggedUser.id,
+          role: loggedUser.role || 'user',
+          name: loggedUser.name || name || 'Usuario',
+          email: loggedUser.email || String(email || '').trim().toLowerCase() || null,
+        }, loggedUser.source || 'google');
+      } catch (error) {
+        setToast(`Erro no login Google: ${String(error?.message || 'Nao foi possivel autenticar agora.')}`);
+      } finally {
+        clearWatchdog();
+        setGoogleLoading(false);
+      }
+    };
+
+    handleGoogleResponse();
+  }, [email, finalizeAuthenticatedSession, name, response]);
 
   const handleForgotPassword = async () => {
     const safeEmail = String(email || '').trim().toLowerCase();
@@ -179,19 +247,15 @@ export default function RegisterScreen({ navigation }) {
             return;
           }
 
-          const identity = await getOrCreateUserIdentity();
-          await saveUserIdentity({ userId: firebaseUser.uid || identity.userId, source: 'firebase_login' });
-          setQaRuntimeAuth({ userId: firebaseUser.uid || identity.userId });
-          setUser({
-            id: firebaseUser.uid || identity.userId,
+          await finalizeAuthenticatedSession({
+            id: firebaseUser.uid,
             role: 'user',
             name: String(firebaseUser.displayName || safeName || 'Usuario'),
             email: safeEmail,
-          });
+          }, 'firebase_login');
 
           logAuth('login_success', { uid: firebaseUser.uid, safeEmail });
           setToast('Login concluido com sucesso.');
-          navigation.replace('MainTabs');
           return;
         } catch (error) {
           setToast(mapFirebaseAuthError(error));
@@ -217,20 +281,15 @@ export default function RegisterScreen({ navigation }) {
         await updateProfile(firebaseUser, { displayName: safeName }).catch(() => {});
         await sendEmailVerification(firebaseUser).catch(() => {});
 
-        const identity = await getOrCreateUserIdentity();
-        await saveUserIdentity({ userId: firebaseUser.uid || identity.userId, source: 'firebase_register' });
-        setQaRuntimeAuth({ userId: firebaseUser.uid || identity.userId });
-
-        setUser({
-          id: firebaseUser.uid || identity.userId,
+        await finalizeAuthenticatedSession({
+          id: firebaseUser.uid,
           role: 'user',
           name: safeName,
           email: safeEmail,
-        });
+        }, 'firebase_register');
 
         logAuth('register_success', { uid: firebaseUser.uid, safeEmail });
         setToast('Conta criada com sucesso.');
-        navigation.replace('MainTabs');
       } catch (error) {
         setToast(mapFirebaseAuthError(error));
         logAuth('register_error', { safeEmail, code: String(error?.code || '') });
@@ -338,6 +397,43 @@ export default function RegisterScreen({ navigation }) {
             style={styles.btn}
           />
 
+          {googleConfigured ? (
+            <PrimaryButton
+              {...qaProps(QA_ELEMENTS.btnGoogleLogin)}
+              title={googleLoading ? 'Conectando Google...' : 'Entrar com Google'}
+              onPress={() => {
+                if (googleLoading) return;
+                if (!request) {
+                  setToast('Login Google indisponivel no momento. Reabra a tela e tente novamente.');
+                  return;
+                }
+
+                promptAsync({ useProxy: false }).catch(() => {
+                  setToast('Falha no login. Nao foi possivel abrir o fluxo do Google.');
+                });
+              }}
+              style={styles.btnGoogle}
+            />
+          ) : (
+            <PrimaryButton
+              {...qaProps(QA_ELEMENTS.btnGoogleLogout)}
+              title={googleLoading ? 'Sincronizando...' : 'Google indisponivel neste build'}
+              onPress={async () => {
+                if (googleLoading) return;
+                setGoogleLoading(true);
+                const clearWatchdog = startLoadingWatchdog(setGoogleLoading, setToast);
+                try {
+                  await logoutGoogleSession();
+                  setToast('Google OAuth nao esta configurado neste build. Verifique google-services e IDs de cliente.');
+                } finally {
+                  clearWatchdog();
+                  setGoogleLoading(false);
+                }
+              }}
+              style={styles.btnGoogleDisabled}
+            />
+          )}
+
           <Text style={styles.terms}>Seus dados sao protegidos com Firebase Auth e persistencia local segura.</Text>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -420,6 +516,15 @@ const styles = StyleSheet.create({
   },
   btn: {
     marginTop: spacing.md,
+  },
+  btnGoogle: {
+    marginTop: spacing.sm,
+    backgroundColor: '#0f172a',
+    borderColor: '#0f172a',
+  },
+  btnGoogleDisabled: {
+    marginTop: spacing.sm,
+    opacity: 0.82,
   },
   terms: {
     marginTop: spacing.md,
