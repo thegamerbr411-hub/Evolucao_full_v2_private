@@ -114,11 +114,16 @@ foreach ($test in $tests) {
 
   try {
     Push-Location $ProjectRoot
-    $testFileArg = $test.Replace('/', '\\')
-    $jestCommand = '.\\node_modules\\.bin\\jest.cmd --config e2e/jest.config.js --runTestsByPath "' + $testFileArg + '" --forceExit --detectOpenHandles'
+    $jestExe = '.\\node_modules\\.bin\\jest.cmd'
+    $jestArgs = @(
+      '--config', 'e2e/jest.config.js',
+      '--runTestsByPath', $test,
+      '--forceExit',
+      '--detectOpenHandles'
+    )
     $prevErrorAction = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
-    cmd /c $jestCommand 2>&1 | Tee-Object -FilePath $testLog
+    & $jestExe @jestArgs 2>&1 | Tee-Object -FilePath $testLog
     $ErrorActionPreference = $prevErrorAction
     $testExit = $LASTEXITCODE
   } catch {

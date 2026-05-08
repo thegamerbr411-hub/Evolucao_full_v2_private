@@ -80,16 +80,22 @@ $logcatJob = Start-Job -ScriptBlock {
   & $exe @argsList *> $outFile
 } -ArgumentList $logcatArgs, $LogcatFile, $AdbExe
 
-$testPattern = 'e2e/semantic/00-semantic-smoke.e2e.js'
+$testPath = 'e2e/semantic/00-semantic-smoke.e2e.js'
 $startTime = Get-Date
 $exitCode = 0
 
 try {
   Push-Location $ProjectRoot
-  $jestCommand = '.\\node_modules\\.bin\\jest.cmd --config e2e/jest.config.js --testPathPattern "' + $testPattern + '" --forceExit --detectOpenHandles'
+  $jestExe = '.\\node_modules\\.bin\\jest.cmd'
+  $jestArgs = @(
+    '--config', 'e2e/jest.config.js',
+    '--runTestsByPath', $testPath,
+    '--forceExit',
+    '--detectOpenHandles'
+  )
   $prevErrorAction = $ErrorActionPreference
   $ErrorActionPreference = 'Continue'
-  cmd /c $jestCommand 2>&1 | Tee-Object -FilePath (Join-Path $RunDir 'logs\jest-output.txt')
+  & $jestExe @jestArgs 2>&1 | Tee-Object -FilePath (Join-Path $RunDir 'logs\jest-output.txt')
   $ErrorActionPreference = $prevErrorAction
   $exitCode = $LASTEXITCODE
 } catch {
