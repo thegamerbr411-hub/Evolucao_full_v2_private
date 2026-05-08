@@ -52,6 +52,8 @@
     "qa:phase6:analyze": "node scripts/qa_phase6/analyze_runtime_sync.js",
     "qa:phase7:run": "powershell -ExecutionPolicy Bypass -File scripts/qa_phase7/run_phase7_runtime_forensics.ps1",
     "qa:phase7:analyze": "node scripts/qa_phase7/analyze_runtime_forensics.js",
+    "qa:phase8:run": "powershell -ExecutionPolicy Bypass -File scripts/qa_phase8/run_phase8_production_readiness.ps1",
+    "qa:phase8:analyze": "node scripts/qa_phase8/analyze_production_readiness.js",
     "qa:stress:ux": "node scripts/ux-stress-loop.js",
     "qa:stress:ux:10m": "node scripts/ux-stress-loop.js --duration-ms=600000",
     "qa:stress:ux:1h": "node scripts/ux-stress-loop.js --duration-ms=3600000",
