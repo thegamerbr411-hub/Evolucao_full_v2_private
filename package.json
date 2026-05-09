@@ -54,6 +54,8 @@
     "qa:phase7:analyze": "node scripts/qa_phase7/analyze_runtime_forensics.js",
     "qa:phase8:run": "powershell -ExecutionPolicy Bypass -File scripts/qa_phase8/run_phase8_production_readiness.ps1",
     "qa:phase8:analyze": "node scripts/qa_phase8/analyze_production_readiness.js",
+    "qa:phase9:run": "powershell -ExecutionPolicy Bypass -File scripts/qa_phase9/run_phase9_final_blockers.ps1",
+    "qa:phase9:analyze": "node scripts/qa_phase9/analyze_final_blockers.js",
     "qa:stress:ux": "node scripts/ux-stress-loop.js",
     "qa:stress:ux:10m": "node scripts/ux-stress-loop.js --duration-ms=600000",
     "qa:stress:ux:1h": "node scripts/ux-stress-loop.js --duration-ms=3600000",
@@ -86,6 +88,7 @@
     "continuous:runner": "node scripts/continuous-runner.js",
     "rollback": "node scripts/rollback.js",
     "qa:cleanup": "powershell -ExecutionPolicy Bypass -File scripts/qa-cleanup.ps1"
+    ,"qa:audit:safe": "powershell -ExecutionPolicy Bypass -File scripts/qa-audit-safe.ps1"
   },
   "dependencies": {
     "@expo/ngrok": "^4.1.0",
