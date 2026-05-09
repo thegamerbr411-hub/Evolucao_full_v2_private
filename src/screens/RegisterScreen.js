@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   Dimensions,
   KeyboardAvoidingView,
-  Linking,
   Platform,
   ScrollView,
   StyleSheet,
@@ -13,10 +12,8 @@ import {
   View,
 } from 'react-native';
 import {
-  applyActionCode,
   createUserWithEmailAndPassword,
   fetchSignInMethodsForEmail,
-  sendEmailVerification,
   signInWithEmailAndPassword,
   updateProfile,
 } from 'firebase/auth';
@@ -28,10 +25,12 @@ import { auth, isFirebaseConfigured } from '../services/firebase';
 import {
   isGoogleAuthConfigured,
   loginWithGoogleToken,
+  sendLoginCode,
   useGoogleAuth,
+  verifyLoginCode,
 } from '../services/authService.js';
 import { setQaRuntimeAuth } from '../utils/qaTransport';
-import { QA_SCREENS, qaProps } from '../qa/selectorRegistry';
+import { QA_ELEMENTS, QA_SCREENS, qaProps } from '../qa/selectorRegistry';
 import { setQaAuthState } from '../qa/qaAutomationState';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -73,8 +72,9 @@ export default function RegisterScreen({ navigation }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
   const [emailVerified, setEmailVerified] = useState(false);
-  const [linkSentAt, setLinkSentAt] = useState(0);
+  const [codeSentAt, setCodeSentAt] = useState(0);
   const [pendingGoogleUser, setPendingGoogleUser] = useState(null);
   
   // UI state
@@ -87,58 +87,29 @@ export default function RegisterScreen({ navigation }) {
   const { request, promptAsync, response } = useGoogleAuth();
   const googleConfigured = isGoogleAuthConfigured();
 
-  setQaAuthState({ hydrated: true, hasAccount: false, userId: null });
+  useEffect(() => {
+    setQaAuthState({ hydrated: true, hasAccount: false, userId: null });
+  }, []);
 
   // Reset state when mode/email changes
   useEffect(() => {
     setEmailVerified(false);
-    setLinkSentAt(0);
+    setCodeSentAt(0);
+    setVerificationCode('');
   }, [email, mode]);
-
-  // Handle deep link from Firebase action link
-  useEffect(() => {
-    const handleDeepLink = async (url) => {
-      const raw = String(url || '').trim();
-      if (!raw || !raw.includes('oobCode')) return;
-
-      const decoded = decodeURIComponent(raw);
-      const modeMatch = decoded.match(/[?&#]mode=([^&#]+)/i);
-      const codeMatch = decoded.match(/[?&#]oobCode=([^&#]+)/i);
-      
-      const actionMode = String(modeMatch?.[1] || '').trim();
-      const oobCode = String(codeMatch?.[1] || '').trim();
-
-      if (actionMode !== 'verifyEmail' || !oobCode) return;
-      if (!isFirebaseConfigured || !auth) return;
-
-      setLoading(true);
-      try {
-        await withTimeout(applyActionCode(auth, oobCode));
-        if (auth.currentUser) {
-          await auth.currentUser.reload().catch(() => {});
-        }
-        setEmailVerified(true);
-        setStatusMsg('✓ E-mail verificado. Acesso liberado.');
-        setToast('Link validado. Prossiga com o cadastro ou login.');
-      } catch (err) {
-        setStatusMsg('✗ Link expirado ou inválido.');
-        setToast(mapFirebaseAuthError(err));
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    Linking.getInitialURL()
-      .then((url) => url && handleDeepLink(url))
-      .catch(() => {});
-
-    const sub = Linking.addEventListener('url', ({ url }) => handleDeepLink(url));
-    return () => sub?.remove?.();
-  }, []);
 
   // Handle Google response
   useEffect(() => {
-    if (!response || response.type !== 'success') return;
+    if (!response) return;
+
+    if (response.type !== 'success') {
+      if (response.type === 'error') {
+        const responseError = String(response?.error?.message || response?.params?.error_description || response?.params?.error || 'Falha na autenticação Google.');
+        setStatusMsg(`✗ ${responseError}`);
+        setToast(responseError);
+      }
+      return;
+    }
 
     const processGoogleAuth = async () => {
       setGoogleLoading(true);
@@ -178,8 +149,8 @@ export default function RegisterScreen({ navigation }) {
     processGoogleAuth();
   }, [response]);
 
-  // Send verification link
-  const handleSendLink = useCallback(async () => {
+  // Send verification code
+  const handleSendCode = useCallback(async () => {
     const emailLower = email.trim().toLowerCase();
     if (!emailLower || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailLower)) {
       setToast('E-mail inválido.');
@@ -202,7 +173,7 @@ export default function RegisterScreen({ navigation }) {
     }
 
     setLoading(true);
-    setStatusMsg('Enviando link...');
+    setStatusMsg('Enviando código...');
     try {
       let firebaseUser = null;
 
@@ -252,30 +223,18 @@ export default function RegisterScreen({ navigation }) {
         throw new Error('Falha ao preparar conta');
       }
 
-      // Check if already verified
-      if (firebaseUser.emailVerified) {
-        setEmailVerified(true);
-        setStatusMsg('✓ E-mail já verificado. Prossiga.');
-        setToast('Acesso liberado. Toque em Entrar/Cadastrar.');
-        return;
+      const codeResult = await sendLoginCode(emailLower);
+      if (!codeResult?.ok) {
+        throw new Error(codeResult?.message || 'Falha ao enviar código.');
       }
 
-      // Send verification link
-      await withTimeout(
-        sendEmailVerification(firebaseUser, {
-          handleCodeInApp: true,
-          url: 'https://t-evo-b069a.firebaseapp.com/auth-complete',
-          android: {
-            packageName: 'com.tipolt.evolucaofullv2',
-            installApp: true,
-            minimumVersion: '1',
-          },
-        })
-      );
-
-      setLinkSentAt(Date.now());
-      setStatusMsg('✓ Link enviado. Abra o e-mail.');
-      setToast('Verifique inbox/spam. Toque no link e volte ao app.');
+      setCodeSentAt(Date.now());
+      setStatusMsg('✓ Código enviado. Verifique seu e-mail.');
+      if (codeResult?.delivery === 'local' && codeResult?.code) {
+        setToast(`Código local (dev): ${codeResult.code}`);
+      } else {
+        setToast('Código enviado. Verifique inbox/spam e digite abaixo.');
+      }
     } catch (err) {
       setStatusMsg(`✗ ${mapFirebaseAuthError(err)}`);
       setToast(mapFirebaseAuthError(err));
@@ -284,43 +243,37 @@ export default function RegisterScreen({ navigation }) {
     }
   }, [email, name, password, mode, pendingGoogleUser]);
 
-  // Check verification status
+  // Validate verification code
   const handleCheckVerification = useCallback(async () => {
-    if (!isFirebaseConfigured || !auth) {
-      setToast('Firebase não configurado.');
+    const emailLower = email.trim().toLowerCase();
+    const safeCode = verificationCode.trim();
+    if (!emailLower || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailLower)) {
+      setToast('E-mail inválido.');
+      return;
+    }
+    if (!safeCode) {
+      setToast('Informe o código de verificação.');
+      return;
+    }
+
+    if (pendingGoogleUser) {
+      setEmailVerified(true);
+      setStatusMsg('✓ Google verificado.');
+      setToast('Toque em Entrar para continuar.');
       return;
     }
 
     setLoading(true);
-    setStatusMsg('Conferindo...');
+    setStatusMsg('Validando código...');
     try {
-      const emailLower = email.trim().toLowerCase();
-
-      // If we need to sign in first
-      if (!auth.currentUser && !pendingGoogleUser && mode === 'login' && password) {
-        await withTimeout(signInWithEmailAndPassword(auth, emailLower, password));
-      }
-
-      if (pendingGoogleUser) {
+      const result = await verifyLoginCode({ email: emailLower, code: safeCode });
+      if (result?.ok) {
         setEmailVerified(true);
-        setStatusMsg('✓ Google verificado.');
-        return;
-      }
-
-      const currentUser = auth.currentUser;
-      if (!currentUser) {
-        setStatusMsg('✗ Sessão não encontrada. Abra o link novamente.');
-        return;
-      }
-
-      await currentUser.reload().catch(() => {});
-      if (currentUser.emailVerified) {
-        setEmailVerified(true);
-        setStatusMsg('✓ E-mail verificado. Acesso liberado.');
+        setStatusMsg('✓ Código validado. Acesso liberado.');
         setToast('Pronto para prosseguir.');
       } else {
-        setStatusMsg('✗ E-mail ainda não verificado.');
-        setToast('Abra o link recebido e volte ao app.');
+        setStatusMsg('✗ Código inválido ou expirado.');
+        setToast(result?.message || 'Código inválido ou expirado.');
       }
     } catch (err) {
       setStatusMsg(`✗ ${mapFirebaseAuthError(err)}`);
@@ -328,7 +281,7 @@ export default function RegisterScreen({ navigation }) {
     } finally {
       setLoading(false);
     }
-  }, [email, password, mode, pendingGoogleUser]);
+  }, [email, verificationCode, pendingGoogleUser]);
 
   // Submit registration/login
   const handleSubmit = useCallback(async () => {
@@ -378,9 +331,6 @@ export default function RegisterScreen({ navigation }) {
         const result = await withTimeout(
           signInWithEmailAndPassword(auth, emailLower, password)
         );
-        if (!result?.user?.emailVerified) {
-          throw new Error('E-mail não foi verificado após o login');
-        }
         finalUser = {
           id: result.user.uid,
           name: result.user.displayName || name || 'Usuário',
@@ -400,10 +350,6 @@ export default function RegisterScreen({ navigation }) {
           if (name.trim()) {
             await updateProfile(result.user, { displayName: name }).catch(() => {});
           }
-        }
-
-        if (!result?.user?.emailVerified) {
-          throw new Error('E-mail não foi verificado após cadastro');
         }
 
         finalUser = {
@@ -440,11 +386,18 @@ export default function RegisterScreen({ navigation }) {
 
   // Render
   const canSubmit = emailVerified && email.trim() && (mode === 'login' || name.trim());
-  const linkExpired = linkSentAt > 0 && Date.now() - linkSentAt > 10 * 60 * 1000; // 10 min
+  const codeExpired = codeSentAt > 0 && Date.now() - codeSentAt > 15 * 60 * 1000;
+
+  const activeScreenId = mode === 'login' ? QA_SCREENS.login : QA_SCREENS.register;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+    <SafeAreaView {...qaProps(activeScreenId)} style={styles.safe} edges={['top', 'bottom']}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.flex}>
+        <View
+          {...qaProps(activeScreenId)}
+          pointerEvents="none"
+          style={styles.qaAnchor}
+        />
         {/* Background blobs */}
         <View pointerEvents="none" style={styles.bgLayer}>
           <View style={[styles.blob, styles.blobTop]} />
@@ -468,6 +421,7 @@ export default function RegisterScreen({ navigation }) {
               {['login', 'register'].map((m) => (
                 <TouchableOpacity
                   key={m}
+                  {...qaProps(m === 'login' ? QA_ELEMENTS.btnGoLogin : QA_ELEMENTS.btnGoRegister)}
                   onPress={() => {
                     setMode(m);
                     setEmailVerified(false);
@@ -481,13 +435,14 @@ export default function RegisterScreen({ navigation }) {
               ))}
             </View>
 
-            <Text style={styles.hint}>Valide seu e-mail via link para acessar</Text>
+            <Text style={styles.hint}>Valide seu e-mail via código para acessar</Text>
 
             {/* Form */}
             {mode === 'register' && (
               <View>
                 <Text style={styles.label}>Nome</Text>
                 <TextInput
+                  {...qaProps(QA_ELEMENTS.inputName)}
                   style={styles.input}
                   placeholder="Seu nome"
                   placeholderTextColor="#64748b"
@@ -502,6 +457,7 @@ export default function RegisterScreen({ navigation }) {
             <View>
               <Text style={styles.label}>E-mail</Text>
               <TextInput
+                {...qaProps(QA_ELEMENTS.inputEmail)}
                 style={styles.input}
                 placeholder="you@email.com"
                 placeholderTextColor="#64748b"
@@ -517,6 +473,7 @@ export default function RegisterScreen({ navigation }) {
               <View>
                 <Text style={styles.label}>Senha</Text>
                 <TextInput
+                  {...qaProps(QA_ELEMENTS.inputPassword)}
                   style={styles.input}
                   placeholder="Mín. 6 caracteres"
                   placeholderTextColor="#64748b"
@@ -532,21 +489,32 @@ export default function RegisterScreen({ navigation }) {
             <View style={styles.verifyBlock}>
               <Text style={styles.verifyTitle}>Verificação por e-mail</Text>
               <Text style={styles.verifyHint}>
-                {linkSentAt
-                  ? linkExpired
-                    ? 'Link expirado. Reenvie.'
-                    : 'Link enviado. Abra o e-mail e toque no link.'
-                  : 'Envie um link de verificação para sua caixa de e-mail.'}
+                {codeSentAt
+                  ? codeExpired
+                    ? 'Código expirado. Reenvie.'
+                    : 'Código enviado. Digite o código recebido no e-mail.'
+                  : 'Envie um código de verificação para sua caixa de e-mail.'}
               </Text>
+
+              <TextInput
+                style={styles.input}
+                placeholder="Código de 6 dígitos"
+                placeholderTextColor="#64748b"
+                value={verificationCode}
+                onChangeText={setVerificationCode}
+                keyboardType="number-pad"
+                editable={!loading}
+                maxLength={6}
+              />
 
               <View style={styles.verifyBtns}>
                 <TouchableOpacity
-                  onPress={handleSendLink}
+                  onPress={handleSendCode}
                   disabled={loading}
                   style={[styles.btn, styles.btnPrimary, loading && styles.btnDisabled]}
                 >
                   <Text style={styles.btnLabel}>
-                    {loading ? 'Enviando...' : linkSentAt && !linkExpired ? 'Reenviar' : 'Enviar link'}
+                    {loading ? 'Enviando...' : codeSentAt && !codeExpired ? 'Reenviar' : 'Enviar código'}
                   </Text>
                 </TouchableOpacity>
 
@@ -556,7 +524,7 @@ export default function RegisterScreen({ navigation }) {
                   style={[styles.btn, styles.btnSecondary, loading && styles.btnDisabled]}
                 >
                   <Text style={styles.btnLabelSec}>
-                    {loading ? 'Conferindo...' : 'Validei'}
+                    {loading ? 'Conferindo...' : 'Validar código'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -569,6 +537,7 @@ export default function RegisterScreen({ navigation }) {
 
             {/* Main CTA */}
             <TouchableOpacity
+              {...qaProps(mode === 'login' ? QA_ELEMENTS.btnLogin : QA_ELEMENTS.btnRegister)}
               onPress={handleSubmit}
               disabled={loading || !canSubmit}
               style={[styles.btn, styles.btnMain, (!canSubmit || loading) && styles.btnDisabled]}
@@ -585,6 +554,7 @@ export default function RegisterScreen({ navigation }) {
             {/* Google button */}
             {googleConfigured && (
               <TouchableOpacity
+                {...qaProps(QA_ELEMENTS.btnGoogleLogin)}
                 onPress={() => {
                   if (googleLoading || !request) return;
                   promptAsync({ useProxy: false }).catch(() => {
@@ -604,7 +574,7 @@ export default function RegisterScreen({ navigation }) {
           </View>
 
           <Text style={styles.terms}>
-            Acesso concedido somente após validação do link de verificação.
+            Acesso concedido somente após validação do código de verificação.
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -632,6 +602,14 @@ const styles = StyleSheet.create({
   },
   bgLayer: {
     ...StyleSheet.absoluteFillObject,
+  },
+  qaAnchor: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: 8,
+    height: 8,
+    opacity: 0.01,
   },
   blob: {
     position: 'absolute',
