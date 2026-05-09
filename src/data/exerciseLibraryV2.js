@@ -3,8 +3,9 @@ import { EXERCISES, getExerciseByName } from './exercises';
 const GIF_FALLBACK = 'https://placehold.co/320x180/0f172a/dbeafe?text=Exercise';
 
 function normalize(value = '') {
-  return String(value || '')
-    .normalize('NFD')
+  const base = String(value || '');
+  const normalized = typeof base.normalize === 'function' ? base.normalize('NFD') : base;
+  return normalized
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .trim();

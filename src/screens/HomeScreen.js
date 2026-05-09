@@ -20,7 +20,7 @@ import {
   logEvent,
   markCoachInterruption,
 } from '../core/observability';
-import { QA_SCREENS, qaAliasProps, qaProps } from '../qa/selectorRegistry';
+import { QA_ELEMENTS, QA_SCREENS, qaAliasProps, qaProps } from '../qa/selectorRegistry';
 
 const XP_PER_LEVEL = 500;
 const WEEK_DAYS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];

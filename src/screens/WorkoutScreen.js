@@ -25,7 +25,7 @@ import StreakBar from '../components/StreakBar';
 import QuickExerciseRegister from '../components/QuickExerciseRegister';
 import { useApp } from '../context/AppContext';
 import { getCanonicalExerciseId, getCanonicalMuscleGroup } from '../data/exerciseDatabase.js';
-import { EXERCISE_NAMES_V2, getExerciseMetaByName } from '../data/exerciseLibraryV2.js';
+import * as exerciseLibraryV2 from '../data/exerciseLibraryV2.js';
 import { SCREENS, trackAppError, trackEvent } from '../utils/analytics';
 import { calculate1RM, calculateSRPE, calculateVolume, getProgression } from '../services/performanceEngine';
 import { findBestFuzzyMatch, fuzzySearchExercises } from '../services/fuzzySearch';
@@ -81,6 +81,12 @@ const WORKOUT_REST_END_STORAGE_KEY = '@workout:rest-timer-end-v1';
 const WORKOUT_ACTIVE_ROUTINE_STORAGE_KEY = '@workout:active-routine-id-v1';
 const WORKOUT_FAST_FINISH_EXPERIMENT_KEY = 'exp_workout_fast_finish_v1';
 const PAYWALL_TIMING_EXPERIMENT_KEY = 'exp_paywall_timing_v1';
+const EXERCISE_NAMES_V2 = Array.isArray(exerciseLibraryV2?.EXERCISE_NAMES_V2)
+  ? exerciseLibraryV2.EXERCISE_NAMES_V2
+  : [];
+const safeGetExerciseMetaByName = typeof exerciseLibraryV2?.getExerciseMetaByName === 'function'
+  ? exerciseLibraryV2.getExerciseMetaByName
+  : () => null;
 
 function resolveExperimentVariant(seed = '') {
   const source = String(seed || 'anonymous');
@@ -114,8 +120,9 @@ function buildSparklinePoints(values = [], width = SPARKLINE_WIDTH, height = SPA
 }
 
 function normalizeText(value) {
-  return String(value || '')
-    .normalize('NFD')
+  const base = String(value || '');
+  const normalized = typeof base.normalize === 'function' ? base.normalize('NFD') : base;
+  return normalized
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .trim();
@@ -171,7 +178,7 @@ function isCardioExerciseName(value = '') {
 function isCardioExercise(exercise) {
   const exerciseName = String(exercise?.name || '');
   const category = String(exercise?.category || '').toLowerCase();
-  const libCategory = String(getExerciseMetaByName(exerciseName)?.category || '').toLowerCase();
+  const libCategory = String(safeGetExerciseMetaByName(exerciseName)?.category || '').toLowerCase();
   return category === 'cardio' || libCategory === 'cardio' || isCardioExerciseName(exerciseName);
 }
 
@@ -482,7 +489,7 @@ export default function WorkoutScreen({ navigation, route }) {
   };
 
   const openExerciseDetail = useCallback((exerciseName) => {
-    const detail = getExerciseMetaByName(exerciseName) || { name: exerciseName };
+    const detail = safeGetExerciseMetaByName(exerciseName) || { name: exerciseName };
     navigateWithTracking('ExerciseDetail', { exercise: detail }, 'open_exercise_detail');
   }, [navigateWithTracking]);
 
@@ -2374,7 +2381,7 @@ export default function WorkoutScreen({ navigation, route }) {
                   name: exercise.name,
                   category: isCardio ? 'cardio' : 'strength',
                   sets: mergedSets,
-                  gif: getExerciseMetaByName(exercise.name)?.gif,
+                  gif: safeGetExerciseMetaByName(exercise.name)?.gif,
                 }}
                 lastSet={lastSetLabel}
                 simpleMode={simpleMode}
