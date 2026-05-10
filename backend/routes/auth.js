@@ -1,7 +1,7 @@
 // backend/routes/auth.js
 import express from 'express'
 import nodemailer from 'nodemailer'
-import { generateToken, authMiddleware } from '../middleware/auth.js'
+import { generateToken, authMiddleware, setAuthUserResolver } from '../middleware/auth.js'
 
 const router = express.Router()
 
@@ -61,6 +61,42 @@ function upsertUser(user) {
   userStore.set(String(user.id), user)
   return user
 }
+
+function sanitizeAdminUser(user) {
+  if (!user) return null
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role || 'user',
+    isAdmin: Boolean(user.isAdmin),
+    active: user.active !== false,
+    blockedReason: user.blockedReason || null,
+    blockedAt: user.blockedAt || null,
+    sessionRevokedAt: user.sessionRevokedAt || 0,
+  }
+}
+
+function requireAdmin(req, res, next) {
+  if (!Boolean(req?.user?.isAdmin || req?.user?.role === 'admin')) {
+    return res.status(403).json({ error: 'Admin only' })
+  }
+  return next()
+}
+
+function ensureAccountActive(user, res) {
+  if (user && user.active === false) {
+    res.status(403).json({ error: 'Conta bloqueada. Contate o administrador.', code: 'ACCOUNT_BLOCKED' })
+    return false
+  }
+  return true
+}
+
+setAuthUserResolver((claims = {}) => {
+  const byId = findUserById(claims?.id)
+  if (byId) return byId
+  return findUserByEmail(claims?.email)
+})
 
 // Manter compatibilidade com código legado que usava array
 const users = { find: (fn) => [...userStore.values()].find(fn) }
@@ -176,6 +212,11 @@ router.post('/send-code', async (req, res) => {
       return res.status(400).json({ error: 'E-mail inválido.' })
     }
 
+    const existingUser = findUserByEmail(safeEmail)
+    if (existingUser && existingUser.active === false) {
+      return res.status(403).json({ error: 'Conta bloqueada. Contate o administrador.', code: 'ACCOUNT_BLOCKED' })
+    }
+
     const code = String(Math.floor(100000 + Math.random() * 900000))
     const expiresAt = Date.now() + 15 * 60 * 1000 // 15 min
     pendingCodes.set(safeEmail, { code, expiresAt })
@@ -207,6 +248,11 @@ router.post('/forgot-password', async (req, res) => {
     const safeEmail = String(email || '').trim().toLowerCase()
     if (!safeEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(safeEmail)) {
       return res.status(400).json({ error: 'E-mail inválido.' })
+    }
+
+    const existingUser = findUserByEmail(safeEmail)
+    if (existingUser && existingUser.active === false) {
+      return res.status(403).json({ error: 'Conta bloqueada. Contate o administrador.', code: 'ACCOUNT_BLOCKED' })
     }
 
     const resetToken = `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`
@@ -269,7 +315,15 @@ router.post('/reset-password', (req, res) => {
         role: resolveRoleByEmail(safeEmail),
         isAdmin: resolveRoleByEmail(safeEmail) === 'admin',
         xp: 0,
+        active: true,
+        blockedReason: null,
+        blockedAt: null,
+        sessionRevokedAt: 0,
       }
+    }
+
+    if (!ensureAccountActive(user, res)) {
+      return
     }
 
     user.password = safePassword
@@ -298,6 +352,10 @@ router.post('/login-password', (req, res) => {
     const user = findUserByEmail(safeEmail)
     if (!user || String(user.password || '') !== safePassword) {
       return res.status(401).json({ error: 'E-mail ou senha inválidos.' })
+    }
+
+    if (!ensureAccountActive(user, res)) {
+      return
     }
 
     const accessToken = generateToken(user)
@@ -376,10 +434,18 @@ router.post('/google', (req, res) => {
       role,
       isAdmin: role === 'admin',
       xp: 0,
+      active: true,
+      blockedReason: null,
+      blockedAt: null,
+      sessionRevokedAt: 0,
     })
 
     if (!existing) {
       upsertUser(user)
+    }
+
+    if (!ensureAccountActive(user, res)) {
+      return
     }
 
     const accessToken = generateToken(user)
@@ -453,6 +519,7 @@ router.get('/me', authMiddleware, (req, res) => {
         ...user,
         role: user?.role || req.user.role || 'user',
         isAdmin: Boolean(user?.isAdmin || req.user.isAdmin),
+        active: user.active !== false,
       },
     })
   } catch (error) {
@@ -466,6 +533,65 @@ router.get('/me', authMiddleware, (req, res) => {
 router.post('/logout', authMiddleware, (req, res) => {
   // Em produção você blacklistaria o token
   res.json({ ok: true })
+})
+
+router.get('/admin/users', authMiddleware, requireAdmin, (req, res) => {
+  const list = [...userStore.values()]
+    .sort((a, b) => String(a?.email || '').localeCompare(String(b?.email || '')))
+    .map((item) => sanitizeAdminUser(item))
+
+  return res.json({ ok: true, users: list })
+})
+
+router.post('/admin/block', authMiddleware, requireAdmin, (req, res) => {
+  const targetUserId = String(req.body?.userId || '').trim()
+  const targetEmail = String(req.body?.email || '').trim().toLowerCase()
+  const reason = String(req.body?.reason || '').trim() || 'blocked_by_admin'
+
+  const user = targetUserId ? findUserById(targetUserId) : findUserByEmail(targetEmail)
+  if (!user) {
+    return res.status(404).json({ error: 'User not found' })
+  }
+
+  user.active = false
+  user.blockedReason = reason
+  user.blockedAt = new Date().toISOString()
+  user.sessionRevokedAt = Date.now()
+  upsertUser(user)
+
+  return res.json({ ok: true, user: sanitizeAdminUser(user) })
+})
+
+router.post('/admin/unblock', authMiddleware, requireAdmin, (req, res) => {
+  const targetUserId = String(req.body?.userId || '').trim()
+  const targetEmail = String(req.body?.email || '').trim().toLowerCase()
+
+  const user = targetUserId ? findUserById(targetUserId) : findUserByEmail(targetEmail)
+  if (!user) {
+    return res.status(404).json({ error: 'User not found' })
+  }
+
+  user.active = true
+  user.blockedReason = null
+  user.blockedAt = null
+  upsertUser(user)
+
+  return res.json({ ok: true, user: sanitizeAdminUser(user) })
+})
+
+router.post('/admin/revoke-session', authMiddleware, requireAdmin, (req, res) => {
+  const targetUserId = String(req.body?.userId || '').trim()
+  const targetEmail = String(req.body?.email || '').trim().toLowerCase()
+
+  const user = targetUserId ? findUserById(targetUserId) : findUserByEmail(targetEmail)
+  if (!user) {
+    return res.status(404).json({ error: 'User not found' })
+  }
+
+  user.sessionRevokedAt = Date.now()
+  upsertUser(user)
+
+  return res.json({ ok: true, user: sanitizeAdminUser(user) })
 })
 
 export default router

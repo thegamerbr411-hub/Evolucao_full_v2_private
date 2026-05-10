@@ -64,17 +64,6 @@ function getGoogleClientConfig() {
   };
 }
 
-function getGoogleNativeRedirectUri(androidClientId) {
-  const sanitized = sanitizeGoogleClientId(androidClientId);
-  if (!sanitized) {
-    return AuthSession.makeRedirectUri({ scheme: 'evolucao', path: 'oauthredirect' });
-  }
-
-  const appId = sanitized.replace('.apps.googleusercontent.com', '');
-  const googleScheme = `com.googleusercontent.apps.${appId}`;
-  return `${googleScheme}:/oauthredirect`;
-}
-
 export function isGoogleAuthConfigured() {
   const cfg = getGoogleClientConfig();
   const configured = Boolean(cfg.androidClientId || cfg.webClientId || cfg.expoClientId || cfg.iosClientId || cfg.sharedClientId);
@@ -121,7 +110,8 @@ export function useGoogleAuth() {
     expoClientId: cfg.expoClientId || undefined,
     iosClientId: cfg.iosClientId || undefined,
     scopes: ['openid', 'profile', 'email'],
-    redirectUri: getGoogleNativeRedirectUri(cfg.androidClientId || cfg.sharedClientId || cfg.webClientId),
+    responseType: 'id_token',
+    usePKCE: false,
   };
 
   const [request, response, promptAsync] = Google.useAuthRequest(requestConfig);
@@ -130,7 +120,7 @@ export function useGoogleAuth() {
   if (request) {
     console.log('[AUTH][GOOGLE][REQUEST_URL]', request.url || 'pending');
     console.log('[AUTH][GOOGLE][REDIRECT_URI]', request.redirectUri || 'none');
-    console.log('[AUTH][GOOGLE][CLIENT_ID_USED]', requestConfig.androidClientId || requestConfig.webClientId);
+    console.log('[AUTH][GOOGLE][CLIENT_ID_USED]', requestConfig.androidClientId || requestConfig.webClientId || requestConfig.expoClientId);
   }
 
   return { request, response, promptAsync };

@@ -7,8 +7,9 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useApp } from '../context/AppContext';
 import { AnimatedToast, AppCard, AppInput, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { generateCoachInsight } from '../services/coachInsight';
+import { exportBetaAnalysisToFile, getBetaAuthSourceLabel } from '../utils/betaExport.js';
 import { colors, spacing } from '../theme';
-import { APP_VERSION } from '../utils/appVersion';
+import { APP_VERSION, BUILD_VERSION } from '../utils/appVersion';
 import { cancelCreatineReminder, scheduleCreatineReminder } from '../utils/notifications';
 import * as _authServiceModule from '../services/authService.js';
 const { isGoogleAuthConfigured: _isGoogleAuthConfigured, loginWithGoogleToken: _loginWithGoogleToken, logoutGoogleSession: _logoutGoogleSession, useGoogleAuth: _useGoogleAuth, exchangeGoogleAuthCode: _exchangeGoogleAuthCode } = _authServiceModule || {};
@@ -85,6 +86,7 @@ export default function ProfileScreen({ navigation }) {
   const [betaSuggestion, setBetaSuggestion] = useState('');
   const [betaEnabled, setBetaEnabled] = useState(false);
   const [betaLoading, setBetaLoading] = useState(false);
+  const [betaExportLoading, setBetaExportLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const insets = useSafeAreaInsets();
   const safeBottomInset = Math.min(Number(insets.bottom || 0), 24);
@@ -110,6 +112,7 @@ export default function ProfileScreen({ navigation }) {
 
   const gamification = getWorkoutGamification();
   const macroTargets = getDailyMacroTargets();
+  const authSourceLabel = getBetaAuthSourceLabel();
 
   const bmi = useMemo(() => {
     const w = Number(profile?.currentWeight || currentWeight || 0);
@@ -394,6 +397,42 @@ export default function ProfileScreen({ navigation }) {
       setToastMessage('Falha ao exportar melhorias.');
     } finally {
       setBetaLoading(false);
+    }
+  };
+
+  const handleBetaExport = async (kind) => {
+    if (!isBetaTester) {
+      setToastMessage('Ative o modo Beta para exportar a analise.');
+      return;
+    }
+
+    setBetaExportLoading(true);
+    try {
+      const feedback = String(betaSuggestion || '').trim();
+      if (feedback) {
+        await AsyncStorage.setItem(BETA_SUGGESTIONS_KEY, feedback);
+      }
+
+      const result = await exportBetaAnalysisToFile({
+        kind,
+        feedback,
+      });
+
+      if (!result?.ok) {
+        setToastMessage(`Falha ao exportar beta: ${String(result?.error || 'erro desconhecido')}`);
+        return;
+      }
+
+      await Share.share({
+        title: `Exportacao beta ${kind}`,
+        message: `Exportacao concluida.\nJSON: ${result.jsonUri}\nTXT: ${result.txtUri}\nPacote: ${result.packageDir || 'n/d'}`,
+      });
+
+      setToastMessage(`Exportacao beta concluida: ${result.fileName}`);
+    } catch (error) {
+      setToastMessage(`Falha ao exportar beta: ${String(error?.message || 'erro desconhecido')}`);
+    } finally {
+      setBetaExportLoading(false);
     }
   };
 
@@ -692,13 +731,16 @@ export default function ProfileScreen({ navigation }) {
         />
       </AppCard>
 
-      <Text style={styles.sectionHeading}>Beta Tester</Text>
+      <Text style={styles.sectionHeading}>🧪 Beta e Diagnóstico</Text>
 
       <AppCard>
         <Text style={styles.cardLabel}>Status Beta</Text>
         <Text style={styles.metric}>
           {isBetaTester ? 'Beta ativo' : 'Beta desativado'}
         </Text>
+        <Text style={styles.metric}>Conta atual: {authSourceLabel}</Text>
+        <Text style={styles.metric}>Sessão: {user?.email ? 'autenticada' : 'local/pendente'}</Text>
+        <Text style={styles.metric}>Versão: v{APP_VERSION} · build {BUILD_VERSION}</Text>
         {!isBetaTester ? (
           <>
             <AppInput
@@ -720,6 +762,7 @@ export default function ProfileScreen({ navigation }) {
             <Text style={styles.metric}>- Criar exercicios personalizados</Text>
             <Text style={styles.metric}>- Adicionar alimentos customizados</Text>
             <Text style={styles.metric}>- Exportar melhorias</Text>
+            <Text style={styles.metric}>- Exportar analise, timeline e diagnostico</Text>
             <SecondaryButton
               title="Abrir painel Beta"
               style={styles.secondaryButton}
@@ -729,12 +772,12 @@ export default function ProfileScreen({ navigation }) {
         )}
       </AppCard>
 
-      <Text style={styles.sectionHeading}>📤 Exportar Melhorias</Text>
+      <Text style={styles.sectionHeading}>📤 Exportar Beta</Text>
 
       <AppCard>
-        <Text style={styles.cardLabel}>Compartilhe seu feedback</Text>
+        <Text style={styles.cardLabel}>Pacote completo de uso</Text>
         <Text style={styles.metric}>
-          Exporte seus exercícios, alimentos e sugestões para melhorar o app.
+          Exporte exercicios, alimentos, refeicoes, desafios, amigos, timeline, erros, versao e contexto da sessao.
         </Text>
         <AppInput
           label="Sugestoes"
@@ -744,8 +787,33 @@ export default function ProfileScreen({ navigation }) {
           multiline
         />
         <PrimaryButton
+          {...qaProps('btn_profile_beta_export_full')}
+          title={betaExportLoading ? 'Exportando...' : 'Exportar análise beta'}
+          onPress={() => handleBetaExport('full')}
+        />
+        <SecondaryButton
+          {...qaProps('btn_profile_beta_export_report')}
+          title={betaExportLoading ? 'Exportando...' : 'Exportar relatório beta'}
+          onPress={() => handleBetaExport('report')}
+          style={styles.secondaryButton}
+        />
+        <SecondaryButton
+          {...qaProps('btn_profile_beta_export_timeline')}
+          title={betaExportLoading ? 'Exportando...' : 'Exportar timeline do beta'}
+          onPress={() => handleBetaExport('timeline')}
+          style={styles.secondaryButton}
+        />
+        <SecondaryButton
+          {...qaProps('btn_profile_beta_export_diagnostic')}
+          title={betaExportLoading ? 'Exportando...' : 'Exportar diagnóstico do uso'}
+          onPress={() => handleBetaExport('diagnostic')}
+          style={styles.secondaryButton}
+        />
+        <PrimaryButton
+          {...qaProps('btn_profile_beta_export_improvements')}
           title={betaLoading ? 'Exportando...' : 'Exportar melhorias'}
           onPress={handleExportImprovements}
+          style={styles.primaryButtonTop}
         />
       </AppCard>
 
@@ -889,6 +957,9 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
     borderTopWidth: 1,
     borderTopColor: colors.borderSubtle,
+    marginTop: spacing.sm,
+  },
+  primaryButtonTop: {
     marginTop: spacing.sm,
   },
   cardLabel: {
