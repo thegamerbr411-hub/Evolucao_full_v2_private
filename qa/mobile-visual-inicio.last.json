@@ -1,6 +1,6 @@
 {
   "phase": "inicio",
-  "completedAt": "2026-04-17T09:44:03.528Z",
+  "completedAt": "2026-04-28T16:14:37.273Z",
   "screenshots": [
     "inicio-home-ready",
     "audit-inicio-home-top",
@@ -15,9 +15,6 @@
     "audit-inicio-coach-top",
     "audit-inicio-coach-mid",
     "audit-inicio-coach-end",
-    "audit-inicio-social-top",
-    "audit-inicio-social-mid",
-    "audit-inicio-social-end",
     "audit-inicio-perfil-top",
     "audit-inicio-perfil-mid",
     "audit-inicio-perfil-end"
@@ -28,7 +25,7 @@
     "audit-inicio-treino:ok",
     "audit-inicio-nutricao:ok",
     "audit-inicio-coach:ok",
-    "audit-inicio-social:ok",
+    "audit-inicio-social:skip:falha ao navegar para screen-social via tab-social",
     "audit-inicio-perfil:ok"
   ]
 }

@@ -55,6 +55,7 @@ export default function MainTabs() {
       Treino: focused ? 'barbell' : 'barbell-outline',
       Nutricao: focused ? 'restaurant' : 'restaurant-outline',
       Coach: focused ? 'chatbubbles' : 'chatbubbles-outline',
+      Social: focused ? 'people' : 'people-outline',
       Perfil: focused ? 'person-circle' : 'person-circle-outline',
     };
     return iconMap[routeName] || (focused ? 'ellipse' : 'ellipse-outline');

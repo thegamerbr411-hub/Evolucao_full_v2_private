@@ -1,5 +1,6 @@
 const { getUserProfile } = require('./helpers/userProfiles');
 const { ensureOnboarded, goToCoach, goToTreinos, launchApp } = require('./helpers/flows');
+const { isAttachedRun } = require('./helpers/runtime');
 const { isVisible, tapElement } = require('./helpers/utils');
 
 async function openTreinosResilient(profile) {
@@ -67,12 +68,11 @@ async function quickBack(times = 1) {
 
 describe('11 - flow abandonment', () => {
   const profile = getUserProfile();
-  const isAttachedRun = String(process.env.DETOX_ATTACHED_CONFIGURATION || '').includes('android.attached')
-    || String(process.env.DETOX_CONFIGURATION || '').includes('android.attached');
-  const scenario = isAttachedRun ? it.skip : it;
+  const attachedRun = isAttachedRun();
+  const scenario = attachedRun ? it.skip : it;
 
   scenario('abandona fluxo de treino e retorna sem travar', async () => {
-    await launchApp({ deleteApp: !isAttachedRun });
+    await launchApp({ deleteApp: !attachedRun });
     await ensureOnboarded(profile);
 
     try {

@@ -20,6 +20,7 @@ export function ScreenHeader({ title, subtitle, onBack, rightAction, rightLabel 
         ) : null}
       </View>
       {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+      <View style={styles.divider} />
     </View>
   );
 }
@@ -55,5 +56,11 @@ const styles = StyleSheet.create({
   subtitle: {
     ...typography.body,
     marginTop: 6,
+    color: colors.textSecondary,
+  },
+  divider: {
+    marginTop: spacing.sm,
+    height: 1,
+    backgroundColor: colors.borderSubtle,
   },
 });

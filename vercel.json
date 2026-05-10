@@ -2,34 +2,46 @@
   "version": 2,
   "builds": [
     {
-      "src": "dashboard/server.js",
+      "src": "backend/server.js",
       "use": "@vercel/node"
     }
   ],
   "routes": [
     {
-      "src": "/api/(.*)",
-      "dest": "dashboard/server.js"
+      "src": "/auth/(.*)",
+      "dest": "backend/server.js"
+    },
+    {
+      "src": "/workouts/(.*)",
+      "dest": "backend/server.js"
+    },
+    {
+      "src": "/nutrition/(.*)",
+      "dest": "backend/server.js"
+    },
+    {
+      "src": "/sync/(.*)",
+      "dest": "backend/server.js"
+    },
+    {
+      "src": "/social/(.*)",
+      "dest": "backend/server.js"
+    },
+    {
+      "src": "/ranking/(.*)",
+      "dest": "backend/server.js"
+    },
+    {
+      "src": "/subscription/(.*)",
+      "dest": "backend/server.js"
     },
     {
       "src": "/health",
-      "dest": "dashboard/server.js"
-    },
-    {
-      "src": "/ready",
-      "dest": "dashboard/server.js"
-    },
-    {
-      "src": "/login",
-      "dest": "dashboard/server.js"
-    },
-    {
-      "src": "/token/(.*)",
-      "dest": "dashboard/server.js"
+      "dest": "backend/server.js"
     },
     {
       "src": "/(.*)",
-      "dest": "dashboard/server.js"
+      "dest": "backend/server.js"
     }
   ],
   "env": {

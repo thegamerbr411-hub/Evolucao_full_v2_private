@@ -12,6 +12,24 @@ import { getExerciseFallbackSuggestions, resolveGymExerciseMention } from '../da
 const COACH_MEMORY_KEY = 'coach.memory.v1';
 const TRIGGER_COOLDOWN_MS = 2 * 60 * 60 * 1000;
 
+function normalizeCoachInsight(insight) {
+  if (insight && typeof insight === 'object' && !Array.isArray(insight)) {
+    return {
+      priority: String(insight.priority || 'geral'),
+      summary: String(insight.summary || ''),
+      actions: Array.isArray(insight.actions) ? insight.actions : [],
+      profileLine: String(insight.profileLine || ''),
+    };
+  }
+
+  return {
+    priority: 'geral',
+    summary: String(insight || ''),
+    actions: [],
+    profileLine: '',
+  };
+}
+
 function getMessageVariant(options, seed) {
   if (!options.length) {
     return '';
@@ -275,24 +293,24 @@ function buildPainSafetyLine(pain = '') {
 function getUrgencyStyles(level) {
   if (level === 'alta') {
     return {
-      borderColor: colors.danger,
-      backgroundColor: 'rgba(239,68,68,0.14)',
-      badge: 'Alta urgencia',
+      borderColor: colors.warning,
+      backgroundColor: colors.warningMuted,
+      badge: 'Foco do dia',
     };
   }
 
   if (level === 'media') {
     return {
-      borderColor: colors.warning,
-      backgroundColor: 'rgba(250,204,21,0.12)',
-      badge: 'Urgencia moderada',
+      borderColor: colors.secondary,
+      backgroundColor: colors.secondaryMuted,
+      badge: 'Ajuste recomendado',
     };
   }
 
   return {
     borderColor: colors.success,
     backgroundColor: colors.successMuted,
-    badge: 'Sob controle',
+    badge: 'Bom ritmo',
   };
 }
 
@@ -424,7 +442,7 @@ export default function CoachChatScreen({ navigation }) {
   const weakMeals = (Array.isArray(todayMeals) ? todayMeals : []).filter((meal) => meal.quality?.level === 'weak_protein').length;
   const dayPeriod = getDayPeriod();
   const currentPain = String(profile?.currentPain || profile?.pain || 'nenhuma dor informada');
-  const smartInsight = useMemo(() => generateCoachInsight({
+  const smartInsight = useMemo(() => normalizeCoachInsight(generateCoachInsight({
     trainedToday,
     protein: effectiveContext.proteinToday,
     proteinTarget: effectiveContext.proteinTarget,
@@ -437,7 +455,7 @@ export default function CoachChatScreen({ navigation }) {
     goal: profile?.goal,
     level: profile?.level,
     pain: currentPain,
-  }), [trainedToday, effectiveContext.proteinToday, effectiveContext.proteinTarget, effectiveContext.waterToday, effectiveContext.waterTarget, smart.trainedThisWeek, smart.weeklyTarget, weakMeals, safeUserRoutines, profile?.goal, profile?.level, currentPain]);
+  })), [trainedToday, effectiveContext.proteinToday, effectiveContext.proteinTarget, effectiveContext.waterToday, effectiveContext.waterTarget, smart.trainedThisWeek, smart.weeklyTarget, weakMeals, safeUserRoutines, profile?.goal, profile?.level, currentPain]);
 
   const refreshCoachCard = useCallback(() => {
     const state = buildDailyCoachStateSafe({
@@ -707,7 +725,7 @@ export default function CoachChatScreen({ navigation }) {
         <TouchableOpacity style={styles.detailsToggle} onPress={() => setShowCoachDetails((prev) => !prev)}>
           <Text style={styles.detailsToggleText}>{showCoachDetails ? 'Ocultar detalhes IA' : 'Ver detalhes IA'}</Text>
         </TouchableOpacity>
-        {showCoachDetails ? (
+        {showCoachDetails && (smartInsight.summary || smartInsight.profileLine || smartInsight.actions.length) ? (
           <>
             <Text style={styles.smartInsightLine}>Prioridade IA: {smartInsight.priority} | {smartInsight.summary}</Text>
             {smartInsight.profileLine ? <Text style={styles.supportLine}>{smartInsight.profileLine}</Text> : null}

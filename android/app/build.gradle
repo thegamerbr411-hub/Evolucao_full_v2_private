@@ -96,8 +96,8 @@ android {
         applicationId 'com.tipolt.evolucaofullv2'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0.0"
+        versionCode 15
+        versionName "1.2.2"
         testBuildType System.getProperty('testBuildType', 'debug')
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
         // Alguns devices attached não fazem discovery do JUnit no APK de teste;

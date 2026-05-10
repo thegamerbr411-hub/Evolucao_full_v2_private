@@ -6,6 +6,8 @@ const USER_STORE_KEY = 'user.store.v1';
 export type User = {
   id: string | null;
   role: 'user' | 'admin';
+  name?: string | null;
+  email?: string | null;
 };
 
 export type Profile = {

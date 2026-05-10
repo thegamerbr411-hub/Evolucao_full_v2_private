@@ -9,6 +9,13 @@ test('fluxo treino: fuzzy encontra variacao com typo', () => {
   assert.equal(result[0], 'Leg Press 45');
 });
 
+test('fluxo treino: busca curta prioriza prefixo relevante', () => {
+  const list = ['Abdominal Crunch', 'Cadeira Extensora', 'Agachamento Livre'];
+  const result = fuzzySearchExercises('quad', list, 3);
+  assert.ok(['Cadeira Extensora', 'Agachamento Livre'].includes(result[0]));
+  assert.ok(!result.includes('Abdominal Crunch'));
+});
+
 test('fluxo treino: ganho de xp e level automatico', () => {
   const xp = calculateXpForWorkout({ sets: 20, volume: 8000, hitPr: true, streakDays: 4 });
   assert.ok(xp > 0);

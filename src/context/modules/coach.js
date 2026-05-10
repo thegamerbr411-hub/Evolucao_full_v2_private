@@ -1,4 +1,4 @@
-import { getFoodCatalog } from '../../data/nutritionDatabase';
+import { getFoodCatalog } from '../../data/nutritionDatabase.js';
 import {
   SCREENS,
   trackEvent,

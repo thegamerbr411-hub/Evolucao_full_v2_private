@@ -1,4 +1,4 @@
-import { exercises } from '../../data/exercises';
+import { exercises } from '../../data/exercises.js';
 import type {
   WorkoutGeneratorInput,
   WorkoutGeneratorResult,

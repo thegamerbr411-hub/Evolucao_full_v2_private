@@ -171,6 +171,7 @@ export default function InsightsScreen({ navigation, route }) {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      <View testID="insights-dashboard" style={styles.dashboardMarker} />
       <ScreenHeader title="Insights" subtitle="So o que importa para decidir melhor." />
 
       {shouldShowPostValueUpsell ? (
@@ -181,7 +182,7 @@ export default function InsightsScreen({ navigation, route }) {
         </AppCard>
       ) : null}
 
-      <AppCard testID="insights-dashboard">
+      <AppCard>
         <Text style={styles.title}>Dashboard da semana</Text>
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
@@ -248,6 +249,17 @@ export default function InsightsScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
+  hiddenMarker: {
+    width: 1,
+    height: 1,
+    opacity: 0,
+  },
+  dashboardMarker: {
+    width: '100%',
+    height: 0,
+    opacity: 0,
+    pointerEvents: 'none',
+  },
   container: {
     flexGrow: 1,
     backgroundColor: colors.background,

@@ -3,10 +3,10 @@
   "build": {
     "builder": "NIXPACKS",
     "buildCommand": "npm install",
-    "watchPatterns": ["dashboard/**"]
+    "watchPatterns": ["backend/**"]
   },
   "deploy": {
-    "startCommand": "node server.js",
+    "startCommand": "node backend/server.js",
     "healthcheckPath": "/health",
     "healthcheckTimeout": 30,
     "restartPolicyType": "ON_FAILURE",

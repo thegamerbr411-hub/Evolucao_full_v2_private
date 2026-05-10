@@ -5,6 +5,7 @@ import { join } from 'node:path';
 
 const ROUTINES_FILE = join(process.cwd(), 'src', 'screens', 'RoutinesScreen.js');
 const WORKOUT_FILE = join(process.cwd(), 'src', 'screens', 'WorkoutScreen.js');
+const COACH_FILE = join(process.cwd(), 'src', 'screens', 'CoachChatScreen.js');
 const CONTEXT_FILE = join(process.cwd(), 'src', 'context', 'AppContext.js');
 
 test('routine start should navigate with selected workout id', () => {
@@ -25,6 +26,13 @@ test('workout screen should load selected routine by workoutId', () => {
   assert.match(source, /route\?\.params\?\.workoutId/, 'WorkoutScreen must read route params workoutId');
   assert.match(source, /getUserRoutineById\(selectedWorkoutId\)/, 'WorkoutScreen must resolve routine by selected id');
   assert.equal(source.includes('route.params?.routineExercises'), false, 'WorkoutScreen should not rely on routineExercises fallback');
+});
+
+test('coach should reopen workout with active routine id when available', () => {
+  const source = readFileSync(COACH_FILE, 'utf8');
+
+  assert.match(source, /AsyncStorage\.getItem\(WORKOUT_ACTIVE_ROUTINE_STORAGE_KEY\)/, 'Coach should read active routine id from local storage');
+  assert.match(source, /navigation\.navigate\('TreinoHoje',\s*\{\s*workoutId:\s*activeRoutineId\s*\}\)/, 'Coach should navigate to workout with active routine id');
 });
 
 test('user routines should keep unique ids in context', () => {

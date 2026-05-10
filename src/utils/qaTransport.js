@@ -1,11 +1,20 @@
 import axios from 'axios';
 import { Platform } from 'react-native';
+import { trackApiFailure } from '../core/observability';
 
 export const QA_LOCAL_HEADER = 'x-qa-local';
 export const QA_CLIENT_ID_HEADER = 'x-qa-client-id';
 
 const extra = {};
 const DEFAULT_TIMEOUT_MS = 3000;
+const QA_TRANSPORT_ENABLED = (() => {
+  const raw = String(
+    extra.enableQaTransport
+    || (typeof process !== 'undefined' ? process?.env?.EXPO_PUBLIC_ENABLE_QA_TRANSPORT : '')
+    || ''
+  ).trim().toLowerCase();
+  return raw === '1' || raw === 'true';
+})();
 
 function normalizeBaseUrl(value) {
   const raw = String(value || '').trim().replace(/\/$/, '');
@@ -67,6 +76,10 @@ function getConfiguredApiKey() {
 }
 
 export function shouldInjectQaAppError() {
+  if (!QA_TRANSPORT_ENABLED) {
+    return false;
+  }
+
   const explicit = String(
     extra.qaInjectAppCrash
     || (typeof process !== 'undefined' ? process?.env?.EXPO_PUBLIC_QA_INJECT_APP_CRASH : '')
@@ -77,10 +90,16 @@ export function shouldInjectQaAppError() {
 }
 
 export function getQaBaseUrls() {
+  if (!QA_TRANSPORT_ENABLED || !BASE_URL) {
+    return [];
+  }
   return unique([BASE_URL]);
 }
 
 function buildUrl(endpoint = '') {
+  if (!QA_TRANSPORT_ENABLED || !BASE_URL) {
+    return '';
+  }
   const safeEndpoint = String(endpoint || '').startsWith('/')
     ? String(endpoint || '')
     : '/' + String(endpoint || '');
@@ -134,10 +153,18 @@ export function setQaRuntimeAuth(partial = {}) {
 }
 
 export async function postToAvailableQaHost(endpoint, payload, options = {}) {
+  if (!QA_TRANSPORT_ENABLED) {
+    return { ok: false, skipped: true, error: 'qa_transport_disabled' };
+  }
+
   const timeout = Number(options.timeoutMs || DEFAULT_TIMEOUT_MS);
   const silentFailure = Boolean(options.silentFailure);
   const headers = buildQaHeaders(options.headers);
   const url = buildUrl(endpoint);
+
+  if (!url) {
+    return { ok: false, skipped: true, error: 'qa_base_url_missing' };
+  }
 
   try {
     if (typeof __DEV__ !== 'undefined' && __DEV__) console.log('[API]', url, payload);
@@ -154,6 +181,12 @@ export async function postToAvailableQaHost(endpoint, payload, options = {}) {
       status: response.status,
     };
   } catch (error) {
+    trackApiFailure({
+      method: 'POST',
+      endpoint,
+      url,
+      error: String(error?.message || 'request_failed'),
+    });
     if (!silentFailure && typeof __DEV__ !== 'undefined' && __DEV__) {
       console.log('[API ERROR]', url, String(error?.message || error || 'unknown_error'));
     }
@@ -166,9 +199,17 @@ export async function postToAvailableQaHost(endpoint, payload, options = {}) {
 }
 
 export async function getFromAvailableQaHost(endpoint, options = {}) {
+  if (!QA_TRANSPORT_ENABLED) {
+    return { ok: false, skipped: true, error: 'qa_transport_disabled' };
+  }
+
   const timeout = Number(options.timeoutMs || DEFAULT_TIMEOUT_MS);
   const headers = buildQaHeaders(options.headers);
   const url = buildUrl(endpoint);
+
+  if (!url) {
+    return { ok: false, skipped: true, error: 'qa_base_url_missing' };
+  }
 
   try {
     if (typeof __DEV__ !== 'undefined' && __DEV__) console.log('[API]', url, null);
@@ -185,6 +226,12 @@ export async function getFromAvailableQaHost(endpoint, options = {}) {
       status: response.status,
     };
   } catch (error) {
+    trackApiFailure({
+      method: 'GET',
+      endpoint,
+      url,
+      error: String(error?.message || 'request_failed'),
+    });
     if (typeof __DEV__ !== 'undefined' && __DEV__) console.log('[API ERROR]', url, String(error?.message || error || 'unknown_error'));
     return {
       ok: false,

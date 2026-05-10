@@ -1542,6 +1542,9 @@ export default function WorkoutScreen({ navigation, route }) {
         evolution,
         prevWeight: Math.round(prevWeight),
         currWeight: Math.round(currWeight),
+        exerciseCount,
+        sessionDurationMinutes,
+        totalSets: todaySets,
       });
     } catch (error) {
       logQaError(error, {
@@ -1565,6 +1568,11 @@ export default function WorkoutScreen({ navigation, route }) {
   const goToEvolution = () => {
     setShowWorkoutSummary(false);
     navigateWithTracking('Insights', undefined, 'post_workout_insights');
+  };
+
+  const goToHistoryAfterWorkout = () => {
+    setShowWorkoutSummary(false);
+    navigateWithTracking('Historico', undefined, 'post_workout_history');
   };
 
   const savePartialAndExit = () => {
@@ -2206,7 +2214,8 @@ export default function WorkoutScreen({ navigation, route }) {
               <Text style={styles.postWorkoutNutritionTitle}>Agora: +{Math.max(0, Number(postWorkoutNutritionFeedback?.missingProtein || 0))}g proteina recomendado</Text>
               <Text style={styles.postWorkoutNutritionText}>{postWorkoutNutritionFeedback?.suggestion || 'Sugestao indisponivel'}</Text>
             </View>
-            <PrimaryButton title="Treino concluido" onPress={closeWorkoutSummary} style={styles.finishButton} />
+            <PrimaryButton title="Voltar para Home" onPress={closeWorkoutSummary} style={styles.finishButton} />
+            <SecondaryButton title="Ver historico" onPress={goToHistoryAfterWorkout} style={styles.partialButton} />
             <SecondaryButton title="Ver evolucao" onPress={goToEvolution} style={styles.partialButton} />
           </AppCard>
         ) : null}

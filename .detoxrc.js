@@ -58,7 +58,7 @@ module.exports = {
       exposeGlobals: true,
     },
     cleanup: {
-      shutdownDevice: false,
+      shutdownDevice: true,
     },
   },
   testRunner: {

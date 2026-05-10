@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const nodemailer = require('nodemailer');
 require('dotenv').config();
 
 const { analyzeBatch, analyzeBug, buildInsightsPayload } = require('./src/server/analysis');
@@ -68,6 +69,73 @@ const faultProfile = {
   apiDelayMs: 0,
   forceApiError: false,
 };
+
+const pendingEmailCodes = new Map();
+const pendingResetTokens = new Map();
+
+function createSmtpTransporter() {
+  const host = process.env.SMTP_HOST;
+  const port = Number(process.env.SMTP_PORT || 587);
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  if (!host || !user || !pass) return null;
+
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    auth: { user, pass },
+  });
+}
+
+async function sendWithResend({ to, subject, text, html }) {
+  const apiKey = String(process.env.RESEND_API_KEY || '').trim();
+  const from = String(process.env.RESEND_FROM || process.env.SMTP_FROM || '').trim();
+  if (!apiKey || !from) return false;
+
+  try {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from,
+        to: [to],
+        subject,
+        text,
+        html,
+      }),
+    });
+
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function sendTransactionalEmail({ to, subject, text, html }) {
+  const resendDelivered = await sendWithResend({ to, subject, text, html });
+  if (resendDelivered) {
+    return true;
+  }
+
+  const transporter = createSmtpTransporter();
+  if (!transporter) {
+    return false;
+  }
+
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    to,
+    subject,
+    text,
+    html,
+  });
+
+  return true;
+}
 
 function createApp() {
   const app = express();
@@ -253,6 +321,81 @@ function createApp() {
 
   app.post('/login', auth.handleLogin);
   app.post('/token/client', auth.authenticateAdmin, auth.handleClientToken);
+
+  app.post('/auth/send-code', asyncRoute(async (req, res) => {
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ ok: false, error: 'E-mail inválido.' });
+    }
+
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const expiresAt = Date.now() + 15 * 60 * 1000;
+    pendingEmailCodes.set(email, { code, expiresAt });
+
+    const delivered = await sendTransactionalEmail({
+      to: email,
+      subject: 'Seu código de verificação — Evolução App',
+      text: `Seu código de verificação é: ${code}\n\nEle expira em 15 minutos.`,
+      html: `<h2>Código de verificação</h2><p style="font-size:32px;letter-spacing:8px;font-weight:bold">${code}</p><p>Expira em 15 minutos.</p>`,
+    });
+
+    if (!delivered) {
+      return res.status(503).json({ ok: false, error: 'Servico de e-mail indisponivel no momento.' });
+    }
+
+    return res.json({ ok: true, delivery: 'email' });
+  }));
+
+  app.post('/auth/verify-code', asyncRoute(async (req, res) => {
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    const code = String(req.body?.code || '').trim();
+
+    const entry = pendingEmailCodes.get(email);
+    if (!entry) {
+      return res.status(400).json({ ok: false, error: 'Código não encontrado ou expirado.' });
+    }
+
+    if (Date.now() > entry.expiresAt) {
+      pendingEmailCodes.delete(email);
+      return res.status(400).json({ ok: false, error: 'Código expirado. Solicite um novo.' });
+    }
+
+    if (code !== entry.code) {
+      return res.status(400).json({ ok: false, error: 'Código incorreto.' });
+    }
+
+    pendingEmailCodes.delete(email);
+    return res.json({ ok: true });
+  }));
+
+  app.post('/auth/forgot-password', asyncRoute(async (req, res) => {
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ ok: false, error: 'E-mail inválido.' });
+    }
+
+    const resetToken = `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+    const expiresAt = Date.now() + (30 * 60 * 1000);
+    pendingResetTokens.set(email, { token: resetToken, expiresAt });
+
+    const resetBaseUrl = String(process.env.PASSWORD_RESET_URL || process.env.FRONTEND_URL || '').trim();
+    const resetLink = resetBaseUrl
+      ? `${resetBaseUrl.replace(/\/+$/, '')}?token=${encodeURIComponent(resetToken)}&email=${encodeURIComponent(email)}`
+      : `Token de recuperação: ${resetToken}`;
+
+    const delivered = await sendTransactionalEmail({
+      to: email,
+      subject: 'Recuperação de senha — Evolução App',
+      text: `Você solicitou recuperação de senha.\n\n${resetLink}\n\nExpira em 30 minutos.`,
+      html: `<h2>Recuperação de senha</h2><p>Use o link abaixo para redefinir sua senha:</p><p><a href="${String(resetLink).replace(/"/g, '&quot;')}">${resetLink}</a></p><p>Expira em 30 minutos.</p>`,
+    });
+
+    if (!delivered) {
+      return res.status(503).json({ ok: false, error: 'Servico de e-mail indisponivel no momento.' });
+    }
+
+    return res.json({ ok: true, delivery: 'email' });
+  }));
 
   app.post('/api/workouts', requireAppApiKey, requireUserContext, asyncRoute(async (req, res) => {
     const userId = req.userId;
