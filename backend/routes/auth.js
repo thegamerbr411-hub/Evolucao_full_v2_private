@@ -236,6 +236,89 @@ router.post('/forgot-password', async (req, res) => {
 })
 
 /**
+ * POST /auth/reset-password
+ * Consome token de recuperação e define nova senha (MVP/in-memory).
+ */
+router.post('/reset-password', (req, res) => {
+  try {
+    const { email, token, newPassword } = req.body
+    const safeEmail = String(email || '').trim().toLowerCase()
+    const safeToken = String(token || '').trim()
+    const safePassword = String(newPassword || '').trim()
+
+    if (!safeEmail || !safeToken || safePassword.length < 6) {
+      return res.status(400).json({ error: 'Dados inválidos para redefinição.' })
+    }
+
+    const entry = pendingResetTokens.get(safeEmail)
+    if (!entry || entry.token !== safeToken) {
+      return res.status(400).json({ error: 'Token inválido ou já utilizado.' })
+    }
+
+    if (Date.now() > entry.expiresAt) {
+      pendingResetTokens.delete(safeEmail)
+      return res.status(400).json({ error: 'Token expirado. Solicite novamente.' })
+    }
+
+    let user = findUserByEmail(safeEmail)
+    if (!user) {
+      user = {
+        id: Math.random().toString(36).substr(2, 9),
+        email: safeEmail,
+        name: 'Usuario',
+        role: resolveRoleByEmail(safeEmail),
+        isAdmin: resolveRoleByEmail(safeEmail) === 'admin',
+        xp: 0,
+      }
+    }
+
+    user.password = safePassword
+    upsertUser(user)
+    pendingResetTokens.delete(safeEmail)
+    return res.json({ ok: true })
+  } catch {
+    return res.status(500).json({ error: 'Falha ao redefinir senha.' })
+  }
+})
+
+/**
+ * POST /auth/login-password
+ * Login simples por e-mail/senha (MVP/in-memory).
+ */
+router.post('/login-password', (req, res) => {
+  try {
+    const { email, password } = req.body
+    const safeEmail = String(email || '').trim().toLowerCase()
+    const safePassword = String(password || '').trim()
+
+    if (!safeEmail || !safePassword) {
+      return res.status(400).json({ error: 'Credenciais inválidas.' })
+    }
+
+    const user = findUserByEmail(safeEmail)
+    if (!user || String(user.password || '') !== safePassword) {
+      return res.status(401).json({ error: 'E-mail ou senha inválidos.' })
+    }
+
+    const accessToken = generateToken(user)
+    return res.json({
+      ok: true,
+      accessToken,
+      refreshToken: 'refresh-token-aqui',
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role || 'user',
+        isAdmin: Boolean(user.isAdmin),
+      },
+    })
+  } catch {
+    return res.status(500).json({ error: 'Falha ao fazer login.' })
+  }
+})
+
+/**
  * POST /auth/verify-code
  * Valida o código informado pelo usuário.
  */
