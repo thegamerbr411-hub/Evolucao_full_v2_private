@@ -11,11 +11,12 @@ import { colors, spacing } from '../theme';
 import { APP_VERSION } from '../utils/appVersion';
 import { cancelCreatineReminder, scheduleCreatineReminder } from '../utils/notifications';
 import * as _authServiceModule from '../services/authService.js';
-const { isGoogleAuthConfigured: _isGoogleAuthConfigured, loginWithGoogleToken: _loginWithGoogleToken, logoutGoogleSession: _logoutGoogleSession, useGoogleAuth: _useGoogleAuth } = _authServiceModule || {};
+const { isGoogleAuthConfigured: _isGoogleAuthConfigured, loginWithGoogleToken: _loginWithGoogleToken, logoutGoogleSession: _logoutGoogleSession, useGoogleAuth: _useGoogleAuth, exchangeGoogleAuthCode: _exchangeGoogleAuthCode } = _authServiceModule || {};
 const isGoogleAuthConfigured = typeof _isGoogleAuthConfigured === 'function' ? _isGoogleAuthConfigured : () => false;
 const loginWithGoogleToken = typeof _loginWithGoogleToken === 'function' ? _loginWithGoogleToken : async () => ({ id: null, isAdmin: false, role: 'user', source: 'unavailable' });
 const logoutGoogleSession = typeof _logoutGoogleSession === 'function' ? _logoutGoogleSession : async () => ({ ok: false });
 const useGoogleAuth = typeof _useGoogleAuth === 'function' ? _useGoogleAuth : () => ({ request: null, response: null, promptAsync: async () => {} });
+const exchangeGoogleAuthCode = typeof _exchangeGoogleAuthCode === 'function' ? _exchangeGoogleAuthCode : async () => null;
 import { getOrCreateUserIdentity, saveUserIdentity } from '../services/appIdentityService';
 import { performFullSessionLogout } from '../services/sessionCleanupService';
 import { getLocal } from '../storage/mmkv';
@@ -227,9 +228,25 @@ export default function ProfileScreen({ navigation }) {
       setGoogleLoading(true);
       try {
         const authData = response.authentication || {};
-        const idToken = authData.idToken || response?.params?.id_token || null;
+        let accessToken = authData.accessToken || null;
+        let idToken = authData.idToken || response?.params?.id_token || null;
+
+        if ((!idToken && !accessToken) && response?.params?.code) {
+          const exchanged = await exchangeGoogleAuthCode({
+            code: response.params.code,
+            redirectUri: request?.redirectUri,
+            codeVerifier: request?.codeVerifier,
+          });
+          if (exchanged?.accessToken) {
+            accessToken = exchanged.accessToken;
+          }
+          if (exchanged?.idToken) {
+            idToken = exchanged.idToken;
+          }
+        }
+
         const loggedUser = await loginWithGoogleToken({
-          accessToken: authData.accessToken,
+          accessToken,
           idToken,
         });
 
@@ -256,7 +273,7 @@ export default function ProfileScreen({ navigation }) {
     };
 
     handleGoogleResponse();
-  }, [response, setUser]);
+  }, [exchangeGoogleAuthCode, request, response, setUser]);
 
   useEffect(() => {
     let mounted = true;

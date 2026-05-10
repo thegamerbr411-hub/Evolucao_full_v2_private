@@ -12,6 +12,12 @@ import googleServices from '../../android/app/google-services.json';
 
 WebBrowser.maybeCompleteAuthSession();
 
+const GOOGLE_DISCOVERY = {
+  authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
+  tokenEndpoint: 'https://oauth2.googleapis.com/token',
+  revocationEndpoint: 'https://oauth2.googleapis.com/revoke',
+};
+
 function getBundledGoogleClientConfig() {
   try {
     const client = Array.isArray(googleServices?.client) ? googleServices.client[0] : null;
@@ -129,6 +135,40 @@ export function useGoogleAuth() {
 
   return { request, response, promptAsync };
 }
+
+export const exchangeGoogleAuthCode = async ({ code, redirectUri, codeVerifier }) => {
+  const safeCode = String(code || '').trim();
+  const safeRedirect = String(redirectUri || '').trim();
+  if (!safeCode || !safeRedirect) {
+    return null;
+  }
+
+  const cfg = getGoogleClientConfig();
+  const clientId = cfg.androidClientId || cfg.sharedClientId || cfg.webClientId || '';
+  if (!clientId) {
+    return null;
+  }
+
+  try {
+    const tokenResponse = await AuthSession.exchangeCodeAsync(
+      {
+        clientId,
+        code: safeCode,
+        redirectUri: safeRedirect,
+        extraParams: codeVerifier ? { code_verifier: String(codeVerifier) } : undefined,
+      },
+      GOOGLE_DISCOVERY
+    );
+
+    const accessToken = String(tokenResponse?.accessToken || '').trim() || null;
+    const idToken = String(tokenResponse?.idToken || '').trim() || null;
+    console.log('[AUTH][GOOGLE][CODE_EXCHANGE_OK]', JSON.stringify({ hasAccessToken: Boolean(accessToken), hasIdToken: Boolean(idToken) }));
+    return { accessToken, idToken };
+  } catch (error) {
+    await logCriticalError('authService.exchangeGoogleAuthCode', error);
+    return null;
+  }
+};
 
 export const logoutGoogleSession = async () => {
   try {
