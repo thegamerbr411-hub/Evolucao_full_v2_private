@@ -6,10 +6,33 @@ import { logCriticalError } from './loggingService.js';
 import api from './api';
 import { useAuthStore } from '../stores/useAuthStore';
 import { setQaRuntimeAuth } from '../utils/qaTransport';
+import googleServices from '../../android/app/google-services.json';
 
 WebBrowser.maybeCompleteAuthSession();
 
+function getBundledGoogleClientConfig() {
+  try {
+    const client = Array.isArray(googleServices?.client) ? googleServices.client[0] : null;
+    const oauthClients = Array.isArray(client?.oauth_client) ? client.oauth_client : [];
+    const androidClient = oauthClients.find((item) => Number(item?.client_type) === 1);
+    const webClient = oauthClients.find((item) => Number(item?.client_type) === 3)
+      || client?.services?.appinvite_service?.other_platform_oauth_client?.find((item) => Number(item?.client_type) === 3)
+      || null;
+
+    return {
+      androidClientId: String(androidClient?.client_id || '').trim(),
+      webClientId: String(webClient?.client_id || '').trim(),
+    };
+  } catch {
+    return {
+      androidClientId: '',
+      webClientId: '',
+    };
+  }
+}
+
 function getGoogleClientConfig() {
+  const bundled = getBundledGoogleClientConfig();
   const sharedClientId = String(process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '').trim();
   const webClientId = String(process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '').trim();
   const androidClientId = String(process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '').trim();
@@ -17,9 +40,9 @@ function getGoogleClientConfig() {
   const iosClientId = String(process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '').trim();
 
   return {
-    androidClientId: androidClientId || sharedClientId,
-    webClientId: webClientId || sharedClientId,
-    expoClientId: expoClientId || sharedClientId,
+    androidClientId: androidClientId || bundled.androidClientId || sharedClientId,
+    webClientId: webClientId || bundled.webClientId || sharedClientId,
+    expoClientId: expoClientId || webClientId || bundled.webClientId || sharedClientId,
     iosClientId: iosClientId || sharedClientId,
     sharedClientId,
   };
@@ -32,11 +55,11 @@ export function isGoogleAuthConfigured() {
 
 export function useGoogleAuth() {
   const cfg = getGoogleClientConfig();
-  const useIdTokenAuthRequestHook = Google && typeof Google.useIdTokenAuthRequest === 'function'
+  const authRequestHook = Google && typeof Google.useIdTokenAuthRequest === 'function'
     ? Google.useIdTokenAuthRequest
-    : null;
+    : (Google && typeof Google.useAuthRequest === 'function' ? Google.useAuthRequest : null);
 
-  if (!useIdTokenAuthRequestHook) {
+  if (!authRequestHook) {
     return {
       request: null,
       response: null,
@@ -47,19 +70,17 @@ export function useGoogleAuth() {
     };
   }
 
-  // Config padrão do Expo Auth Session para Google
-  // Android manifesto registra intent-filters para capturar redirect
+  // Usar apenas client ID apropriado por plataforma
+  // Deixar Expo Auth Session escolher o fluxo correto
   const requestConfig = {
-    androidClientId: cfg.androidClientId || undefined,
-    webClientId: cfg.webClientId || undefined,
-    iosClientId: cfg.iosClientId || undefined,
+    androidClientId: cfg.androidClientId,
+    iosClientId: cfg.iosClientId,
+    webClientId: cfg.webClientId,
     scopes: ['openid', 'profile', 'email'],
-    responseType: 'id_token',
-    selectAccount: true,
     // Deixar Expo usar redirectUri padrão (baseado no scheme do app)
   };
 
-  const [request, response, promptAsync] = useIdTokenAuthRequestHook(requestConfig);
+  const [request, response, promptAsync] = authRequestHook(requestConfig);
 
   return { request, response, promptAsync };
 }
