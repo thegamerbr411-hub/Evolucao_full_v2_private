@@ -88,32 +88,52 @@ function createSmtpTransporter() {
 
 async function sendWithResend({ email, subject, text, html }) {
   const apiKey = String(process.env.RESEND_API_KEY || '').trim()
-  const from = String(process.env.RESEND_FROM || process.env.SMTP_FROM || '').trim()
-  if (!apiKey || !from) return false
+  const configuredFrom = String(process.env.RESEND_FROM || process.env.SMTP_FROM || '').trim()
+  const fallbackFrom = 'onboarding@resend.dev'
+  const primaryFrom = configuredFrom || fallbackFrom
+  if (!apiKey) return false
 
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 8000)
+  const sendRequest = async (fromAddress) => {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 8000)
+    try {
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: fromAddress,
+          to: [email],
+          subject,
+          text,
+          html,
+        }),
+        signal: controller.signal,
+      })
+      return response
+    } finally {
+      clearTimeout(timeout)
+    }
+  }
+
   try {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from,
-        to: [email],
-        subject,
-        text,
-        html,
-      }),
-      signal: controller.signal,
-    })
-    return response.ok
+    let response = await sendRequest(primaryFrom)
+    if (response.ok) return true
+
+    const shouldRetryWithOnboarding =
+      response.status === 403 && primaryFrom.toLowerCase() !== fallbackFrom
+
+    if (shouldRetryWithOnboarding) {
+      console.warn('[email] Resend denied sender domain, retrying with onboarding@resend.dev')
+      response = await sendRequest(fallbackFrom)
+      if (response.ok) return true
+    }
+
+    return false
   } catch {
     return false
-  } finally {
-    clearTimeout(timeout)
   }
 }
 
