@@ -110,12 +110,12 @@ export function useGoogleAuth() {
   // O androidClientId (tipo 1) é para o Google Sign-In SDK nativo, não para browser flow.
   // O redirect_uri deve usar o scheme do app e estar registrado no web client do Google Cloud.
   const requestConfig = {
-    androidClientId: cfg.androidClientId || undefined,
+    androidClientId: cfg.androidClientId || cfg.sharedClientId || undefined,
     webClientId: cfg.webClientId || undefined,
     expoClientId: cfg.expoClientId || undefined,
     iosClientId: cfg.iosClientId || undefined,
     scopes: ['openid', 'profile', 'email'],
-    redirectUri: getGoogleNativeRedirectUri(cfg.androidClientId),
+    redirectUri: getGoogleNativeRedirectUri(cfg.androidClientId || cfg.sharedClientId || cfg.webClientId),
   };
 
   const [request, response, promptAsync] = Google.useAuthRequest(requestConfig);
@@ -144,13 +144,11 @@ export const logoutGoogleSession = async () => {
 };
 
 export const loginWithGoogleToken = async ({ idToken, accessToken }) => {
-  if (!idToken) {
-    console.error('[INTEGRATION][AUTH] Google idToken ausente — login rejeitado.');
-    setQaRuntimeAuth({ jwt: '' });
-    throw new Error('AUTH_GOOGLE_IDTOKEN_MISSING');
-  }
-
   try {
+    if (!idToken) {
+      throw new Error('SKIP_BACKEND_NO_ID_TOKEN');
+    }
+
     console.log('[INTEGRATION][AUTH] Iniciando login Google no backend.');
     const backendResponse = await api.post('/auth/google', {
       token: idToken,
@@ -186,8 +184,8 @@ export const loginWithGoogleToken = async ({ idToken, accessToken }) => {
   }
 
   try {
-    if (auth && idToken) {
-      const credential = GoogleAuthProvider.credential(idToken, accessToken || undefined);
+    if (auth && (idToken || accessToken)) {
+      const credential = GoogleAuthProvider.credential(idToken || null, accessToken || undefined);
       const result = await signInWithCredential(auth, credential);
       const token = await getIdTokenResult(result.user, true);
 
@@ -203,8 +201,8 @@ export const loginWithGoogleToken = async ({ idToken, accessToken }) => {
       };
     }
 
-    // Nenhum provedor disponivel — rejeitar explicitamente.
-    throw new Error('AUTH_PROVIDERS_UNAVAILABLE');
+    // Nenhum token util disponivel — rejeitar explicitamente.
+    throw new Error('AUTH_GOOGLE_TOKENS_MISSING');
   } catch (error) {
     await logCriticalError('authService.loginWithGoogleToken', error);
     throw error;

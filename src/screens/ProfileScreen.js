@@ -10,7 +10,7 @@ import { generateCoachInsight } from '../services/coachInsight';
 import { colors, spacing } from '../theme';
 import { APP_VERSION } from '../utils/appVersion';
 import { cancelCreatineReminder, scheduleCreatineReminder } from '../utils/notifications';
-import * as _authServiceModule from '../services/authService';
+import * as _authServiceModule from '../services/authService.js';
 const { isGoogleAuthConfigured: _isGoogleAuthConfigured, loginWithGoogleToken: _loginWithGoogleToken, logoutGoogleSession: _logoutGoogleSession, useGoogleAuth: _useGoogleAuth } = _authServiceModule || {};
 const isGoogleAuthConfigured = typeof _isGoogleAuthConfigured === 'function' ? _isGoogleAuthConfigured : () => false;
 const loginWithGoogleToken = typeof _loginWithGoogleToken === 'function' ? _loginWithGoogleToken : async () => ({ id: null, isAdmin: false, role: 'user', source: 'unavailable' });
@@ -101,6 +101,7 @@ export default function ProfileScreen({ navigation }) {
     }
   };
   const { request, promptAsync, response } = useGoogleAuth();
+  const lastGoogleResponseKeyRef = React.useRef('');
   const googleConfigured = isGoogleAuthConfigured();
   const googleReady = googleConfigured && typeof promptAsync === 'function';
   const isAdmin = String(user?.role || '').toLowerCase() === 'admin' || ADMIN_EMAILS.includes(String(user?.email || '').toLowerCase().trim());
@@ -200,6 +201,18 @@ export default function ProfileScreen({ navigation }) {
       if (!response) {
         return;
       }
+
+      const responseKey = [
+        response.type || '',
+        response?.params?.state || '',
+        response?.params?.error || '',
+        response?.params?.id_token || '',
+      ].join('|');
+
+      if (responseKey && lastGoogleResponseKeyRef.current === responseKey) {
+        return;
+      }
+      lastGoogleResponseKeyRef.current = responseKey;
 
       if (response.type === 'error') {
         const responseError = String(response?.error?.message || response?.params?.error_description || response?.params?.error || 'Falha na autenticacao Google.');
