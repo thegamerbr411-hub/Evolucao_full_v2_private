@@ -1,0 +1,174 @@
+GUIA DE RELEASE FINAL E BETA - T-EVO
+
+1) O QUE O APP FAZ
+T-Evo e um app de evolucao fisica com foco em treino, nutricao, coach, social e acompanhamento continuo.
+Ele permite registrar uso real, gerar insights, acompanhar performance e exportar diagnostico beta para auditoria posterior.
+
+2) O QUE CADA AREA/ABA FAZ
+Home:
+- Resumo do dia, status de metas, atalhos para treino e nutricao.
+
+Treino:
+- Hub de treinos, execucao de series, progresso, descanso, detalhes e video de exercicio.
+
+Nutricao:
+- Registro de alimentos/refeicoes, agua, busca de alimentos, fluxo de OCR/foto e registro manual.
+
+Coach:
+- Chat de suporte com contexto do usuario e recomendacoes.
+
+Social:
+- Amigos, desafios, ranking, feed e progresso colaborativo.
+
+Perfil:
+- Dados da conta, versao/build, sessao, beta/export, logout/relogin.
+
+Admin:
+- Acoes administrativas (XP/missoes), cadastros locais, logs e controle de acesso de conta.
+
+3) COMANDOS E ROTINAS IMPORTANTES
+npm start
+- Inicializa app no Expo.
+
+npm run android
+- Executa build/execucao Android de desenvolvimento.
+
+npm run release:apk
+- Gera APK de release local para validacao manual.
+
+npm run qa:full:visual:quick
+- Ciclo rapido de validacao visual automatizada.
+
+npm run qa:visual:audit:5x
+- Repete ciclo visual varias vezes para detectar regressao.
+
+npm run qa:prod:check
+- Check de consistencia para producao.
+
+npm run qa:cleanup
+- Limpeza de artefatos temporarios de QA.
+
+4) AMBIENTES E PROVEDORES
+Render:
+- Hospedagem backend HTTP de producao.
+
+Firebase:
+- Projeto mobile (android), autenticacao e integracoes.
+
+Google Cloud:
+- OAuth clients (Android/Web) e tela de consentimento.
+
+Backend:
+- Rotas auth/sessao, codigo por e-mail, reset, social, treino, nutricao.
+
+Dashboard:
+- Painel de apoio operacional (logs, retestes, QA).
+
+Release:
+- Pipeline de build/distribuicao para beta e validacao final.
+
+5) CONTAS EM USO E RESPONSABILIDADE
+Conta principal admin:
+- thegamerbr411@gmail.com
+
+Console Google/Firebase:
+- Sempre confirmar a conta ativa antes de alterar OAuth, SHA, clientes e consentimento.
+
+Fluxo por e-mail:
+- Conta de teste/beta do usuario final no cadastro/login/reset.
+
+Regra critica:
+- Nao misturar contas de projeto com conta pessoal errada no mesmo console.
+
+6) USO CORRETO DAS FEATURES
+- Finalizar fluxo de cada tela antes de trocar aba.
+- Em treino: salvar series e conferir retorno visual de confirmacao.
+- Em nutricao: revisar dados OCR antes de salvar; usar manual se OCR estiver incerto.
+- Em coach: validar envio, resposta e scroll sem sobreposicao do teclado.
+- Em perfil: usar export beta para materializar evidencias de uso real.
+
+7) FLUXOS PRINCIPAIS DE TESTE
+- Login por e-mail (com codigo).
+- Login Google (janela de consentimento + retorno ao app).
+- Esqueci senha/reset.
+- Treino completo (varias series/exercicios).
+- Nutricao com refeicoes + OCR + agua.
+- Social com amigos/desafios.
+- Perfil com export, logout e relogin.
+
+8) EXPORTACAO BETA (PERFIL)
+No Perfil, usar:
+- Exportar analise beta
+- Exportar relatorio beta
+- Exportar timeline do beta
+- Exportar diagnostico do uso
+- Exportar melhorias
+
+Formato gerado:
+- JSON principal
+- TXT resumo
+- Pacote multi-arquivo (equivalente pratico a ZIP), incluindo:
+	metadata.json
+	account.json
+	timeline.json
+	nutrition.json
+	workout.json
+	social.json
+	observability.json
+	testing-context.json
+	summary.txt
+
+9) INSTALACAO E VALIDACAO DE RELEASE
+- Gerar APK release.
+- Instalar no device limpo.
+- Validar login/cadastro/reset.
+- Validar treino, nutricao, coach, social, perfil, admin.
+- Validar export beta e leitura dos arquivos gerados.
+
+10) REINSTALAR, REBUILDAR E DEPURAR FALHAS
+- Reinstalar APK e limpar dados do app.
+- Revisar logs de:
+	backend/Render
+	Firebase
+	Google OAuth
+	dashboard QA
+- Reexecutar ciclo visual + funcional apos cada correcao.
+
+11) GOOGLE LOGIN - CHECKLIST DE DIAGNOSTICO
+- Validar client IDs corretos (Android e Web) no app/config.
+- Validar SHA-1 e SHA-256 no Firebase/Google.
+- Validar package name Android.
+- Validar consent screen publicada e com escopos corretos.
+- Validar retorno ao app e persistencia da sessao.
+
+Erros comuns:
+- invalid_request custom URI scheme
+- custom scheme nao permitido no client errado
+- code challenge invalido
+
+Acao recomendada:
+- manter fluxo nativo do provider Google do Expo sem forcar redirectUri manual inconsistente.
+
+12) OCR E NUTRICAO - CHECKLIST
+- Testar foto da tabela nutricional.
+- Confirmar parse de calorias, carbo, proteina, gordura, sodio/acucar quando disponivel.
+- Confirmar fracao de consumo (total/parcial).
+- Confirmar fallback manual sem perder campos.
+- Confirmar que dados entram no export beta com contexto de origem (OCR/manual).
+
+13) CONTROLE DE ACESSO (ANTI-REPASSSE)
+No Admin:
+- Bloquear conta por UID/e-mail.
+- Desbloquear conta.
+- Revogar sessao.
+
+Efeito esperado:
+- Conta bloqueada nao loga novamente.
+- Sessao revogada invalida token anterior.
+- Mesmo com APK compartilhado, acesso passa a depender do estado da conta no backend.
+
+14) RESULTADO ESPERADO PARA BETA 10 AMIGOS
+- Fluxos criticos estaveis.
+- Export beta funcionando.
+- Login e controle de acesso consistentes.
+- Evidencias de uso real coletadas em pacote padronizado.
