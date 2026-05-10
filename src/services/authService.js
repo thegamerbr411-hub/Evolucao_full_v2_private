@@ -115,19 +115,19 @@ export function useGoogleAuth() {
     };
   }
 
+  // Minimal OAuth request config: Android native redirect + id_token only, no PKCE
   const requestConfig = {
     androidClientId: cfg.androidClientId || cfg.sharedClientId || undefined,
     webClientId: cfg.webClientId || undefined,
-    expoClientId: cfg.expoClientId || undefined,
-    iosClientId: cfg.iosClientId || undefined,
-    redirectUri: Platform.OS === 'android' && androidNativeRedirectUri
-      ? androidNativeRedirectUri
-      : undefined,
     scopes: ['openid', 'profile', 'email'],
     responseType: 'id_token',
-    usePKCE: false,
     selectAccount: true,
   };
+  
+  // Use native redirect for Android only
+  if (Platform.OS === 'android' && androidNativeRedirectUri) {
+    requestConfig.redirectUri = androidNativeRedirectUri;
+  }
 
   const [request, response, promptAsync] = Google.useAuthRequest(requestConfig);
 

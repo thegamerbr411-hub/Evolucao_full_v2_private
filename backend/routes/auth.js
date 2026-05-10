@@ -78,6 +78,22 @@ async function validateGoogleIdToken(idToken) {
     const issuer = String(tokenInfo?.iss || '')
 
     const validIssuer = issuer === 'https://accounts.google.com' || issuer === 'accounts.google.com'
+    
+    if (!validIssuer) {
+      console.warn('[OAuth] Invalid issuer:', issuer)
+      return { ok: false, error: 'Invalid token issuer' }
+    }
+    
+    if (!emailVerified) {
+      console.warn('[OAuth] Email not verified for:', email)
+      return { ok: false, error: 'Email must be verified' }
+    }
+    
+    // Optional: validate audience only if configured
+    if (allowedGoogleAudiences.size > 0 && !allowedGoogleAudiences.has(audience)) {
+      console.warn('[OAuth] Audience not in allowed list:', audience)
+      return { ok: false, error: 'Invalid token audience' }
+    }
     if (!validIssuer || !email || !emailVerified) {
       return { ok: false, error: 'Invalid Google token claims' }
     }
@@ -215,48 +231,72 @@ async function sendWithResend({ email, subject, text, html }) {
   }
 
   try {
-    let response = await sendRequest(primaryFrom)
-    if (response.ok) return true
+    // Retry logic: primary from address with up to 2 attempts
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        let response = await sendRequest(primaryFrom)
+        if (response.ok) return true
 
-    const shouldRetryWithOnboarding =
-      response.status === 403 && primaryFrom.toLowerCase() !== fallbackFrom
+        const shouldRetryWithOnboarding =
+          response.status === 403 && primaryFrom.toLowerCase() !== fallbackFrom
 
-    if (shouldRetryWithOnboarding) {
-      console.warn('[email] Resend denied sender domain, retrying with onboarding@resend.dev')
-      response = await sendRequest(fallbackFrom)
-      if (response.ok) return true
+        if (shouldRetryWithOnboarding) {
+          console.warn('[email] Resend denied sender domain, retrying with onboarding@resend.dev')
+          response = await sendRequest(fallbackFrom)
+          if (response.ok) return true
+        }
+
+        if (attempt < 2) {
+          console.warn(`[email] Resend attempt ${attempt} failed with status ${response.status}, retrying...`)
+          await new Promise(r => setTimeout(r, 500))
+        }
+      } catch (attemptErr) {
+        console.warn(`[email] Resend attempt ${attempt} error: ${attemptErr.message}`)
+        if (attempt < 2) {
+          await new Promise(r => setTimeout(r, 500))
+        }
+      }
     }
-
     return false
-  } catch {
+  } catch (err) {
+    console.warn('[email] Resend fatal error:', err.message)
     return false
   }
 }
 
 async function sendEmail({ email, subject, text, html }) {
   const hasResendConfigured = Boolean(String(process.env.RESEND_API_KEY || '').trim())
+  
+  // Try Resend if configured
   if (hasResendConfigured) {
     const deliveredByResend = await sendWithResend({ email, subject, text, html })
     if (deliveredByResend) {
       return true
     }
-    console.warn('[email] Resend unavailable for request, skipping SMTP fallback because RESEND_API_KEY is configured')
-    return false
+    console.warn('[email] Resend unavailable, attempting SMTP fallback')
   }
 
+  // Fallback to SMTP
   const transporter = createSmtpTransporter()
   if (!transporter) {
+    console.warn('[email] Neither Resend nor SMTP configured')
     return false
   }
 
-  await transporter.sendMail({
-    from: process.env.SMTP_FROM || process.env.SMTP_USER,
-    to: email,
-    subject,
-    text,
-    html,
-  })
-  return true
+  try {
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      to: email,
+      subject,
+      text,
+      html,
+    })
+    console.log('[email] Delivered via SMTP to', email)
+    return true
+  } catch (err) {
+    console.warn('[email] SMTP failed:', err.message)
+    return false
+  }
 }
 
 /**
