@@ -3,9 +3,8 @@ services:
     name: evolucao-api
     runtime: node
     plan: free
-    rootDir: backend
-    buildCommand: npm install
-    startCommand: npm start
+    buildCommand: npm --prefix backend install
+    startCommand: npm --prefix backend start
     healthCheckPath: /health
 
     envVars:
