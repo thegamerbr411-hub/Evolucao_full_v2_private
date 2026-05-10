@@ -79,6 +79,9 @@ function createSmtpTransporter() {
     host,
     port,
     secure: port === 465,
+    connectionTimeout: 8000,
+    greetingTimeout: 8000,
+    socketTimeout: 12000,
     auth: { user, pass },
   })
 }
@@ -115,9 +118,14 @@ async function sendWithResend({ email, subject, text, html }) {
 }
 
 async function sendEmail({ email, subject, text, html }) {
-  const deliveredByResend = await sendWithResend({ email, subject, text, html })
-  if (deliveredByResend) {
-    return true
+  const hasResendConfigured = Boolean(String(process.env.RESEND_API_KEY || '').trim())
+  if (hasResendConfigured) {
+    const deliveredByResend = await sendWithResend({ email, subject, text, html })
+    if (deliveredByResend) {
+      return true
+    }
+    console.warn('[email] Resend unavailable for request, skipping SMTP fallback because RESEND_API_KEY is configured')
+    return false
   }
 
   const transporter = createSmtpTransporter()
