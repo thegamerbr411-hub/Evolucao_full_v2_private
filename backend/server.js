@@ -40,7 +40,17 @@ if (ENABLE_QA_ENDPOINTS) {
 
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ ok: true, timestamp: new Date().toISOString() })
+  res.json({
+    ok: true,
+    service: 'evolucao-backend',
+    routes: {
+      auth: '/auth/*',
+      workouts: '/workouts/*',
+      nutrition: '/nutrition/*',
+      sync: '/sync/*',
+    },
+    timestamp: new Date().toISOString(),
+  })
 })
 
 // 404

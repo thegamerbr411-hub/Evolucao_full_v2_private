@@ -67,6 +67,7 @@ const users = { find: (fn) => [...userStore.values()].find(fn) }
 
 // Armazenamento temporário de códigos de verificação (TTL: 15 min)
 const pendingCodes = new Map()
+const pendingResetTokens = new Map()
 
 function createSmtpTransporter() {
   const host = process.env.SMTP_HOST
@@ -82,7 +83,7 @@ function createSmtpTransporter() {
   })
 }
 
-async function sendCodeWithResend({ email, code }) {
+async function sendWithResend({ email, subject, text, html }) {
   const apiKey = String(process.env.RESEND_API_KEY || '').trim()
   const from = String(process.env.RESEND_FROM || process.env.SMTP_FROM || '').trim()
   if (!apiKey || !from) return false
@@ -99,9 +100,9 @@ async function sendCodeWithResend({ email, code }) {
       body: JSON.stringify({
         from,
         to: [email],
-        subject: 'Seu código de verificação - Evolução App',
-        text: `Seu código de verificação é: ${code}\n\nEle expira em 15 minutos.\n\nSe não foi você, ignore este e-mail.`,
-        html: `<h2>Código de verificação</h2><p style="font-size:32px;letter-spacing:8px;font-weight:bold">${code}</p><p>Expira em 15 minutos.</p>`,
+        subject,
+        text,
+        html,
       }),
       signal: controller.signal,
     })
@@ -111,6 +112,27 @@ async function sendCodeWithResend({ email, code }) {
   } finally {
     clearTimeout(timeout)
   }
+}
+
+async function sendEmail({ email, subject, text, html }) {
+  const deliveredByResend = await sendWithResend({ email, subject, text, html })
+  if (deliveredByResend) {
+    return true
+  }
+
+  const transporter = createSmtpTransporter()
+  if (!transporter) {
+    return false
+  }
+
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    to: email,
+    subject,
+    text,
+    html,
+  })
+  return true
 }
 
 /**
@@ -130,20 +152,13 @@ router.post('/send-code', async (req, res) => {
     const expiresAt = Date.now() + 15 * 60 * 1000 // 15 min
     pendingCodes.set(safeEmail, { code, expiresAt })
 
-    const deliveredByResend = await sendCodeWithResend({ email: safeEmail, code })
-    if (deliveredByResend) {
-      return res.json({ ok: true, delivery: 'email' })
-    }
-
-    const transporter = createSmtpTransporter()
-    if (transporter) {
-      await transporter.sendMail({
-        from: process.env.SMTP_FROM || process.env.SMTP_USER,
-        to: safeEmail,
-        subject: 'Seu código de verificação — Evolução App',
-        text: `Seu código de verificação é: ${code}\n\nEle expira em 15 minutos.\n\nSe não foi você, ignore este e-mail.`,
-        html: `<h2>Código de verificação</h2><p style="font-size:32px;letter-spacing:8px;font-weight:bold">${code}</p><p>Expira em 15 minutos.</p>`,
-      })
+    const delivered = await sendEmail({
+      email: safeEmail,
+      subject: 'Seu código de verificação — Evolução App',
+      text: `Seu código de verificação é: ${code}\n\nEle expira em 15 minutos.\n\nSe não foi você, ignore este e-mail.`,
+      html: `<h2>Código de verificação</h2><p style="font-size:32px;letter-spacing:8px;font-weight:bold">${code}</p><p>Expira em 15 minutos.</p>`,
+    })
+    if (delivered) {
       return res.json({ ok: true, delivery: 'email' })
     }
 
@@ -151,6 +166,44 @@ router.post('/send-code', async (req, res) => {
     return res.json({ ok: true, delivery: 'local', code })
   } catch (error) {
     return res.status(500).json({ error: 'Falha ao enviar código. Tente novamente.' })
+  }
+})
+
+/**
+ * POST /auth/forgot-password
+ * Envia link/token de recuperação por e-mail.
+ */
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body
+    const safeEmail = String(email || '').trim().toLowerCase()
+    if (!safeEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(safeEmail)) {
+      return res.status(400).json({ error: 'E-mail inválido.' })
+    }
+
+    const resetToken = `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`
+    const expiresAt = Date.now() + 30 * 60 * 1000
+    pendingResetTokens.set(safeEmail, { token: resetToken, expiresAt })
+
+    const resetBaseUrl = String(process.env.PASSWORD_RESET_URL || process.env.FRONTEND_URL || '').trim()
+    const resetLink = resetBaseUrl
+      ? `${resetBaseUrl.replace(/\/+$/, '')}?token=${encodeURIComponent(resetToken)}&email=${encodeURIComponent(safeEmail)}`
+      : `Token de recuperação: ${resetToken}`
+
+    const delivered = await sendEmail({
+      email: safeEmail,
+      subject: 'Recuperação de senha — Evolução App',
+      text: `Você solicitou recuperação de senha.\n\n${resetLink}\n\nExpira em 30 minutos. Se não foi você, ignore este e-mail.`,
+      html: `<h2>Recuperação de senha</h2><p>Use o link abaixo para redefinir sua senha:</p><p><a href="${String(resetLink).replace(/"/g, '&quot;')}">${resetLink}</a></p><p>Expira em 30 minutos.</p>`,
+    })
+
+    if (!delivered) {
+      return res.status(503).json({ error: 'Servico de e-mail indisponivel no momento.' })
+    }
+
+    return res.json({ ok: true, delivery: 'email' })
+  } catch {
+    return res.status(500).json({ error: 'Falha ao processar recuperação de senha.' })
   }
 })
 

@@ -71,6 +71,7 @@ const faultProfile = {
 };
 
 const pendingEmailCodes = new Map();
+const pendingResetTokens = new Map();
 
 function createSmtpTransporter() {
   const host = process.env.SMTP_HOST;
@@ -85,6 +86,55 @@ function createSmtpTransporter() {
     secure: port === 465,
     auth: { user, pass },
   });
+}
+
+async function sendWithResend({ to, subject, text, html }) {
+  const apiKey = String(process.env.RESEND_API_KEY || '').trim();
+  const from = String(process.env.RESEND_FROM || process.env.SMTP_FROM || '').trim();
+  if (!apiKey || !from) return false;
+
+  try {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from,
+        to: [to],
+        subject,
+        text,
+        html,
+      }),
+    });
+
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function sendTransactionalEmail({ to, subject, text, html }) {
+  const resendDelivered = await sendWithResend({ to, subject, text, html });
+  if (resendDelivered) {
+    return true;
+  }
+
+  const transporter = createSmtpTransporter();
+  if (!transporter) {
+    return false;
+  }
+
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    to,
+    subject,
+    text,
+    html,
+  });
+
+  return true;
 }
 
 function createApp() {
@@ -282,18 +332,16 @@ function createApp() {
     const expiresAt = Date.now() + 15 * 60 * 1000;
     pendingEmailCodes.set(email, { code, expiresAt });
 
-    const transporter = createSmtpTransporter();
-    if (!transporter) {
-      return res.status(503).json({ ok: false, error: 'Servico de e-mail indisponivel no momento.' });
-    }
-
-    await transporter.sendMail({
-      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    const delivered = await sendTransactionalEmail({
       to: email,
       subject: 'Seu código de verificação — Evolução App',
       text: `Seu código de verificação é: ${code}\n\nEle expira em 15 minutos.`,
       html: `<h2>Código de verificação</h2><p style="font-size:32px;letter-spacing:8px;font-weight:bold">${code}</p><p>Expira em 15 minutos.</p>`,
     });
+
+    if (!delivered) {
+      return res.status(503).json({ ok: false, error: 'Servico de e-mail indisponivel no momento.' });
+    }
 
     return res.json({ ok: true, delivery: 'email' });
   }));
@@ -318,6 +366,35 @@ function createApp() {
 
     pendingEmailCodes.delete(email);
     return res.json({ ok: true });
+  }));
+
+  app.post('/auth/forgot-password', asyncRoute(async (req, res) => {
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ ok: false, error: 'E-mail inválido.' });
+    }
+
+    const resetToken = `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+    const expiresAt = Date.now() + (30 * 60 * 1000);
+    pendingResetTokens.set(email, { token: resetToken, expiresAt });
+
+    const resetBaseUrl = String(process.env.PASSWORD_RESET_URL || process.env.FRONTEND_URL || '').trim();
+    const resetLink = resetBaseUrl
+      ? `${resetBaseUrl.replace(/\/+$/, '')}?token=${encodeURIComponent(resetToken)}&email=${encodeURIComponent(email)}`
+      : `Token de recuperação: ${resetToken}`;
+
+    const delivered = await sendTransactionalEmail({
+      to: email,
+      subject: 'Recuperação de senha — Evolução App',
+      text: `Você solicitou recuperação de senha.\n\n${resetLink}\n\nExpira em 30 minutos.`,
+      html: `<h2>Recuperação de senha</h2><p>Use o link abaixo para redefinir sua senha:</p><p><a href="${String(resetLink).replace(/"/g, '&quot;')}">${resetLink}</a></p><p>Expira em 30 minutos.</p>`,
+    });
+
+    if (!delivered) {
+      return res.status(503).json({ ok: false, error: 'Servico de e-mail indisponivel no momento.' });
+    }
+
+    return res.json({ ok: true, delivery: 'email' });
   }));
 
   app.post('/api/workouts', requireAppApiKey, requireUserContext, asyncRoute(async (req, res) => {

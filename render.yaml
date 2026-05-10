@@ -3,7 +3,7 @@ services:
     name: evolucao-api
     runtime: node
     plan: free
-    rootDir: dashboard
+    rootDir: backend
     buildCommand: npm install
     startCommand: npm start
     healthCheckPath: /health
@@ -25,3 +25,19 @@ services:
         value: '{"admin":"5yrfrykNa7OrIfFbqRHQLkxHp1U_mL80"}'
       - key: APP_API_KEY
         value: JGAhyl7uYjN3VpxKHnzMPcdBKzwmzlJB
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM
+        value: noreply@evolucao.app
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        value: noreply@evolucao.app
+      - key: PASSWORD_RESET_URL
+        sync: false
