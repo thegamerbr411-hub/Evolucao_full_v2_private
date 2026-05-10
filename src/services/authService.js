@@ -1,7 +1,6 @@
 import { getIdTokenResult, GoogleAuthProvider, sendPasswordResetEmail, signInAnonymously, signInWithCredential } from 'firebase/auth';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
-import { Platform } from 'react-native';
 import { auth } from './firebase.js';
 import { logCriticalError } from './loggingService.js';
 import api from './api';
@@ -48,18 +47,17 @@ export function useGoogleAuth() {
     };
   }
 
-  // Evita erro de "custom scheme" em Android usando apenas client nativo no fluxo mobile.
-  const safeAndroidClientId = cfg.androidClientId || undefined;
+  // Config padrão do Expo Auth Session para Google
+  // Android manifesto registra intent-filters para capturar redirect
   const requestConfig = {
-    androidClientId: safeAndroidClientId,
+    androidClientId: cfg.androidClientId || undefined,
+    webClientId: cfg.webClientId || undefined,
     iosClientId: cfg.iosClientId || undefined,
     scopes: ['openid', 'profile', 'email'],
+    responseType: 'id_token',
     selectAccount: true,
+    // Deixar Expo usar redirectUri padrão (baseado no scheme do app)
   };
-
-  if (Platform.OS === 'web') {
-    requestConfig.webClientId = cfg.webClientId || undefined;
-  }
 
   const [request, response, promptAsync] = useIdTokenAuthRequestHook(requestConfig);
 

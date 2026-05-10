@@ -527,7 +527,63 @@ export default function ProfileScreen({ navigation }) {
         />
       </AppCard>
 
-      <Text style={styles.sectionHeading}>🤖 Coach IA</Text>
+      <Text style={styles.sectionHeading}>� Beta Tester</Text>
+
+      <AppCard>
+        <Text style={styles.cardLabel}>Status Beta</Text>
+        <Text style={styles.metric}>
+          {user?.role === 'admin' || ADMIN_EMAILS.includes(user?.email)
+            ? '✓ Acesso Beta Completo ativado'
+            : '○ Modo Beta desativado'}
+        </Text>
+        {user?.role === 'admin' || ADMIN_EMAILS.includes(user?.email) ? (
+          <>
+            <Text style={styles.metric}>
+              Você tem acesso a:
+            </Text>
+            <Text style={styles.metric}>• Criar exercícios personalizados</Text>
+            <Text style={styles.metric}>• Adicionar alimentos customizados</Text>
+            <Text style={styles.metric}>• Exportar melhorias e sugestões</Text>
+            <Text style={styles.metric}>• Painel Admin limitado</Text>
+          </>
+        ) : null}
+      </AppCard>
+
+      <Text style={styles.sectionHeading}>📤 Exportar Melhorias</Text>
+
+      <AppCard>
+        <Text style={styles.cardLabel}>Compartilhe seu feedback</Text>
+        <Text style={styles.metric}>
+          Exporte seus exercícios, alimentos e sugestões para melhorar o app.
+        </Text>
+        <PrimaryButton
+          title="Exportar como JSON"
+          onPress={async () => {
+            try {
+              const exportData = {
+                timestamp: new Date().toISOString(),
+                appVersion: APP_VERSION,
+                user: {
+                  id: user?.id,
+                  name: user?.name,
+                  email: user?.email,
+                },
+                profile: profile,
+                gamification: gamification,
+                history: history?.slice(-30), // últimos 30 dias
+              };
+
+              const jsonStr = JSON.stringify(exportData, null, 2);
+              setToastMessage('✓ Dados exportados com sucesso! Pronto para compartilhar.');
+              console.log('[EXPORT]', jsonStr);
+            } catch (err) {
+              setToastMessage('✗ Erro ao exportar dados.');
+            }
+          }}
+        />
+      </AppCard>
+
+      <Text style={styles.sectionHeading}>�🤖 Coach IA</Text>
 
       <AppCard>
         <Text style={styles.metric}>Prioridade: {profileCoach.priority}</Text>

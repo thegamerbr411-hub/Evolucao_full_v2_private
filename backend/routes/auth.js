@@ -1,5 +1,6 @@
 // backend/routes/auth.js
 import express from 'express'
+import nodemailer from 'nodemailer'
 import { generateToken, authMiddleware } from '../middleware/auth.js'
 
 const router = express.Router()
@@ -63,6 +64,126 @@ function upsertUser(user) {
 
 // Manter compatibilidade com código legado que usava array
 const users = { find: (fn) => [...userStore.values()].find(fn) }
+
+// Armazenamento temporário de códigos de verificação (TTL: 15 min)
+const pendingCodes = new Map()
+
+function createSmtpTransporter() {
+  const host = process.env.SMTP_HOST
+  const port = Number(process.env.SMTP_PORT || 587)
+  const user = process.env.SMTP_USER
+  const pass = process.env.SMTP_PASS
+  if (!host || !user || !pass) return null
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    auth: { user, pass },
+  })
+}
+
+async function sendCodeWithResend({ email, code }) {
+  const apiKey = String(process.env.RESEND_API_KEY || '').trim()
+  const from = String(process.env.RESEND_FROM || process.env.SMTP_FROM || '').trim()
+  if (!apiKey || !from) return false
+
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 8000)
+  try {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from,
+        to: [email],
+        subject: 'Seu código de verificação - Evolução App',
+        text: `Seu código de verificação é: ${code}\n\nEle expira em 15 minutos.\n\nSe não foi você, ignore este e-mail.`,
+        html: `<h2>Código de verificação</h2><p style="font-size:32px;letter-spacing:8px;font-weight:bold">${code}</p><p>Expira em 15 minutos.</p>`,
+      }),
+      signal: controller.signal,
+    })
+    return response.ok
+  } catch {
+    return false
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
+/**
+ * POST /auth/send-code
+ * Gera código de 6 dígitos e envia por e-mail (Resend ou SMTP),
+ * senão retorna o código na resposta (modo dev/offline).
+ */
+router.post('/send-code', async (req, res) => {
+  try {
+    const { email } = req.body
+    const safeEmail = String(email || '').trim().toLowerCase()
+    if (!safeEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(safeEmail)) {
+      return res.status(400).json({ error: 'E-mail inválido.' })
+    }
+
+    const code = String(Math.floor(100000 + Math.random() * 900000))
+    const expiresAt = Date.now() + 15 * 60 * 1000 // 15 min
+    pendingCodes.set(safeEmail, { code, expiresAt })
+
+    const deliveredByResend = await sendCodeWithResend({ email: safeEmail, code })
+    if (deliveredByResend) {
+      return res.json({ ok: true, delivery: 'email' })
+    }
+
+    const transporter = createSmtpTransporter()
+    if (transporter) {
+      await transporter.sendMail({
+        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        to: safeEmail,
+        subject: 'Seu código de verificação — Evolução App',
+        text: `Seu código de verificação é: ${code}\n\nEle expira em 15 minutos.\n\nSe não foi você, ignore este e-mail.`,
+        html: `<h2>Código de verificação</h2><p style="font-size:32px;letter-spacing:8px;font-weight:bold">${code}</p><p>Expira em 15 minutos.</p>`,
+      })
+      return res.json({ ok: true, delivery: 'email' })
+    }
+
+    // Sem SMTP configurado: retorna o código na resposta (dev/local)
+    return res.json({ ok: true, delivery: 'local', code })
+  } catch (error) {
+    return res.status(500).json({ error: 'Falha ao enviar código. Tente novamente.' })
+  }
+})
+
+/**
+ * POST /auth/verify-code
+ * Valida o código informado pelo usuário.
+ */
+router.post('/verify-code', (req, res) => {
+  try {
+    const { email, code } = req.body
+    const safeEmail = String(email || '').trim().toLowerCase()
+    const safeCode = String(code || '').trim()
+
+    const entry = pendingCodes.get(safeEmail)
+    if (!entry) {
+      return res.status(400).json({ error: 'Código não encontrado ou expirado.' })
+    }
+
+    if (Date.now() > entry.expiresAt) {
+      pendingCodes.delete(safeEmail)
+      return res.status(400).json({ error: 'Código expirado. Solicite um novo.' })
+    }
+
+    if (safeCode !== entry.code) {
+      return res.status(400).json({ error: 'Código incorreto.' })
+    }
+
+    pendingCodes.delete(safeEmail)
+    return res.json({ ok: true })
+  } catch (error) {
+    return res.status(500).json({ error: 'Falha ao verificar código.' })
+  }
+})
 
 /**
  * POST /auth/google
