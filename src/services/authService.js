@@ -31,19 +31,27 @@ function getBundledGoogleClientConfig() {
   }
 }
 
+function sanitizeGoogleClientId(value) {
+  const safe = String(value || '').trim();
+  if (!safe) return '';
+  if (!safe.includes('.apps.googleusercontent.com')) return '';
+  if (/replace_with|seu_|sua_|example/i.test(safe)) return '';
+  return safe;
+}
+
 function getGoogleClientConfig() {
   const bundled = getBundledGoogleClientConfig();
-  const sharedClientId = String(process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '').trim();
-  const webClientId = String(process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '').trim();
-  const androidClientId = String(process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '').trim();
-  const expoClientId = String(process.env.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID || '').trim();
-  const iosClientId = String(process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '').trim();
+  const sharedClientId = sanitizeGoogleClientId(process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '');
+  const webClientId = sanitizeGoogleClientId(process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '');
+  const androidClientId = sanitizeGoogleClientId(process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '');
+  const expoClientId = sanitizeGoogleClientId(process.env.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID || '');
+  const iosClientId = sanitizeGoogleClientId(process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '');
 
   return {
-    androidClientId: androidClientId || bundled.androidClientId || sharedClientId,
-    webClientId: webClientId || bundled.webClientId || sharedClientId,
-    expoClientId: expoClientId || webClientId || bundled.webClientId || sharedClientId,
-    iosClientId: iosClientId || sharedClientId,
+    androidClientId: androidClientId || sanitizeGoogleClientId(bundled.androidClientId) || sharedClientId,
+    webClientId: webClientId || sanitizeGoogleClientId(bundled.webClientId) || sharedClientId,
+    expoClientId: expoClientId || webClientId || sanitizeGoogleClientId(bundled.webClientId) || sharedClientId,
+    iosClientId: iosClientId || '',
     sharedClientId,
   };
 }

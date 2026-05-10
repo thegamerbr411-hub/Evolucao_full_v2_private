@@ -1,5 +1,7 @@
-import React, { useRef, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useRef, useMemo, useState } from 'react';
+import { ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system';
 import { CommonActions } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
@@ -16,10 +18,16 @@ const logoutGoogleSession = typeof _logoutGoogleSession === 'function' ? _logout
 const useGoogleAuth = typeof _useGoogleAuth === 'function' ? _useGoogleAuth : () => ({ request: null, response: null, promptAsync: async () => {} });
 import { getOrCreateUserIdentity, saveUserIdentity } from '../services/appIdentityService';
 import { performFullSessionLogout } from '../services/sessionCleanupService';
+import { getLocal } from '../storage/mmkv';
 import { setQaRuntimeAuth } from '../utils/qaTransport';
 import { QA_ELEMENTS, QA_SCREENS, qaAliasProps, qaProps } from '../qa/selectorRegistry';
 
 const ADMIN_EMAILS = ['thegamerbr411@gmail.com'];
+const BETA_CODE = 'BETA2026';
+const BETA_ENABLED_KEY = 'evolucao.beta.enabled.v1';
+const BETA_SUGGESTIONS_KEY = 'evolucao.beta.suggestions.v1';
+const ADMIN_LOCAL_EXERCISES_KEY = 'admin.local.exercises.v1';
+const ADMIN_LOCAL_FOODS_KEY = 'admin.local.foods.v1';
 
 const GOALS = [
   { key: 'emagrecer', label: 'Perda de gordura' },
@@ -72,8 +80,14 @@ export default function ProfileScreen({ navigation }) {
   const [logoutLoading, setLogoutLoading] = useState(false);
   const [sessionLogoutLoading, setSessionLogoutLoading] = useState(false);
   const [creatineLoading, setCreatineLoading] = useState(false);
+  const [betaKeyInput, setBetaKeyInput] = useState('');
+  const [betaSuggestion, setBetaSuggestion] = useState('');
+  const [betaEnabled, setBetaEnabled] = useState(false);
+  const [betaLoading, setBetaLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const insets = useSafeAreaInsets();
+  const safeBottomInset = Math.min(Number(insets.bottom || 0), 24);
+  const stickyFooterPaddingBottom = spacing.md + safeBottomInset;
   const adminTapCount = useRef(0);
   const adminTapTimer = useRef(null);
 
@@ -88,7 +102,9 @@ export default function ProfileScreen({ navigation }) {
   };
   const { request, promptAsync, response } = useGoogleAuth();
   const googleConfigured = isGoogleAuthConfigured();
+  const googleReady = googleConfigured && typeof promptAsync === 'function';
   const isAdmin = String(user?.role || '').toLowerCase() === 'admin' || ADMIN_EMAILS.includes(String(user?.email || '').toLowerCase().trim());
+  const isBetaTester = isAdmin || betaEnabled;
 
   const gamification = getWorkoutGamification();
   const macroTargets = getDailyMacroTargets();
@@ -229,13 +245,137 @@ export default function ProfileScreen({ navigation }) {
     handleGoogleResponse();
   }, [response, setUser]);
 
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const betaFlag = String((await AsyncStorage.getItem(BETA_ENABLED_KEY)) || '').trim() === '1';
+        const savedSuggestion = String((await AsyncStorage.getItem(BETA_SUGGESTIONS_KEY)) || '').trim();
+        if (!mounted) return;
+        setBetaEnabled(betaFlag);
+        if (savedSuggestion) {
+          setBetaSuggestion(savedSuggestion);
+        }
+      } catch {
+        if (mounted) {
+          setBetaEnabled(false);
+        }
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const handleActivateBeta = async () => {
+    const safeCode = String(betaKeyInput || '').trim().toUpperCase();
+    if (!safeCode) {
+      setToastMessage('Informe a chave Beta para ativar.');
+      return;
+    }
+    if (safeCode !== BETA_CODE) {
+      setToastMessage('Chave Beta invalida.');
+      return;
+    }
+
+    setBetaLoading(true);
+    try {
+      await AsyncStorage.setItem(BETA_ENABLED_KEY, '1');
+      setBetaEnabled(true);
+      setToastMessage('Modo Beta ativado neste dispositivo.');
+    } finally {
+      setBetaLoading(false);
+    }
+  };
+
+  const handleExportImprovements = async () => {
+    if (!isBetaTester) {
+      setToastMessage('Ative o modo Beta para exportar melhorias.');
+      return;
+    }
+
+    setBetaLoading(true);
+    try {
+      const suggestionsText = String(betaSuggestion || '').trim();
+      if (suggestionsText) {
+        await AsyncStorage.setItem(BETA_SUGGESTIONS_KEY, suggestionsText);
+      }
+
+      const localExercises = (getLocal(ADMIN_LOCAL_EXERCISES_KEY) || [])
+        .filter((item) => item && item.name)
+        .map((item) => ({
+          id: item.id,
+          name: item.name,
+          primaryMuscle: item.primaryMuscle,
+          equipment: item.equipment,
+          createdAt: item.createdAt || null,
+        }));
+
+      const localFoods = (getLocal(ADMIN_LOCAL_FOODS_KEY) || [])
+        .filter((item) => item && item.nome)
+        .map((item) => ({
+          id: item.id,
+          nome: item.nome,
+          porcao: item.porcao,
+          kcal: item.kcal,
+          carbo: item.carbo,
+          prot: item.prot,
+          gord: item.gord,
+          createdAt: item.createdAt || null,
+        }));
+
+      const payload = {
+        exportedAt: new Date().toISOString(),
+        appVersion: APP_VERSION,
+        betaStatus: isBetaTester ? 'enabled' : 'disabled',
+        user: {
+          id: user?.id || null,
+          name: user?.name || null,
+          email: user?.email || null,
+        },
+        improvements: {
+          exercises: localExercises,
+          foods: localFoods,
+          suggestions: suggestionsText
+            ? suggestionsText.split('\n').map((item) => item.trim()).filter(Boolean)
+            : [],
+        },
+      };
+
+      const dir = `${FileSystem.documentDirectory}exports/`;
+      const fileName = `tevo_melhorias_${Date.now()}.json`;
+      const fileUri = `${dir}${fileName}`;
+
+      await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
+      await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(payload, null, 2), {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+
+      await AsyncStorage.setItem('evolucao.beta.lastExport.v1', fileUri);
+
+      await Share.share({
+        title: 'Exportar melhorias T-Evo',
+        message: `Arquivo JSON gerado: ${fileUri}`,
+      });
+
+      setToastMessage(`Exportacao concluida. Arquivo: ${fileName}`);
+    } catch {
+      setToastMessage('Falha ao exportar melhorias.');
+    } finally {
+      setBetaLoading(false);
+    }
+  };
+
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.screenWrapper}>
     <ScrollView
       {...qaAliasProps(QA_SCREENS.profile, 'screen-perfil')}
       style={styles.scrollArea}
+      nestedScrollEnabled
       keyboardShouldPersistTaps="handled"
-      contentContainerStyle={styles.container}
+      keyboardDismissMode="on-drag"
+      contentContainerStyle={[styles.container, { paddingBottom: spacing.lg }]}
     >
       <AnimatedToast message={toastMessage} onHide={() => setToastMessage('')} />
 
@@ -380,49 +520,44 @@ export default function ProfileScreen({ navigation }) {
 
       <AppCard>
         <Text style={styles.metric}>Sincronize sua conta para manter seu progresso seguro em qualquer dispositivo.</Text>
-        {googleConfigured ? (
-          <>
-            <PrimaryButton
-              {...qaAliasProps(QA_ELEMENTS.btnGoogleLogin, 'btn-profile-google-login')}
-              title={googleLoading ? 'Conectando Google...' : 'Entrar com Google'}
-              onPress={() => {
-                if (googleLoading) return;
-                if (!request) {
-                  setToastMessage('Login Google indisponivel no momento. Reabra a tela e tente novamente.');
-                  return;
-                }
-                promptAsync({ useProxy: false }).catch(() => {
-                  setToastMessage('Falha no login. Nao foi possivel abrir o fluxo do Google.');
-                });
-              }}
-            />
-            <SecondaryButton
-              {...qaAliasProps(QA_ELEMENTS.btnGoogleLogout, 'btn-profile-google-logout')}
-              title={logoutLoading ? 'Trocando conta...' : 'Desconectar e usar identidade local'}
-              onPress={async () => {
-                if (logoutLoading) {
-                  return;
-                }
+        <PrimaryButton
+          {...qaAliasProps(QA_ELEMENTS.btnGoogleLogin, 'btn-profile-google-login')}
+          title={googleLoading ? 'Conectando Google...' : (googleReady ? 'Entrar com Google' : 'Preparando Google...')}
+          onPress={() => {
+            if (googleLoading) return;
+            if (!googleReady) {
+              setToastMessage('Google ainda nao ficou pronto nesta sessao. Aguarde alguns segundos e tente novamente.');
+              return;
+            }
+            promptAsync().catch(() => {
+              setToastMessage('Falha no login. Nao foi possivel abrir o fluxo do Google.');
+            });
+          }}
+        />
+        <SecondaryButton
+          {...qaAliasProps(QA_ELEMENTS.btnGoogleLogout, 'btn-profile-google-logout')}
+          title={logoutLoading ? 'Trocando conta...' : 'Desconectar e usar identidade local'}
+          onPress={async () => {
+            if (logoutLoading) {
+              return;
+            }
 
-                setLogoutLoading(true);
-                try {
-                  await logoutGoogleSession();
-                  const localIdentity = await getOrCreateUserIdentity();
-                  await saveUserIdentity({ userId: localIdentity.userId, source: 'local' });
-                  setQaRuntimeAuth({ userId: localIdentity.userId });
-                  setUser((prev) => ({ ...prev, id: localIdentity.userId, role: 'user' }));
-                  setToastMessage('Conta local ativa. Sessao Google encerrada neste dispositivo.');
-                } finally {
-                  setLogoutLoading(false);
-                }
-              }}
-              style={styles.secondaryButton}
-            />
-            {!request ? <Text style={styles.metric}>Preparando acesso Google...</Text> : null}
-          </>
-        ) : (
-          <Text style={styles.metric}>Google nao configurado nesta build. Ative EXPO_PUBLIC_GOOGLE_* para login no release.</Text>
-        )}
+            setLogoutLoading(true);
+            try {
+              await logoutGoogleSession();
+              const localIdentity = await getOrCreateUserIdentity();
+              await saveUserIdentity({ userId: localIdentity.userId, source: 'local' });
+              setQaRuntimeAuth({ userId: localIdentity.userId });
+              setUser((prev) => ({ ...prev, id: localIdentity.userId, role: 'user' }));
+              setToastMessage('Conta local ativa. Sessao Google encerrada neste dispositivo.');
+            } finally {
+              setLogoutLoading(false);
+            }
+          }}
+          style={styles.secondaryButton}
+        />
+        {!googleConfigured ? <Text style={styles.metric}>Google ainda nao ficou pronto nesta sessao. Tente novamente em alguns segundos.</Text> : null}
+        {!request && googleConfigured ? <Text style={styles.metric}>Inicializando provedor Google...</Text> : null}
 
         <SecondaryButton
           {...qaAliasProps(QA_ELEMENTS.btnLogout, 'btn-profile-session-logout')}
@@ -527,26 +662,41 @@ export default function ProfileScreen({ navigation }) {
         />
       </AppCard>
 
-      <Text style={styles.sectionHeading}>� Beta Tester</Text>
+      <Text style={styles.sectionHeading}>Beta Tester</Text>
 
       <AppCard>
         <Text style={styles.cardLabel}>Status Beta</Text>
         <Text style={styles.metric}>
-          {user?.role === 'admin' || ADMIN_EMAILS.includes(user?.email)
-            ? '✓ Acesso Beta Completo ativado'
-            : '○ Modo Beta desativado'}
+          {isBetaTester ? 'Beta ativo' : 'Beta desativado'}
         </Text>
-        {user?.role === 'admin' || ADMIN_EMAILS.includes(user?.email) ? (
+        {!isBetaTester ? (
+          <>
+            <AppInput
+              label="Chave Beta"
+              value={betaKeyInput}
+              onChangeText={setBetaKeyInput}
+              placeholder="Ex.: BETA2026"
+            />
+            <PrimaryButton
+              title={betaLoading ? 'Ativando...' : 'Ativar modo Beta'}
+              onPress={handleActivateBeta}
+            />
+          </>
+        ) : (
           <>
             <Text style={styles.metric}>
-              Você tem acesso a:
+              Acesso liberado para:
             </Text>
-            <Text style={styles.metric}>• Criar exercícios personalizados</Text>
-            <Text style={styles.metric}>• Adicionar alimentos customizados</Text>
-            <Text style={styles.metric}>• Exportar melhorias e sugestões</Text>
-            <Text style={styles.metric}>• Painel Admin limitado</Text>
+            <Text style={styles.metric}>- Criar exercicios personalizados</Text>
+            <Text style={styles.metric}>- Adicionar alimentos customizados</Text>
+            <Text style={styles.metric}>- Exportar melhorias</Text>
+            <SecondaryButton
+              title="Abrir painel Beta"
+              style={styles.secondaryButton}
+              onPress={() => navigation.navigate('Admin')}
+            />
           </>
-        ) : null}
+        )}
       </AppCard>
 
       <Text style={styles.sectionHeading}>📤 Exportar Melhorias</Text>
@@ -556,34 +706,20 @@ export default function ProfileScreen({ navigation }) {
         <Text style={styles.metric}>
           Exporte seus exercícios, alimentos e sugestões para melhorar o app.
         </Text>
+        <AppInput
+          label="Sugestoes"
+          value={betaSuggestion}
+          onChangeText={setBetaSuggestion}
+          placeholder="Descreva melhorias (uma por linha)"
+          multiline
+        />
         <PrimaryButton
-          title="Exportar como JSON"
-          onPress={async () => {
-            try {
-              const exportData = {
-                timestamp: new Date().toISOString(),
-                appVersion: APP_VERSION,
-                user: {
-                  id: user?.id,
-                  name: user?.name,
-                  email: user?.email,
-                },
-                profile: profile,
-                gamification: gamification,
-                history: history?.slice(-30), // últimos 30 dias
-              };
-
-              const jsonStr = JSON.stringify(exportData, null, 2);
-              setToastMessage('✓ Dados exportados com sucesso! Pronto para compartilhar.');
-              console.log('[EXPORT]', jsonStr);
-            } catch (err) {
-              setToastMessage('✗ Erro ao exportar dados.');
-            }
-          }}
+          title={betaLoading ? 'Exportando...' : 'Exportar melhorias'}
+          onPress={handleExportImprovements}
         />
       </AppCard>
 
-      <Text style={styles.sectionHeading}>�🤖 Coach IA</Text>
+      <Text style={styles.sectionHeading}>Coach IA</Text>
 
       <AppCard>
         <Text style={styles.metric}>Prioridade: {profileCoach.priority}</Text>
@@ -593,19 +729,19 @@ export default function ProfileScreen({ navigation }) {
         ))}
       </AppCard>
 
+      <View
+        {...qaAliasProps(QA_ELEMENTS.btnSaveProfile, 'btn-profile-save')}
+        collapsable={false}
+        style={[styles.stickyFooter, { paddingBottom: stickyFooterPaddingBottom }]}
+      >
+        <PrimaryButton title="Salvar perfil" onPress={saveProfile} />
+      </View>
+
 
       <TouchableOpacity onPress={handleVersionTap} activeOpacity={0.7}>
         <Text style={styles.versionText}>v{APP_VERSION}</Text>
       </TouchableOpacity>
     </ScrollView>
-
-    <View
-      {...qaAliasProps(QA_ELEMENTS.btnSaveProfile, 'btn-profile-save')}
-      collapsable={false}
-      style={[styles.stickyFooter, { paddingBottom: Math.max(spacing.md, insets.bottom + 8) }]}
-    >
-      <PrimaryButton title="Salvar perfil" onPress={saveProfile} />
-    </View>
     </SafeAreaView>
   );
 }
@@ -711,7 +847,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   container: {
-    flexGrow: 1,
     backgroundColor: colors.background,
     paddingTop: spacing.md,
     paddingHorizontal: spacing.lg,
@@ -722,6 +857,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
     paddingBottom: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
+    marginTop: spacing.sm,
   },
   cardLabel: {
     color: colors.textSecondary,
