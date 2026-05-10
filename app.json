@@ -3,12 +3,12 @@
     "name": "T-Evo",
     "slug": "evolucao-full-v2",
     "scheme": "evolucao",
-    "version": "1.2.2",
+    "version": "1.2.4",
     "assetBundlePatterns": [
       "**/*"
     ],
     "extra": {
-      "appVersion": "1.2.2",
+      "appVersion": "1.2.4",
       "eas": {
         "projectId": "44b3afa4-ce98-4f1b-b139-0ed7fe2d053b"
       }

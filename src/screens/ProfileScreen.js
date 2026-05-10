@@ -809,6 +809,12 @@ export default function ProfileScreen({ navigation }) {
           onPress={() => handleBetaExport('diagnostic')}
           style={styles.secondaryButton}
         />
+        <SecondaryButton
+          {...qaProps('btn_profile_beta_export_support_package')}
+          title={betaExportLoading ? 'Exportando...' : 'Exportar pacote de suporte'}
+          onPress={() => handleBetaExport('support')}
+          style={styles.secondaryButton}
+        />
         <PrimaryButton
           {...qaProps('btn_profile_beta_export_improvements')}
           title={betaLoading ? 'Exportando...' : 'Exportar melhorias'}

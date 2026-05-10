@@ -1,17 +1,12 @@
-// src/services/authService.ts
-import * as Google from 'expo-auth-session/providers/google'
-import * as WebBrowser from 'expo-web-browser'
-import api from './api'
-import { useAuthStore } from '../stores/useAuthStore'
+import {
+  exchangeGoogleAuthCode,
+  isGoogleAuthConfigured,
+  loginWithGoogleToken,
+  logoutGoogleSession,
+  useGoogleAuth,
+} from './authService.js'
 
-WebBrowser.maybeCompleteAuthSession()
-
-const GOOGLE_CLIENT_ID = String(process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '').trim()
-const GOOGLE_ANDROID_CLIENT_ID = String(process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || GOOGLE_CLIENT_ID).trim()
-const GOOGLE_EXPO_CLIENT_ID = String(process.env.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID || GOOGLE_CLIENT_ID).trim()
-const GOOGLE_IOS_CLIENT_ID = String(process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || GOOGLE_CLIENT_ID).trim()
-
-type GoogleAuthResponse = {
+type LegacyGoogleAuthResponse = {
   accessToken: string
   refreshToken: string
   user: {
@@ -22,59 +17,37 @@ type GoogleAuthResponse = {
   }
 }
 
-export const loginWithGoogle = async (googleIdToken?: string): Promise<GoogleAuthResponse | null> => {
-  try {
-    if (!googleIdToken) {
-      console.warn('[INTEGRATION][AUTH][TS] idToken ausente no loginWithGoogle')
-      return null
-    }
-
-    console.log('[INTEGRATION][AUTH][TS] POST /auth/google')
-    const response = await api.post('/auth/google', {
-      token: googleIdToken,
-    })
-
-    const { accessToken, refreshToken, user } = response.data
-
-    // 💾 Salva tokens
-    await useAuthStore.getState().setToken(accessToken, refreshToken)
-
-    // 👤 Salva usuário
-    useAuthStore.getState().setUser(user)
-
-    return {
-      accessToken,
-      refreshToken,
-      user,
-    }
-  } catch (error) {
-    console.error('Login Google erro:', error)
+export const loginWithGoogle = async (googleIdToken?: string): Promise<LegacyGoogleAuthResponse | null> => {
+  const idToken = String(googleIdToken || '').trim()
+  if (!idToken) {
     return null
   }
-}
 
-/**
- * Logout
- */
-export const logout = async () => {
-  try {
-    await api.post('/auth/logout')
-  } catch (e) {
-    console.error('Logout error:', e)
+  const user = await loginWithGoogleToken({ idToken, accessToken: null })
+  if (!user?.id) {
+    return null
   }
 
-  await useAuthStore.getState().logout()
+  return {
+    accessToken: '',
+    refreshToken: '',
+    user: {
+      id: String(user.id),
+      email: String(user.email || ''),
+      name: String(user.name || 'Usuario'),
+      avatar: undefined,
+    },
+  }
 }
 
-/**
- * Provider do Google Auth (deve ser usado em App.tsx)
- */
-export const useGoogleAuth = () => {
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    androidClientId: GOOGLE_ANDROID_CLIENT_ID,
-    expoClientId: GOOGLE_EXPO_CLIENT_ID,
-    iosClientId: GOOGLE_IOS_CLIENT_ID,
-  })
+export const logout = async () => {
+  await logoutGoogleSession()
+}
 
-  return { request, response, promptAsync }
+export {
+  exchangeGoogleAuthCode,
+  isGoogleAuthConfigured,
+  loginWithGoogleToken,
+  logoutGoogleSession,
+  useGoogleAuth,
 }

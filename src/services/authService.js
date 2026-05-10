@@ -64,6 +64,20 @@ function getGoogleClientConfig() {
   };
 }
 
+function getAndroidNativeRedirectUri(androidClientId) {
+  const safeClientId = sanitizeGoogleClientId(androidClientId);
+  if (!safeClientId) {
+    return '';
+  }
+
+  const clientPrefix = safeClientId.replace('.apps.googleusercontent.com', '');
+  if (!clientPrefix) {
+    return '';
+  }
+
+  return `com.googleusercontent.apps.${clientPrefix}:/oauthredirect`;
+}
+
 export function isGoogleAuthConfigured() {
   const cfg = getGoogleClientConfig();
   const configured = Boolean(cfg.androidClientId || cfg.webClientId || cfg.expoClientId || cfg.iosClientId || cfg.sharedClientId);
@@ -80,10 +94,12 @@ export function isGoogleAuthConfigured() {
 
 export function useGoogleAuth() {
   const cfg = getGoogleClientConfig();
+  const androidNativeRedirectUri = getAndroidNativeRedirectUri(cfg.androidClientId);
   console.log('[AUTH][GOOGLE][HOOK]', JSON.stringify({
     hasAndroid: Boolean(cfg.androidClientId),
     hasWeb: Boolean(cfg.webClientId),
     hasIos: Boolean(cfg.iosClientId),
+    hasAndroidNativeRedirect: Boolean(androidNativeRedirectUri),
   }));
 
   // Usar Google.useAuthRequest para Authorization Code flow
@@ -99,19 +115,18 @@ export function useGoogleAuth() {
     };
   }
 
-  // Configuração para Authorization Code flow (não id_token)
-  // Redirect URI será automaticamente capturado do scheme registrado em AndroidManifest
-  // Para Custom Tab OAuth (expo-auth-session): usar webClientId como client_id.
-  // O androidClientId (tipo 1) é para o Google Sign-In SDK nativo, não para browser flow.
-  // O redirect_uri deve usar o scheme do app e estar registrado no web client do Google Cloud.
   const requestConfig = {
     androidClientId: cfg.androidClientId || cfg.sharedClientId || undefined,
     webClientId: cfg.webClientId || undefined,
     expoClientId: cfg.expoClientId || undefined,
     iosClientId: cfg.iosClientId || undefined,
+    redirectUri: Platform.OS === 'android' && androidNativeRedirectUri
+      ? androidNativeRedirectUri
+      : undefined,
     scopes: ['openid', 'profile', 'email'],
     responseType: 'id_token',
     usePKCE: false,
+    selectAccount: true,
   };
 
   const [request, response, promptAsync] = Google.useAuthRequest(requestConfig);
