@@ -6,6 +6,12 @@
 - Mitigacao aplicada: padronizacao de redirect nativo Android no authService.
 - Estado: monitorando em runtime real apos patch.
 
+## Auth backend (/auth/google)
+- Sintoma observado em smoke remoto: token invalido aceito indevidamente.
+- Causa raiz: fallback local criava usuario mesmo sem token valido.
+- Correcao aplicada no codigo: validacao real via Google tokeninfo + bloqueio de payload invalido.
+- Estado: aguardando deploy da branch com fix para revalidar em runtime remoto.
+
 ## Auditoria visual manual
 - Sintoma: cobertura ampla existe, mas ciclo humano de 5 rodadas ainda nao concluido nesta execucao.
 - Risco: regressao visual/UX residual.

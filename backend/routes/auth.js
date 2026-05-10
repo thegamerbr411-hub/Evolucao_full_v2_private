@@ -40,6 +40,66 @@ const decodeGoogleTokenPayload = (token = '') => {
   }
 }
 
+const allowedGoogleAudiences = new Set(
+  String(process.env.GOOGLE_ALLOWED_AUDS || '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
+)
+
+async function validateGoogleIdToken(idToken) {
+  const token = String(idToken || '').trim()
+  if (!token) {
+    return { ok: false, error: 'Token required' }
+  }
+
+  const decoded = decodeGoogleTokenPayload(token)
+  if (!decoded || !decoded.email || !decoded.sub) {
+    return { ok: false, error: 'Invalid Google token payload' }
+  }
+
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 8000)
+
+  try {
+    const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(token)}`, {
+      method: 'GET',
+      signal: controller.signal,
+    })
+
+    if (!response.ok) {
+      return { ok: false, error: 'Invalid Google token' }
+    }
+
+    const tokenInfo = await response.json()
+    const audience = String(tokenInfo?.aud || '')
+    const email = String(tokenInfo?.email || decoded.email || '').trim().toLowerCase()
+    const emailVerified = String(tokenInfo?.email_verified || '').toLowerCase() === 'true'
+    const issuer = String(tokenInfo?.iss || '')
+
+    const validIssuer = issuer === 'https://accounts.google.com' || issuer === 'accounts.google.com'
+    if (!validIssuer || !email || !emailVerified) {
+      return { ok: false, error: 'Invalid Google token claims' }
+    }
+
+    if (allowedGoogleAudiences.size > 0 && !allowedGoogleAudiences.has(audience)) {
+      return { ok: false, error: 'Google token audience not allowed' }
+    }
+
+    return {
+      ok: true,
+      email,
+      name: String(tokenInfo?.name || decoded?.name || 'Usuario Novo'),
+      audience,
+      subject: String(tokenInfo?.sub || decoded?.sub || ''),
+    }
+  } catch {
+    return { ok: false, error: 'Google token validation failed' }
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
 // Armazenamento em memória — aceita para MVP/beta.
 // Em produção: substituir por banco de dados persistente (PostgreSQL, Firestore, etc).
 // Dados se perdem a cada restart do servidor. Usuários precisam refazer login.
@@ -411,7 +471,7 @@ router.post('/verify-code', (req, res) => {
  * POST /auth/google
  * Google login → validar token → retornar JWT
  */
-router.post('/google', (req, res) => {
+router.post('/google', async (req, res) => {
   try {
     const { token } = req.body
 
@@ -419,10 +479,16 @@ router.post('/google', (req, res) => {
       return res.status(400).json({ error: 'Token required' })
     }
 
-    // ⚠️ Em produção você validaria com Google API aqui.
-    // Nesta versão usamos decode local para obter email/nome sem bloquear o fluxo QA.
-    const decoded = decodeGoogleTokenPayload(token)
-    const email = String(decoded?.email || `user-${Date.now()}@evolucao.app`)
+    const validated = await validateGoogleIdToken(token)
+    if (!validated.ok) {
+      return res.status(401).json({ error: validated.error || 'Invalid Google token' })
+    }
+
+    const email = String(validated.email || '').trim().toLowerCase()
+    if (!email) {
+      return res.status(401).json({ error: 'Invalid Google token email' })
+    }
+
     const role = resolveRoleByEmail(email)
 
     // Reusar usuário existente pelo email para evitar duplicatas por restart
@@ -430,7 +496,7 @@ router.post('/google', (req, res) => {
     const user = existing || upsertUser({
       id: Math.random().toString(36).substr(2, 9),
       email,
-      name: String(decoded?.name || 'Usuario Novo'),
+      name: String(validated.name || 'Usuario Novo'),
       role,
       isAdmin: role === 'admin',
       xp: 0,
