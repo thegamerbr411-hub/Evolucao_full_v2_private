@@ -1,6 +1,8 @@
 import { getIdTokenResult, GoogleAuthProvider, sendPasswordResetEmail, signInAnonymously, signInWithCredential } from 'firebase/auth';
 import * as Google from 'expo-auth-session/providers/google';
+import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
+import { Platform } from 'react-native';
 import { auth } from './firebase.js';
 import { logCriticalError } from './loggingService.js';
 import api from './api';
@@ -56,13 +58,38 @@ function getGoogleClientConfig() {
   };
 }
 
+function getGoogleNativeRedirectUri(androidClientId) {
+  const sanitized = sanitizeGoogleClientId(androidClientId);
+  if (!sanitized) {
+    return AuthSession.makeRedirectUri({ scheme: 'evolucao', path: 'oauthredirect' });
+  }
+
+  const appId = sanitized.replace('.apps.googleusercontent.com', '');
+  const googleScheme = `com.googleusercontent.apps.${appId}`;
+  return `${googleScheme}:/oauthredirect`;
+}
+
 export function isGoogleAuthConfigured() {
   const cfg = getGoogleClientConfig();
-  return Boolean(cfg.androidClientId || cfg.webClientId || cfg.expoClientId || cfg.iosClientId || cfg.sharedClientId);
+  const configured = Boolean(cfg.androidClientId || cfg.webClientId || cfg.expoClientId || cfg.iosClientId || cfg.sharedClientId);
+  console.log('[AUTH][GOOGLE][CONFIGURED]', JSON.stringify({
+    configured,
+    hasAndroid: Boolean(cfg.androidClientId),
+    hasWeb: Boolean(cfg.webClientId),
+    hasExpo: Boolean(cfg.expoClientId),
+    hasIos: Boolean(cfg.iosClientId),
+    hasShared: Boolean(cfg.sharedClientId),
+  }));
+  return configured;
 }
 
 export function useGoogleAuth() {
   const cfg = getGoogleClientConfig();
+  console.log('[AUTH][GOOGLE][HOOK]', JSON.stringify({
+    hasAndroid: Boolean(cfg.androidClientId),
+    hasWeb: Boolean(cfg.webClientId),
+    hasIos: Boolean(cfg.iosClientId),
+  }));
 
   // Usar Google.useAuthRequest para Authorization Code flow
   // Mais apropriado para apps nativas Android
@@ -79,11 +106,26 @@ export function useGoogleAuth() {
 
   // Configuração para Authorization Code flow (não id_token)
   // Redirect URI será automaticamente capturado do scheme registrado em AndroidManifest
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    androidClientId: cfg.androidClientId,
-    webClientId: cfg.webClientId,
-    iosClientId: cfg.iosClientId,
-  });
+  // Para Custom Tab OAuth (expo-auth-session): usar webClientId como client_id.
+  // O androidClientId (tipo 1) é para o Google Sign-In SDK nativo, não para browser flow.
+  // O redirect_uri deve usar o scheme do app e estar registrado no web client do Google Cloud.
+  const requestConfig = {
+    androidClientId: cfg.androidClientId || undefined,
+    webClientId: cfg.webClientId || undefined,
+    expoClientId: cfg.expoClientId || undefined,
+    iosClientId: cfg.iosClientId || undefined,
+    scopes: ['openid', 'profile', 'email'],
+    redirectUri: getGoogleNativeRedirectUri(cfg.androidClientId),
+  };
+
+  const [request, response, promptAsync] = Google.useAuthRequest(requestConfig);
+
+  // Log request URL for OAuth debugging
+  if (request) {
+    console.log('[AUTH][GOOGLE][REQUEST_URL]', request.url || 'pending');
+    console.log('[AUTH][GOOGLE][REDIRECT_URI]', request.redirectUri || 'none');
+    console.log('[AUTH][GOOGLE][CLIENT_ID_USED]', requestConfig.androidClientId || requestConfig.webClientId);
+  }
 
   return { request, response, promptAsync };
 }
