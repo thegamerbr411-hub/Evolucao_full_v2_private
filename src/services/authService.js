@@ -55,11 +55,10 @@ export function isGoogleAuthConfigured() {
 
 export function useGoogleAuth() {
   const cfg = getGoogleClientConfig();
-  const authRequestHook = Google && typeof Google.useIdTokenAuthRequest === 'function'
-    ? Google.useIdTokenAuthRequest
-    : (Google && typeof Google.useAuthRequest === 'function' ? Google.useAuthRequest : null);
 
-  if (!authRequestHook) {
+  // Usar Google.useAuthRequest para Authorization Code flow
+  // Mais apropriado para apps nativas Android
+  if (!Google || typeof Google.useAuthRequest !== 'function') {
     return {
       request: null,
       response: null,
@@ -70,17 +69,13 @@ export function useGoogleAuth() {
     };
   }
 
-  // Usar apenas client ID apropriado por plataforma
-  // Deixar Expo Auth Session escolher o fluxo correto
-  const requestConfig = {
+  // Configuração para Authorization Code flow (não id_token)
+  // Redirect URI será automaticamente capturado do scheme registrado em AndroidManifest
+  const [request, response, promptAsync] = Google.useAuthRequest({
     androidClientId: cfg.androidClientId,
-    iosClientId: cfg.iosClientId,
     webClientId: cfg.webClientId,
-    scopes: ['openid', 'profile', 'email'],
-    // Deixar Expo usar redirectUri padrão (baseado no scheme do app)
-  };
-
-  const [request, response, promptAsync] = authRequestHook(requestConfig);
+    iosClientId: cfg.iosClientId,
+  });
 
   return { request, response, promptAsync };
 }
