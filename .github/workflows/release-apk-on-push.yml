@@ -41,8 +41,14 @@ jobs:
           npm run audit:release:sync
           npm run audit:release:check
 
+      - name: Operational preflight
+        run: npm run ops:preflight
+
       - name: Build Android APK (Gradle assembleRelease)
         id: gradle_build
+        env:
+          NODE_ENV: production
+          NODE_OPTIONS: --max_old_space_size=4096
         run: |
           cd android
           chmod +x gradlew

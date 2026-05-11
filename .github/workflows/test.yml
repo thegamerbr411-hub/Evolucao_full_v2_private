@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   root-quality:
     runs-on: ubuntu-latest
@@ -25,6 +28,9 @@ jobs:
 
       - name: Check _audit_release drift
         run: npm run audit:release:check
+
+      - name: Operational preflight
+        run: npm run ops:preflight
 
       - name: Generate mobile observability baseline
         run: npm run qa:mobile:observability
