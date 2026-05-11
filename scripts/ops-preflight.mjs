@@ -110,6 +110,8 @@ if (backendNvmPath) {
   }
 }
 
+const runningInCi = String(process.env.GITHUB_ACTIONS || '').toLowerCase() === 'true';
+
 if (googleServicesPath) {
   try {
     const parsed = JSON.parse(readText(googleServicesPath));
@@ -117,7 +119,15 @@ if (googleServicesPath) {
     const oauthClients = Array.isArray(client?.oauth_client) ? client.oauth_client : [];
     const hasAndroidClient = oauthClients.some((c) => Number(c?.client_type) === 1 && isGoogleClientId(c?.client_id));
     const hasWebClient = oauthClients.some((c) => Number(c?.client_type) === 3 && isGoogleClientId(c?.client_id));
-    if (!hasAndroidClient) fail('google-services.json sem OAuth Android válido'); else ok('google-services.json com OAuth Android');
+    if (!hasAndroidClient) {
+      if (runningInCi) {
+        warn('google-services.json sem OAuth Android válido (CI detectado)');
+      } else {
+        fail('google-services.json sem OAuth Android válido');
+      }
+    } else {
+      ok('google-services.json com OAuth Android');
+    }
     if (!hasWebClient) warn('google-services.json sem OAuth Web explícito no primeiro client'); else ok('google-services.json com OAuth Web');
   } catch (error) {
     fail(`google-services.json inválido: ${String(error?.message || error)}`);
@@ -125,7 +135,6 @@ if (googleServicesPath) {
 }
 
 const envPath = path.join(root, '.env');
-const runningInCi = String(process.env.GITHUB_ACTIONS || '').toLowerCase() === 'true';
 
 if (!fs.existsSync(envPath)) {
   if (runningInCi) {
