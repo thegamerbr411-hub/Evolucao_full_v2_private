@@ -125,8 +125,14 @@ if (googleServicesPath) {
 }
 
 const envPath = path.join(root, '.env');
+const runningInCi = String(process.env.GITHUB_ACTIONS || '').toLowerCase() === 'true';
+
 if (!fs.existsSync(envPath)) {
-  fail('.env ausente na raiz');
+  if (runningInCi) {
+    warn('.env ausente na raiz (CI detectado)');
+  } else {
+    fail('.env ausente na raiz');
+  }
 } else {
   const env = parseDotEnv(readText(envPath));
   const required = [
@@ -141,18 +147,30 @@ if (!fs.existsSync(envPath)) {
 
   for (const key of required) {
     if (!env[key] || /replace_with/i.test(env[key])) {
-      fail(`${key} ausente ou placeholder`);
+      if (runningInCi) {
+        warn(`${key} ausente ou placeholder no .env (CI detectado)`);
+      } else {
+        fail(`${key} ausente ou placeholder`);
+      }
     } else {
       ok(`${key} definido`);
     }
   }
 
   if (!isGoogleClientId(env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '')) {
-    fail('EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID inválido');
+    if (runningInCi) {
+      warn('EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID inválido no .env (CI detectado)');
+    } else {
+      fail('EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID inválido');
+    }
   }
 
   if (!isGoogleClientId(env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '')) {
-    fail('EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID inválido');
+    if (runningInCi) {
+      warn('EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID inválido no .env (CI detectado)');
+    } else {
+      fail('EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID inválido');
+    }
   }
 
   if (env.EXPO_PUBLIC_APP_VERSION && !/^\d+\.\d+\.\d+$/.test(env.EXPO_PUBLIC_APP_VERSION)) {
