@@ -9,6 +9,9 @@ on:
 permissions:
   contents: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build-release-apk:
     runs-on: ubuntu-latest
@@ -24,6 +27,12 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
 
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
       - name: Install dependencies
         run: npm ci
 
@@ -32,38 +41,27 @@ jobs:
           npm run audit:release:sync
           npm run audit:release:check
 
-      - name: Validate EXPO_TOKEN secret
+      - name: Build Android APK (Gradle assembleRelease)
+        id: gradle_build
         run: |
-          if [ -z "${{ secrets.EXPO_TOKEN }}" ]; then
-            echo "EXPO_TOKEN ausente. Configure em: Settings > Secrets and variables > Actions"
+          cd android
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleRelease
+          cd ..
+          APK_PATH="android/app/build/outputs/apk/release/app-release.apk"
+          if [ ! -f "$APK_PATH" ]; then
+            echo "APK not found at $APK_PATH"
             exit 1
           fi
-
-      - name: Setup Expo and EAS
-        uses: expo/expo-github-action@v8
-        with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
-
-      - name: Build Android APK (EAS preview profile)
-        id: eas_build
-        run: |
-          npx eas-cli build --platform android --profile preview --non-interactive --wait --json > eas-build.json
-
-          node -e "const fs=require('fs');const data=JSON.parse(fs.readFileSync('eas-build.json','utf8'));const b=Array.isArray(data)?data[0]:data;const url=b?.artifacts?.buildUrl||b?.artifacts?.applicationArchiveUrl||'';if(!url){throw new Error('build_url_not_found_in_eas_output')}const out=process.env.GITHUB_OUTPUT;fs.appendFileSync(out,`build_url=${url}\n`);fs.appendFileSync(out,`build_id=${b?.id||''}\n`);"
-
-      - name: Download APK
-        id: download_apk
-        run: |
           APK_NAME="evolucao-${GITHUB_SHA::8}.apk"
-          curl -L "${{ steps.eas_build.outputs.build_url }}" -o "$APK_NAME"
+          cp "$APK_PATH" "$APK_NAME"
           echo "apk_name=$APK_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
           name: android-apk-${{ github.sha }}
-          path: ${{ steps.download_apk.outputs.apk_name }}
+          path: ${{ steps.gradle_build.outputs.apk_name }}
           retention-days: 14
 
       - name: Create GitHub Release with APK
@@ -75,7 +73,6 @@ jobs:
             Build automatica de APK para instalacao no Android.
 
             Commit: ${{ github.sha }}
-            EAS Build ID: ${{ steps.eas_build.outputs.build_id }}
-            EAS Build URL: ${{ steps.eas_build.outputs.build_url }}
+            Build Type: local Gradle assembleRelease
           prerelease: false
-          files: ${{ steps.download_apk.outputs.apk_name }}
+          files: ${{ steps.gradle_build.outputs.apk_name }}
