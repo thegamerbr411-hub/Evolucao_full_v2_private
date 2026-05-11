@@ -44,6 +44,29 @@ jobs:
       - name: Operational preflight
         run: npm run ops:preflight
 
+      - name: Create minimal .env for bundler (CI)
+        run: |
+          cat > .env << 'EOF'
+          EXPO_PUBLIC_API_URL=https://evolucao-api-dou2.onrender.com
+          EXPO_PUBLIC_API_BASE_URL=https://evolucao-api-dou2.onrender.com
+          EXPO_PUBLIC_APP_VERSION=1.2.6
+          EXPO_PUBLIC_GOOGLE_CLIENT_ID=${{ secrets.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '910587302920-1rg2n0809vbpqqi3i1tsvs2qptqngtml.apps.googleusercontent.com' }}
+          EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID=${{ secrets.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '910587302920-4sls8n06ol9vsedteutiur8mnvdg553q.apps.googleusercontent.com' }}
+          EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=${{ secrets.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '910587302920-1rg2n0809vbpqqi3i1tsvs2qptqngtml.apps.googleusercontent.com' }}
+          EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID=910587302920-4sls8n06ol9vsedteutiur8mnvdg553q.apps.googleusercontent.com
+          EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=placeholder
+          EXPO_PUBLIC_FIREBASE_API_KEY=${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY || 'AIzaSyAQB2GY4vPqxrHxrkjC8T7q1wT8hyOta44' }}
+          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=t-evo-b069a.firebaseapp.com
+          EXPO_PUBLIC_FIREBASE_PROJECT_ID=t-evo-b069a
+          EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=t-evo-b069a.firebasestorage.app
+          EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=910587302920
+          EXPO_PUBLIC_FIREBASE_APP_ID=1:910587302920:android:c9cd63ea51c3fbc15d2dbd
+          EXPO_PUBLIC_QA_API_BASE_URL=http://localhost:3000
+          EXPO_PUBLIC_QA_CLIENT_ID=admin
+          EXPO_PUBLIC_QA_API_KEY=ci-placeholder
+          EOF
+          sed -i 's/^[[:space:]]*//' .env
+
       - name: Build Android APK (Gradle assembleRelease)
         id: gradle_build
         env:
@@ -52,7 +75,7 @@ jobs:
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew --no-daemon assembleRelease
+          ./gradlew --no-daemon --stacktrace assembleRelease
           cd ..
           APK_PATH="android/app/build/outputs/apk/release/app-release.apk"
           if [ ! -f "$APK_PATH" ]; then
