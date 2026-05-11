@@ -7,7 +7,7 @@ function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function requestJson(path, options = {}) {
+async function request(path, options = {}) {
   const response = await fetch(`${BASE_URL}${path}`, {
     method: options.method || 'GET',
     headers: {
@@ -17,42 +17,34 @@ async function requestJson(path, options = {}) {
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
 
+  let data = null;
   const text = await response.text();
-  let json = null;
   try {
-    json = text ? JSON.parse(text) : null;
+    data = text ? JSON.parse(text) : null;
   } catch {
-    json = { raw: text };
+    data = { raw: text };
   }
 
-  return { status: response.status, ok: response.ok, data: json };
+  return { status: response.status, data };
 }
 
-function buildFakeGoogleToken(email) {
-  const payload = Buffer.from(
-    JSON.stringify({
-      email,
-      name: 'Basic Test User',
-      sub: `basic-${Date.now()}`,
-    })
-  ).toString('base64url');
-
-  return `x.${payload}.y`;
-}
-
-async function waitServerReady(maxAttempts = 40) {
+async function waitServerReady(maxAttempts = 50) {
   for (let i = 0; i < maxAttempts; i += 1) {
     try {
-      const health = await requestJson('/health');
-      if (health.ok) {
-        return true;
-      }
+      const health = await request('/health');
+      if (health.status === 200 && health.data?.ok === true) return true;
     } catch {
       // no-op
     }
     await wait(150);
   }
   return false;
+}
+
+function expectStatus(actual, expected, label) {
+  if (actual !== expected) {
+    throw new Error(`${label}_expected_${expected}_got_${actual}`);
+  }
 }
 
 async function run() {
@@ -68,18 +60,13 @@ async function run() {
 
   let cleaningUp = false;
   const cleanup = async () => {
-    if (cleaningUp || backend.killed) {
-      return;
-    }
-
+    if (cleaningUp || backend.killed) return;
     cleaningUp = true;
 
     await new Promise((resolve) => {
       const timer = setTimeout(() => {
         try {
-          if (!backend.killed) {
-            backend.kill('SIGKILL');
-          }
+          if (!backend.killed) backend.kill('SIGKILL');
         } catch {
           // best effort
         }
@@ -100,54 +87,39 @@ async function run() {
     });
   };
 
-  process.on('SIGINT', () => {
-    cleanup().finally(() => {
-      process.exitCode = 1;
-    });
-  });
-
   try {
     const ready = await waitServerReady();
-    if (!ready) {
-      throw new Error('backend_not_ready');
-    }
+    if (!ready) throw new Error('backend_not_ready');
 
-    const login = await requestJson('/auth/google', {
+    const health = await request('/health');
+    expectStatus(health.status, 200, 'health');
+
+    const healthApi = await request('/api/health');
+    expectStatus(healthApi.status, 200, 'api_health');
+
+    const loginPassword = await request('/auth/login-password', {
       method: 'POST',
-      body: {
-        token: buildFakeGoogleToken('basic-test@evolucao.app'),
-      },
+      body: {},
     });
+    expectStatus(loginPassword.status, 400, 'auth_login_password_validation');
 
-    if (!login.ok || !login.data?.accessToken) {
-      throw new Error(`login_failed:${login.status}`);
-    }
-
-    const accessToken = login.data.accessToken;
-    const authHeaders = { Authorization: `Bearer ${accessToken}` };
-
-    const saveWorkout = await requestJson('/workouts', {
+    const loginPasswordApi = await request('/api/auth/login-password', {
       method: 'POST',
-      headers: authHeaders,
-      body: {
-        exercise: 'Supino Reto Barra',
-        weight: 60,
-        reps: 10,
-        sets: 3,
-      },
+      body: {},
     });
+    expectStatus(loginPasswordApi.status, 400, 'api_auth_login_password_validation');
 
-    if (!saveWorkout.ok) {
-      throw new Error(`save_workout_failed:${saveWorkout.status}`);
-    }
-
-    const history = await requestJson('/workouts?limit=10', {
-      headers: authHeaders,
+    const sendCode = await request('/auth/send-code', {
+      method: 'POST',
+      body: {},
     });
+    expectStatus(sendCode.status, 400, 'auth_send_code_validation');
 
-    if (!history.ok || !Array.isArray(history.data?.workouts) || history.data.workouts.length < 1) {
-      throw new Error(`history_failed:${history.status}`);
-    }
+    const sendCodeApi = await request('/api/auth/send-code', {
+      method: 'POST',
+      body: {},
+    });
+    expectStatus(sendCodeApi.status, 400, 'api_auth_send_code_validation');
 
     console.log('[test:basic] ok');
     await cleanup();

@@ -28,14 +28,22 @@ app.use((req, res, next) => {
 
 // Routes
 app.use('/auth', authRoutes)
+app.use('/api/auth', authRoutes)
 app.use('/workouts', workoutRoutes)
+app.use('/api/workouts', workoutRoutes)
 app.use('/nutrition', nutritionRoutes)
+app.use('/api/nutrition', nutritionRoutes)
 app.use('/sync', syncRoutes)
+app.use('/api/sync', syncRoutes)
 app.use('/social', socialRoutes)
+app.use('/api/social', socialRoutes)
 app.use('/ranking', rankingRoutes)
+app.use('/api/ranking', rankingRoutes)
 app.use('/subscription', subscriptionRoutes)
+app.use('/api/subscription', subscriptionRoutes)
 if (ENABLE_QA_ENDPOINTS) {
   app.use('/qa', qaRoutes)
+  app.use('/api/qa', qaRoutes)
 }
 
 // Health check
@@ -48,6 +56,20 @@ app.get('/health', (req, res) => {
       workouts: '/workouts/*',
       nutrition: '/nutrition/*',
       sync: '/sync/*',
+    },
+    timestamp: new Date().toISOString(),
+  })
+})
+
+app.get('/api/health', (req, res) => {
+  res.json({
+    ok: true,
+    service: 'evolucao-backend',
+    routes: {
+      auth: '/auth/* e /api/auth/*',
+      workouts: '/workouts/* e /api/workouts/*',
+      nutrition: '/nutrition/* e /api/nutrition/*',
+      sync: '/sync/* e /api/sync/*',
     },
     timestamp: new Date().toISOString(),
   })
