@@ -43,6 +43,11 @@ check(wf.includes('./gradlew'),                   'Usa gradlew local', 'gradlew 
 check(wf.includes('contents: write'),             'Permissao contents:write configurada', 'Permissao contents:write ausente (necessaria para criar Release)');
 check(!wf.includes('expo/expo-github-action@'),   'Sem dependencia expo-github-action', 'AINDA usa expo/expo-github-action (requer EXPO_TOKEN)');
 check(wf.includes('npm run ops:preflight'),       'Preflight no CI', 'Preflight ausente no workflow CI — adicionar');
+check(
+  wf.includes('keytool') || wf.includes('debug.keystore'),
+  'Step de geração de keystore no CI (sem ele assembleRelease falha)',
+  'AUSENTE step de keystore — CI vai falhar em signing do APK'
+);
 
 // Verificar branches configurados
 if (wf.includes('evolucao-app')) {

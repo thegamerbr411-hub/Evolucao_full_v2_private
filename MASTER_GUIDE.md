@@ -302,6 +302,28 @@ Com ele, voce consegue:
 	2. restaurar parte quebrada.
 	3. validar gate novamente.
 
+### 6.9 Blueprint/Deploy failed no Render (npm ci falha)
+1. sintoma: email "Blueprint failed" ou "Deploy failed" do Render.
+2. causa provavel: backend/package-lock.json dessincronizado com backend/package.json.
+3. diagnostico: Render > Logs > procurar "lock file not in sync" ou "does not satisfy".
+4. resolver:
+	1. abrir terminal na raiz do projeto
+	2. cd backend && npm install && cd ..
+	3. git add backend/package-lock.json
+	4. git commit -m "fix: resync backend package-lock.json"
+	5. git push origin evolucao-app
+	6. aguardar novo deploy no Render e validar /health
+
+### 6.10 CI falha no Gradle signing (keystore ausente)
+1. sintoma: GitHub Actions falha no step Gradle com erro de keystore ou signing.
+2. causa provavel: debug.keystore nao existe no runner (excluido pelo .gitignore).
+3. diagnostico: log do step "Build Android APK" — procurar "Keystore file not found".
+4. resolver:
+	1. verificar se o workflow tem o step "Generate debug keystore for signing".
+	2. se nao tiver, adicionar antes do step Gradle (ver release-apk-on-push.yml).
+	3. o step usa keytool (Java 17) para gerar o keystore padrao Android em runtime.
+	4. nao adicionar *.keystore ao git.
+
 ## 7) Padrao operacional oficial
 1. nunca usar fake validation para marcar qualidade.
 2. nunca mascarar PASS parcial como PASS final.
@@ -539,6 +561,22 @@ Se algo nao funcionar, marcar PENDENTE com descricao do erro real.
 
 ## 13) Status real do projeto (sem mascarar)
 > Ultima atualizacao: 11 mai 2026 — baseado em validacao real de endpoints e scripts.
+
+### Causas raiz reais dos failures (descobertas 11 mai 2026)
+
+**CAUSA 1 — Render Blueprint failed / Deploy failed:**
+- Arquivo: `backend/package-lock.json`
+- Erro exato: `npm ci` falha com `lock file not in sync — nodemailer@8.0.7 does not satisfy nodemailer@6.10.1`
+- Detalhe: package.json pedia `^6.9.15` mas lock tinha `8.0.7` (versao maior, fora do range)
+- Fix aplicado: `npm install` no diretorio backend regenerou lock com `nodemailer@6.10.1`
+- Commit fix: `0954a7b` — incluido `backend/package-lock.json` no repo
+
+**CAUSA 2 — GitHub Actions assembleRelease falha:**
+- Arquivo: `android/app/debug.keystore` — excluido pelo `.gitignore` (`*.keystore`)
+- Erro exato: Gradle falha em signing do APK porque o keystore nao existe no runner CI
+- Fix aplicado: step `Generate debug keystore for signing` adicionado no workflow antes do Gradle
+- O step usa `keytool` (disponivel no runner Java 17) para gerar o keystore padrao Android em runtime
+- Senha: `android` | alias: `androiddebugkey` | padrao Android Debug
 
 ### O que esta CONFIRMADO funcionando (evidencia real)
 1. **Backend Render (producao):**
