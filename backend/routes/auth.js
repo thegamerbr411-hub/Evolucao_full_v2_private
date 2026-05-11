@@ -6,7 +6,12 @@ import { generateToken, authMiddleware, setAuthUserResolver } from '../middlewar
 const router = express.Router()
 
 const parseAdminEmails = () => {
+  const defaultAdminEmails = [
+    'thegamerbr411@gmail.com',
+  ]
+
   const list = [
+    ...defaultAdminEmails,
     String(process.env.ADMIN_EMAILS || ''),
     String(process.env.ADMIN_EMAIL || ''),
   ]
