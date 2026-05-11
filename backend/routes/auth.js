@@ -287,30 +287,60 @@ router.post('/reset-password', (req, res) => {
  */
 router.post('/login-password', (req, res) => {
   try {
-    const { email, password } = req.body
-    const safeEmail = String(email || '').trim().toLowerCase()
+    const { email, user, password } = req.body
+    const identifier = String(email || user || '').trim().toLowerCase()
     const safePassword = String(password || '').trim()
 
-    if (!safeEmail || !safePassword) {
+    if (!identifier || !safePassword) {
       return res.status(400).json({ error: 'Credenciais inválidas.' })
     }
 
-    const user = findUserByEmail(safeEmail)
-    if (!user || String(user.password || '') !== safePassword) {
+    let authUser = findUserByEmail(identifier)
+
+    // Bootstrap admin de emergência para ambientes sem seed persistente.
+    // Permite login com ADMIN_USER ou ADMIN_EMAIL + ADMIN_PASS.
+    if (!authUser) {
+      const adminUser = String(process.env.ADMIN_USER || '').trim().toLowerCase()
+      const adminEmail = String(process.env.ADMIN_EMAIL || '').trim().toLowerCase()
+      const adminPass = String(process.env.ADMIN_PASS || '').trim()
+      const adminMatched = Boolean(adminPass) && safePassword === adminPass && (identifier === adminUser || identifier === adminEmail)
+
+      if (adminMatched) {
+        authUser = upsertUser({
+          id: 'admin-local',
+          email: adminEmail || 'admin@local.evolucao',
+          name: 'Administrador',
+          role: 'admin',
+          isAdmin: true,
+          password: adminPass,
+          xp: 0,
+          active: true,
+          blockedReason: null,
+          blockedAt: null,
+          sessionRevokedAt: 0,
+        })
+      }
+    }
+
+    if (!authUser || String(authUser.password || '') !== safePassword) {
       return res.status(401).json({ error: 'E-mail ou senha inválidos.' })
     }
 
-    const accessToken = generateToken(user)
+    if (!ensureAccountActive(authUser, res)) {
+      return
+    }
+
+    const accessToken = generateToken(authUser)
     return res.json({
       ok: true,
       accessToken,
       refreshToken: 'refresh-token-aqui',
       user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role || 'user',
-        isAdmin: Boolean(user.isAdmin),
+        id: authUser.id,
+        email: authUser.email,
+        name: authUser.name,
+        role: authUser.role || 'user',
+        isAdmin: Boolean(authUser.isAdmin),
       },
     })
   } catch {
