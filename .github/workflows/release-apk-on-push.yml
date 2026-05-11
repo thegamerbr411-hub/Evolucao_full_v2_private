@@ -93,14 +93,19 @@ jobs:
           cd android
           chmod +x gradlew
           ./gradlew --no-daemon --stacktrace assembleRelease
-          cd ..
-          APK_PATH="android/app/build/outputs/apk/release/app-release.apk"
-          if [ ! -f "$APK_PATH" ]; then
-            echo "APK not found at $APK_PATH"
+          APK_PATH="$(find app/build/outputs/apk -type f -name '*release*.apk' | sort | head -n 1)"
+          if [ -z "$APK_PATH" ]; then
+            APK_PATH="$(find app/build/outputs/apk -type f -name '*.apk' | sort | head -n 1)"
+          fi
+          if [ -z "$APK_PATH" ]; then
+            echo "No APK found under android/app/build/outputs/apk"
+            find app/build/outputs -maxdepth 6 -type f | sort || true
             exit 1
           fi
+          echo "Selected APK: $APK_PATH"
           APK_NAME="evolucao-${GITHUB_SHA::8}.apk"
-          cp "$APK_PATH" "$APK_NAME"
+          cp "$APK_PATH" "../$APK_NAME"
+          cd ..
           echo "apk_name=$APK_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Upload workflow artifact

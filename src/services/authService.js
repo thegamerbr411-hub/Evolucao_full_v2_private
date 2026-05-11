@@ -115,19 +115,26 @@ export function useGoogleAuth() {
     };
   }
 
-  // Minimal OAuth request config: Android native redirect + id_token only, no PKCE
+  // No Android, use somente cliente nativo para evitar conflito com cliente WEB/custom URI.
+  const isAndroid = Platform.OS === 'android';
   const requestConfig = {
-    androidClientId: cfg.androidClientId || cfg.sharedClientId || undefined,
-    webClientId: cfg.webClientId || undefined,
     scopes: ['openid', 'profile', 'email'],
-    responseType: 'id_token',
+    // No Android, usa Authorization Code + PKCE para evitar conflitos de response type.
+    responseType: 'code',
     selectAccount: true,
+    usePKCE: true,
+    ...(isAndroid
+      ? {
+          androidClientId: cfg.androidClientId || cfg.sharedClientId || undefined,
+          webClientId: cfg.webClientId || cfg.sharedClientId || undefined,
+          redirectUri: androidNativeRedirectUri || undefined,
+        }
+      : {
+          webClientId: cfg.webClientId || undefined,
+          expoClientId: cfg.expoClientId || undefined,
+          iosClientId: cfg.iosClientId || undefined,
+        }),
   };
-  
-  // Use native redirect for Android only
-  if (Platform.OS === 'android' && androidNativeRedirectUri) {
-    requestConfig.redirectUri = androidNativeRedirectUri;
-  }
 
   const [request, response, promptAsync] = Google.useAuthRequest(requestConfig);
 
@@ -135,7 +142,8 @@ export function useGoogleAuth() {
   if (request) {
     console.log('[AUTH][GOOGLE][REQUEST_URL]', request.url || 'pending');
     console.log('[AUTH][GOOGLE][REDIRECT_URI]', request.redirectUri || 'none');
-    console.log('[AUTH][GOOGLE][CLIENT_ID_USED]', requestConfig.androidClientId || requestConfig.webClientId || requestConfig.expoClientId);
+    console.log('[AUTH][GOOGLE][CLIENT_ID_USED]', requestConfig.androidClientId || requestConfig.webClientId || requestConfig.expoClientId || requestConfig.iosClientId);
+    console.log('[AUTH][GOOGLE][PLATFORM_FLOW]', JSON.stringify({ platform: Platform.OS, isAndroid, usePKCE: requestConfig.usePKCE }));
   }
 
   return { request, response, promptAsync };

@@ -1,62 +1,41 @@
 {
   "project_info": {
-    "project_number": "1097989170325",
-    "project_id": "nexa-app-felipe-2026-d4b3b",
-    "storage_bucket": "nexa-app-felipe-2026-d4b3b.firebasestorage.app"
+    "project_number": "910587302920",
+    "project_id": "t-evo-b069a",
+    "storage_bucket": "t-evo-b069a.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1097989170325:android:00cec17d497a7eedeb679c",
-        "android_client_info": {
-          "package_name": "com.nexa.finance"
-        }
-      },
-      "oauth_client": [
-        {
-          "client_id": "1097989170325-otiu8kq7d3jplr8gqf244ic8i36i6n98.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
-      "api_key": [
-        {
-          "current_key": "AIzaSyCqZI4gLroYWQeaP1M-36s0v3HzO8U5xjo"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "1097989170325-otiu8kq7d3jplr8gqf244ic8i36i6n98.apps.googleusercontent.com",
-              "client_type": 3
-            }
-          ]
-        }
-      }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:1097989170325:android:69a3cdafb891d471eb679c",
+        "mobilesdk_app_id": "1:910587302920:android:c9cd63ea51c3fbc15d2dbd",
         "android_client_info": {
           "package_name": "com.tipolt.evolucaofullv2"
         }
       },
       "oauth_client": [
         {
-          "client_id": "1097989170325-otiu8kq7d3jplr8gqf244ic8i36i6n98.apps.googleusercontent.com",
+          "client_id": "910587302920-4sls8n06ol9vsedteutiur8mnvdg553q.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.tipolt.evolucaofullv2",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "910587302920-1rg2n0809vbpqqi3i1tsvs2qptqngtml.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyCqZI4gLroYWQeaP1M-36s0v3HzO8U5xjo"
+          "current_key": "AIzaSyAQB2GY4vPqxrHxrkjC8T7q1wT8hyOta44"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "1097989170325-otiu8kq7d3jplr8gqf244ic8i36i6n98.apps.googleusercontent.com",
+              "client_id": "910587302920-1rg2n0809vbpqqi3i1tsvs2qptqngtml.apps.googleusercontent.com",
               "client_type": 3
             }
           ]
