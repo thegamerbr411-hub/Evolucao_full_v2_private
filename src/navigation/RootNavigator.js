@@ -2,6 +2,7 @@
 import React from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { auth } from '../services/firebase';
 import { useAppStore } from '../stores/useAppStore';
 import { useUserStore } from '../stores/useUserStore';
 import { colors } from '../theme';
@@ -15,9 +16,7 @@ import WorkoutScreen from '../screens/WorkoutScreen';
 import FreeWorkoutScreen from '../screens/FreeWorkoutScreen';
 import WeeklyMacroScreen from '../screens/WeeklyMacroScreen';
 import AutoCoachScreen from '../screens/AutoCoachScreen';
-import DebugHealthScreen from '../screens/DebugHealthScreen';
 import DebugMetricsScreen from '../screens/DebugMetricsScreen';
-import DebugObservabilityScreen from '../screens/DebugObservabilityScreen';
 import PaywallScreen from '../screens/PaywallScreen';
 import InsightsScreen from '../screens/InsightsScreen';
 import RoutinesScreen from '../screens/RoutinesScreen';
@@ -47,8 +46,9 @@ export default function RootNavigator(){
   const isHydrated = useUserStore((state) => state.isHydrated);
   const profile = useUserStore((state) => state.profile);
   const user = useUserStore((state) => state.user);
+  const firebaseUser = auth?.currentUser;
   const hasPersistedProfile = Boolean(profile && Number(profile.currentWeight || 0) > 0);
-  const hasAccount = Boolean(user && (user.name || user.id));
+  const hasAccount = Boolean(user && (user.name || user.id)) || Boolean(firebaseUser?.uid);
 
   React.useEffect(() => {
     if (!isHydrated) {
@@ -93,8 +93,7 @@ export default function RootNavigator(){
 
   const getInitialRoute = () => {
     if (!hasAccount) return 'Cadastro';
-    if (hasCompletedQuestionnaire || hasPersistedProfile) return 'MainTabs';
-    return 'Questionario';
+    return 'MainTabs';
   };
 
   return(
@@ -123,9 +122,7 @@ export default function RootNavigator(){
       <Stack.Screen name="ExerciseDetail" component={ExerciseDetailScreen}/>
       <Stack.Screen name="MacroSemanal" component={WeeklyMacroScreen}/>
       <Stack.Screen name="AutoCoach" component={AutoCoachScreen}/>
-      {__DEV__ ? <Stack.Screen name="DebugHealth" component={DebugHealthScreen}/> : null}
       {__DEV__ ? <Stack.Screen name="DebugMetrics" component={DebugMetricsScreen}/> : null}
-      {__DEV__ ? <Stack.Screen name="DebugObservability" component={DebugObservabilityScreen}/> : null}
       <Stack.Screen name="Paywall" component={PaywallScreen}/>
     </Stack.Navigator>
   );
