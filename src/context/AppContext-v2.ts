@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useCallback, useRef } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
+import * as SecureStore from 'expo-secure-store';
+import { getUserIdentity } from '../services/appIdentityService';
 
 import { useUserStore } from '../stores/useUserStore';
 import { useWorkoutStore } from '../stores/useWorkoutStore';
@@ -138,6 +140,19 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
             await appStore.hydrateAppStore();
           }
 
+          const currentUser = useUserStore.getState().user;
+          if (!currentUser?.id) {
+            const persistedIdentity = await getUserIdentity().catch(() => null);
+            if (persistedIdentity?.userId) {
+              setUserInStore({
+                id: persistedIdentity.userId,
+                name: 'Usuário',
+                email: null,
+                role: 'user',
+              } as any);
+            }
+          }
+
           setUserHydrated(true);
         } catch (error) {
           logError(error, { screen: SCREENS?.CONTEXT || 'Context', action: 'hydrateApp' });
@@ -154,14 +169,37 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       return undefined;
     }
 
-    const unsubscribe = onAuthStateChanged(auth, () => {
+    let cancelled = false;
+
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (currentUser) {
+        const resolvedUser = {
+          id: currentUser.uid,
+          name: currentUser.displayName || currentUser.email?.split('@')?.[0] || 'Usuário',
+          email: currentUser.email || null,
+          role: 'user',
+        };
+
+        const currentStoreUser = useUserStore.getState().user;
+        if (!currentStoreUser || currentStoreUser.id !== resolvedUser.id) {
+          setUserInStore(resolvedUser as any);
+        }
+      } else {
+        // Do not auto-clear local user state on null auth events.
+        // Firebase can emit null transiently during cold start before restoring persistence.
+        // Explicit user logout actions already clear the stores directly.
+      }
+
       if (!useUserStore.getState().isHydrated) {
         setUserHydrated(true);
       }
     });
 
-    return () => unsubscribe();
-  }, [setUserHydrated, setUserInStore]);
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [logoutUserInStore, setUserHydrated, setUserInStore]);
 
   useEffect(() => {
     const today = getTodayKey();
@@ -991,6 +1029,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       hasFeatureAccess: subscriptionDomain.hasFeatureAccess,
       startProTrial: subscriptionDomain.startProTrial,
       activateProPlan: subscriptionDomain.activateProPlan,
+      activateProByCode: subscriptionDomain.activateProByCode,
+      getDefaultTestProCode: subscriptionDomain.getDefaultTestProCode,
       addWaterIntake,
       createRoutineFromTemplate: ({ templateKey, frequency } = {}) => {
         const templates = {
