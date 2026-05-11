@@ -94,6 +94,8 @@
     "qa:audit:safe": "powershell -ExecutionPolicy Bypass -File scripts/qa-audit-safe.ps1",
     "ops:preflight": "node scripts/ops-preflight.mjs",
     "ops:health:smoke": "powershell -ExecutionPolicy Bypass -File scripts/ops-health-smoke.ps1",
+    "ops:validate:oauth": "node scripts/validate-oauth.mjs",
+    "ops:validate:ci": "node scripts/validate-ci-config.mjs",
     "release:gate": "powershell -ExecutionPolicy Bypass -File scripts/release-gate.ps1"
   },
   "dependencies": {
