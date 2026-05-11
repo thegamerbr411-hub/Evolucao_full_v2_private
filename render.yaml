@@ -2,9 +2,10 @@ services:
   - type: web
     name: evolucao-api
     runtime: node
+    runtimeVersion: 20
     plan: free
     rootDir: backend
-    buildCommand: npm install
+    buildCommand: npm ci
     startCommand: npm start
     healthCheckPath: /health
 
