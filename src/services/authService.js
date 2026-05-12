@@ -1,8 +1,10 @@
 import { getIdTokenResult, GoogleAuthProvider, sendPasswordResetEmail, signInAnonymously, signInWithCredential } from 'firebase/auth';
-import * as Google from 'expo-auth-session/providers/google';
 import * as AuthSession from 'expo-auth-session';
+import * as Application from 'expo-application';
+import * as Crypto from 'expo-crypto';
 import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
 import { auth } from './firebase.js';
 import { logCriticalError } from './loggingService.js';
 import api from './api';
@@ -17,6 +19,62 @@ const GOOGLE_DISCOVERY = {
   tokenEndpoint: 'https://oauth2.googleapis.com/token',
   revocationEndpoint: 'https://oauth2.googleapis.com/revoke',
 };
+
+const PKCE_CHARSET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+
+function base64UrlEncode(input) {
+  return String(input || '')
+    .trim()
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+}
+
+function generateCodeVerifier(length = 96) {
+  const safeLength = Math.max(43, Math.min(128, Math.floor(length)));
+  const randomValues = new Uint8Array(safeLength);
+  Crypto.getRandomValues(randomValues);
+
+  let verifier = '';
+  for (let index = 0; index < randomValues.length; index += 1) {
+    verifier += PKCE_CHARSET[randomValues[index] % PKCE_CHARSET.length];
+  }
+
+  return verifier;
+}
+
+async function createCodeChallengeAsync(codeVerifier) {
+  const safeVerifier = String(codeVerifier || '').trim();
+  if (!safeVerifier) {
+    return '';
+  }
+
+  const digest = await Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    safeVerifier,
+    { encoding: Crypto.CryptoEncoding.BASE64 }
+  );
+
+  return base64UrlEncode(digest);
+}
+
+class GooglePkceAuthRequest extends AuthSession.AuthRequest {
+  async ensureCodeIsSetupAsync() {
+    if (!this.usePKCE) {
+      return;
+    }
+
+    if (this.codeVerifier && this.codeChallenge) {
+      return;
+    }
+
+    const codeVerifier = generateCodeVerifier();
+    const codeChallenge = await createCodeChallengeAsync(codeVerifier);
+
+    this.codeVerifier = codeVerifier;
+    this.codeChallenge = codeChallenge;
+  }
+}
 
 function getBundledGoogleClientConfig() {
   try {
@@ -95,6 +153,9 @@ export function isGoogleAuthConfigured() {
 export function useGoogleAuth() {
   const cfg = getGoogleClientConfig();
   const androidNativeRedirectUri = getAndroidNativeRedirectUri(cfg.androidClientId);
+  const defaultRedirectUri = AuthSession.makeRedirectUri({
+    native: `${Application.applicationId}:/oauthredirect`,
+  });
   console.log('[AUTH][GOOGLE][HOOK]', JSON.stringify({
     hasAndroid: Boolean(cfg.androidClientId),
     hasWeb: Boolean(cfg.webClientId),
@@ -102,9 +163,10 @@ export function useGoogleAuth() {
     hasAndroidNativeRedirect: Boolean(androidNativeRedirectUri),
   }));
 
-  // Usar Google.useAuthRequest para Authorization Code flow
-  // Mais apropriado para apps nativas Android
-  if (!Google || typeof Google.useAuthRequest !== 'function') {
+  const isAndroid = Platform.OS === 'android';
+  const hasConfiguredClient = Boolean(cfg.androidClientId || cfg.webClientId || cfg.expoClientId || cfg.iosClientId || cfg.sharedClientId);
+
+  if (!hasConfiguredClient) {
     return {
       request: null,
       response: null,
@@ -115,19 +177,17 @@ export function useGoogleAuth() {
     };
   }
 
-  // No Android, use somente cliente nativo para evitar conflito com cliente WEB/custom URI.
-  const isAndroid = Platform.OS === 'android';
   const requestConfig = {
     scopes: ['openid', 'profile', 'email'],
-    // No Android, usa Authorization Code + PKCE para evitar conflitos de response type.
     responseType: 'code',
     selectAccount: true,
     usePKCE: true,
+    codeChallengeMethod: AuthSession.CodeChallengeMethod.S256,
+    redirectUri: isAndroid ? (androidNativeRedirectUri || defaultRedirectUri) : defaultRedirectUri,
     ...(isAndroid
       ? {
           androidClientId: cfg.androidClientId || cfg.sharedClientId || undefined,
           webClientId: cfg.webClientId || cfg.sharedClientId || undefined,
-          redirectUri: androidNativeRedirectUri || undefined,
         }
       : {
           webClientId: cfg.webClientId || undefined,
@@ -136,17 +196,69 @@ export function useGoogleAuth() {
         }),
   };
 
-  const [request, response, promptAsync] = Google.useAuthRequest(requestConfig);
+  const request = AuthSession.useLoadedAuthRequest(requestConfig, GOOGLE_DISCOVERY, GooglePkceAuthRequest);
+  const [response, promptAsync] = AuthSession.useAuthRequestResult(request, GOOGLE_DISCOVERY, {
+    windowFeatures: { width: 515, height: 680 },
+  });
+  const [fullResponse, setFullResponse] = useState(null);
+  const shouldAutoExchangeCode = useMemo(() => {
+    return response?.type === 'success' && response.params.code && !response.authentication;
+  }, [response?.authentication, response?.params?.code, response?.type]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (shouldAutoExchangeCode && response?.type === 'success' && response?.params?.code) {
+      AuthSession.exchangeCodeAsync(
+        {
+          clientId: cfg.androidClientId || cfg.webClientId || cfg.expoClientId || cfg.iosClientId || cfg.sharedClientId,
+          code: response.params.code,
+          redirectUri: requestConfig.redirectUri,
+          extraParams: {
+            code_verifier: request?.codeVerifier || '',
+          },
+        },
+        GOOGLE_DISCOVERY
+      )
+        .then((authentication) => {
+          if (!isMounted) {
+            return;
+          }
+
+          setFullResponse({
+            ...response,
+            params: {
+              id_token: authentication?.idToken || '',
+              access_token: authentication?.accessToken || '',
+              ...response.params,
+            },
+            authentication,
+          });
+        })
+        .catch(async (error) => {
+          if (isMounted) {
+            setFullResponse(response);
+          }
+          await logCriticalError('authService.useGoogleAuth.exchangeCode', error);
+        });
+    } else {
+      setFullResponse(response);
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [cfg.androidClientId, cfg.expoClientId, cfg.iosClientId, cfg.sharedClientId, cfg.webClientId, request?.codeVerifier, requestConfig.redirectUri, response, shouldAutoExchangeCode]);
 
   // Log request URL for OAuth debugging
   if (request) {
     console.log('[AUTH][GOOGLE][REQUEST_URL]', request.url || 'pending');
     console.log('[AUTH][GOOGLE][REDIRECT_URI]', request.redirectUri || 'none');
     console.log('[AUTH][GOOGLE][CLIENT_ID_USED]', requestConfig.androidClientId || requestConfig.webClientId || requestConfig.expoClientId || requestConfig.iosClientId);
-    console.log('[AUTH][GOOGLE][PLATFORM_FLOW]', JSON.stringify({ platform: Platform.OS, isAndroid, usePKCE: requestConfig.usePKCE }));
+    console.log('[AUTH][GOOGLE][PLATFORM_FLOW]', JSON.stringify({ platform: Platform.OS, isAndroid, usePKCE: requestConfig.usePKCE, hasCodeVerifier: Boolean(request.codeVerifier), hasCodeChallenge: Boolean(request.codeChallenge) }));
   }
 
-  return { request, response, promptAsync };
+  return { request, response: fullResponse, promptAsync };
 }
 
 export const exchangeGoogleAuthCode = async ({ code, redirectUri, codeVerifier }) => {

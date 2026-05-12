@@ -113,6 +113,7 @@
     "expo-auth-session": "~55.0.14",
     "expo-av": "^16.0.8",
     "expo-clipboard": "~55.0.13",
+    "expo-crypto": "~55.0.14",
     "expo-haptics": "~55.0.14",
     "expo-image-picker": "~55.0.18",
     "expo-modules-core": "~55.0.22",
