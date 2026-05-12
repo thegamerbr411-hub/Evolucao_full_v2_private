@@ -2,6 +2,7 @@
 import jwt from 'jsonwebtoken'
 
 const SECRET = String(process.env.JWT_SECRET || '').trim()
+let authUserResolver = null
 
 export const authMiddleware = (req, res, next) => {
   try {
@@ -38,4 +39,8 @@ export const generateToken = (user) => {
     SECRET,
     { expiresIn: '7d' }
   )
+}
+
+export const setAuthUserResolver = (resolver) => {
+  authUserResolver = typeof resolver === 'function' ? resolver : null
 }
