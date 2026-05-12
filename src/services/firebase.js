@@ -39,12 +39,12 @@ function getBundledFirebaseConfig() {
 const bundledFirebaseConfig = getBundledFirebaseConfig();
 
 const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || bundledFirebaseConfig.apiKey || 'SUA_KEY',
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || bundledFirebaseConfig.authDomain || 'SEU_APP.firebaseapp.com',
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || bundledFirebaseConfig.projectId || 'SEU_ID',
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || bundledFirebaseConfig.storageBucket || 'SEU_BUCKET',
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || bundledFirebaseConfig.messagingSenderId || 'ID',
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || bundledFirebaseConfig.appId || 'APP_ID',
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || bundledFirebaseConfig.apiKey || '',
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || bundledFirebaseConfig.authDomain || '',
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || bundledFirebaseConfig.projectId || '',
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || bundledFirebaseConfig.storageBucket || '',
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || bundledFirebaseConfig.messagingSenderId || '',
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || bundledFirebaseConfig.appId || '',
 };
 
 function hasRealConfig(config = {}) {
@@ -57,7 +57,7 @@ function hasRealConfig(config = {}) {
 
   return requiredValues.every((value) => {
     const safe = String(value || '').trim();
-    return safe && !/^SEU_|^SUA_|^APP_ID$|^ID$/.test(safe);
+    return safe && !/^SEU_|^SUA_/i.test(safe);
   });
 }
 
