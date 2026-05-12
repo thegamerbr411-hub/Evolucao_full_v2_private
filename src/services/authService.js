@@ -7,7 +7,7 @@ import { Platform } from 'react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { auth } from './firebase.js';
 import { logCriticalError } from './loggingService.js';
-import api from './api';
+import api, { API_BASE_URL } from './api';
 import { useAuthStore } from '../stores/useAuthStore';
 import { setQaRuntimeAuth } from '../utils/qaTransport';
 import googleServices from '../../android/app/google-services.json';
@@ -435,9 +435,22 @@ export const sendLoginCode = async (email) => {
   }
 
   try {
+    console.log('[AUTH][CODE_SEND][REQUEST]', JSON.stringify({
+      apiBaseUrl: API_BASE_URL,
+      hasEmail: Boolean(safeEmail),
+      emailDomain: safeEmail.split('@')[1] || null,
+    }));
+
     const response = await api.post('/auth/send-code', { email: safeEmail });
     const delivery = String(response?.data?.delivery || 'email').toLowerCase();
     const code = response?.data?.code ? String(response.data.code) : null;
+
+    console.log('[AUTH][CODE_SEND][RESPONSE]', JSON.stringify({
+      status: response?.status || null,
+      ok: Boolean(response?.data?.ok),
+      delivery,
+      hasLocalCode: Boolean(code),
+    }));
 
     return {
       ok: Boolean(response?.data?.ok),
@@ -446,6 +459,14 @@ export const sendLoginCode = async (email) => {
     };
   } catch (error) {
     await logCriticalError('authService.sendLoginCode', error);
+    console.warn('[AUTH][CODE_SEND][ERROR]', JSON.stringify({
+      apiBaseUrl: API_BASE_URL,
+      status: Number(error?.response?.status || 0),
+      code: String(error?.response?.data?.code || ''),
+      message: String(error?.response?.data?.error || error?.message || 'unknown_error'),
+      hasResponse: Boolean(error?.response),
+      isTimeout: String(error?.code || '').toUpperCase() === 'ECONNABORTED',
+    }));
     const message = String(error?.response?.data?.error || 'Não foi possível enviar o código agora.');
     return { ok: false, message };
   }
