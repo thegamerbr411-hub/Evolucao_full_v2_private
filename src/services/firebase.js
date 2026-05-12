@@ -3,14 +3,48 @@ import * as FirebaseAuth from 'firebase/auth';
 import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 import { getFirestore } from 'firebase/firestore';
 import { getFunctions } from 'firebase/functions';
+import googleServices from '../../android/app/google-services.json';
+
+function getBundledFirebaseConfig() {
+  try {
+    const client = Array.isArray(googleServices?.client) ? googleServices.client[0] : null;
+    const projectInfo = googleServices?.project_info || {};
+    const apiKey = Array.isArray(client?.api_key) ? String(client.api_key[0]?.current_key || '').trim() : '';
+    const appId = String(client?.client_info?.mobilesdk_app_id || '').trim();
+    const projectId = String(projectInfo?.project_id || '').trim();
+    const storageBucket = String(projectInfo?.storage_bucket || '').trim();
+    const messagingSenderId = String(projectInfo?.project_number || '').trim();
+    const authDomain = projectId ? `${projectId}.firebaseapp.com` : '';
+
+    return {
+      apiKey,
+      authDomain,
+      projectId,
+      storageBucket,
+      messagingSenderId,
+      appId,
+    };
+  } catch {
+    return {
+      apiKey: '',
+      authDomain: '',
+      projectId: '',
+      storageBucket: '',
+      messagingSenderId: '',
+      appId: '',
+    };
+  }
+}
+
+const bundledFirebaseConfig = getBundledFirebaseConfig();
 
 const firebaseConfig = {
-  apiKey: process?.env?.EXPO_PUBLIC_FIREBASE_API_KEY || 'SUA_KEY',
-  authDomain: process?.env?.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || 'SEU_APP.firebaseapp.com',
-  projectId: process?.env?.EXPO_PUBLIC_FIREBASE_PROJECT_ID || 'SEU_ID',
-  storageBucket: process?.env?.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || 'SEU_BUCKET',
-  messagingSenderId: process?.env?.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || 'ID',
-  appId: process?.env?.EXPO_PUBLIC_FIREBASE_APP_ID || 'APP_ID',
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || bundledFirebaseConfig.apiKey || 'SUA_KEY',
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || bundledFirebaseConfig.authDomain || 'SEU_APP.firebaseapp.com',
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || bundledFirebaseConfig.projectId || 'SEU_ID',
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || bundledFirebaseConfig.storageBucket || 'SEU_BUCKET',
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || bundledFirebaseConfig.messagingSenderId || 'ID',
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || bundledFirebaseConfig.appId || 'APP_ID',
 };
 
 function hasRealConfig(config = {}) {
