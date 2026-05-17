@@ -49,7 +49,7 @@ jobs:
           cat > .env << 'EOF'
           EXPO_PUBLIC_API_URL=https://evolucao-api-dou2.onrender.com
           EXPO_PUBLIC_API_BASE_URL=https://evolucao-api-dou2.onrender.com
-          EXPO_PUBLIC_APP_VERSION=1.2.7
+          EXPO_PUBLIC_APP_VERSION=1.2.5
           EXPO_PUBLIC_GOOGLE_CLIENT_ID=${{ secrets.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '910587302920-1rg2n0809vbpqqi3i1tsvs2qptqngtml.apps.googleusercontent.com' }}
           EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID=${{ secrets.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '910587302920-4sls8n06ol9vsedteutiur8mnvdg553q.apps.googleusercontent.com' }}
           EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=${{ secrets.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '910587302920-1rg2n0809vbpqqi3i1tsvs2qptqngtml.apps.googleusercontent.com' }}
