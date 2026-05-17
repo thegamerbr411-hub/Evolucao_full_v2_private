@@ -15,6 +15,10 @@ O APK **release** assina com **keystore diferente** do debug. O **SHA-1 / SHA-25
 4. Descarregar **google-services.json** atualizado para `android/app/` (se o pipeline não o gerar).
 5. Garantir que `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` (e Web client se usado no backend) correspondem ao projeto certo.
 
+## SHA actualmente no `google-services.json` (referência)
+
+No cliente OAuth Android embebido no JSON há `certificate_hash` (SHA-1, 40 hex). Exemplo no repo: `5e8f16062ea3cd2c4a0d547876baa6f38cabf625` — corresponde tipicamente ao **debug** / keystore de desenvolvimento. O **release** (CI ou keystore de produção) tem **outro** SHA: esse tem de ser adicionado na mesma app Firebase/Android ou o Google devolve `invalid_client` / bloqueio no fluxo OAuth.
+
 ## Patch no código (já aplicado)
 
 - Troca PKCE (`exchangeCodeAsync`) usa o **mesmo** `clientId` que o pedido de autorização (`clientIdForOAuth`), evitando `invalid_client` por **mismatch de client** entre authorize e token.
