@@ -23,6 +23,7 @@ import { AnimatedToast } from '../components/ui';
 import { getOrCreateUserIdentity, saveUserIdentity } from '../services/appIdentityService';
 import { auth, isFirebaseConfigured } from '../services/firebase';
 import {
+  exchangeGoogleAuthCode,
   isGoogleAuthConfigured,
   loginWithGoogleToken,
   sendLoginCode,
@@ -46,6 +47,9 @@ function mapFirebaseAuthError(error) {
   if (code.includes('auth/user-not-found')) return 'Conta não encontrada.';
   if (code.includes('auth/wrong-password')) return 'Senha incorreta.';
   if (code.includes('auth/email-already-in-use')) return 'E-mail já em uso.';
+  if (String(error?.message || '').includes('EMAIL_ACCOUNT_EXISTS_USE_LOGIN')) {
+    return 'Este e-mail já tem conta. Use Login ou recuperar senha.';
+  }
   if (code.includes('auth/weak-password')) return 'Senha fraca (mín. 6 caracteres).';
   if (code.includes('auth/invalid-action-code')) return 'Link expirado ou inválido.';
   if (code.includes('auth/too-many-requests')) return 'Muitas tentativas. Aguarde alguns minutos.';
@@ -132,12 +136,28 @@ export default function RegisterScreen({ navigation }) {
     const processGoogleAuth = async () => {
       setGoogleLoading(true);
       try {
-        const idToken = response.authentication?.idToken;
+        let accessToken = response.authentication?.accessToken || null;
+        let idToken = response.authentication?.idToken || response?.params?.id_token || null;
+
+        if ((!idToken && !accessToken) && response?.params?.code) {
+          const exchanged = await exchangeGoogleAuthCode({
+            code: response.params.code,
+            redirectUri: request?.redirectUri,
+            codeVerifier: request?.codeVerifier,
+          });
+          if (exchanged?.accessToken) {
+            accessToken = exchanged.accessToken;
+          }
+          if (exchanged?.idToken) {
+            idToken = exchanged.idToken;
+          }
+        }
+
         if (!idToken) throw new Error('Sem token do Google');
 
         const loggedUser = await loginWithGoogleToken({
           idToken,
-          accessToken: response.authentication?.accessToken || null,
+          accessToken,
         });
 
         if (!loggedUser?.id) throw new Error('Google sem usuário válido');
@@ -165,7 +185,7 @@ export default function RegisterScreen({ navigation }) {
     };
 
     processGoogleAuth();
-  }, [response]);
+  }, [exchangeGoogleAuthCode, request, response]);
 
   // Send verification code
   const handleSendCode = useCallback(async () => {
@@ -223,7 +243,7 @@ export default function RegisterScreen({ navigation }) {
         }
       }
 
-      const codeResult = await sendLoginCode(emailLower);
+      const codeResult = await withTimeout(sendLoginCode(emailLower));
       if (!codeResult?.ok) {
         const sendError = String(codeResult?.message || 'Falha ao enviar código.');
         setStatusMsg(`✗ ${sendError}`);
@@ -274,7 +294,7 @@ export default function RegisterScreen({ navigation }) {
     setLoading(true);
     setStatusMsg('Validando código...');
     try {
-      const result = await verifyLoginCode({ email: emailLower, code: safeCode });
+      const result = await withTimeout(verifyLoginCode({ email: emailLower, code: safeCode }));
       if (result?.ok) {
         setEmailVerified(true);
         setStatusMsg('✓ Código validado. Acesso liberado.');
@@ -347,19 +367,15 @@ export default function RegisterScreen({ navigation }) {
           source: 'email',
         };
       } else {
-        // Email register path
+        // Email register path — não fazer sign-in "escondido"; conta existente = mensagem clara
         const methods = await withTimeout(fetchSignInMethodsForEmail(auth, emailLower));
-        let result;
-        
         if (Array.isArray(methods) && methods.length > 0) {
-          result = await withTimeout(signInWithEmailAndPassword(auth, emailLower, password));
-        } else {
-          result = await withTimeout(createUserWithEmailAndPassword(auth, emailLower, password));
-          if (name.trim()) {
-            await updateProfile(result.user, { displayName: name }).catch(() => {});
-          }
+          throw new Error('EMAIL_ACCOUNT_EXISTS_USE_LOGIN');
         }
-
+        const result = await withTimeout(createUserWithEmailAndPassword(auth, emailLower, password));
+        if (name.trim()) {
+          await updateProfile(result.user, { displayName: name }).catch(() => {});
+        }
         finalUser = {
           id: result.user.uid,
           name: result.user.displayName || name,
@@ -409,7 +425,7 @@ export default function RegisterScreen({ navigation }) {
     setLoading(true);
     setStatusMsg('Enviando código de reset...');
     try {
-      const codeResult = await sendLoginCode(emailLower);
+      const codeResult = await withTimeout(sendLoginCode(emailLower));
       if (!codeResult?.ok) {
         const sendError = String(codeResult?.message || 'Falha ao enviar código.');
         setStatusMsg(`✗ ${sendError}`);
@@ -452,7 +468,7 @@ export default function RegisterScreen({ navigation }) {
     setLoading(true);
     setStatusMsg('Validando código...');
     try {
-      const result = await verifyLoginCode({ email: emailLower, code: safeCode });
+      const result = await withTimeout(verifyLoginCode({ email: emailLower, code: safeCode }));
       if (result?.ok) {
         setForgotCodeValidated(true);
         setStatusMsg('✓ Código validado. Defina sua nova senha.');
