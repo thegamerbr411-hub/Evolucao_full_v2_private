@@ -3,12 +3,20 @@
     "name": "T-Evo",
     "slug": "evolucao-full-v2",
     "scheme": "evolucao",
-    "version": "1.2.4",
+    "version": "1.2.5",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0C1421"
+    },
     "assetBundlePatterns": [
       "**/*"
     ],
     "extra": {
-      "appVersion": "1.2.4",
+      "appVersion": "1.2.5",
       "eas": {
         "projectId": "44b3afa4-ce98-4f1b-b139-0ed7fe2d053b"
       }
@@ -16,7 +24,15 @@
     "owner": "tipolt",
     "android": {
       "package": "com.tipolt.evolucaofullv2",
-      "primaryColor": "#22C55E"
+      "versionCode": 125,
+      "primaryColor": "#22C55E",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#0C1421"
+      }
+    },
+    "ios": {
+      "supportsTablet": true
     },
     "plugins": [
       "expo-web-browser"

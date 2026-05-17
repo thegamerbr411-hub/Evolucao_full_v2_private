@@ -203,6 +203,20 @@ function createSmtpTransporter() {
   })
 }
 
+function getEmailDeliveryDiagnostics() {
+  const resendApiKey = String(process.env.RESEND_API_KEY || '').trim()
+  const resendFrom = String(process.env.RESEND_FROM || process.env.SMTP_FROM || '').trim()
+  const smtpHost = String(process.env.SMTP_HOST || '').trim()
+  const smtpUser = String(process.env.SMTP_USER || '').trim()
+  const smtpPass = String(process.env.SMTP_PASS || '').trim()
+
+  return {
+    resendConfigured: Boolean(resendApiKey),
+    resendFromConfigured: Boolean(resendFrom),
+    smtpConfigured: Boolean(smtpHost && smtpUser && smtpPass),
+  }
+}
+
 async function sendWithResend({ email, subject, text, html }) {
   const apiKey = String(process.env.RESEND_API_KEY || '').trim()
   const configuredFrom = String(process.env.RESEND_FROM || process.env.SMTP_FROM || '').trim()
@@ -317,6 +331,23 @@ router.post('/send-code', async (req, res) => {
       return res.status(400).json({ error: 'E-mail inválido.' })
     }
 
+    const isProduction = String(process.env.NODE_ENV || '').toLowerCase() === 'production'
+    const emailDiagnostics = getEmailDeliveryDiagnostics()
+    console.log('[email][send-code] request', {
+      production: isProduction,
+      resendConfigured: emailDiagnostics.resendConfigured,
+      smtpConfigured: emailDiagnostics.smtpConfigured,
+    })
+
+    if (isProduction && !emailDiagnostics.resendConfigured && !emailDiagnostics.smtpConfigured) {
+      console.error('[email][send-code] blocked: no email provider configured in production')
+      return res.status(503).json({
+        ok: false,
+        error: 'Servico de e-mail nao configurado no backend.',
+        code: 'EMAIL_PROVIDER_NOT_CONFIGURED',
+      })
+    }
+
     const existingUser = findUserByEmail(safeEmail)
     if (existingUser && existingUser.active === false) {
       return res.status(403).json({ error: 'Conta bloqueada. Contate o administrador.', code: 'ACCOUNT_BLOCKED' })
@@ -336,9 +367,19 @@ router.post('/send-code', async (req, res) => {
       return res.json({ ok: true, delivery: 'email' })
     }
 
+    if (isProduction) {
+      console.error('[email][send-code] delivery failed in production', emailDiagnostics)
+      return res.status(503).json({
+        ok: false,
+        error: 'Servico de e-mail indisponivel no momento.',
+        code: 'EMAIL_DELIVERY_FAILED',
+      })
+    }
+
     // Sem SMTP configurado: retorna o código na resposta (dev/local)
     return res.json({ ok: true, delivery: 'local', code })
   } catch (error) {
+    console.error('[email][send-code] unexpected error', error)
     return res.status(500).json({ error: 'Falha ao enviar código. Tente novamente.' })
   }
 })
