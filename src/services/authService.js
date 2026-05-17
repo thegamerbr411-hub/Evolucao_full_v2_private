@@ -4,7 +4,7 @@ import * as Application from 'expo-application';
 import * as Crypto from 'expo-crypto';
 import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { auth } from './firebase.js';
 import { logCriticalError } from './loggingService.js';
 import api, { API_BASE_URL } from './api';
@@ -139,15 +139,29 @@ function getAndroidNativeRedirectUri(androidClientId) {
 export function isGoogleAuthConfigured() {
   const cfg = getGoogleClientConfig();
   const configured = Boolean(cfg.androidClientId || cfg.webClientId || cfg.expoClientId || cfg.iosClientId || cfg.sharedClientId);
-  console.log('[AUTH][GOOGLE][CONFIGURED]', JSON.stringify({
-    configured,
-    hasAndroid: Boolean(cfg.androidClientId),
-    hasWeb: Boolean(cfg.webClientId),
-    hasExpo: Boolean(cfg.expoClientId),
-    hasIos: Boolean(cfg.iosClientId),
-    hasShared: Boolean(cfg.sharedClientId),
-  }));
+  if (__DEV__) {
+    console.log('[AUTH][GOOGLE][CONFIGURED]', JSON.stringify({
+      configured,
+      hasAndroid: Boolean(cfg.androidClientId),
+      hasWeb: Boolean(cfg.webClientId),
+      hasExpo: Boolean(cfg.expoClientId),
+      hasIos: Boolean(cfg.iosClientId),
+      hasShared: Boolean(cfg.sharedClientId),
+    }));
+  }
   return configured;
+}
+
+function getPkceTokenExchangeClientId(cfg) {
+  const isAndroid = Platform.OS === 'android';
+  if (isAndroid) {
+    return String(
+      cfg.androidClientId || cfg.sharedClientId || cfg.webClientId || cfg.expoClientId || ''
+    ).trim();
+  }
+  return String(
+    cfg.webClientId || cfg.expoClientId || cfg.androidClientId || cfg.sharedClientId || ''
+  ).trim();
 }
 
 export function useGoogleAuth() {
@@ -156,12 +170,6 @@ export function useGoogleAuth() {
   const defaultRedirectUri = AuthSession.makeRedirectUri({
     native: `${Application.applicationId}:/oauthredirect`,
   });
-  console.log('[AUTH][GOOGLE][HOOK]', JSON.stringify({
-    hasAndroid: Boolean(cfg.androidClientId),
-    hasWeb: Boolean(cfg.webClientId),
-    hasIos: Boolean(cfg.iosClientId),
-    hasAndroidNativeRedirect: Boolean(androidNativeRedirectUri),
-  }));
 
   const isAndroid = Platform.OS === 'android';
   const hasConfiguredClient = Boolean(cfg.androidClientId || cfg.webClientId || cfg.expoClientId || cfg.iosClientId || cfg.sharedClientId);
@@ -177,7 +185,14 @@ export function useGoogleAuth() {
     };
   }
 
+  const clientIdForOAuth = String(
+    isAndroid
+      ? (cfg.androidClientId || cfg.sharedClientId || cfg.webClientId || cfg.expoClientId || '')
+      : (cfg.webClientId || cfg.expoClientId || cfg.androidClientId || cfg.sharedClientId || '')
+  ).trim();
+
   const requestConfig = {
+    clientId: clientIdForOAuth || undefined,
     scopes: ['openid', 'profile', 'email'],
     responseType: 'code',
     selectAccount: true,
@@ -201,6 +216,19 @@ export function useGoogleAuth() {
     windowFeatures: { width: 515, height: 680 },
   });
   const [fullResponse, setFullResponse] = useState(null);
+  const lastGoogleDebugUrlRef = useRef('');
+
+  useEffect(() => {
+    if (!__DEV__) {
+      return;
+    }
+    console.log('[AUTH][GOOGLE][HOOK]', JSON.stringify({
+      hasAndroid: Boolean(cfg.androidClientId),
+      hasWeb: Boolean(cfg.webClientId),
+      hasIos: Boolean(cfg.iosClientId),
+      hasAndroidNativeRedirect: Boolean(androidNativeRedirectUri),
+    }));
+  }, [androidNativeRedirectUri, cfg.androidClientId, cfg.iosClientId, cfg.webClientId]);
   const shouldAutoExchangeCode = useMemo(() => {
     return response?.type === 'success' && response.params.code && !response.authentication;
   }, [response?.authentication, response?.params?.code, response?.type]);
@@ -211,7 +239,7 @@ export function useGoogleAuth() {
     if (shouldAutoExchangeCode && response?.type === 'success' && response?.params?.code) {
       AuthSession.exchangeCodeAsync(
         {
-          clientId: cfg.androidClientId || cfg.webClientId || cfg.expoClientId || cfg.iosClientId || cfg.sharedClientId,
+          clientId: clientIdForOAuth,
           code: response.params.code,
           redirectUri: requestConfig.redirectUri,
           extraParams: {
@@ -248,15 +276,22 @@ export function useGoogleAuth() {
     return () => {
       isMounted = false;
     };
-  }, [cfg.androidClientId, cfg.expoClientId, cfg.iosClientId, cfg.sharedClientId, cfg.webClientId, request?.codeVerifier, requestConfig.redirectUri, response, shouldAutoExchangeCode]);
+  }, [clientIdForOAuth, request?.codeVerifier, requestConfig.redirectUri, response, shouldAutoExchangeCode]);
 
-  // Log request URL for OAuth debugging
-  if (request) {
+  useEffect(() => {
+    if (!__DEV__ || !request) {
+      return;
+    }
+    const urlKey = String(request.url || request.redirectUri || 'pending');
+    if (lastGoogleDebugUrlRef.current === urlKey) {
+      return;
+    }
+    lastGoogleDebugUrlRef.current = urlKey;
     console.log('[AUTH][GOOGLE][REQUEST_URL]', request.url || 'pending');
     console.log('[AUTH][GOOGLE][REDIRECT_URI]', request.redirectUri || 'none');
     console.log('[AUTH][GOOGLE][CLIENT_ID_USED]', requestConfig.androidClientId || requestConfig.webClientId || requestConfig.expoClientId || requestConfig.iosClientId);
     console.log('[AUTH][GOOGLE][PLATFORM_FLOW]', JSON.stringify({ platform: Platform.OS, isAndroid, usePKCE: requestConfig.usePKCE, hasCodeVerifier: Boolean(request.codeVerifier), hasCodeChallenge: Boolean(request.codeChallenge) }));
-  }
+  }, [isAndroid, request, requestConfig.androidClientId, requestConfig.expoClientId, requestConfig.iosClientId, requestConfig.usePKCE, requestConfig.webClientId]);
 
   return { request, response: fullResponse, promptAsync };
 }
@@ -269,7 +304,7 @@ export const exchangeGoogleAuthCode = async ({ code, redirectUri, codeVerifier }
   }
 
   const cfg = getGoogleClientConfig();
-  const clientId = cfg.androidClientId || cfg.sharedClientId || cfg.webClientId || '';
+  const clientId = getPkceTokenExchangeClientId(cfg);
   if (!clientId) {
     return null;
   }
@@ -287,7 +322,9 @@ export const exchangeGoogleAuthCode = async ({ code, redirectUri, codeVerifier }
 
     const accessToken = String(tokenResponse?.accessToken || '').trim() || null;
     const idToken = String(tokenResponse?.idToken || '').trim() || null;
-    console.log('[AUTH][GOOGLE][CODE_EXCHANGE_OK]', JSON.stringify({ hasAccessToken: Boolean(accessToken), hasIdToken: Boolean(idToken) }));
+    if (__DEV__) {
+      console.log('[AUTH][GOOGLE][CODE_EXCHANGE_OK]', JSON.stringify({ hasAccessToken: Boolean(accessToken), hasIdToken: Boolean(idToken) }));
+    }
     return { accessToken, idToken };
   } catch (error) {
     await logCriticalError('authService.exchangeGoogleAuthCode', error);
