@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, Platform, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { auth } from '../services/firebase';
 import { useAppStore } from '../stores/useAppStore';
@@ -27,6 +27,7 @@ import RankingEvolutionScreen from '../screens/RankingEvolutionScreen';
 import ExerciseDetailScreen from '../screens/ExerciseDetailScreen';
 import WorkoutCompleteScreen from '../screens/WorkoutCompleteScreen';
 import MainTabs from './MainTabs';
+import ProfileScreen from '../screens/ProfileScreen';
 import { QA_SCREENS } from '../qa/selectorRegistry';
 import {
   QA_RUNTIME_STATES,
@@ -41,14 +42,57 @@ import {
 
 const Stack = createNativeStackNavigator();
 
+/** Web-only QA: jump past auth gate for UX audits. Never enable in production builds you ship. */
+const WEB_NAV_AUDIT =
+  Platform.OS === 'web' &&
+  String(process.env.EXPO_PUBLIC_WEB_NAV_AUDIT || '').trim() === '1';
+
+/**
+ * Android/iOS QA: same bypass as web when building a local audit APK (EAS/Gradle + env).
+ * Does nothing unless EXPO_PUBLIC_ANDROID_NAV_AUDIT=1 at bundle time.
+ */
+const ANDROID_NAV_AUDIT =
+  Platform.OS !== 'web' &&
+  String(process.env.EXPO_PUBLIC_ANDROID_NAV_AUDIT || '').trim() === '1';
+
+const NAV_AUDIT = WEB_NAV_AUDIT || ANDROID_NAV_AUDIT;
+
 export default function RootNavigator(){
   const hasCompletedQuestionnaire = useAppStore((state) => state.hasCompletedQuestionnaire);
+  const setHasCompletedQuestionnaire = useAppStore((state) => state.setHasCompletedQuestionnaire);
   const isHydrated = useUserStore((state) => state.isHydrated);
   const profile = useUserStore((state) => state.profile);
   const user = useUserStore((state) => state.user);
   const firebaseUser = auth?.currentUser;
   const hasPersistedProfile = Boolean(profile && Number(profile.currentWeight || 0) > 0);
   const hasAccount = Boolean(user && (user.name || user.id)) || Boolean(firebaseUser?.uid);
+
+  const [navAuditReady, setNavAuditReady] = React.useState(!NAV_AUDIT);
+
+  React.useLayoutEffect(() => {
+    if (!NAV_AUDIT || !isHydrated) {
+      return;
+    }
+    const u = useUserStore.getState();
+    if (!u.user || !u.user.id) {
+      u.setUser({
+        id: 'qa-nav-audit',
+        role: 'user',
+        name: 'QA Nav Audit',
+        email: 'qa+navaudit@audit.local',
+      });
+      u.setProfile({
+        goal: 'manter forma',
+        level: 'iniciante',
+        currentWeight: 80,
+        targetWeight: 78,
+        height: 175,
+        trainingDaysPerWeek: 4,
+      });
+      setHasCompletedQuestionnaire(true);
+    }
+    setNavAuditReady(true);
+  }, [isHydrated, setHasCompletedQuestionnaire]);
 
   React.useEffect(() => {
     if (!isHydrated) {
@@ -83,7 +127,7 @@ export default function RootNavigator(){
     }
   }, [hasAccount, hasPersistedProfile, isHydrated, user?.id]);
 
-  if (!isHydrated) {
+  if (!isHydrated || (NAV_AUDIT && !navAuditReady)) {
     return (
       <View testID={QA_SCREENS.loading} accessibilityLabel={QA_SCREENS.loading} nativeID={QA_SCREENS.loading} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background }}>
         <ActivityIndicator size="large" color={colors.primary} />
@@ -92,6 +136,9 @@ export default function RootNavigator(){
   }
 
   const getInitialRoute = () => {
+    if (NAV_AUDIT) {
+      return 'MainTabs';
+    }
     if (!hasAccount) return 'Cadastro';
     return 'MainTabs';
   };
@@ -105,13 +152,13 @@ export default function RootNavigator(){
       <Stack.Screen name="Cadastro" component={RegisterScreen}/>
       <Stack.Screen name="Questionario" component={QuestionnaireScreen}/>
       <Stack.Screen name="MainTabs" component={MainTabs}/>
+      <Stack.Screen name="PerfilConta" component={ProfileScreen}/>
       <Stack.Screen name="Scanner" component={NutritionScanner}/>
       <Stack.Screen name="AnaliseDia" component={DayAnalysisScreen}/>
       <Stack.Screen name="Insights" component={InsightsScreen}/>
       <Stack.Screen name="Historico" component={HistoryScreen}/>
       <Stack.Screen name="IAWeekly" component={WeeklyInsightScreen}/>
       <Stack.Screen name="TreinoHoje" component={WorkoutScreen}/>
-      <Stack.Screen name="Workout" component={WorkoutScreen}/>
       <Stack.Screen name="WorkoutCompleteScreen" component={WorkoutCompleteScreen}/>
       <Stack.Screen name="TreinoLivre" component={FreeWorkoutScreen}/>
       <Stack.Screen name="Rotinas" component={RoutinesScreen}/>
