@@ -263,9 +263,13 @@ function buildVerificationEmail(code) {
     '',
     'Tipolt Labs',
   ].join('\n')
-  const html = `<!DOCTYPE html>
+  const html = `<!doctype html>
 <html lang="pt-BR">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+</head>
 <body style="margin:0;padding:0;background-color:#0f1419;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#0f1419;padding:32px 16px;">
     <tr><td align="center">
@@ -319,6 +323,9 @@ async function sendWithResend({ email, subject, text, html, trace }) {
       subject,
       text,
       html,
+      headers: {
+        'Content-Type': 'text/html; charset=UTF-8',
+      },
     }
     if (replyTo) {
       payload.reply_to = replyTo
