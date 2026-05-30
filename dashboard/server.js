@@ -332,11 +332,20 @@ function createApp() {
     const expiresAt = Date.now() + 15 * 60 * 1000;
     pendingEmailCodes.set(email, { code, expiresAt });
 
+    console.log('[email][send-code] template_version= ascii_safe_20260530')
     const delivered = await sendTransactionalEmail({
       to: email,
-      subject: 'Seu código de verificação — Evolução App',
-      text: `Seu código de verificação é: ${code}\n\nEle expira em 15 minutos.`,
-      html: `<h2>Código de verificação</h2><p style="font-size:32px;letter-spacing:8px;font-weight:bold">${code}</p><p>Expira em 15 minutos.</p>`,
+      subject: 'Seu codigo de verificacao - Evolucao',
+      text: [
+        'Codigo de verificacao',
+        '',
+        `Seu codigo: ${code}`,
+        '',
+        'Expira em 15 minutos.',
+        '',
+        'Se voce nao solicitou este codigo, ignore este email.',
+      ].join('\n'),
+      html: `<h2>Codigo de verificacao</h2><p style="font-size:32px;letter-spacing:8px;font-weight:bold">${code}</p><p>Expira em 15 minutos.</p>`,
     });
 
     if (!delivered) {
