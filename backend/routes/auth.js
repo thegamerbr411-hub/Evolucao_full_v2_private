@@ -217,6 +217,69 @@ function getEmailDeliveryDiagnostics() {
   }
 }
 
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+const VERIFICATION_EMAIL_TEMPLATE_VERSION = 'ascii_safe_20260530'
+
+function buildVerificationEmail(code) {
+  const safeCode = escapeHtml(code)
+  const subject = 'Seu codigo de verificacao - Evolucao'
+  const text = [
+    'Codigo de verificacao',
+    '',
+    `Seu codigo: ${code}`,
+    '',
+    'Expira em 15 minutos.',
+    '',
+    'Se voce nao solicitou este codigo, ignore este email.',
+    '',
+    'Tipolt Labs',
+  ].join('\n')
+  const html = `<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+</head>
+<body style="margin:0;padding:0;background-color:#0f1419;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#0f1419;padding:32px 16px;">
+    <tr><td align="center">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:480px;background-color:#1a2332;border-radius:12px;padding:32px 28px;">
+        <tr><td align="center" style="padding-bottom:8px;">
+          <p style="margin:0;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:0;">Evolucao</p>
+        </td></tr>
+        <tr><td align="center" style="padding-bottom:24px;">
+          <p style="margin:0;font-size:14px;color:#94a3b8;">Treinos, nutricao e progresso</p>
+        </td></tr>
+        <tr><td style="padding-bottom:16px;">
+          <p style="margin:0;font-size:15px;line-height:1.5;color:#e2e8f0;">Codigo de verificacao</p>
+          <p style="margin:8px 0 0;font-size:14px;line-height:1.5;color:#94a3b8;">Use o codigo abaixo para confirmar seu acesso ao Evolucao.</p>
+        </td></tr>
+        <tr><td align="center" style="padding:20px 0;background-color:#0f1419;border-radius:8px;">
+          <p style="margin:0;font-size:36px;font-weight:700;color:#38bdf8;letter-spacing:4px;font-family:Consolas,Monaco,monospace;">${safeCode}</p>
+        </td></tr>
+        <tr><td style="padding-top:20px;">
+          <p style="margin:0 0 12px;font-size:13px;color:#94a3b8;">Expira em 15 minutos.</p>
+          <p style="margin:0;font-size:13px;color:#64748b;">Se voce nao solicitou este codigo, ignore este email.</p>
+        </td></tr>
+        <tr><td align="center" style="padding-top:28px;border-top:1px solid #334155;">
+          <p style="margin:0;font-size:12px;color:#64748b;">Tipolt Labs</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`
+  return { subject, text, html, templateVersion: VERIFICATION_EMAIL_TEMPLATE_VERSION }
+}
+
 async function sendWithResend({ email, subject, text, html }) {
   const apiKey = String(process.env.RESEND_API_KEY || '').trim()
   const configuredFrom = String(process.env.RESEND_FROM || process.env.SMTP_FROM || '').trim()
@@ -357,11 +420,13 @@ router.post('/send-code', async (req, res) => {
     const expiresAt = Date.now() + 15 * 60 * 1000 // 15 min
     pendingCodes.set(safeEmail, { code, expiresAt })
 
+    const verificationEmail = buildVerificationEmail(code)
+    console.log('[email][send-code] template_version=', verificationEmail.templateVersion || 'unknown')
     const delivered = await sendEmail({
       email: safeEmail,
-      subject: 'Seu c├│digo de verifica├º├úo ÔÇö Evolu├º├úo App',
-      text: `Seu c├│digo de verifica├º├úo ├®: ${code}\n\nEle expira em 15 minutos.\n\nSe n├úo foi voc├¬, ignore este e-mail.`,
-      html: `<h2>C├│digo de verifica├º├úo</h2><p style="font-size:32px;letter-spacing:8px;font-weight:bold">${code}</p><p>Expira em 15 minutos.</p>`,
+      subject: verificationEmail.subject,
+      text: verificationEmail.text,
+      html: verificationEmail.html,
     })
     if (delivered) {
       return res.json({ ok: true, delivery: 'email' })
