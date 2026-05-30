@@ -225,7 +225,16 @@ function escapeHtml(value) {
     .replace(/"/g, '&quot;')
 }
 
-const VERIFICATION_EMAIL_TEMPLATE_VERSION = 'ascii_safe_20260530'
+export const VERIFICATION_EMAIL_TEMPLATE_VERSION = 'ascii_safe_20260530'
+const AUTH_EMAIL_ROUTE_FILE = 'backend/routes/auth.js'
+
+function maskEmailForLog(email) {
+  const safe = String(email || '').trim().toLowerCase()
+  if (!safe || !safe.includes('@')) return '(invalid)'
+  const [local, domain] = safe.split('@')
+  const maskedLocal = local.length <= 2 ? `${local[0] || ''}*` : `${local.slice(0, 2)}***`
+  return `${maskedLocal}@${domain}`
+}
 
 function buildVerificationEmail(code) {
   const safeCode = escapeHtml(code)
@@ -421,7 +430,14 @@ router.post('/send-code', async (req, res) => {
     pendingCodes.set(safeEmail, { code, expiresAt })
 
     const verificationEmail = buildVerificationEmail(code)
-    console.log('[email][send-code] template_version=', verificationEmail.templateVersion || 'unknown')
+    const fromAddress = String(process.env.RESEND_FROM || process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply').trim()
+    console.log(
+      '[auth-email] service=evolucao-api-dou2 template_version=%s route_file=%s from=%s to=%s',
+      verificationEmail.templateVersion || VERIFICATION_EMAIL_TEMPLATE_VERSION,
+      AUTH_EMAIL_ROUTE_FILE,
+      fromAddress,
+      maskEmailForLog(safeEmail),
+    )
     const delivered = await sendEmail({
       email: safeEmail,
       subject: verificationEmail.subject,

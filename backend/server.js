@@ -3,7 +3,7 @@ import express from 'express'
 import cors from 'cors'
 import 'dotenv/config'
 
-import authRoutes from './routes/auth.js'
+import authRoutes, { VERIFICATION_EMAIL_TEMPLATE_VERSION } from './routes/auth.js'
 import workoutRoutes from './routes/workouts.js'
 import syncRoutes from './routes/sync.js'
 import socialRoutes from './routes/social.js'
@@ -51,6 +51,9 @@ app.get('/health', (req, res) => {
   res.json({
     ok: true,
     service: 'evolucao-backend',
+    renderService: 'evolucao-api-dou2',
+    emailTemplateVersion: VERIFICATION_EMAIL_TEMPLATE_VERSION,
+    authSendCodeRouteFile: 'backend/routes/auth.js',
     routes: {
       auth: '/auth/*',
       workouts: '/workouts/*',
@@ -65,6 +68,9 @@ app.get('/api/health', (req, res) => {
   res.json({
     ok: true,
     service: 'evolucao-backend',
+    renderService: 'evolucao-api-dou2',
+    emailTemplateVersion: VERIFICATION_EMAIL_TEMPLATE_VERSION,
+    authSendCodeRouteFile: 'backend/routes/auth.js',
     routes: {
       auth: '/auth/* e /api/auth/*',
       workouts: '/workouts/* e /api/workouts/*',
@@ -82,7 +88,12 @@ app.use((req, res) => {
 
 // Start server with graceful fallback when default port is busy.
 const server = app.listen(PORT, () => {
-  console.log(`🚀 Servidor rodando em http://localhost:${PORT}`)
+  console.log(
+    '[boot] service=evolucao-api-dou2 email_template_version=%s route_file=backend/routes/auth.js port=%s',
+    VERIFICATION_EMAIL_TEMPLATE_VERSION,
+    PORT,
+  )
+  console.log(`Servidor rodando em http://localhost:${PORT}`)
 })
 
 server.on('error', (error) => {
