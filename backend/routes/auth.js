@@ -250,16 +250,19 @@ function escapeHtml(value) {
     .replace(/"/g, '&quot;')
 }
 
+const VERIFICATION_EMAIL_TEMPLATE_VERSION = 'ascii_safe_20260530'
+
 function buildVerificationEmail(code) {
   const safeCode = escapeHtml(code)
-  const subject = 'Seu código de verificação — Evolução'
+  const subject = 'Seu codigo de verificacao - Evolucao'
   const text = [
-    'Evolução — código de verificação',
+    'Codigo de verificacao',
     '',
-    `Seu código é: ${code}`,
+    `Seu codigo: ${code}`,
     '',
-    'Este código expira em 15 minutos.',
-    'Se você não solicitou este código, ignore este e-mail.',
+    'Expira em 15 minutos.',
+    '',
+    'Se voce nao solicitou este codigo, ignore este email.',
     '',
     'Tipolt Labs',
   ].join('\n')
@@ -275,20 +278,21 @@ function buildVerificationEmail(code) {
     <tr><td align="center">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:480px;background-color:#1a2332;border-radius:12px;padding:32px 28px;">
         <tr><td align="center" style="padding-bottom:8px;">
-          <p style="margin:0;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:0;">Evolução</p>
+          <p style="margin:0;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:0;">Evolucao</p>
         </td></tr>
         <tr><td align="center" style="padding-bottom:24px;">
-          <p style="margin:0;font-size:14px;color:#94a3b8;">Treinos, nutrição e progresso</p>
+          <p style="margin:0;font-size:14px;color:#94a3b8;">Treinos, nutricao e progresso</p>
         </td></tr>
         <tr><td style="padding-bottom:16px;">
-          <p style="margin:0;font-size:15px;line-height:1.5;color:#e2e8f0;">Use o código abaixo para confirmar seu acesso ao Evolução.</p>
+          <p style="margin:0;font-size:15px;line-height:1.5;color:#e2e8f0;">Codigo de verificacao</p>
+          <p style="margin:8px 0 0;font-size:14px;line-height:1.5;color:#94a3b8;">Use o codigo abaixo para confirmar seu acesso ao Evolucao.</p>
         </td></tr>
         <tr><td align="center" style="padding:20px 0;background-color:#0f1419;border-radius:8px;">
           <p style="margin:0;font-size:36px;font-weight:700;color:#38bdf8;letter-spacing:4px;font-family:Consolas,Monaco,monospace;">${safeCode}</p>
         </td></tr>
         <tr><td style="padding-top:20px;">
-          <p style="margin:0 0 12px;font-size:13px;color:#94a3b8;">Este código expira em 15 minutos.</p>
-          <p style="margin:0;font-size:13px;color:#64748b;">Se você não solicitou este código, ignore este e-mail.</p>
+          <p style="margin:0 0 12px;font-size:13px;color:#94a3b8;">Expira em 15 minutos.</p>
+          <p style="margin:0;font-size:13px;color:#64748b;">Se voce nao solicitou este codigo, ignore este email.</p>
         </td></tr>
         <tr><td align="center" style="padding-top:28px;border-top:1px solid #334155;">
           <p style="margin:0;font-size:12px;color:#64748b;">Tipolt Labs</p>
@@ -298,7 +302,7 @@ function buildVerificationEmail(code) {
   </table>
 </body>
 </html>`
-  return { subject, text, html }
+  return { subject, text, html, templateVersion: VERIFICATION_EMAIL_TEMPLATE_VERSION }
 }
 
 /**
@@ -492,6 +496,7 @@ router.post('/send-code', async (req, res) => {
 
     const emailTrace = {}
     const verificationEmail = buildVerificationEmail(code)
+    console.log('[email][send-code] template_version=', verificationEmail.templateVersion || 'unknown')
     const delivered = await sendEmail({
       email: safeEmail,
       subject: verificationEmail.subject,
