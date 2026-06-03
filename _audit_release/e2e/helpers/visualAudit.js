@@ -4,13 +4,13 @@ const {
   goHome,
   goToCoach,
   goToNutrition,
-  goToProfile,
   goToSocial,
   goToTreinos,
 } = require('./flows');
 const {
   isVisible,
   sleep,
+  tapElement,
   waitForAny,
 } = require('./utils');
 
@@ -21,8 +21,8 @@ const TAB_AUDIT_MATRIX = [
   { key: 'treino', tabId: 'tab-treino', screenId: 'screen-treinos' },
   { key: 'nutricao', tabId: 'tab-nutricao', screenId: 'screen-nutricao' },
   { key: 'coach', tabId: 'tab-conversa', screenId: 'screen-coach' },
-  { key: 'social', tabId: 'tab_mais', screenId: 'screen-social' },
-  { key: 'perfil', tabId: 'tab_mais', screenId: 'screen_profile' },
+  { key: 'social', tabId: 'tab-social', screenId: 'screen-social' },
+  { key: 'perfil', tabId: 'tab-perfil', screenId: 'screen-perfil' },
 ];
 
 function ensureQaDir() {
@@ -145,12 +145,9 @@ async function openTabForAudit(tab) {
     await goToSocial();
     return;
   }
-  if (tab.key === 'perfil') {
-    await goToProfile();
-    return;
-  }
 
-  throw new Error(`openTabForAudit: aba desconhecida ${tab.key}`);
+  await tapElement(tab.tabId, 12000);
+  await waitForAny(['screen-perfil', 'tab-perfil', 'tab-home', 'tab-treino', 'tab-nutricao', 'tab-conversa', 'tab-social'], 10000);
 }
 
 async function captureAuditForCurrentTab(report, phase, tab) {

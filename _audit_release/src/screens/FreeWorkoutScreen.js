@@ -60,31 +60,6 @@ function toTestId(value) {
     .replace(/^-+|-+$/g, '');
 }
 
-function isCardioExerciseName(value = '') {
-  const normalized = String(value || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .trim();
-
-  if (!normalized) {
-    return false;
-  }
-
-  return [
-    'cardio',
-    'corrida',
-    'caminhada',
-    'bike',
-    'bicicleta',
-    'esteira',
-    'eliptico',
-    'corda',
-    'hiit',
-    'aerobico',
-  ].some((term) => normalized.includes(term));
-}
-
 export default function FreeWorkoutScreen({ navigation }) {
   const [toastMessage, setToastMessage] = useState('');
   const {
@@ -219,22 +194,6 @@ export default function FreeWorkoutScreen({ navigation }) {
     navigation.navigate('ExerciseDetail', { exercise: detail });
   };
 
-  const finishFreeWorkout = () => {
-    // Resetar estado local e voltar para a aba de treino.
-    // Os logs já foram persistidos via saveFreeWorkoutSet a cada série salva,
-    // então finalizar é puramente UX (limpar seleção + parar descanso + navegar).
-    setRestRunning(false);
-    setRestSeconds(0);
-    setSelectedExercises([]);
-    setSetData({});
-    setToastMessage('Treino concluído. Bom trabalho.');
-    try {
-      if (navigation && typeof navigation.navigate === 'function') {
-        navigation.navigate('Treino');
-      }
-    } catch {}
-  };
-
   const saveSelectionAsRoutine = () => {
     if (!selectedExercises.length) {
       logError(new Error('free_workout_empty_routine'), {
@@ -266,36 +225,11 @@ export default function FreeWorkoutScreen({ navigation }) {
   };
 
   const submitSet = (exerciseName, failed) => {
-    // Hard guard: bloquear registrar série após o limite (bug "X/3 + 1").
-    const currentProgress = typeof getExerciseSetProgress === 'function'
-      ? getExerciseSetProgress(exerciseName, 3)
-      : { completedSets: 0, totalSets: 3, nextSet: 1 };
-    if (Number(currentProgress.completedSets || 0) >= 3) {
-      setToastMessage(`Limite de 3 séries para ${exerciseName}. Adicione outro exercício ou finalize.`);
-      return;
-    }
-
     const values = setData[exerciseName] || { weight: '', reps: '' };
-    const isCardio = isCardioExerciseName(exerciseName);
-    const weightText = String(values.weight || '').trim().replace(',', '.');
-    const repsText = String(values.reps || '').trim().replace(',', '.');
-    const parsedWeight = Number(weightText);
-    const parsedReps = Number(repsText);
-
-    if (isCardio) {
-      if (!repsText || !Number.isFinite(parsedReps) || parsedReps <= 0) {
-        setToastMessage('Para cardio, informe o tempo (em minutos) antes de concluir.');
-        return;
-      }
-    } else if (!weightText || !repsText || !Number.isFinite(parsedWeight) || !Number.isFinite(parsedReps) || parsedWeight <= 0 || parsedReps <= 0) {
-      setToastMessage('Preencha carga e reps válidas antes de concluir a série.');
-      return;
-    }
-
     const result = saveFreeWorkoutSet({
       exerciseName,
-      weight: isCardio && !weightText ? 0 : parsedWeight,
-      reps: parsedReps,
+      weight: Number(values.weight),
+      reps: Number(values.reps),
       failed,
     });
 
@@ -312,7 +246,7 @@ export default function FreeWorkoutScreen({ navigation }) {
     setSetData((prev) => ({
       ...prev,
       [exerciseName]: {
-        weight: isCardio ? '' : values.weight,
+        weight: values.weight,
         reps: '',
       },
     }));
@@ -333,7 +267,7 @@ export default function FreeWorkoutScreen({ navigation }) {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
       >
-      <ScreenHeader title="Treino livre" subtitle="Monte seu treino na hora com fluxo rápido e organizado." onBack={() => navigation.goBack()} />
+      <ScreenHeader title="Treino livre" subtitle="Monte seu treino na hora com fluxo rápido e organizado." />
 
       <AppCard elevated>
         <Text style={styles.kpiLabel}>SELEÇÃO ATUAL</Text>
@@ -351,15 +285,6 @@ export default function FreeWorkoutScreen({ navigation }) {
           </View>
         </View>
         <PrimaryButton testID="btn-free-save-routine" title="Salvar seleção como rotina" onPress={saveSelectionAsRoutine} style={styles.primaryButton} />
-        {selectedExercises.length ? (
-          <TouchableOpacity
-            testID="btn-free-finish-workout"
-            style={styles.finishButton}
-            onPress={finishFreeWorkout}
-          >
-            <Text style={styles.finishButtonText}>Finalizar treino</Text>
-          </TouchableOpacity>
-        ) : null}
       </AppCard>
 
       <View style={styles.timerBox}>
@@ -470,18 +395,17 @@ export default function FreeWorkoutScreen({ navigation }) {
       {selectedExercises.map((exerciseName) => {
         const values = setData[exerciseName] || { weight: '', reps: '' };
         const setProgress = getExerciseSetProgress(exerciseName, 3);
-        const isCardio = isCardioExerciseName(exerciseName);
 
         return (
           <AppCard key={exerciseName} testID={`card-free-exercise-${toTestId(exerciseName)}`}>
             <Text style={styles.exerciseName}>{exerciseName}</Text>
-            <Text style={styles.progressText}>Serie {Math.min(setProgress.nextSet, 3)}/3</Text>
+            <Text style={styles.progressText}>Serie {setProgress.nextSet}/3</Text>
 
             <View style={styles.row}>
               <TextInput
                 testID={`input-free-weight-${toTestId(exerciseName)}`}
                 keyboardType="numeric"
-                placeholder={isCardio ? 'Carga (opcional)' : 'Carga'}
+                placeholder="Carga"
                 placeholderTextColor={colors.textMuted}
                 value={values.weight}
                 onChangeText={(text) => setField(exerciseName, 'weight', text)}
@@ -490,7 +414,7 @@ export default function FreeWorkoutScreen({ navigation }) {
               <TextInput
                 testID={`input-free-reps-${toTestId(exerciseName)}`}
                 keyboardType="numeric"
-                placeholder={isCardio ? 'Tempo (min)' : 'Reps'}
+                placeholder="Reps"
                 placeholderTextColor={colors.textMuted}
                 value={values.reps}
                 onChangeText={(text) => setField(exerciseName, 'reps', text)}
@@ -536,19 +460,6 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     marginTop: spacing.sm,
-  },
-  finishButton: {
-    marginTop: spacing.sm,
-    backgroundColor: colors.success,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  finishButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '900',
-    fontSize: 14,
-    letterSpacing: 0.3,
   },
   kpiLabel: {
     ...typography.sectionTitle,

@@ -1,11 +1,10 @@
 import { getIdTokenResult, GoogleAuthProvider, sendPasswordResetEmail, signInAnonymously, signInWithCredential } from 'firebase/auth';
 import * as AuthSession from 'expo-auth-session';
-import * as Google from 'expo-auth-session/providers/google';
 import * as Application from 'expo-application';
-import * as Sentry from '@sentry/react-native';
+import * as Crypto from 'expo-crypto';
 import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { auth } from './firebase.js';
 import { logCriticalError } from './loggingService.js';
 import api, { API_BASE_URL } from './api';
@@ -15,40 +14,83 @@ import googleServices from '../../android/app/google-services.json';
 
 WebBrowser.maybeCompleteAuthSession();
 
-function getBundledGoogleClientConfig() {
-  try {
-    const clients = Array.isArray(googleServices?.client) ? googleServices.client : [];
-    const oauthClients = [];
+const GOOGLE_DISCOVERY = {
+  authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
+  tokenEndpoint: 'https://oauth2.googleapis.com/token',
+  revocationEndpoint: 'https://oauth2.googleapis.com/revoke',
+};
 
-    for (const client of clients) {
-      const clientOauth = Array.isArray(client?.oauth_client) ? client.oauth_client : [];
-      oauthClients.push(...clientOauth);
+const PKCE_CHARSET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
 
-      const otherOauth = Array.isArray(client?.services?.appinvite_service?.other_platform_oauth_client)
-        ? client.services.appinvite_service.other_platform_oauth_client
-        : [];
-      oauthClients.push(...otherOauth);
+function base64UrlEncode(input) {
+  return String(input || '')
+    .trim()
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+}
+
+function generateCodeVerifier(length = 96) {
+  const safeLength = Math.max(43, Math.min(128, Math.floor(length)));
+  const randomValues = new Uint8Array(safeLength);
+  Crypto.getRandomValues(randomValues);
+
+  let verifier = '';
+  for (let index = 0; index < randomValues.length; index += 1) {
+    verifier += PKCE_CHARSET[randomValues[index] % PKCE_CHARSET.length];
+  }
+
+  return verifier;
+}
+
+async function createCodeChallengeAsync(codeVerifier) {
+  const safeVerifier = String(codeVerifier || '').trim();
+  if (!safeVerifier) {
+    return '';
+  }
+
+  const digest = await Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    safeVerifier,
+    { encoding: Crypto.CryptoEncoding.BASE64 }
+  );
+
+  return base64UrlEncode(digest);
+}
+
+class GooglePkceAuthRequest extends AuthSession.AuthRequest {
+  async ensureCodeIsSetupAsync() {
+    if (!this.usePKCE) {
+      return;
     }
 
-    const androidClientIds = oauthClients
-      .filter((item) => Number(item?.client_type) === 1)
-      .map((item) => String(item?.client_id || '').trim())
-      .filter(Boolean);
-    const webClientIds = oauthClients
-      .filter((item) => Number(item?.client_type) === 3)
-      .map((item) => String(item?.client_id || '').trim())
-      .filter(Boolean);
+    if (this.codeVerifier && this.codeChallenge) {
+      return;
+    }
+
+    const codeVerifier = generateCodeVerifier();
+    const codeChallenge = await createCodeChallengeAsync(codeVerifier);
+
+    this.codeVerifier = codeVerifier;
+    this.codeChallenge = codeChallenge;
+  }
+}
+
+function getBundledGoogleClientConfig() {
+  try {
+    const client = Array.isArray(googleServices?.client) ? googleServices.client[0] : null;
+    const oauthClients = Array.isArray(client?.oauth_client) ? client.oauth_client : [];
+    const androidClient = oauthClients.find((item) => Number(item?.client_type) === 1);
+    const webClient = oauthClients.find((item) => Number(item?.client_type) === 3)
+      || client?.services?.appinvite_service?.other_platform_oauth_client?.find((item) => Number(item?.client_type) === 3)
+      || null;
 
     return {
-      androidClientIds,
-      webClientIds,
-      androidClientId: androidClientIds[0] || '',
-      webClientId: webClientIds[0] || '',
+      androidClientId: String(androidClient?.client_id || '').trim(),
+      webClientId: String(webClient?.client_id || '').trim(),
     };
   } catch {
     return {
-      androidClientIds: [],
-      webClientIds: [],
       androidClientId: '',
       webClientId: '',
     };
@@ -71,17 +113,12 @@ function getGoogleClientConfig() {
   const expoClientId = sanitizeGoogleClientId(process.env.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID || '');
   const iosClientId = sanitizeGoogleClientId(process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '');
 
-  const firstBundledAndroidId = sanitizeGoogleClientId(bundled.androidClientId || bundled.androidClientIds?.[0] || '');
-  const firstBundledWebId = sanitizeGoogleClientId(bundled.webClientId || bundled.webClientIds?.[0] || '');
-
   return {
-    androidClientId: androidClientId || firstBundledAndroidId || sharedClientId,
-    webClientId: webClientId || firstBundledWebId || sharedClientId,
-    expoClientId: expoClientId || webClientId || firstBundledWebId || sharedClientId,
+    androidClientId: androidClientId || sanitizeGoogleClientId(bundled.androidClientId) || sharedClientId,
+    webClientId: webClientId || sanitizeGoogleClientId(bundled.webClientId) || sharedClientId,
+    expoClientId: expoClientId || webClientId || sanitizeGoogleClientId(bundled.webClientId) || sharedClientId,
     iosClientId: iosClientId || '',
     sharedClientId,
-    androidClientIds: bundled.androidClientIds,
-    webClientIds: bundled.webClientIds,
   };
 }
 
@@ -115,6 +152,18 @@ export function isGoogleAuthConfigured() {
   return configured;
 }
 
+function getPkceTokenExchangeClientId(cfg) {
+  const isAndroid = Platform.OS === 'android';
+  if (isAndroid) {
+    return String(
+      cfg.androidClientId || cfg.sharedClientId || cfg.webClientId || cfg.expoClientId || ''
+    ).trim();
+  }
+  return String(
+    cfg.webClientId || cfg.expoClientId || cfg.androidClientId || cfg.sharedClientId || ''
+  ).trim();
+}
+
 export function useGoogleAuth() {
   const cfg = getGoogleClientConfig();
   const androidNativeRedirectUri = getAndroidNativeRedirectUri(cfg.androidClientId);
@@ -124,8 +173,6 @@ export function useGoogleAuth() {
 
   const isAndroid = Platform.OS === 'android';
   const hasConfiguredClient = Boolean(cfg.androidClientId || cfg.webClientId || cfg.expoClientId || cfg.iosClientId || cfg.sharedClientId);
-
-  const lastGoogleDebugUrlRef = useRef('');
 
   if (!hasConfiguredClient) {
     return {
@@ -138,38 +185,98 @@ export function useGoogleAuth() {
     };
   }
 
-  // Android: OAuth client tipo 1 + id_token implicit + scheme googleusercontent (sem PKCE/code).
-  // Web client NÃO aceita custom scheme — erro "Custom scheme URIs are not allowed for WEB client type".
-  const redirectUri = isAndroid
-    ? (androidNativeRedirectUri || defaultRedirectUri)
-    : undefined;
+  const clientIdForOAuth = String(
+    isAndroid
+      ? (cfg.androidClientId || cfg.sharedClientId || cfg.webClientId || cfg.expoClientId || '')
+      : (cfg.webClientId || cfg.expoClientId || cfg.androidClientId || cfg.sharedClientId || '')
+  ).trim();
 
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    androidClientId: cfg.androidClientId || undefined,
-    webClientId: cfg.webClientId || undefined,
-    iosClientId: cfg.iosClientId || undefined,
-    responseType: AuthSession.ResponseType.IdToken,
-    shouldAutoExchangeCode: false,
-    selectAccount: true,
+  const requestConfig = {
+    clientId: clientIdForOAuth || undefined,
     scopes: ['openid', 'profile', 'email'],
-    redirectUri,
+    responseType: 'code',
+    selectAccount: true,
+    usePKCE: true,
+    codeChallengeMethod: AuthSession.CodeChallengeMethod.S256,
+    redirectUri: isAndroid ? (androidNativeRedirectUri || defaultRedirectUri) : defaultRedirectUri,
+    ...(isAndroid
+      ? {
+          androidClientId: cfg.androidClientId || cfg.sharedClientId || undefined,
+          webClientId: cfg.webClientId || cfg.sharedClientId || undefined,
+        }
+      : {
+          webClientId: cfg.webClientId || undefined,
+          expoClientId: cfg.expoClientId || undefined,
+          iosClientId: cfg.iosClientId || undefined,
+        }),
+  };
+
+  const request = AuthSession.useLoadedAuthRequest(requestConfig, GOOGLE_DISCOVERY, GooglePkceAuthRequest);
+  const [response, promptAsync] = AuthSession.useAuthRequestResult(request, GOOGLE_DISCOVERY, {
+    windowFeatures: { width: 515, height: 680 },
   });
+  const [fullResponse, setFullResponse] = useState(null);
+  const lastGoogleDebugUrlRef = useRef('');
 
   useEffect(() => {
     if (!__DEV__) {
       return;
     }
     console.log('[AUTH][GOOGLE][HOOK]', JSON.stringify({
-      platform: Platform.OS,
-      flow: isAndroid ? 'android_native_id_token' : 'id_token',
       hasAndroid: Boolean(cfg.androidClientId),
       hasWeb: Boolean(cfg.webClientId),
-      redirectUri: redirectUri || request?.redirectUri || defaultRedirectUri,
-      responseType: AuthSession.ResponseType.IdToken,
-      usePKCE: false,
-      shouldAutoExchangeCode: false,
+      hasIos: Boolean(cfg.iosClientId),
+      hasAndroidNativeRedirect: Boolean(androidNativeRedirectUri),
     }));
-  }, [cfg.androidClientId, cfg.webClientId, defaultRedirectUri, isAndroid, redirectUri, request?.redirectUri]);
+  }, [androidNativeRedirectUri, cfg.androidClientId, cfg.iosClientId, cfg.webClientId]);
+  const shouldAutoExchangeCode = useMemo(() => {
+    return response?.type === 'success' && response.params.code && !response.authentication;
+  }, [response?.authentication, response?.params?.code, response?.type]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (shouldAutoExchangeCode && response?.type === 'success' && response?.params?.code) {
+      AuthSession.exchangeCodeAsync(
+        {
+          clientId: clientIdForOAuth,
+          code: response.params.code,
+          redirectUri: requestConfig.redirectUri,
+          extraParams: {
+            code_verifier: request?.codeVerifier || '',
+          },
+        },
+        GOOGLE_DISCOVERY
+      )
+        .then((authentication) => {
+          if (!isMounted) {
+            return;
+          }
+
+          setFullResponse({
+            ...response,
+            params: {
+              id_token: authentication?.idToken || '',
+              access_token: authentication?.accessToken || '',
+              ...response.params,
+            },
+            authentication,
+          });
+        })
+        .catch(async (error) => {
+          if (isMounted) {
+            setFullResponse(response);
+          }
+          await logCriticalError('authService.useGoogleAuth.exchangeCode', error);
+        });
+    } else {
+      setFullResponse(response);
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [clientIdForOAuth, request?.codeVerifier, requestConfig.redirectUri, response, shouldAutoExchangeCode]);
 
   useEffect(() => {
     if (!__DEV__ || !request) {
@@ -181,50 +288,48 @@ export function useGoogleAuth() {
     }
     lastGoogleDebugUrlRef.current = urlKey;
     console.log('[AUTH][GOOGLE][REQUEST_URL]', request.url || 'pending');
-    console.log('[AUTH][GOOGLE][REDIRECT_URI]', request.redirectUri || redirectUri || 'none');
-    console.log('[AUTH][GOOGLE][CLIENT_ID_USED]', isAndroid ? cfg.androidClientId : (cfg.webClientId || cfg.iosClientId));
-    console.log('[AUTH][GOOGLE][PLATFORM_FLOW]', JSON.stringify({
-      platform: Platform.OS,
-      responseType: AuthSession.ResponseType.IdToken,
-      usePKCE: false,
-    }));
-  }, [cfg.androidClientId, cfg.iosClientId, cfg.webClientId, isAndroid, redirectUri, request]);
+    console.log('[AUTH][GOOGLE][REDIRECT_URI]', request.redirectUri || 'none');
+    console.log('[AUTH][GOOGLE][CLIENT_ID_USED]', requestConfig.androidClientId || requestConfig.webClientId || requestConfig.expoClientId || requestConfig.iosClientId);
+    console.log('[AUTH][GOOGLE][PLATFORM_FLOW]', JSON.stringify({ platform: Platform.OS, isAndroid, usePKCE: requestConfig.usePKCE, hasCodeVerifier: Boolean(request.codeVerifier), hasCodeChallenge: Boolean(request.codeChallenge) }));
+  }, [isAndroid, request, requestConfig.androidClientId, requestConfig.expoClientId, requestConfig.iosClientId, requestConfig.usePKCE, requestConfig.webClientId]);
 
-  useEffect(() => {
-    if (!response || response.type !== 'error') {
-      return;
-    }
-    const errMsg = String(
-      response?.error?.message || response?.params?.error_description || response?.params?.error || ''
-    );
-    if (!errMsg) {
-      return;
-    }
-    try {
-      Sentry.captureMessage(`google_auth_error: ${errMsg}`, {
-        level: 'warning',
-        tags: { auth_step: 'google_authorize', layer: 'oauth' },
-        contexts: {
-          google_oauth: {
-            platform: Platform.OS,
-            redirectUri: redirectUri || request?.redirectUri,
-            error: response?.params?.error,
-            errorDescription: response?.params?.error_description,
-          },
-        },
-      });
-    } catch {}
-  }, [redirectUri, request?.redirectUri, response]);
-
-  return { request, response, promptAsync };
+  return { request, response: fullResponse, promptAsync };
 }
 
-/** @deprecated Fluxo PKCE/code removido — id_token nativo no redirect. Mantido só por compat de imports. */
-export const exchangeGoogleAuthCode = async () => {
-  if (__DEV__) {
-    console.warn('[AUTH][GOOGLE][CODE_EXCHANGE_DEPRECATED]', 'Use id_token flow; exchangeCodeAsync desativado.');
+export const exchangeGoogleAuthCode = async ({ code, redirectUri, codeVerifier }) => {
+  const safeCode = String(code || '').trim();
+  const safeRedirect = String(redirectUri || '').trim();
+  if (!safeCode || !safeRedirect) {
+    return null;
   }
-  return null;
+
+  const cfg = getGoogleClientConfig();
+  const clientId = getPkceTokenExchangeClientId(cfg);
+  if (!clientId) {
+    return null;
+  }
+
+  try {
+    const tokenResponse = await AuthSession.exchangeCodeAsync(
+      {
+        clientId,
+        code: safeCode,
+        redirectUri: safeRedirect,
+        extraParams: codeVerifier ? { code_verifier: String(codeVerifier) } : undefined,
+      },
+      GOOGLE_DISCOVERY
+    );
+
+    const accessToken = String(tokenResponse?.accessToken || '').trim() || null;
+    const idToken = String(tokenResponse?.idToken || '').trim() || null;
+    if (__DEV__) {
+      console.log('[AUTH][GOOGLE][CODE_EXCHANGE_OK]', JSON.stringify({ hasAccessToken: Boolean(accessToken), hasIdToken: Boolean(idToken) }));
+    }
+    return { accessToken, idToken };
+  } catch (error) {
+    await logCriticalError('authService.exchangeGoogleAuthCode', error);
+    return null;
+  }
 };
 
 export const logoutGoogleSession = async () => {
@@ -244,14 +349,6 @@ export const loginWithGoogleToken = async ({ idToken, accessToken }) => {
   try {
     if (!idToken) {
       throw new Error('SKIP_BACKEND_NO_ID_TOKEN');
-    }
-
-    if (__DEV__) {
-      console.log('[AUTH][GOOGLE][ID_TOKEN_RECEIVED]', JSON.stringify({
-        hasIdToken: Boolean(idToken),
-        hasAccessToken: Boolean(accessToken),
-        idTokenLength: String(idToken || '').length,
-      }));
     }
 
     console.log('[INTEGRATION][AUTH] Iniciando login Google no backend.');
@@ -285,23 +382,7 @@ export const loginWithGoogleToken = async ({ idToken, accessToken }) => {
       source: 'google_backend',
     };
   } catch (backendError) {
-    console.warn('[INTEGRATION][AUTH][BACKEND_FAIL]', JSON.stringify({
-      status: Number(backendError?.response?.status || 0),
-      backendError: String(backendError?.response?.data?.error || backendError?.response?.data?.message || backendError?.message || 'unknown'),
-      code: String(backendError?.code || ''),
-    }));
-    try {
-      Sentry.captureException(backendError, {
-        tags: { auth_step: 'backend_auth_google', layer: 'backend' },
-        contexts: {
-          backend_response: {
-            status: Number(backendError?.response?.status || 0),
-            data: backendError?.response?.data ?? null,
-            code: String(backendError?.code || ''),
-          },
-        },
-      });
-    } catch {}
+    console.warn('[INTEGRATION][AUTH] Backend /auth/google falhou, tentando fallback Firebase.');
   }
 
   try {
@@ -322,6 +403,7 @@ export const loginWithGoogleToken = async ({ idToken, accessToken }) => {
       };
     }
 
+    // Nenhum token util disponivel — rejeitar explicitamente.
     throw new Error('AUTH_GOOGLE_TOKENS_MISSING');
   } catch (error) {
     await logCriticalError('authService.loginWithGoogleToken', error);
@@ -422,14 +504,7 @@ export const sendLoginCode = async (email) => {
       hasResponse: Boolean(error?.response),
       isTimeout: String(error?.code || '').toUpperCase() === 'ECONNABORTED',
     }));
-    const status = Number(error?.response?.status || 0);
-    if (status === 503 || status === 502 || status === 504) {
-      return {
-        ok: false,
-        message: 'Servidor temporariamente indisponível. Aguarde ~1 min (Render acordando) e toque em Reenviar.',
-      };
-    }
-    const message = String(error?.response?.data?.error || error?.message || 'Não foi possível enviar o código agora.');
+    const message = String(error?.response?.data?.error || 'Não foi possível enviar o código agora.');
     return { ok: false, message };
   }
 };

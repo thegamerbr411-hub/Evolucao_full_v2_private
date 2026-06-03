@@ -2,7 +2,6 @@
  * 02-semantic-navigation.e2e.js
  * Testa navegação por tabs usando exclusivamente seletores semânticos Phase 3.
  * Valida que cada tab exibe a tela correspondente via ID semântico.
- * Social/Perfil: barra de 5 abas — acesso via Tab "Mais" (hub) + linhas dedicadas.
  */
 const { launchApp, ensureOnboarded } = require('../helpers/flows');
 const { getPersona } = require('../helpers/personas');
@@ -10,10 +9,17 @@ const {
   SCREENS,
   ELEMENTS,
   waitForAppReady,
+  tapTab,
   assertScreen,
   tapSemantic,
   waitForSemantic,
 } = require('./helpers/semanticHelpers');
+
+const NAV_TABS = [
+  { tabId: ELEMENTS.tabHome, screenId: SCREENS.home, label: 'Home' },
+  { tabId: ELEMENTS.tabTreinos, screenId: SCREENS.treinos, label: 'Treinos' },
+  { tabId: ELEMENTS.tabProfile, screenId: SCREENS.profile, label: 'Perfil' },
+];
 
 describe('[SEMANTIC] 02 - navigation: tabs por ID semântico', () => {
   const persona = getPersona();
@@ -38,22 +44,23 @@ describe('[SEMANTIC] 02 - navigation: tabs por ID semântico', () => {
     console.log('[nav] tab_treinos → screen_treinos ✓');
   });
 
-  it('tab Mais leva ao hub (screen_mais) e fluxo Perfil abre screen_profile', async () => {
-    await tapSemantic(ELEMENTS.tabMore);
-    await assertScreen(SCREENS.mais, 10000);
-    console.log('[nav] tab_mais → screen_mais ✓');
-    await tapSemantic(ELEMENTS.btnMaisPerfil);
-    await assertScreen(SCREENS.profile, 12000);
-    console.log('[nav] btn_mais_perfil → screen_profile ✓');
+  it('perfil tab é tocável e leva à screen_profile', async () => {
+    await waitForSemantic(ELEMENTS.tabProfile, 10000);
+    await element(by.id(ELEMENTS.tabProfile)).tap();
+    await assertScreen(SCREENS.profile, 10000);
+    console.log('[nav] tab_profile → screen_profile ✓');
   });
 
   it('rotação home → treinos → home sem crash', async () => {
+    // Home
     await element(by.id(ELEMENTS.tabHome)).tap();
     await assertScreen(SCREENS.home, 8000);
 
+    // Treinos
     await element(by.id(ELEMENTS.tabTreinos)).tap();
     await assertScreen(SCREENS.treinos, 8000);
 
+    // Home novamente
     await element(by.id(ELEMENTS.tabHome)).tap();
     await assertScreen(SCREENS.home, 8000);
 

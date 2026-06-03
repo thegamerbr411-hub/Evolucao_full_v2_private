@@ -160,7 +160,6 @@ async function waitForLandingSignal(isAttachedRun) {
     'questionnaire-screen',
     'tab-home',
     'tab-treino',
-    'tab_mais',
     'tab-social',
     'tab-nutricao',
     'tab-conversa',
@@ -411,7 +410,6 @@ async function completeOnboarding(persona = getPersona()) {
         'screen-home',
         'tab-home',
         'tab-treino',
-        'tab_mais',
         'tab-social',
         'tab-nutricao',
         'tab-conversa',
@@ -434,7 +432,6 @@ async function completeOnboarding(persona = getPersona()) {
           'screen-home',
           'tab-home',
           'tab-treino',
-          'tab_mais',
           'tab-social',
           'tab-nutricao',
           'tab-conversa',
@@ -462,7 +459,6 @@ async function completeOnboarding(persona = getPersona()) {
         'tab-home',
         'screen-home',
         'tab-treino',
-        'tab_mais',
         'tab-social',
         'tab-nutricao',
         'tab-conversa',
@@ -512,122 +508,10 @@ async function ensureOnboarded(persona = getPersona()) {
 
   await dismissBlockingDialogs();
 
-  const authEmail = String(process.env.QA_TEST_EMAIL || process.env.E2E_TEST_EMAIL || `e2e.${Date.now()}@example.com`).trim().toLowerCase();
-  const authPassword = String(process.env.QA_TEST_PASSWORD || process.env.E2E_TEST_PASSWORD || 'E2e!123456').trim();
-  const authName = String(persona?.name || 'E2E User').trim();
-
-  const attemptAuthIfNeeded = async () => {
-    const onRegister = await isVisible('screen_register', 1200);
-    const onLogin = await isVisible('screen_login', 1200);
-    if (!onRegister && !onLogin) {
-      return false;
-    }
-
-    if (onLogin && await isVisible('btn_go_register', 1000)) {
-      await tapElement('btn_go_register', 5000);
-      await sleep(350);
-    }
-
-    if (await isVisible('input_name', 1500)) {
-      await replaceInput('input_name', authName, 8000);
-    }
-
-    if (await isVisible('input_email', 2000)) {
-      await replaceInput('input_email', authEmail, 10000);
-    }
-
-    if (await isVisible('input_password', 2000)) {
-      await replaceInput('input_password', authPassword, 10000);
-    }
-
-    if (await isVisible('btn_register', 1500)) {
-      await tapElement('btn_register', 10000);
-    } else if (await isVisible('btn_login', 1500)) {
-      await tapElement('btn_login', 10000);
-    }
-
-    const authLanding = await waitForAny([
-      'questionnaire-screen',
-      'screen_register',
-      'screen_login',
-      'tab-home',
-      'screen-home',
-      'screen_home',
-    ], 20000).catch(() => null);
-
-    if (authLanding === 'questionnaire-screen') {
-      await completeOnboarding(persona);
-      return true;
-    }
-
-    if (authLanding === 'screen_register' || authLanding === 'screen_login') {
-      // Tenta alternar para login e reutilizar a conta já criada.
-      if (await isVisible('btn_go_login', 1500)) {
-        await tapElement('btn_go_login', 5000);
-        await sleep(300);
-        if (await isVisible('input_email', 1200)) {
-          await replaceInput('input_email', authEmail, 8000);
-        }
-        if (await isVisible('input_password', 1200)) {
-          await replaceInput('input_password', authPassword, 8000);
-        }
-        if (await isVisible('btn_login', 1200)) {
-          await tapElement('btn_login', 10000);
-        }
-      }
-
-      const secondLanding = await waitForAny([
-        'questionnaire-screen',
-        'tab-home',
-        'screen-home',
-        'screen_home',
-      ], 18000).catch(() => null);
-
-      if (secondLanding === 'questionnaire-screen') {
-        await completeOnboarding(persona);
-      }
-    }
-
-    return true;
-  };
-
-  const ensureRootTabsVisible = async () => {
-    const rootTabs = ['tab-home', 'tab-treino', 'tab-nutricao', 'tab-conversa', 'tab_mais'];
-
-    const initial = await waitForAny(rootTabs, 5000).catch(() => null);
-    if (initial) {
-      return true;
-    }
-
-    for (let attempt = 1; attempt <= 3; attempt += 1) {
-      try {
-        await device.pressBack();
-        await sleep(350);
-      } catch {
-        // ignora e tenta relaunch abaixo
-      }
-
-      try {
-        await device.launchApp({ newInstance: false });
-      } catch {
-        // best effort
-      }
-
-      const recovered = await waitForAny(rootTabs, 4500).catch(() => null);
-      if (recovered) {
-        return true;
-      }
-    }
-
-    return false;
-  };
-
   if (await isVisible('questionnaire-screen', 2000)) {
     await completeOnboarding(persona);
     return;
   }
-
-  await attemptAuthIfNeeded();
 
   let active = null;
   try {
@@ -635,12 +519,8 @@ async function ensureOnboarded(persona = getPersona()) {
       'app-bootstrap-ready',
       'app-root',
       'screen-home',
-      'screen_home',
-      'screen_register',
-      'screen_login',
       'questionnaire-screen',
       'tab-home',
-      'tab_mais',
       'tab-social',
       'tab-treino',
       'tab-nutricao',
@@ -666,12 +546,8 @@ async function ensureOnboarded(persona = getPersona()) {
         'app-bootstrap-ready',
         'app-root',
         'screen-home',
-        'screen_home',
-        'screen_register',
-        'screen_login',
         'questionnaire-screen',
         'tab-home',
-        'tab_mais',
         'tab-social',
         'tab-treino',
         'tab-nutricao',
@@ -698,15 +574,6 @@ async function ensureOnboarded(persona = getPersona()) {
     return;
   }
 
-  if (
-    active === 'screen_register'
-    || active === 'screen_login'
-    || await isVisible('screen_register', 800)
-    || await isVisible('screen_login', 800)
-  ) {
-    await attemptAuthIfNeeded();
-  }
-
   if (active === 'app-root') {
     await sleep(800);
   }
@@ -721,10 +588,7 @@ async function ensureOnboarded(persona = getPersona()) {
     await waitForAny([
       'app-bootstrap-ready',
       'app-root',
-      'screen_register',
-      'screen_login',
       'tab-home',
-      'tab_mais',
       'tab-social',
       'tab-treino',
       'tab-nutricao',
@@ -747,10 +611,6 @@ async function ensureOnboarded(persona = getPersona()) {
       // permanece na tela atual quando aba não estiver acionável
     }
   }
-
-  if (!(await ensureRootTabsVisible())) {
-    throw new Error('onboarding concluido sem tabs raiz visiveis (home/treino/nutricao/coach/mais).');
-  }
 }
 
 async function navigateToTab(tabId, expectedScreenId) {
@@ -764,9 +624,7 @@ async function navigateToTab(tabId, expectedScreenId) {
 
   const tabCandidates = tabId === 'tab-conversa'
     ? ['tab-conversa', 'tab-coach']
-    : tabId === 'tab_mais' || tabId === 'tab-mais' || tabId === 'tab_more'
-      ? ['tab_mais', 'tab-mais', 'tab_more']
-      : [tabId];
+    : [tabId];
 
   let targetTabId = null;
   for (const candidate of tabCandidates) {
@@ -1047,33 +905,7 @@ async function goToCoach() {
 }
 
 async function goToSocial() {
-  if (await isVisible('screen-social', 1500)) {
-    return;
-  }
-  if (await isVisible('tab-social', 1200)) {
-    await navigateToTab('tab-social', 'screen-social');
-    return;
-  }
-  await navigateToTab('tab_mais', 'screen-mais');
-  if (await isVisible('btn_mais_social', 2000)) {
-    await tapElement('btn_mais_social', 12000);
-  }
-  await waitFor(element(by.id('screen-social'))).toBeVisible().withTimeout(15000);
-}
-
-async function goToProfile() {
-  if (await isVisible('screen_profile', 1200) || await isVisible('screen-perfil', 800) || await isVisible('screen-profile', 800)) {
-    return;
-  }
-  if (await isVisible('tab-perfil', 1200)) {
-    await navigateToTab('tab-perfil', 'screen_profile');
-    return;
-  }
-  await navigateToTab('tab_mais', 'screen-mais');
-  if (await isVisible('btn_mais_perfil', 2000)) {
-    await tapElement('btn_mais_perfil', 12000);
-  }
-  await waitForAny(['screen_profile', 'screen-perfil', 'screen-profile'], 15000);
+  await navigateToTab('tab-social', 'screen-social');
 }
 
 async function runGuidedWorkoutHappyPath(persona = getPersona()) {
@@ -1793,7 +1625,6 @@ module.exports = {
   goHome,
   goToCoach,
   goToSocial,
-  goToProfile,
   goToNutrition,
   goToTreinos,
   launchApp,

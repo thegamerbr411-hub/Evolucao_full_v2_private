@@ -206,7 +206,7 @@ export default function ImportWorkoutScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <ScreenHeader title="Importar treino" subtitle="Cole texto livre e converta para treino estruturado." onBack={() => navigation.goBack()} />
+      <ScreenHeader title="Importar treino" subtitle="Cole texto livre e converta para treino estruturado." />
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <AppCard>
           <Text style={styles.label}>Entrada de treino</Text>

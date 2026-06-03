@@ -1,7 +1,7 @@
-const { ensureOnboarded, goHome, goToSocial, launchApp } = require('./helpers/flows');
+const { ensureOnboarded, goHome, launchApp } = require('./helpers/flows');
 const { getPersona } = require('./helpers/personas');
 const { isAttachedRun } = require('./helpers/runtime');
-const { logStep, sleep, waitForAny } = require('./helpers/utils');
+const { isVisible, logStep, sleep, tapElement, waitForAny } = require('./helpers/utils');
 
 async function disableSyncSafely(timeoutMs = 7000) {
   let timedOut = false;
@@ -25,7 +25,6 @@ async function ensureRootTabsReady(persona, isAttachedRun) {
     'tab-treino',
     'tab-nutricao',
     'tab-conversa',
-    'tab_mais',
     'tab-social',
     'tab-perfil',
     'screen-home',
@@ -83,13 +82,26 @@ describe('17 - social tab smoke', () => {
   it('abre social pela tab principal', async () => {
     await ensureRootTabsReady(persona, attachedRun);
 
-    await goToSocial();
+    if (await isVisible('tab-social', 2500)) {
+      await tapElement('tab-social', 10000);
+    } else {
+      try {
+        await waitFor(element(by.text('Social'))).toBeVisible().withTimeout(1800);
+        await element(by.text('Social')).tap();
+      } catch {
+        if (attachedRun) {
+          logStep('social-smoke:attached-safe-no-root-tab');
+          await device.takeScreenshot('smoke-social-attached-safe-no-root-tab');
+          throw new Error('social-smoke falhou: tab-social nao encontrada no attached.');
+        }
+      }
+    }
 
-    const target = await waitForAny(['screen-social', 'tab-social', 'screen_social'], attachedRun ? 30000 : 15000).catch(() => null);
+    const target = await waitForAny(['screen-social', 'tab-social'], attachedRun ? 30000 : 15000).catch(() => null);
     if (!target && attachedRun) {
       logStep('social-smoke:attached-safe-no-social-target');
       await device.takeScreenshot('smoke-social-attached-safe-no-target');
-      throw new Error('social-smoke falhou: nenhum alvo social detectado apos goToSocial.');
+      throw new Error('social-smoke falhou: nenhum alvo social detectado apos toque na aba Social.');
     }
     await device.takeScreenshot(`smoke-social-${target}`);
     if (!target) {

@@ -439,7 +439,6 @@ export default function NutritionScanner({ navigation, route }) {
     }
 
     const safeQuantity = Math.max(0.1, Number(quantity || 1));
-    const hasDirectMacros = [food.calories, food.protein, food.carbs, food.fats].some((value) => Number(value || 0) > 0);
     setMealDraftItems((prev) => [
       ...prev,
       {
@@ -448,17 +447,6 @@ export default function NutritionScanner({ navigation, route }) {
         foodKey: food.key,
         label: food.label,
         quantity: safeQuantity,
-        source: food.source || 'catalog',
-        calories: hasDirectMacros ? Number(food.calories || 0) : undefined,
-        protein: hasDirectMacros ? Number(food.protein || 0) : undefined,
-        carbs: hasDirectMacros ? Number(food.carbs || 0) : undefined,
-        fats: hasDirectMacros ? Number(food.fats || 0) : undefined,
-        saturatedFat: Number(food.saturatedFat || 0),
-        transFat: Number(food.transFat || 0),
-        fiber: Number(food.fiber || 0),
-        sodium: Number(food.sodium || 0),
-        serving: food.serving || null,
-        consumedQuantity: food.consumedQuantity || null,
       },
     ]);
   };
@@ -472,17 +460,6 @@ export default function NutritionScanner({ navigation, route }) {
     () =>
       mealDraftItems.reduce(
         (acc, item) => {
-          const qty = Number(item.quantity || 1);
-          const hasDirectMacros = [item.calories, item.protein, item.carbs, item.fats].some((value) => Number(value || 0) > 0);
-          if (hasDirectMacros) {
-            return {
-              calories: acc.calories + Number(item.calories || 0) * qty,
-              protein: acc.protein + Number(item.protein || 0) * qty,
-              carbs: acc.carbs + Number(item.carbs || 0) * qty,
-              fats: acc.fats + Number(item.fats || 0) * qty,
-            };
-          }
-
           const food = safeSearchFoodCatalog(item.label).find(
             (entry) =>
               (item.foodId && entry.id === item.foodId)
@@ -492,10 +469,10 @@ export default function NutritionScanner({ navigation, route }) {
             return acc;
           }
           return {
-            calories: acc.calories + Number(food.calories || 0) * qty,
-            protein: acc.protein + Number(food.protein || 0) * qty,
-            carbs: acc.carbs + Number(food.carbs || 0) * qty,
-            fats: acc.fats + Number(food.fats || 0) * qty,
+            calories: acc.calories + Number(food.calories || 0) * Number(item.quantity || 1),
+            protein: acc.protein + Number(food.protein || 0) * Number(item.quantity || 1),
+            carbs: acc.carbs + Number(food.carbs || 0) * Number(item.quantity || 1),
+            fats: acc.fats + Number(food.fats || 0) * Number(item.quantity || 1),
           };
         },
         { calories: 0, protein: 0, carbs: 0, fats: 0 }
@@ -595,25 +572,6 @@ export default function NutritionScanner({ navigation, route }) {
     }
 
     result.items.forEach((item) => {
-      const hasDirectMacros = [item.calories, item.protein, item.carbs, item.fats].some((value) => Number(value || 0) > 0);
-      if (hasDirectMacros) {
-        addItemToMealDraft({
-          label: item.label,
-          source: item.source || result.source || 'parsed',
-          calories: Number(item.calories || 0),
-          protein: Number(item.protein || 0),
-          carbs: Number(item.carbs || 0),
-          fats: Number(item.fats || 0),
-          saturatedFat: Number(item.saturatedFat || 0),
-          transFat: Number(item.transFat || 0),
-          fiber: Number(item.fiber || 0),
-          sodium: Number(item.sodium || 0),
-          serving: item.serving || result.serving || null,
-          consumedQuantity: item.consumedQuantity || result.consumedQuantity || null,
-        }, Number(item.quantity || 1));
-        return;
-      }
-
       const food = getFoodByLabel(item.label);
       if (food) {
         addItemToMealDraft(food, Number(item.quantity || 1));
@@ -676,10 +634,6 @@ export default function NutritionScanner({ navigation, route }) {
       protein: Math.round(Number(parsedLabel.protein || 0) * factor),
       carbs: Math.round(Number(parsedLabel.carbs || 0) * factor),
       fats: Math.round(Number(parsedLabel.fat || 0) * factor),
-      saturatedFat: Math.round(Number(parsedLabel.saturatedFat || 0) * factor),
-      transFat: Math.round(Number(parsedLabel.transFat || 0) * factor),
-      fiber: Math.round(Number(parsedLabel.fiber || 0) * factor),
-      sodium: Math.round(Number(parsedLabel.sodium || 0) * factor),
     };
 
     const confidenceLabel = parsedLabel.confidence === 'high'
@@ -698,21 +652,8 @@ export default function NutritionScanner({ navigation, route }) {
         {
           label: parsedLabel.productName || normalizedHint || 'Alimento escaneado',
           quantity: 1,
-          source: 'photo_ocr',
-          calories: totals.calories,
-          protein: totals.protein,
-          carbs: totals.carbs,
-          fats: totals.fats,
-          saturatedFat: totals.saturatedFat,
-          transFat: totals.transFat,
-          fiber: totals.fiber,
-          sodium: totals.sodium,
-          serving: parsedLabel.serving || null,
-          consumedQuantity: parsedLabel.consumedQuantity || null,
         },
       ],
-      serving: parsedLabel.serving || null,
-      consumedQuantity: parsedLabel.consumedQuantity || null,
       message,
     });
   };
@@ -827,33 +768,12 @@ export default function NutritionScanner({ navigation, route }) {
     const loggedAt = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
     const resolvedDraftItems = mealDraftItems.map((item) => {
-      const qty = Number(item.quantity || 1);
-      const hasDirectMacros = [item.calories, item.protein, item.carbs, item.fats].some((value) => Number(value || 0) > 0);
-      if (hasDirectMacros) {
-        return {
-          foodId: item.foodId,
-          foodKey: item.foodKey,
-          label: item.label,
-          quantity: qty,
-          source: item.source || 'parsed',
-          calories: Math.round(Number(item.calories || 0) * qty),
-          protein: Math.round(Number(item.protein || 0) * qty),
-          carbs: Math.round(Number(item.carbs || 0) * qty),
-          fats: Math.round(Number(item.fats || 0) * qty),
-          saturatedFat: Math.round(Number(item.saturatedFat || 0) * qty),
-          transFat: Math.round(Number(item.transFat || 0) * qty),
-          fiber: Math.round(Number(item.fiber || 0) * qty),
-          sodium: Math.round(Number(item.sodium || 0) * qty),
-          serving: item.serving || null,
-          consumedQuantity: item.consumedQuantity || null,
-        };
-      }
-
       const food = safeSearchFoodCatalog(item.label).find(
         (entry) =>
           (item.foodId && entry.id === item.foodId) ||
           (item.foodKey && entry.key === item.foodKey)
       ) || getFoodByLabel(item.label);
+      const qty = Number(item.quantity || 1);
       return {
         foodId: item.foodId,
         foodKey: item.foodKey,
@@ -976,7 +896,7 @@ export default function NutritionScanner({ navigation, route }) {
     <SafeAreaView style={styles.screen} edges={['top']}>
       <AnimatedToast message={toastMessage} onHide={() => setToastMessage('')} />
       <ScrollView testID="screen-nutricao" contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-      <ScreenHeader title="Nutrição" subtitle="Macros e refeições num só lugar." />
+      <ScreenHeader title="Nutrição" subtitle="Registre em 5 segundos." />
 
       {__DEV__ ? (
         <View style={styles.devFeatureTagWrap}>
@@ -1391,12 +1311,6 @@ export default function NutritionScanner({ navigation, route }) {
               <Text style={styles.resultLine}>Proteina: {result.totals.protein} g ({getMacroStatus(result.totals).protein})</Text>
               <Text style={styles.resultLine}>Carbo: {result.totals.carbs} g ({getMacroStatus(result.totals).carbs})</Text>
               <Text style={styles.resultLine}>Gordura: {result.totals.fats} g ({getMacroStatus(result.totals).fats})</Text>
-              {Number(result?.totals?.saturatedFat || 0) > 0 ? <Text style={styles.resultLine}>Gordura saturada: {result.totals.saturatedFat} g</Text> : null}
-              {Number(result?.totals?.transFat || 0) > 0 ? <Text style={styles.resultLine}>Gordura trans: {result.totals.transFat} g</Text> : null}
-              {Number(result?.totals?.fiber || 0) > 0 ? <Text style={styles.resultLine}>Fibras: {result.totals.fiber} g</Text> : null}
-              {Number(result?.totals?.sodium || 0) > 0 ? <Text style={styles.resultLine}>Sodio: {result.totals.sodium} mg</Text> : null}
-              {result?.serving?.value ? <Text style={styles.resultLine}>Porcao: {result.serving.value}{result.serving.unit || ''}</Text> : null}
-              {result?.consumedQuantity?.value ? <Text style={styles.resultLine}>Quantidade consumida: {result.consumedQuantity.value}{result.consumedQuantity.unit || ''}</Text> : null}
               <Text style={styles.coachLine}>
                 Meta por refeicao: ~{proteinTargetPerMeal}g proteina | {result.totals.protein >= proteinTargetPerMeal ? 'faixa boa' : 'abaixo do ideal'}
               </Text>

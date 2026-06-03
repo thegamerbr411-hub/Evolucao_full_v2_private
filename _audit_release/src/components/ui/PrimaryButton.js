@@ -4,7 +4,7 @@ import { colors, radius, spacing, typography } from '../../theme';
 import { getAnalyticsContext, trackEvent } from '../../utils/analytics';
 import { trackButtonClick } from '../../core/observability';
 
-export function PrimaryButton({ title, onPress, style, testID, ...touchableRest }) {
+export function PrimaryButton({ title, onPress, style, testID }) {
   const scaleAnim = React.useRef(new Animated.Value(1)).current;
 
   const handlePressIn = React.useCallback(() => {
@@ -55,14 +55,7 @@ export function PrimaryButton({ title, onPress, style, testID, ...touchableRest 
 
   return (
     <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-      <TouchableOpacity
-        {...touchableRest}
-        testID={testID}
-        onPress={handlePress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        style={[styles.button, style]}
-      >
+      <TouchableOpacity testID={testID} onPress={handlePress} onPressIn={handlePressIn} onPressOut={handlePressOut} style={[styles.button, style]}>
         <Text style={styles.text}>{title}</Text>
       </TouchableOpacity>
     </Animated.View>

@@ -50,9 +50,6 @@ const ID_ALIASES = {
   'tab-social': ['tab-social', 'tab_social'],
   tab_profile: ['tab_profile', 'tab-perfil'],
   'tab-perfil': ['tab-perfil', 'tab_profile'],
-  tab_more: ['tab_more', 'tab_mais', 'tab-mais'],
-  tab_mais: ['tab_mais', 'tab_more', 'tab-mais'],
-  'tab-mais': ['tab-mais', 'tab_mais', 'tab_more'],
 
   // Botões autenticação
   btn_login: ['btn_login', 'btn-login'],
@@ -109,8 +106,6 @@ const KNOWN_SCROLL_CONTAINERS = [
   'screen-routines',
   'screen-nutricao',
   'screen-social',
-  'screen-mais',
-  'screen_mais',
   'screen-perfil',
   'screen-profile',
   'screen-free-workout',

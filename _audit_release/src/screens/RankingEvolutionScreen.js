@@ -75,7 +75,7 @@ export default function RankingEvolutionScreen({ navigation }) {
 
   return (
     <ScrollView testID="screen-ranking" contentContainerStyle={styles.container}>
-      <ScreenHeader title="Ranking e Evolucao" subtitle="Suba de liga, acompanhe XP e pressione o topo." onBack={() => navigation.goBack()} />
+      <ScreenHeader title="Ranking e Evolucao" subtitle="Suba de liga, acompanhe XP e pressione o topo." />
 
       <AppCard>
         <Text style={styles.title}>Seu progresso</Text>

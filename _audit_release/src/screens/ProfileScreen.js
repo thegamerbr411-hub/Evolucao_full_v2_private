@@ -7,7 +7,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useApp } from '../context/AppContext';
 import { AnimatedToast, AppCard, AppInput, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { generateCoachInsight } from '../services/coachInsight';
-import { exportBetaAnalysisToFile, getBetaAuthSourceLabel, getAuthProviderInfo } from '../utils/betaExport.js';
+import { exportBetaAnalysisToFile, getBetaAuthSourceLabel } from '../utils/betaExport.js';
 import { colors, spacing } from '../theme';
 import { APP_VERSION, BUILD_VERSION } from '../utils/appVersion';
 import { cancelCreatineReminder, scheduleCreatineReminder } from '../utils/notifications';
@@ -20,7 +20,6 @@ const useGoogleAuth = typeof _useGoogleAuth === 'function' ? _useGoogleAuth : ()
 const exchangeGoogleAuthCode = typeof _exchangeGoogleAuthCode === 'function' ? _exchangeGoogleAuthCode : async () => null;
 import { getOrCreateUserIdentity, saveUserIdentity } from '../services/appIdentityService';
 import { performFullSessionLogout } from '../services/sessionCleanupService';
-import { auth } from '../services/firebase';
 import { getLocal } from '../storage/mmkv';
 import { setQaRuntimeAuth } from '../utils/qaTransport';
 import { QA_ELEMENTS, QA_SCREENS, qaAliasProps, qaProps } from '../qa/selectorRegistry';
@@ -79,7 +78,6 @@ export default function ProfileScreen({ navigation }) {
   const [targetWeight, setTargetWeight] = useState(String(profile?.targetWeight || 70));
   const [height, setHeight] = useState(String(profile?.height || 170));
   const [currentPain, setCurrentPain] = useState(String(profile?.currentPain || profile?.pain || ''));
-  const [recoveryEmail, setRecoveryEmail] = useState(String(profile?.recoveryEmail || '').trim());
   const [googleLoading, setGoogleLoading] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
   const [sessionLogoutLoading, setSessionLogoutLoading] = useState(false);
@@ -184,12 +182,6 @@ export default function ProfileScreen({ navigation }) {
       return;
     }
 
-    const recoveryTrim = String(recoveryEmail || '').trim().toLowerCase();
-    if (recoveryTrim && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recoveryTrim)) {
-      setToastMessage('E-mail de recuperacao invalido. Deixe em branco ou use um e-mail valido.');
-      return;
-    }
-
     const result = updateProfileSettings({
       goal,
       level,
@@ -198,7 +190,6 @@ export default function ProfileScreen({ navigation }) {
       targetWeight: parsedTargetWeight || parsedWeight,
       height: parsedHeight || 170,
       currentPain,
-      recoveryEmail: recoveryTrim || null,
     });
 
     if (!result.ok) {
@@ -208,10 +199,6 @@ export default function ProfileScreen({ navigation }) {
 
     setToastMessage('Perfil atualizado. Configuracoes ativas no coach e nas rotinas.');
   };
-
-  React.useEffect(() => {
-    setRecoveryEmail(String(profile?.recoveryEmail || '').trim());
-  }, [profile?.recoveryEmail]);
 
   React.useEffect(() => {
     const handleGoogleResponse = async () => {
@@ -601,30 +588,6 @@ export default function ProfileScreen({ navigation }) {
       <Text style={styles.sectionHeading}>🔐 Conta</Text>
 
       <AppCard>
-        <Text style={styles.cardLabel}>Identidade</Text>
-        <Text style={styles.accountMeta}>ID no app: {String(user?.id || '—')}</Text>
-        <Text style={styles.accountMeta}>UID Firebase: {String(auth?.currentUser?.uid || '—')}</Text>
-        <Text style={styles.accountMeta}>Provedor: {getAuthProviderInfo().label}</Text>
-        {getAuthProviderInfo().providerIds?.length ? (
-          <Text style={styles.accountMetaHint}>
-            Vinculos: {getAuthProviderInfo().providerIds.join(', ')}
-          </Text>
-        ) : null}
-        <Text style={styles.accountMeta}>
-          E-mail da sessao: {String(user?.email || auth?.currentUser?.email || '—')}
-        </Text>
-        <AppInput
-          label="E-mail de recuperacao (opcional)"
-          {...qaProps('input_profile_recovery_email')}
-          value={recoveryEmail}
-          onChangeText={setRecoveryEmail}
-          placeholder="outro@email.com"
-          autoCapitalize="none"
-          keyboardType="email-address"
-        />
-        <Text style={styles.accountHint}>
-          Use um e-mail que voce acessa com frequencia. Ajuda em recuperacao e comunicacoes, inclusive com login Google.
-        </Text>
         <Text style={styles.metric}>Sincronize sua conta para manter seu progresso seguro em qualquer dispositivo.</Text>
         <PrimaryButton
           {...qaAliasProps(QA_ELEMENTS.btnGoogleLogin, 'btn-profile-google-login')}
@@ -675,22 +638,16 @@ export default function ProfileScreen({ navigation }) {
 
             setSessionLogoutLoading(true);
             try {
-              const result = await performFullSessionLogout({ reason: 'profile_manual_logout' });
-              if (!result?.ok) {
-                setToastMessage('Logout ja em andamento. Aguarde.');
-                return;
-              }
-
-              const rootNavigation = navigation.getParent()?.getParent?.() || navigation.getParent?.() || navigation;
-              rootNavigation.dispatch(
+              await performFullSessionLogout({ reason: 'profile_manual_logout' });
+              navigation.dispatch(
                 CommonActions.reset({
                   index: 0,
                   routes: [{ name: 'Cadastro' }],
                 })
               );
               setToastMessage('Sessao encerrada com limpeza completa do estado local.');
-            } catch (error) {
-              setToastMessage(`Falha ao encerrar a sessao: ${String(error?.message || 'erro desconhecido')}`);
+            } catch {
+              setToastMessage('Falha ao encerrar a sessao por completo. Tente novamente.');
             } finally {
               setSessionLogoutLoading(false);
             }
@@ -1067,26 +1024,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 4,
-  },
-  accountMeta: {
-    color: colors.textSecondary,
-    fontSize: 13,
-    fontWeight: '600',
-    marginBottom: 6,
-  },
-  accountMetaHint: {
-    color: colors.textMuted,
-    fontSize: 11,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  accountHint: {
-    color: colors.textMuted,
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: 4,
-    marginBottom: spacing.sm,
-    lineHeight: 18,
   },
   devFeatureTag: {
     color: '#BFDBFE',

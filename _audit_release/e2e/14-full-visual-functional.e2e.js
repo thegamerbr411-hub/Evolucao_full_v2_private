@@ -6,7 +6,6 @@ const {
   goHome,
   goToCoach,
   goToNutrition,
-  goToProfile,
   goToSocial,
   goToTreinos,
   launchApp,
@@ -27,7 +26,7 @@ const QA_DIR = path.resolve(__dirname, '..', 'qa');
 const REPORT_FILE = path.join(QA_DIR, 'mobile-full-visual-functional.last.json');
 const APP_MAP_FILE = path.join(QA_DIR, 'app-map.json');
 
-const ROOT_MARKERS = ['tab-home', 'tab-treino', 'tab-nutricao', 'tab-conversa', 'tab_mais', 'tab-social', 'tab-perfil'];
+const ROOT_MARKERS = ['tab-home', 'tab-treino', 'tab-nutricao', 'tab-conversa', 'tab-social', 'tab-perfil'];
 const OVERLAY_IDS = ['feedback-add-agua', 'alimento-salvo-indicator', 'nutrition-result-card', 'rest-timer-floating', 'serie-salva-indicator'];
 const DIALOG_LABELS = ['OK', 'Ok', 'Permitir', 'Allow', 'Nao permitir', 'Não permitir', "Don't allow", 'Fechar'];
 const GENERIC_EMPTY_TEXTS = [
@@ -167,7 +166,7 @@ async function openScreen(screen, persona) {
   } else if (screen.name === 'social') {
     await goToSocial();
   } else if (screen.name === 'profile') {
-    await goToProfile();
+    await tapElement('tab-perfil', 12000);
   } else {
     throw new Error(`Tela desconhecida no app-map: ${screen.name}`);
   }

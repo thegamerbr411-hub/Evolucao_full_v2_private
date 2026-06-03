@@ -25,7 +25,6 @@ async function ensureRootTabsReady(persona, isAttachedRun) {
     'tab-treino',
     'tab-nutricao',
     'tab-conversa',
-    'tab_mais',
     'tab-social',
     'tab-perfil',
     'screen-home',
@@ -120,10 +119,9 @@ describe('16 - treino tab smoke', () => {
       throw new Error('treino-smoke falhou: nenhum alvo detectado apos toque na aba Treino.');
     }
 
+    await device.takeScreenshot(`smoke-treino-${target}`);
     if (!target) {
       throw new Error('Nao foi possivel identificar alvo apos toque em tab-treino.');
     }
-
-    await device.takeScreenshot(`smoke-treino-${target}`);
   });
 });

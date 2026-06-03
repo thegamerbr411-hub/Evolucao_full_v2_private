@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { Platform } from 'react-native';
-import { trackApiFailure } from '../core/observability.js';
+import { trackApiFailure } from '../core/observability';
 
 export const QA_LOCAL_HEADER = 'x-qa-local';
 export const QA_CLIENT_ID_HEADER = 'x-qa-client-id';

@@ -48,16 +48,12 @@ const WEB_NAV_AUDIT =
   String(process.env.EXPO_PUBLIC_WEB_NAV_AUDIT || '').trim() === '1';
 
 /**
- * QA Visual Session (emulator/debug only): unlock MainTabs for visual UX audits.
- * Does NOT replace real auth. Never enable in production/release builds.
- * Aliases: EXPO_PUBLIC_EVOLUCAO_QA_VISUAL_SESSION=1 or EXPO_PUBLIC_ANDROID_NAV_AUDIT=1
+ * Android/iOS QA: same bypass as web when building a local audit APK (EAS/Gradle + env).
+ * Does nothing unless EXPO_PUBLIC_ANDROID_NAV_AUDIT=1 at bundle time.
  */
-const QA_VISUAL_SESSION =
-  __DEV__ &&
-  (String(process.env.EXPO_PUBLIC_EVOLUCAO_QA_VISUAL_SESSION || '').trim() === '1' ||
-    String(process.env.EXPO_PUBLIC_ANDROID_NAV_AUDIT || '').trim() === '1');
-
-const ANDROID_NAV_AUDIT = Platform.OS !== 'web' && QA_VISUAL_SESSION;
+const ANDROID_NAV_AUDIT =
+  Platform.OS !== 'web' &&
+  String(process.env.EXPO_PUBLIC_ANDROID_NAV_AUDIT || '').trim() === '1';
 
 const NAV_AUDIT = WEB_NAV_AUDIT || ANDROID_NAV_AUDIT;
 
@@ -94,9 +90,6 @@ export default function RootNavigator(){
         trainingDaysPerWeek: 4,
       });
       setHasCompletedQuestionnaire(true);
-      if (__DEV__) {
-        console.log('[QA][VISUAL_SESSION] seeded user for MainTabs visual audit');
-      }
     }
     setNavAuditReady(true);
   }, [isHydrated, setHasCompletedQuestionnaire]);

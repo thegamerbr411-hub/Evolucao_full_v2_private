@@ -20,8 +20,6 @@ export type Profile = {
   timezone?: string;
   energyLevel?: string;
   currentPain?: string;
-  /** E-mail de recuperacao / secundario (conta Google ou backup), opcional */
-  recoveryEmail?: string | null;
 };
 
 type UserStore = {

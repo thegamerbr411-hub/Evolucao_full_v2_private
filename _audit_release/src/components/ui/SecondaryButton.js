@@ -4,7 +4,7 @@ import { colors, radius, spacing } from '../../theme';
 import { getAnalyticsContext, trackEvent } from '../../utils/analytics';
 import { trackButtonClick } from '../../core/observability';
 
-export function SecondaryButton({ title, onPress, style, testID, ...touchableRest }) {
+export function SecondaryButton({ title, onPress, style, testID }) {
   // BLOCO 3: Microinterações - Button press feedback
   const scaleAnim = React.useRef(new Animated.Value(1)).current;
 
@@ -56,7 +56,7 @@ export function SecondaryButton({ title, onPress, style, testID, ...touchableRes
 
   return (
     <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-      <TouchableOpacity testID={testID} onPress={handlePress} onPressIn={handlePressIn} onPressOut={handlePressOut} style={[styles.button, style]} {...touchableRest}>
+      <TouchableOpacity testID={testID} onPress={handlePress} onPressIn={handlePressIn} onPressOut={handlePressOut} style={[styles.button, style]}>
         <Text style={styles.text}>{title}</Text>
       </TouchableOpacity>
     </Animated.View>

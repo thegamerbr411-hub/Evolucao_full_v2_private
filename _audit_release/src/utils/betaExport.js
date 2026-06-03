@@ -27,7 +27,7 @@ function toIsoValue(value) {
   return Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : null;
 }
 
-export function getAuthProviderInfo() {
+function getAuthProviderInfo() {
   const currentUser = auth?.currentUser || null;
   const providerIds = safeArray(currentUser?.providerData)
     .map((item) => String(item?.providerId || '').trim().toLowerCase())

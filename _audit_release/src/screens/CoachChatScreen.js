@@ -398,7 +398,6 @@ export default function CoachChatScreen({ navigation }) {
     getSmartWorkoutRecommendation,
     getTodayFoodLog,
     getWorkoutGamification,
-    getDailyState,
     buildDailyCoachState,
     buildCoachMessage,
     addWaterIntake,
@@ -419,7 +418,6 @@ export default function CoachChatScreen({ navigation }) {
     });
   const getTodayFoodLogSafe = typeof getTodayFoodLog === 'function' ? getTodayFoodLog : () => [];
   const getWorkoutGamificationSafe = typeof getWorkoutGamification === 'function' ? getWorkoutGamification : () => ({});
-  const getDailyStateSafe = typeof getDailyState === 'function' ? getDailyState : () => null;
   const buildDailyCoachStateSafe = typeof buildDailyCoachState === 'function' ? buildDailyCoachState : () => ({ done: {}, missing: {} });
   const buildCoachMessageSafe = typeof buildCoachMessage === 'function' ? buildCoachMessage : () => ({});
   const addWaterIntakeSafe = typeof addWaterIntake === 'function' ? addWaterIntake : () => ({ ok: false });
@@ -432,7 +430,7 @@ export default function CoachChatScreen({ navigation }) {
     quickActions: {
       trainingTitle: 'Iniciar treino',
       nutritionTitle: 'Registrar refeicao',
-      waterTitle: '💧 Agua',
+      waterTitle: '+300ml agua',
       routineTitle: 'Ver rotina',
       waterQuickMl: 300,
     },
@@ -496,14 +494,13 @@ export default function CoachChatScreen({ navigation }) {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   }, []);
 
-  const dailyState = useMemo(() => getDailyStateSafe(), [getDailyStateSafe, safeWorkoutLogs, safeHistory, profile, plan]);
   const todayHistory = safeHistory.find((item) => item.date === today) || {};
-  const macroTargets = dailyState?.macroTargets || getDailyMacroTargetsSafe();
+  const macroTargets = getDailyMacroTargetsSafe();
   const context = {
-    proteinToday: Number(dailyState?.proteinToday ?? todayHistory?.protein ?? 0),
-    proteinTarget: Number(dailyState?.proteinTarget ?? macroTargets?.protein ?? 0),
-    waterToday: Number(dailyState?.waterTodayMl ?? todayHistory?.waterMl ?? 0),
-    waterTarget: Number(dailyState?.waterTargetMl ?? (plan?.waterLitersPerDay || 0) * 1000),
+    proteinToday: Number(todayHistory?.protein || 0),
+    proteinTarget: Number(macroTargets?.protein || 0),
+    waterToday: Number(todayHistory?.waterMl || 0),
+    waterTarget: Number((plan?.waterLitersPerDay || 0) * 1000),
   };
 
   const effectiveContext = useMemo(() => ({
@@ -513,9 +510,7 @@ export default function CoachChatScreen({ navigation }) {
 
   const smart = getSmartWorkoutRecommendationSafe() || {};
   const workoutGamification = getWorkoutGamificationSafe();
-  const trainedToday = Boolean(dailyState?.didWorkoutToday);
-  const hasActiveWorkoutSession = Boolean(dailyState?.hasActiveWorkoutSession);
-  const workoutStatus = dailyState?.workoutSession?.status || 'not_started';
+  const trainedToday = safeWorkoutLogs.some((item) => item.date === today);
   const todayMeals = getTodayFoodLogSafe();
   const weakMeals = (Array.isArray(todayMeals) ? todayMeals : []).filter((meal) => meal.quality?.level === 'weak_protein').length;
   const dayPeriod = getDayPeriod();
@@ -544,8 +539,6 @@ export default function CoachChatScreen({ navigation }) {
       workoutsThisWeek: smart.trainedThisWeek,
       weeklyTarget: smart.weeklyTarget,
       didWorkoutToday: trainedToday,
-      hasActiveWorkoutSession,
-      workoutStatus,
     });
     const nextCard = buildCoachMessageSafe(state);
     if (nextCard && typeof nextCard === 'object') {
@@ -558,7 +551,7 @@ export default function CoachChatScreen({ navigation }) {
         },
       }));
     }
-  }, [effectiveContext.proteinToday, effectiveContext.proteinTarget, effectiveContext.waterToday, effectiveContext.waterTarget, smart.trainedThisWeek, smart.weeklyTarget, trainedToday, hasActiveWorkoutSession, workoutStatus, buildDailyCoachStateSafe, buildCoachMessageSafe]);
+  }, [effectiveContext.proteinToday, effectiveContext.proteinTarget, effectiveContext.waterToday, effectiveContext.waterTarget, smart.trainedThisWeek, smart.weeklyTarget, trainedToday, buildDailyCoachStateSafe, buildCoachMessageSafe]);
 
   useEffect(() => {
     refreshCoachCard();
@@ -839,12 +832,6 @@ export default function CoachChatScreen({ navigation }) {
       >
       <ScreenHeader title="Coach Diario" subtitle="Conversa orientada pelo seu treino, agua e macros do dia." />
 
-      {__DEV__ ? (
-        <View style={styles.devFeatureTagWrap}>
-          <Text style={styles.devFeatureTag}>[F-Coach] Fluxo de decisao e resposta contextual</Text>
-        </View>
-      ) : null}
-
       <AppCard style={[styles.coachCard, { borderColor: urgencyUI.borderColor, backgroundColor: urgencyUI.backgroundColor }]}> 
         <Text style={styles.urgencyBadge}>{urgencyUI.badge}</Text>
         <Text style={styles.coachTitle}>Ja foi feito</Text>
@@ -920,10 +907,7 @@ export default function CoachChatScreen({ navigation }) {
                     <TouchableOpacity key={idx} style={styles.coachActionButton} onPress={() => {
                       if (action.intent === 'training') openWorkout();
                       else if (action.intent === 'nutrition') openNutrition();
-                      else if (action.intent === 'water') {
-                        setShowWaterPicker(true);
-                        setActionFeedback('Escolha o volume de água para registrar.');
-                      }
+                      else if (action.intent === 'water') addWaterQuick();
                       else if (action.intent === 'routine') openRoutines();
                     }}>
                       <Text style={styles.coachActionButtonText}>{action.label}</Text>
@@ -1085,27 +1069,27 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   bubble: {
-    borderRadius: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
     maxWidth: '90%',
   },
   userBubble: {
-    backgroundColor: '#2A5FA8',
+    backgroundColor: colors.secondary,
     alignSelf: 'flex-end',
     borderBottomRightRadius: 4,
   },
   coachBubble: {
-    backgroundColor: '#111C2E',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#2C3D55',
+    borderColor: colors.border,
     alignSelf: 'flex-start',
     borderBottomLeftRadius: 4,
   },
   bubbleText: {
     fontSize: 15,
     lineHeight: 22,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   userText: {
     color: colors.textPrimary,
@@ -1127,7 +1111,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   coachActionButtonText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     color: colors.background,
   },
@@ -1164,7 +1148,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     color: colors.textPrimary,
     paddingHorizontal: 12,
-    fontSize: 16,
+    fontSize: 15,
   },
   sendButton: {
     minHeight: 52,
@@ -1223,20 +1207,5 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: 16,
     fontWeight: '900',
-  },
-  devFeatureTagWrap: {
-    borderWidth: 1,
-    borderColor: '#3B82F6',
-    backgroundColor: '#0B1730',
-    borderRadius: 999,
-    alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    marginBottom: 8,
-  },
-  devFeatureTag: {
-    color: '#BFDBFE',
-    fontSize: 11,
-    fontWeight: '800',
   },
 });

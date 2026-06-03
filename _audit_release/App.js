@@ -1,31 +1,8 @@
-import * as Sentry from '@sentry/react-native';
 import React from 'react';
-import { Alert, AppState, InteractionManager, Linking, LogBox, Platform, View, Text } from 'react-native';
+import { Alert, AppState, InteractionManager, LogBox, View, Text } from 'react-native';
 import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-
-const sentryNavigationIntegration = Sentry.reactNavigationIntegration({
-  enableTimeToInitialDisplay: true,
-});
-
-const SENTRY_DSN = String(process.env.EXPO_PUBLIC_SENTRY_DSN || '').trim();
-
-if (SENTRY_DSN) {
-  Sentry.init({
-    dsn: SENTRY_DSN,
-    sendDefaultPii: false,
-    tracesSampleRate: __DEV__ ? 1.0 : 0.15,
-    enableLogs: true,
-    integrations: [sentryNavigationIntegration],
-    enableNativeFramesTracking: true,
-    environment: __DEV__ ? 'development' : 'production',
-    debug: __DEV__,
-    tracePropagationTargets: [
-      /^https:\/\/evolucao-api-/, /^https:\/\/.*\.onrender\.com/,
-    ],
-  });
-}
+import { NutritionProvider } from './src/context/NutritionContext';
 import RootNavigator from './src/navigation/RootNavigator';
 import { RootProvider } from './src/context/RootProvider';
 import { initializeNotifications } from './src/utils/notifications';
@@ -54,8 +31,6 @@ import {
 } from './src/core/observability';
 import { captureRuntimeError } from './src/runtime_error_collector';
 import { normalizeQaScreenName, QA_ELEMENTS } from './src/qa/selectorRegistry';
-import { logQaVisualSessionBoot } from './src/qa/visualSessionBoot';
-import { clearWorkoutQaStateForRuntimeAudit } from './src/qa/workoutQaReset';
 import {
   QA_RUNTIME_STATES,
   endQaMetric,
@@ -102,7 +77,6 @@ if (typeof __DEV__ !== 'undefined' && __DEV__) {
 
 if (typeof ErrorUtils !== 'undefined' && ErrorUtils.setGlobalHandler) {
   ErrorUtils.setGlobalHandler((error, isFatal) => {
-    try { Sentry.captureException(error, { tags: { source: 'global_handler', isFatal: String(isFatal) } }); } catch {}
     captureRuntimeError(error, {
       source: 'global_handler',
       isFatal,
@@ -136,12 +110,6 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, info) {
-    try {
-      Sentry.captureException(error, {
-        tags: { source: 'error_boundary' },
-        contexts: { react: { componentStack: info?.componentStack || '' } },
-      });
-    } catch {}
     logRuntimeError(error, {
       screen: 'ErrorBoundary',
       source: 'render_crash',
@@ -163,16 +131,10 @@ class ErrorBoundary extends React.Component {
 
   render() {
     if (this.state.hasError) {
-      const errorMessage = String(this.state.error?.message || '').trim();
       return (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0d0d0d', padding: 24 }}>
           <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold', marginBottom: 12 }}>Algo deu errado</Text>
           <Text style={{ color: '#aaa', fontSize: 14, textAlign: 'center' }}>Reinicie o aplicativo para continuar.</Text>
-          {errorMessage ? (
-            <Text style={{ color: '#fca5a5', fontSize: 12, textAlign: 'center', marginTop: 10 }}>
-              {errorMessage}
-            </Text>
-          ) : null}
         </View>
       );
     }
@@ -196,79 +158,10 @@ function HiddenAnchor({ id }) {
     return null;
   }
 
-  return (
-    <View
-      testID={id}
-      accessibilityLabel={id}
-      nativeID={id}
-      style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        width: 8,
-        height: 8,
-        opacity: 0.01,
-      }}
-    />
-  );
+  return <View testID={id} accessibilityLabel={id} nativeID={id} style={{ width: 1, height: 1 }} />;
 }
 
-/**
- * Web: sem `linking`, o browser pode mostrar `/MainTabs/Treino` mas o estado inicial
- * fica no primeiro tab (Home). Isto alinha URL ↔ navigator para deep links e refresh.
- *
- * Native (Android/iOS): o mesmo mapa com prefixo `evolucao://` (app.json scheme + manifest)
- * permite QA/abrir tabs reais sem depender só do Web.
- */
-const NAVIGATION_LINKING_SCREENS = {
-  Cadastro: 'Cadastro',
-  Questionario: 'Questionario',
-  MainTabs: {
-    path: 'MainTabs',
-    screens: {
-      Home: 'Home',
-      Treino: 'Treino',
-      Nutricao: 'Nutricao',
-      Coach: 'Coach',
-      Social: 'Social',
-      Perfil: 'Perfil',
-    },
-  },
-  Scanner: 'Scanner',
-  AnaliseDia: 'AnaliseDia',
-  Insights: 'Insights',
-  Historico: 'Historico',
-  IAWeekly: 'IAWeekly',
-  TreinoHoje: 'TreinoHoje',
-  Workout: 'Workout',
-  WorkoutCompleteScreen: 'WorkoutCompleteScreen',
-  TreinoLivre: 'TreinoLivre',
-  Rotinas: 'Rotinas',
-  ImportWorkout: 'ImportWorkout',
-  Admin: 'Admin',
-  SocialChallenges: 'SocialChallenges',
-  RankingEvolution: 'RankingEvolution',
-  ExerciseDetail: 'ExerciseDetail',
-  MacroSemanal: 'MacroSemanal',
-  AutoCoach: 'AutoCoach',
-  Paywall: 'Paywall',
-  ...(__DEV__ ? { DebugMetrics: 'DebugMetrics' } : {}),
-};
-
-const NAVIGATION_LINKING =
-  Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.origin
-    ? {
-        prefixes: [window.location.origin],
-        config: { screens: NAVIGATION_LINKING_SCREENS },
-      }
-    : Platform.OS !== 'web'
-      ? {
-          prefixes: ['evolucao://', 'com.tipolt.evolucaofullv2://'],
-          config: { screens: NAVIGATION_LINKING_SCREENS },
-        }
-      : undefined;
-
-function App() {
+export default function App() {
   const navigationRef = useNavigationContainerRef();
   const routeNameRef = React.useRef('');
   const transitionStartedAtRef = React.useRef(Date.now());
@@ -277,33 +170,6 @@ function App() {
   const [qaHealthSnapshot, setQaHealthSnapshot] = React.useState(() => getQaHealthSnapshot());
 
   React.useEffect(() => {
-    if (!__DEV__) {
-      return undefined;
-    }
-
-    global.__EVOLUCAO_QA_CLEAR_WORKOUT__ = clearWorkoutQaStateForRuntimeAudit;
-    const handleUrl = ({ url }) => {
-      try {
-        if (typeof url === 'string' && url.startsWith('evolucao://qa/workout-reset')) {
-          clearWorkoutQaStateForRuntimeAudit().catch((error) => {
-            console.log('[WORKOUT][QA_RESET_ERROR]', error?.message || 'unknown');
-          });
-        }
-      } catch (error) {
-        console.log('[WORKOUT][QA_RESET_ERROR]', error?.message || 'unknown');
-      }
-    };
-    const sub = Linking.addEventListener('url', handleUrl);
-    return () => {
-      delete global.__EVOLUCAO_QA_CLEAR_WORKOUT__;
-      sub.remove();
-    };
-  }, []);
-
-  React.useEffect(() => {
-    if (__DEV__) {
-      logQaVisualSessionBoot();
-    }
     initObservability();
     startUserSession('app_mount');
 
@@ -401,10 +267,8 @@ function App() {
         residue,
       });
 
-      if (__DEV__) {
-        console.log(`[FORENSICS] snapshot=${JSON.stringify(forensicSnapshot)}`);
-        console.log(`[RUNTIME_RESIDUE] ${JSON.stringify(residue)}`);
-      }
+      console.log(`[FORENSICS] snapshot=${JSON.stringify(forensicSnapshot)}`);
+      console.log(`[RUNTIME_RESIDUE] ${JSON.stringify(residue)}`);
     }, 12000);
     registerTimer('forensics_probe_timer', forensicsProbeTimer, 'interval');
     recordTimerEvent('forensics_probe_timer', 'created', { kind: 'interval' });
@@ -479,10 +343,8 @@ function App() {
         busyReasons: finalHealthSnapshot?.runtime?.idle?.busyReasons || [],
         residue: finalResidue,
       });
-      if (__DEV__) {
-        console.log(`[FORENSICS] snapshot=${JSON.stringify(finalForensicsSnapshot)}`);
-        console.log(`[RUNTIME_RESIDUE] ${JSON.stringify(finalResidue)}`);
-      }
+      console.log(`[FORENSICS] snapshot=${JSON.stringify(finalForensicsSnapshot)}`);
+      console.log(`[RUNTIME_RESIDUE] ${JSON.stringify(finalResidue)}`);
       endUserSession('app_unmount');
     };
   }, []);
@@ -528,15 +390,13 @@ function App() {
 
   return (
     <ErrorBoundary>
+      <NutritionProvider>
         <RootProvider>
           <SafeAreaProvider>
-            <GestureHandlerRootView style={{ flex: 1 }}>
             <View testID={QA_ELEMENTS.appRoot} accessibilityLabel={QA_ELEMENTS.appRoot} nativeID={QA_ELEMENTS.appRoot} style={{ flex: 1 }}>
               <NavigationContainer
               ref={navigationRef}
-              linking={NAVIGATION_LINKING}
               onReady={() => {
-                try { sentryNavigationIntegration.registerNavigationContainer(navigationRef); } catch {}
                 const currentRoute = navigationRef.getCurrentRoute()?.name || '';
                 routeNameRef.current = currentRoute;
                 transitionStartedAtRef.current = Date.now();
@@ -687,8 +547,6 @@ function App() {
             </NavigationContainer>
             {bootstrapReady ? <HiddenAnchor id={QA_ELEMENTS.appBootstrapReady} /> : null}
             <HiddenAnchor id={runtimeStateToElementId(runtimeState)} />
-            {readiness.navigationReady ? <HiddenAnchor id={QA_ELEMENTS.appRuntimeNavigationReady} /> : null}
-            {readiness.runtimeSynchronized ? <HiddenAnchor id={QA_ELEMENTS.appRuntimeReady} /> : null}
             {readiness.navigationReady ? <HiddenAnchor id={QA_ELEMENTS.appReadinessNavigationReady} /> : null}
             {readiness.authResolved ? <HiddenAnchor id={QA_ELEMENTS.appReadinessAuthResolved} /> : null}
             {readiness.storesHydrated ? <HiddenAnchor id={QA_ELEMENTS.appReadinessStoresHydrated} /> : null}
@@ -699,11 +557,9 @@ function App() {
             {runtimeIdle ? <HiddenAnchor id={QA_ELEMENTS.appRuntimeIdle} /> : <HiddenAnchor id={QA_ELEMENTS.appRuntimeBusy} />}
             {busyReasons.length > 0 ? <HiddenAnchor id={`app_runtime_busy_reason_${String(busyReasons[0]).replace(/[^a-z0-9_]+/gi, '_').toLowerCase()}`} /> : null}
           </View>
-            </GestureHandlerRootView>
         </SafeAreaProvider>
       </RootProvider>
+    </NutritionProvider>
     </ErrorBoundary>
   );
 }
-
-export default Sentry.wrap(App);

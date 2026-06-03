@@ -1,11 +1,3 @@
-import { WORKOUT_MULTI_QA_PRESET } from '../../context/modules/workout.js';
-
-function isQaMultiWorkoutEnabled() {
-  return typeof __DEV__ !== 'undefined'
-    && __DEV__
-    && String(process.env.EXPO_PUBLIC_QA_MULTI_WORKOUT || '').trim() === '1';
-}
-
 export function getWorkoutDayIndex(date = new Date()) {
   const jsDay = date.getDay();
   return (jsDay + 6) % 7;
@@ -41,11 +33,7 @@ export function buildTodayWorkout({
   getExerciseCatalogFromSources,
   date = new Date(),
 }) {
-  const splitExercises = isQaMultiWorkoutEnabled() && WORKOUT_MULTI_QA_PRESET.length >= 5
-    ? WORKOUT_MULTI_QA_PRESET
-    : getWorkoutBySplitForDate(trainingSplit, library, date);
-
-  const base = splitExercises.map((exercise, index) => ({
+  const base = getWorkoutBySplitForDate(trainingSplit, library, date).map((exercise, index) => ({
     ...exercise,
     id: `${exercise.name}-${index}`,
     targetWeight: Number(exerciseTargets?.[exercise.name]?.targetWeight || 0),

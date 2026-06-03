@@ -10,7 +10,8 @@ const {
   ELEMENTS,
   waitForAppReady,
   assertScreen,
-  navigateToProfileViaMais,
+  tapSemantic,
+  waitForSemantic,
 } = require('./helpers/semanticHelpers');
 
 describe('[SEMANTIC] 03 - logout: fluxo semântico', () => {
@@ -22,8 +23,10 @@ describe('[SEMANTIC] 03 - logout: fluxo semântico', () => {
     await ensureOnboarded(persona);
   });
 
-  it('navega até Perfil via hub Mais (IDs semânticos)', async () => {
-    await navigateToProfileViaMais(12000);
+  it('navega até a aba de Perfil via ID semântico', async () => {
+    await waitForSemantic(ELEMENTS.tabProfile, 10000);
+    await element(by.id(ELEMENTS.tabProfile)).tap();
+    await assertScreen(SCREENS.profile, 10000);
     console.log('[logout] screen_profile visível ✓');
   });
 
@@ -32,11 +35,8 @@ describe('[SEMANTIC] 03 - logout: fluxo semântico', () => {
     try {
       await assertScreen(SCREENS.profile, 3000);
     } catch {
-      try {
-        await navigateToProfileViaMais(12000);
-      } catch {
-        // best effort
-      }
+      await element(by.id(ELEMENTS.tabProfile)).tap();
+      await assertScreen(SCREENS.profile, 8000);
     }
 
     // O botão pode estar abaixo do fold — tenta scroll

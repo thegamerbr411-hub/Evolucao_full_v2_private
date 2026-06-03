@@ -1,6 +1,6 @@
 // src/services/api.ts
 import axios, { AxiosError, AxiosResponse } from 'axios'
-import { secureGetItemAsync, secureSetItemAsync } from './secureStorage'
+import * as SecureStore from 'expo-secure-store'
 import { useAuthStore } from '../stores/useAuthStore'
 import {
   trackNetworkRequestEnd,
@@ -25,17 +25,6 @@ const api = axios.create({
   timeout: 10000,
 })
 
-const SECURE_READ_TIMEOUT_MS = 2500
-
-async function secureGetItemWithTimeout(key: string): Promise<string | null> {
-  return Promise.race([
-    secureGetItemAsync(key),
-    new Promise<null>((resolve) => {
-      setTimeout(() => resolve(null), SECURE_READ_TIMEOUT_MS)
-    }),
-  ])
-}
-
 // 🔑 Interceptor - ADD TOKEN
 api.interceptors.request.use(async (config) => {
   const requestId = trackNetworkRequestStart({
@@ -46,7 +35,7 @@ api.interceptors.request.use(async (config) => {
   ;(config as any).__qaRequestId = requestId
 
   try {
-    const token = await secureGetItemWithTimeout('accessToken')
+    const token = await SecureStore.getItemAsync('accessToken')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -81,26 +70,7 @@ api.interceptors.response.use(
     const requestId = originalRequest?.__qaRequestId
 
     const status = Number(error.response?.status || 0)
-    if (__DEV__) {
-      const method = String(originalRequest?.method || '').toUpperCase()
-      const url = `${originalRequest?.baseURL || ''}${originalRequest?.url || ''}`
-      console.warn('[API][ERROR]', method, url, status)
-      // Para rotas de auth (login/cadastro/recupera/google/refresh), logar body de erro
-      // completo a fim de diagnosticar invalid_audience / malformed_token / unauthorized_client
-      // sem mascaramento. Network-logging cirurgico, sem libs novas.
-      if (/\/auth\b/.test(String(originalRequest?.url || ''))) {
-        try {
-          const dataPreview = JSON.stringify(error.response?.data ?? null)
-          console.warn('[API][AUTH_ERROR_BODY]', JSON.stringify({
-            url,
-            status,
-            data: dataPreview && dataPreview.length > 2000 ? dataPreview.slice(0, 2000) + '…' : dataPreview,
-            code: String(error?.code || ''),
-            message: String(error?.message || ''),
-          }))
-        } catch {}
-      }
-    }
+    if (__DEV__) console.warn('[API][ERROR]', String(originalRequest?.method || '').toUpperCase(), `${originalRequest?.baseURL || ''}${originalRequest?.url || ''}`, status)
 
     if (status >= 500 && requestId) {
       trackNetworkRequestRetry(requestId)
@@ -111,7 +81,7 @@ api.interceptors.response.use(
       originalRequest._retry = true
 
       try {
-        const refreshToken = await secureGetItemAsync('refreshToken')
+        const refreshToken = await SecureStore.getItemAsync('refreshToken')
 
         if (!refreshToken) {
           // Sem refresh token, logout
@@ -127,9 +97,9 @@ api.interceptors.response.use(
         const { accessToken, refreshToken: newRefreshToken } = res.data
 
         // Salva novo token
-        await secureSetItemAsync('accessToken', accessToken)
+        await SecureStore.setItemAsync('accessToken', accessToken)
         if (newRefreshToken) {
-          await secureSetItemAsync('refreshToken', newRefreshToken)
+          await SecureStore.setItemAsync('refreshToken', newRefreshToken)
         }
 
         // Tenta request original com novo token

@@ -3,19 +3,12 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { spacing, typography, colors } from '../../theme';
 
-export function ScreenHeader({ title, subtitle, onBack, rightAction, rightLabel, backTestID = 'btn-back' }) {
+export function ScreenHeader({ title, subtitle, onBack, rightAction, rightLabel }) {
   return (
     <View style={styles.wrap}>
       <View style={styles.row}>
         {onBack ? (
-          <TouchableOpacity
-            testID={backTestID}
-            accessibilityLabel="Voltar"
-            accessibilityRole="button"
-            onPress={onBack}
-            style={styles.backBtn}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
+          <TouchableOpacity onPress={onBack} style={styles.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
         ) : null}

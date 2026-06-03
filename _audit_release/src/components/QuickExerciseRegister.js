@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Vibration, StyleSheet } from 'react-native';
-import { colors } from '../theme';
+import { View, Text, Button, TouchableOpacity, Vibration, StyleSheet } from 'react-native';
 
 export default function QuickExerciseRegister({ exercise, onRegister, lastWeight }) {
   const [loading, setLoading] = useState(false);
@@ -24,7 +23,7 @@ export default function QuickExerciseRegister({ exercise, onRegister, lastWeight
 
 const styles = StyleSheet.create({
   container: { margin: 8, alignItems: 'center' },
-  label: { fontSize: 16, marginBottom: 8, color: colors.textPrimary, fontWeight: '700' },
-  btn: { backgroundColor: colors.primary, padding: 12, borderRadius: 8 },
-  btnText: { color: colors.textInverse, fontWeight: 'bold' },
+  label: { fontSize: 16, marginBottom: 8 },
+  btn: { backgroundColor: '#007AFF', padding: 12, borderRadius: 8 },
+  btnText: { color: '#fff', fontWeight: 'bold' },
 });

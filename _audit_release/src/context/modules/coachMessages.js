@@ -4,7 +4,7 @@ export function buildCoachMessage(state) {
 
   const doneText =
     `Proteina: ${Number(done.protein || 0)}g | Agua: ${Number(done.water || 0)}ml` +
-    (done.workout >= 1 ? ' | Treino: ✔' : missing.workoutInProgress ? ' | Treino: em andamento' : ' | Treino: ❌');
+    (done.workout ? ' | Treino: ✔' : ' | Treino: ❌');
 
   const missingParts = [];
   if (Number(missing.proteinLeft || 0) > 0) {
@@ -20,9 +20,7 @@ export function buildCoachMessage(state) {
   const missingText = missingParts.length ? missingParts.join(' + ') : 'Nada critico';
 
   let action = 'Faz mais 1 exercicio agora.';
-  if (missing.workoutInProgress) {
-    action = 'Voce tem treino em andamento. Continue de onde parou.';
-  } else if (missing.needsWorkoutToday) {
+  if (missing.needsWorkoutToday) {
     action = 'Voce ainda nao treinou. Comeca agora.';
   } else if (Number(missing.proteinLeft || 0) > 0) {
     action = 'Faltam proteinas. Registre uma refeicao agora.';
@@ -48,11 +46,7 @@ export function buildCoachMessage(state) {
   const waterQuickMl = waterLeft <= 0 ? 0 : waterLeft <= 120 ? 100 : 300;
 
   const quickActions = {
-    trainingTitle: missing.workoutInProgress
-      ? 'Continuar treino'
-      : missing.needsWorkoutToday
-      ? 'Iniciar treino'
-      : 'Treino OK',
+    trainingTitle: missing.needsWorkoutToday ? 'Iniciar treino' : 'Treino OK',
     nutritionTitle: Number(missing.proteinLeft || 0) > 0 ? 'Registrar refeicao' : 'Proteina OK',
     waterTitle: waterQuickMl ? `+${waterQuickMl}ml agua` : 'Agua OK',
     routineTitle: Number(missing.workoutsLeft || 0) > 0 ? 'Ver rotina' : 'Rotina OK',

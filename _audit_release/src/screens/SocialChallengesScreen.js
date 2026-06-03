@@ -77,18 +77,6 @@ export default function SocialChallengesScreen() {
     { key: 'completed', label: 'Concluídos' },
   ]), []);
 
-  const visibleActiveChallenges = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10);
-    const rows = Array.isArray(overview?.activeChallenges) ? overview.activeChallenges : [];
-    return rows.filter((challenge) => {
-      if (!challenge || !challenge.id || !challenge.title) {
-        return false;
-      }
-      const endDate = String(challenge.endDate || today);
-      return endDate >= today;
-    });
-  }, [overview?.activeChallenges]);
-
   const mapSocialError = (code) => {
     const key = String(code || '').trim();
     if (key === 'cannot_add_self') return 'Voce nao pode adicionar seu proprio perfil.';
@@ -175,13 +163,7 @@ export default function SocialChallengesScreen() {
     <ScrollView testID="screen-social" contentContainerStyle={styles.container}>
       <View testID="screen-social-challenges" style={styles.hiddenMarker} />
       <AnimatedToast message={toastMessage} onHide={() => setToastMessage('')} />
-      <ScreenHeader title="Social e Desafios" subtitle="Amigos, ranking e desafios semanais." onBack={() => navigation.goBack()} />
-
-      {__DEV__ ? (
-        <View style={styles.devFeatureTagWrap}>
-          <Text style={styles.devFeatureTag}>[F-Social] Ranking + desafios + amizades</Text>
-        </View>
-      ) : null}
+      <ScreenHeader title="Social e Desafios" subtitle="Amigos, ranking e desafios semanais." />
 
       <AppCard>
         <Text style={styles.title}>Painel social</Text>
@@ -266,7 +248,7 @@ export default function SocialChallengesScreen() {
       </AppCard>
 
       <AppCard>
-        <Text style={styles.title}>Desafios ativos: {visibleActiveChallenges.length}</Text>
+        <Text style={styles.title}>Desafios ativos</Text>
         <TextInput
           value={progressInput}
           onChangeText={setProgressInput}
@@ -277,8 +259,8 @@ export default function SocialChallengesScreen() {
         />
 
         {loading ? <Text style={styles.meta}>Atualizando desafios...</Text> : null}
-        {!loading && visibleActiveChallenges.length ? (
-          visibleActiveChallenges.map((challenge) => (
+        {!loading && Array.isArray(overview?.activeChallenges) && overview.activeChallenges.length ? (
+          overview.activeChallenges.map((challenge) => (
             <View key={challenge.id} style={styles.challengeCard}>
               <Text style={styles.challengeTitle}>{challenge.title}</Text>
               <Text style={styles.meta}>Meta: {challenge.target} • Seu progresso: {challenge.myProgress}</Text>
@@ -357,21 +339,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     marginTop: 2,
-  },
-  devFeatureTagWrap: {
-    borderWidth: 1,
-    borderColor: '#3B82F6',
-    backgroundColor: '#0B1730',
-    borderRadius: 999,
-    alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    marginBottom: 8,
-  },
-  devFeatureTag: {
-    color: '#BFDBFE',
-    fontSize: 11,
-    fontWeight: '800',
   },
   metricTabs: {
     flexDirection: 'row',

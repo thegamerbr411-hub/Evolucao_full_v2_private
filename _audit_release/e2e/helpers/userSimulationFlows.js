@@ -4,7 +4,6 @@ const {
   goHome,
   goToCoach,
   goToNutrition,
-  goToProfile,
   goToTreinos,
   launchApp,
   runCoachHappyPath,
@@ -85,7 +84,7 @@ async function runNavigationBurst(profile = getUserProfile()) {
     await goToCoach();
     await goToNutrition();
     try {
-      await goToProfile();
+      await tapElement('tab-perfil');
     } catch {
       // perfil pode nao estar visivel em layouts específicos, segue ciclo
     }

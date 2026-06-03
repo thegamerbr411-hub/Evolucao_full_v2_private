@@ -1048,9 +1048,7 @@ export function logEvent(name, payload = {}) {
 
   maybeGeneratePeriodicReports();
   schedulePersist();
-  if (__DEV__) {
-    console.log('[OBS_EVENT]', eventName, entry.payload);
-  }
+  console.log('[OBS_EVENT]', eventName, entry.payload);
   return entry;
 }
 

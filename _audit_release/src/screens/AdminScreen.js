@@ -12,7 +12,6 @@ import { colors, spacing } from '../theme';
 import { postToAvailableQaHost, setQaRuntimeAuth } from '../utils/qaTransport';
 import { getFromAvailableQaHost } from '../utils/qaTransport';
 import { clearObservabilitySnapshot, getObservabilitySnapshot } from '../core/observability';
-import { getDefaultTestProCode } from '../context/subscription/subscriptionService';
 
 const ADMIN_TOKEN_STORAGE_KEY = 'evolucao.admin.token.v1';
 const ADMIN_LOCAL_UNLOCK_KEY = 'evolucao.admin.local.unlock.v1';
@@ -61,7 +60,6 @@ function loadLocalFoods() {
 
 export default function AdminScreen() {
   const { user, setUser } = useApp();
-  const testProCode = useMemo(() => getDefaultTestProCode(), []);
   const insets = useSafeAreaInsets();
   const [adminUser, setAdminUser] = useState('admin');
   const [adminPass, setAdminPass] = useState('');
@@ -436,40 +434,6 @@ export default function AdminScreen() {
             await AsyncStorage.removeItem(ADMIN_LOCAL_UNLOCK_KEY);
             setLocalAdminUnlocked(false);
             setToastMessage('Modo local desativado.');
-          }}
-        />
-      </AppCard>
-
-      <AppCard>
-        <Text style={styles.label}>Dados da conta atual</Text>
-        <Text style={styles.helperText}>Use este UID para convite social e validacoes com 3 contas reais.</Text>
-        <Text style={styles.localExerciseName}>{String(user?.id || 'UID indisponivel')}</Text>
-        <Text style={styles.localExerciseMeta}>{String(user?.email || 'E-mail indisponivel')}</Text>
-        <SecondaryButton
-          title="Copiar UID da conta atual"
-          style={styles.secondary}
-          onPress={async () => {
-            const uid = String(user?.id || '').trim();
-            if (!uid) {
-              setToastMessage('UID da conta atual indisponivel.');
-              return;
-            }
-            await Clipboard.setStringAsync(uid);
-            setToastMessage('UID da conta atual copiado.');
-          }}
-        />
-      </AppCard>
-
-      <AppCard>
-        <Text style={styles.label}>Codigo PRO de teste</Text>
-        <Text style={styles.helperText}>Codigo temporario para liberar PRO durante homologacao desta release.</Text>
-        <Text style={styles.localExerciseName}>{testProCode}</Text>
-        <SecondaryButton
-          title="Copiar codigo PRO de teste"
-          style={styles.secondary}
-          onPress={async () => {
-            await Clipboard.setStringAsync(String(testProCode || ''));
-            setToastMessage('Codigo PRO de teste copiado.');
           }}
         />
       </AppCard>

@@ -12,7 +12,6 @@ const SCREENS = Object.freeze({
   register: 'screen_register',
   home: 'screen_home',
   treinos: 'screen_treinos',
-  mais: 'screen_mais',
   profile: 'screen_profile',
   exerciseDetail: 'screen_exercise_detail',
   debugHealth: 'screen_debug_health',
@@ -26,9 +25,8 @@ const ELEMENTS = Object.freeze({
   tabTreinos: 'tab_treinos',
   tabNutricao: 'tab_nutricao',
   tabCoach: 'tab_coach',
-  tabMore: 'tab_mais',
-  btnMaisSocial: 'btn_mais_social',
-  btnMaisPerfil: 'btn_mais_perfil',
+  tabSocial: 'tab_social',
+  tabProfile: 'tab_profile',
   btnGoLogin: 'btn_go_login',
   btnGoRegister: 'btn_go_register',
   btnLogin: 'btn_login',
@@ -81,71 +79,45 @@ function bySemanticId(semanticId) {
   return by.id(semanticId);
 }
 
-function getSemanticIdCandidates(semanticId) {
-  const raw = String(semanticId || '').trim();
-  if (!raw) return [];
-
-  const candidates = new Set([raw]);
-  candidates.add(raw.replace(/_/g, '-'));
-  candidates.add(raw.replace(/-/g, '_'));
-  return Array.from(candidates);
-}
-
-async function waitForSemanticExists(semanticId, timeoutMs = 12000) {
-  const candidates = getSemanticIdCandidates(semanticId);
-  const startedAt = Date.now();
-
-  while (Date.now() - startedAt < timeoutMs) {
-    for (const candidate of candidates) {
-      try {
-        await waitFor(element(by.id(candidate))).toExist().withTimeout(900);
-        return candidate;
-      } catch {
-        // try next candidate
-      }
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, 180));
-  }
-
-  throw new Error(`Semantic element not found in ${timeoutMs}ms: ${candidates.join(', ')}`);
-}
-
 /**
  * Aguarda um elemento semântico ficar visível.
  */
 async function waitForSemantic(semanticId, timeoutMs = 12000) {
-  const resolved = await waitForSemanticExists(semanticId, timeoutMs);
-  await waitFor(element(by.id(resolved))).toBeVisible().withTimeout(timeoutMs);
+  await waitFor(element(bySemanticId(semanticId)))
+    .toBeVisible()
+    .withTimeout(timeoutMs);
 }
 
 /**
  * Toca em um elemento semântico.
  */
 async function tapSemantic(semanticId, timeoutMs = 10000) {
-  const resolved = await waitForSemanticExists(semanticId, timeoutMs);
-  await waitFor(element(by.id(resolved))).toBeVisible().withTimeout(timeoutMs);
-  await element(by.id(resolved)).tap();
+  await waitFor(element(bySemanticId(semanticId)))
+    .toBeVisible()
+    .withTimeout(timeoutMs);
+  await element(bySemanticId(semanticId)).tap();
 }
 
 /**
  * Digita em um campo semântico.
  */
 async function typeSemantic(semanticId, text, timeoutMs = 8000) {
-  const resolved = await waitForSemanticExists(semanticId, timeoutMs);
-  await waitFor(element(by.id(resolved))).toBeVisible().withTimeout(timeoutMs);
-  await element(by.id(resolved)).tap();
-  await element(by.id(resolved)).clearText();
-  await element(by.id(resolved)).typeText(String(text));
+  await waitFor(element(bySemanticId(semanticId)))
+    .toBeVisible()
+    .withTimeout(timeoutMs);
+  await element(bySemanticId(semanticId)).tap();
+  await element(bySemanticId(semanticId)).clearText();
+  await element(bySemanticId(semanticId)).typeText(String(text));
 }
 
 /**
  * Verifica se a tela atual corresponde ao ID semântico esperado.
  */
 async function assertScreen(screenId, timeoutMs = 12000) {
-  const resolved = await waitForSemanticExists(screenId, timeoutMs);
-  await waitFor(element(by.id(resolved))).toBeVisible().withTimeout(timeoutMs);
-  await expect(element(by.id(resolved))).toBeVisible();
+  await waitFor(element(bySemanticId(screenId)))
+    .toBeVisible()
+    .withTimeout(timeoutMs);
+  await expect(element(bySemanticId(screenId))).toBeVisible();
 }
 
 /**
@@ -161,7 +133,7 @@ async function waitForRuntimeState(runtimeState, timeoutMs = 25000) {
   while (Date.now() - startedAt < timeoutMs) {
     for (const stateId of normalizedIds) {
       try {
-        await waitForSemanticExists(stateId, 1500);
+        await waitFor(element(bySemanticId(stateId))).toExist().withTimeout(1200);
         return stateId;
       } catch {
         // try next state
@@ -173,37 +145,18 @@ async function waitForRuntimeState(runtimeState, timeoutMs = 25000) {
   throw new Error(`Runtime state not reached in ${timeoutMs}ms: ${normalizedIds.join(', ')}`);
 }
 
-async function waitForAnySemantic(ids = [], timeoutMs = 12000) {
-  const startedAt = Date.now();
-  const normalizedIds = Array.isArray(ids) ? ids.filter(Boolean) : [];
-
-  while (Date.now() - startedAt < timeoutMs) {
-    for (const id of normalizedIds) {
-      try {
-        await waitForSemanticExists(id, 1200);
-        return id;
-      } catch {
-        // try next id
-      }
-    }
-    await new Promise((resolve) => setTimeout(resolve, 200));
-  }
-
-  throw new Error(`Semantic landing not reached in ${timeoutMs}ms: ${normalizedIds.join(', ')}`);
-}
-
 async function waitForNavigationReady(timeoutMs = 18000) {
-  await waitForSemanticExists(ELEMENTS.appReadinessNavigationReady, timeoutMs);
+  await waitFor(element(bySemanticId(ELEMENTS.appReadinessNavigationReady))).toExist().withTimeout(timeoutMs);
   return ELEMENTS.appReadinessNavigationReady;
 }
 
 async function waitForStoresHydrated(timeoutMs = 20000) {
-  await waitForSemanticExists(ELEMENTS.appReadinessStoresHydrated, timeoutMs);
+  await waitFor(element(bySemanticId(ELEMENTS.appReadinessStoresHydrated))).toExist().withTimeout(timeoutMs);
   return ELEMENTS.appReadinessStoresHydrated;
 }
 
 async function waitForAuthResolved(timeoutMs = 20000) {
-  await waitForSemanticExists(ELEMENTS.appReadinessAuthResolved, timeoutMs);
+  await waitFor(element(bySemanticId(ELEMENTS.appReadinessAuthResolved))).toExist().withTimeout(timeoutMs);
   return ELEMENTS.appReadinessAuthResolved;
 }
 
@@ -211,41 +164,17 @@ async function waitForAuthResolved(timeoutMs = 20000) {
  * Wait for deterministic readiness signal instead of timing guesses.
  */
 async function waitForAppReady(timeoutMs = 35000) {
-  try {
-    await waitForRuntimeState(['ready', 'navigation_ready'], timeoutMs);
-  } catch {
-    await waitForAnySemantic(
-      [
-        ELEMENTS.appBootstrapReady,
-        SCREENS.login,
-        SCREENS.register,
-        SCREENS.home,
-        'screen_questionario',
-        'questionnaire-screen',
-      ],
-      Math.max(10000, Math.floor(timeoutMs / 2))
-    );
-  }
+  await waitForRuntimeState(['ready', 'navigation_ready'], timeoutMs);
+  await waitFor(element(bySemanticId(ELEMENTS.appBootstrapReady))).toExist().withTimeout(Math.max(8000, Math.floor(timeoutMs / 2)));
 
   try {
     await waitFor(element(bySemanticId(ELEMENTS.appReadinessRuntimeSynchronized))).toExist().withTimeout(5000);
     return ELEMENTS.appReadinessRuntimeSynchronized;
   } catch {
-    try {
-      await waitForNavigationReady(Math.max(7000, Math.floor(timeoutMs / 3)));
-      await waitForAuthResolved(Math.max(7000, Math.floor(timeoutMs / 3)));
-      await waitForStoresHydrated(Math.max(7000, Math.floor(timeoutMs / 3)));
-      return ELEMENTS.appReadinessNavigationReady;
-    } catch {
-      return await waitForAnySemantic([
-        ELEMENTS.appBootstrapReady,
-        SCREENS.login,
-        SCREENS.register,
-        SCREENS.home,
-        'screen_questionario',
-        'questionnaire-screen',
-      ], Math.max(9000, Math.floor(timeoutMs / 3)));
-    }
+    await waitForNavigationReady(Math.max(7000, Math.floor(timeoutMs / 3)));
+    await waitForAuthResolved(Math.max(7000, Math.floor(timeoutMs / 3)));
+    await waitForStoresHydrated(Math.max(7000, Math.floor(timeoutMs / 3)));
+    return ELEMENTS.appReadinessNavigationReady;
   }
 }
 
@@ -264,15 +193,7 @@ async function assertAppReady() {
   }
 
   if (!hasRuntimeSignal) {
-    await waitForAnySemantic([
-      ELEMENTS.appBootstrapReady,
-      SCREENS.login,
-      SCREENS.register,
-      SCREENS.home,
-      'screen_questionario',
-      'questionnaire-screen',
-    ], 8000);
-    return;
+    throw new Error('Runtime did not expose READY or NAVIGATION_READY anchors.');
   }
 
   try {
@@ -377,26 +298,14 @@ async function tapTab(tabElementId, expectedScreenId) {
   }
 }
 
-/**
- * Perfil saiu da barra inferior: Tab "Mais" → hub → linha Perfil.
- */
-async function navigateToProfileViaMais(timeoutMs = 15000) {
-  await tapSemantic(ELEMENTS.tabMore);
-  await assertScreen(SCREENS.mais, 10000);
-  await tapSemantic(ELEMENTS.btnMaisPerfil);
-  await assertScreen(SCREENS.profile, timeoutMs);
-}
-
 module.exports = {
   SCREENS,
   ELEMENTS,
   bySemanticId,
-  waitForSemanticExists,
   waitForSemantic,
   tapSemantic,
   typeSemantic,
   assertScreen,
-  navigateToProfileViaMais,
   waitForRuntimeState,
   waitForNavigationReady,
   waitForStoresHydrated,

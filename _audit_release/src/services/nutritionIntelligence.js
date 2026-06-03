@@ -246,7 +246,6 @@ export function parseNutritionLabel(image) {
   const rawText = typeof image === 'string'
     ? image
     : String(image?.ocrText || image?.hint || image?.uri || '');
-  const hasServingReference = /por[cç][aã]o\s*(?:de)?\s*\d+[\.,]?\d*\s*(g|ml|un|unid|unidade|lata|copo)?/i.test(String(rawText || ''));
 
   const text = normalize(rawText);
 
@@ -273,18 +272,6 @@ export function parseNutritionLabel(image) {
       'calorias',
       'valor energetico',
       'energia',
-      'gorduras saturadas',
-      'gordura saturada',
-      'saturadas',
-      'saturated fat',
-      'gorduras trans',
-      'gordura trans',
-      'trans',
-      'trans fat',
-      'fibras alimentares',
-      'fibra alimentar',
-      'fibras',
-      'fiber',
       'carboidratos',
       'carboidrato',
       'carbs',
@@ -333,7 +320,7 @@ export function parseNutritionLabel(image) {
       }
 
       const hasReferenceColumns = /100\s*(g|ml)|por\s*100/i.test(line);
-      if (values.length >= 2 && (hasReferenceColumns || hasServingReference)) {
+      if (values.length >= 2 && hasReferenceColumns) {
         return values[1];
       }
 
@@ -368,7 +355,7 @@ export function parseNutritionLabel(image) {
     return '';
   };
 
-  const servingMatch = String(rawText || '').match(/por[cç][aã]o\s*(?:de)?\s*(\d+[\.,]?\d*)\s*(g|ml|un|unid|unidade|lata|copo)/i);
+  const servingMatch = String(rawText || '').match(/por[cç][aã]o\s*de\s*(\d+[\.,]?\d*)\s*(g|ml)/i);
   const serving = servingMatch
     ? {
         value: parseNumericValue(servingMatch[1]),
@@ -376,25 +363,13 @@ export function parseNutritionLabel(image) {
       }
     : null;
 
-  const portionQtyMatch = String(rawText || '').match(/(?:quantidade\s*(?:por\s*por[cç][aã]o)?|quantidade\s*consumida|consumo)\s*[:=]?\s*(\d+[\.,]?\d*)\s*(g|ml|un|unid|unidade|lata|copo)?/i);
-  const consumedQuantity = portionQtyMatch
-    ? {
-        value: parseNumericValue(portionQtyMatch[1]),
-        unit: String(portionQtyMatch[2] || serving?.unit || '').toLowerCase(),
-      }
-    : null;
-
   const parsed = {
     productName: detectProductName(),
     serving,
-    consumedQuantity,
     calories: extractMacro(['kcal', 'calorias', 'valor energetico', 'energia']),
     carbs: extractMacro(['carboidratos', 'carboidrato', 'carbs']),
     protein: extractMacro(['proteinas', 'proteina', 'protein']),
     fat: extractMacro(['gorduras totais', 'gordura total', 'gorduras', 'fat']),
-    saturatedFat: extractMacro(['gorduras saturadas', 'gordura saturada', 'saturadas', 'saturated fat']),
-    transFat: extractMacro(['gorduras trans', 'gordura trans', 'trans fat', 'trans']),
-    fiber: extractMacro(['fibras alimentares', 'fibra alimentar', 'fibras', 'fiber']),
     sodium: extractMacro(['sodio', 'sodium']),
     sugars: extractMacro(['acucares totais', 'acucar', 'sugars']),
     addedSugars: extractMacro(['acucares adicionados']),

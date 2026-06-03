@@ -4,7 +4,6 @@ import { useApp } from '../context/AppContext';
 import { AppCard, PrimaryButton, ScreenHeader } from '../components/ui';
 import { trackEvent } from '../utils/analytics';
 import { calculateVolume, getDailyPriority } from '../services/performanceEngine';
-import { sanitizeWorkoutLogsForRead } from '../services/workoutLogIntegrity';
 import { buildLocalRanking, calculateXpForWorkout, getLevelFromXp } from '../services/gamificationEngine';
 import { colors, spacing } from '../theme';
 import { getRankingFromApi, getUserStatsFromApi } from '../services/workoutApiService';
@@ -23,7 +22,7 @@ export default function InsightsScreen({ navigation, route }) {
   const safeHistory = Array.isArray(history) ? history : [];
 
   const dashboardStats = useMemo(() => {
-    const safeLogs = sanitizeWorkoutLogsForRead(Array.isArray(workoutLogs) ? workoutLogs : []);
+    const safeLogs = Array.isArray(workoutLogs) ? workoutLogs : [];
     const getDateShiftKey = (baseDate, shiftDays) => {
       const next = new Date(baseDate);
       next.setDate(next.getDate() + shiftDays);
@@ -91,7 +90,7 @@ export default function InsightsScreen({ navigation, route }) {
   }, [safeHistory, macros?.macroTargets?.protein]);
 
   const socialStats = useMemo(() => {
-    const safeLogs = sanitizeWorkoutLogsForRead(Array.isArray(workoutLogs) ? workoutLogs : []);
+    const safeLogs = Array.isArray(workoutLogs) ? workoutLogs : [];
     const myVolume = calculateVolume(safeLogs);
     const mySets = safeLogs.length;
     const baseGamification = getWorkoutGamification();

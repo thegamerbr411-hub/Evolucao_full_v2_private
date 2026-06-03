@@ -739,32 +739,6 @@ export const EXERCISES = [
 
   // PANTURRILHA (calves)
   createExercise({ name: 'Panturrilha em Pe', primaryMuscle: MUSCLE_GROUPS.CALVES, secondaryMuscles: [], equipment: 'maquina', category: 'isolation', movementPattern: 'plantarflexion', tags: ['panturrilha', 'em pe'] }),
-
-  // PERNAS / MAQUINAS (expansao adicional)
-  createExercise({ name: 'Leg Press 45', primaryMuscle: MUSCLE_GROUPS.LEGS, secondaryMuscles: [MUSCLE_GROUPS.GLUTES], equipment: 'maquina', category: 'compound', movementPattern: 'leg_press', tags: ['pernas', 'leg press', 'maquina'] }),
-  createExercise({ name: 'Leg Press Horizontal', primaryMuscle: MUSCLE_GROUPS.LEGS, secondaryMuscles: [MUSCLE_GROUPS.GLUTES], equipment: 'maquina', category: 'compound', movementPattern: 'leg_press', tags: ['pernas', 'leg press horizontal', 'maquina'] }),
-  createExercise({ name: 'Agachamento Smith', primaryMuscle: MUSCLE_GROUPS.LEGS, secondaryMuscles: [MUSCLE_GROUPS.GLUTES, MUSCLE_GROUPS.CORE], equipment: 'maquina', category: 'compound', movementPattern: 'squat', tags: ['agachamento', 'smith', 'pernas'] }),
-  createExercise({ name: 'Afundo no Smith', primaryMuscle: MUSCLE_GROUPS.LEGS, secondaryMuscles: [MUSCLE_GROUPS.GLUTES], equipment: 'maquina', category: 'compound', movementPattern: 'split_squat', tags: ['afundo', 'smith', 'pernas'] }),
-  createExercise({ name: 'Cadeira Adutora', primaryMuscle: MUSCLE_GROUPS.GLUTES, secondaryMuscles: [MUSCLE_GROUPS.LEGS], equipment: 'maquina', category: 'isolation', movementPattern: 'hip_adduction', tags: ['adutora', 'gluteo', 'maquina'] }),
-  createExercise({ name: 'Mesa Flexora', primaryMuscle: MUSCLE_GROUPS.HAMSTRINGS, secondaryMuscles: [MUSCLE_GROUPS.GLUTES], equipment: 'maquina', category: 'isolation', movementPattern: 'knee_flexion', tags: ['posterior', 'mesa flexora', 'maquina'] }),
-  createExercise({ name: 'Flexora Unilateral', primaryMuscle: MUSCLE_GROUPS.HAMSTRINGS, secondaryMuscles: [], equipment: 'maquina', category: 'isolation', movementPattern: 'knee_flexion', tags: ['posterior', 'unilateral', 'maquina'] }),
-  createExercise({ name: 'Stiff com Halteres', primaryMuscle: MUSCLE_GROUPS.HAMSTRINGS, secondaryMuscles: [MUSCLE_GROUPS.GLUTES], equipment: 'halter', category: 'compound', movementPattern: 'hip_hinge', tags: ['stiff', 'posterior', 'halter'] }),
-
-  // PEITO / COSTAS (expansao adicional)
-  createExercise({ name: 'Supino Declinado Barra', primaryMuscle: MUSCLE_GROUPS.CHEST, secondaryMuscles: [MUSCLE_GROUPS.TRICEPS], equipment: 'barra', category: 'compound', movementPattern: 'decline_press', tags: ['supino', 'declinado', 'peito'] }),
-  createExercise({ name: 'Supino Maquina Convergente', primaryMuscle: MUSCLE_GROUPS.CHEST, secondaryMuscles: [MUSCLE_GROUPS.TRICEPS], equipment: 'maquina', category: 'compound', movementPattern: 'horizontal_push', tags: ['supino', 'maquina', 'peito'] }),
-  createExercise({ name: 'Pullover na Polia', primaryMuscle: MUSCLE_GROUPS.BACK, secondaryMuscles: [MUSCLE_GROUPS.CORE], equipment: 'cabo', category: 'isolation', movementPattern: 'shoulder_extension', tags: ['pullover', 'costas', 'polia'] }),
-  createExercise({ name: 'Remada Cavalinho', primaryMuscle: MUSCLE_GROUPS.BACK, secondaryMuscles: [MUSCLE_GROUPS.BICEPS], equipment: 'barra', category: 'compound', movementPattern: 'horizontal_pull', tags: ['remada', 'cavalinho', 'costas'] }),
-  createExercise({ name: 'Remada Maquina Articulada', primaryMuscle: MUSCLE_GROUPS.BACK, secondaryMuscles: [MUSCLE_GROUPS.BICEPS], equipment: 'maquina', category: 'compound', movementPattern: 'horizontal_pull', tags: ['remada', 'maquina', 'costas'] }),
-
-  // OMBRO / BRACOS / CORE (expansao adicional)
-  createExercise({ name: 'Desenvolvimento Arnold', primaryMuscle: MUSCLE_GROUPS.SHOULDERS, secondaryMuscles: [MUSCLE_GROUPS.TRICEPS], equipment: 'halter', category: 'compound', movementPattern: 'vertical_push', tags: ['ombro', 'arnold', 'halter'] }),
-  createExercise({ name: 'Face Pull', primaryMuscle: MUSCLE_GROUPS.SHOULDERS, secondaryMuscles: [MUSCLE_GROUPS.BACK], equipment: 'cabo', category: 'isolation', movementPattern: 'rear_delt_pull', tags: ['ombro', 'face pull', 'posterior'] }),
-  createExercise({ name: 'Rosca Concentrada', primaryMuscle: MUSCLE_GROUPS.BICEPS, secondaryMuscles: [], equipment: 'halter', category: 'isolation', movementPattern: 'elbow_flexion', tags: ['biceps', 'rosca concentrada'] }),
-  createExercise({ name: 'Triceps Corda', primaryMuscle: MUSCLE_GROUPS.TRICEPS, secondaryMuscles: [], equipment: 'cabo', category: 'isolation', movementPattern: 'elbow_extension', tags: ['triceps', 'corda', 'polia'] }),
-  createExercise({ name: 'Prancha Abdominal', primaryMuscle: MUSCLE_GROUPS.CORE, secondaryMuscles: [MUSCLE_GROUPS.SHOULDERS], equipment: 'peso_corporal', category: 'isolation', movementPattern: 'plank', tags: ['core', 'prancha', 'abdomen'] }),
-  createExercise({ name: 'Abdominal na Maquina', primaryMuscle: MUSCLE_GROUPS.CORE, secondaryMuscles: [], equipment: 'maquina', category: 'isolation', movementPattern: 'spinal_flexion', tags: ['core', 'abdominal', 'maquina'] }),
-  createExercise({ name: 'Rotacao de Tronco na Polia', primaryMuscle: MUSCLE_GROUPS.CORE, secondaryMuscles: [MUSCLE_GROUPS.SHOULDERS], equipment: 'cabo', category: 'isolation', movementPattern: 'rotation', tags: ['core', 'obliquos', 'polia'] }),
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────

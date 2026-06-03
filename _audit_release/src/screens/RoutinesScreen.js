@@ -318,7 +318,7 @@ export default function RoutinesScreen({ navigation }) {
     >
     <AnimatedToast message={toastMessage} onHide={() => setToastMessage('')} />
     <ScrollView testID="screen-routines" contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}>
-      <ScreenHeader title="Rotinas" subtitle="Controle total: recomendadas e criadas por voce no mesmo padrao." onBack={() => navigation.goBack()} />
+      <ScreenHeader title="Rotinas" subtitle="Controle total: recomendadas e criadas por voce no mesmo padrao." />
 
       <AppCard testID="card-routine-templates">
         <Text style={styles.cardTitle}>Templates prontos</Text>

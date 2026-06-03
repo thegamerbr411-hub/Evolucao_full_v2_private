@@ -1,5 +1,5 @@
 const { getPersona } = require('./helpers/personas');
-const { ensureOnboarded, goToProfile, launchApp } = require('./helpers/flows');
+const { ensureOnboarded, launchApp } = require('./helpers/flows');
 const { isVisible, replaceInput, tapElement, waitForAny } = require('./helpers/utils');
 
 describe('21 - profile save', () => {
@@ -11,16 +11,13 @@ describe('21 - profile save', () => {
   });
 
   it('abre perfil, edita peso e salva sem quebrar', async () => {
-    await goToProfile();
-    const profileScreen = await waitForAny(['screen-perfil', 'screen_profile', 'screen-profile'], 15000);
-    if (!profileScreen) {
-      throw new Error('Tela de perfil nao abriu apos tocar na aba.');
-    }
+    await tapElement('tab-perfil');
+    await expect(element(by.id('screen-perfil'))).toBeVisible();
 
     await replaceInput('input-profile-current-weight', '78');
     await tapElement('btn-profile-save');
 
-    const feedback = await waitForAny(['screen-perfil', 'screen_profile', 'tab-profile', 'tab_profile'], 8000);
+    const feedback = await waitForAny(['screen-perfil', 'tab-profile'], 8000);
     if (!feedback) {
       throw new Error('Nenhum feedback de perfil detectado apos salvar.');
     }
@@ -35,9 +32,6 @@ describe('21 - profile save', () => {
       await element(by.text('OK')).tap();
     }
 
-    const profileStillVisible = await waitForAny(['screen-perfil', 'screen_profile', 'screen-profile'], 8000);
-    if (!profileStillVisible) {
-      throw new Error('Tela de perfil nao permaneceu visivel apos salvar.');
-    }
+    await expect(element(by.id('screen-perfil'))).toBeVisible();
   });
 });

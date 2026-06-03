@@ -13,7 +13,8 @@ const {
   ELEMENTS,
   waitForAppReady,
   assertScreen,
-  navigateToProfileViaMais,
+  tapSemantic,
+  waitForSemantic,
 } = require('./helpers/semanticHelpers');
 
 describe('[SEMANTIC] 04 - qa_health: infraestrutura Phase 3', () => {
@@ -42,14 +43,16 @@ describe('[SEMANTIC] 04 - qa_health: infraestrutura Phase 3', () => {
   });
 
   it('screen_profile tem ID semântico correto', async () => {
-    await navigateToProfileViaMais(12000);
+    await element(by.id(ELEMENTS.tabProfile)).tap();
+    await assertScreen(SCREENS.profile, 10000);
     console.log('[qa_health] screen_profile com ID semântico correto ✓');
   });
 
   it('debug health screen é acessível via perfil (dev build)', async () => {
     // Navega para o perfil
     try {
-      await navigateToProfileViaMais(8000);
+      await element(by.id(ELEMENTS.tabProfile)).tap();
+      await assertScreen(SCREENS.profile, 6000);
     } catch {
       // já está no perfil
     }

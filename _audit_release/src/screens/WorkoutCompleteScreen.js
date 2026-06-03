@@ -4,8 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radius } from '../theme';
 import * as Haptics from 'expo-haptics';
 
-function getConquestMessage(streak, evolution, isBaseline) {
-  if (isBaseline) return { emoji: '✅', title: 'Baseline estabelecida!', sub: 'Primeiro treino registrado com sucesso. Agora so evoluir daqui para frente.' };
+function getConquestMessage(streak, evolution) {
   if (streak >= 7) return { emoji: '🔥', title: 'Semana completa!', sub: 'Você treinou 7 dias seguidos. Isso é raro.' };
   if (streak >= 3) return { emoji: '⚡', title: 'Sequência em chamas!', sub: `${streak} dias seguidos. Continue assim!` };
   if (Number(evolution) > 5) return { emoji: '📈', title: 'Evolução incrível!', sub: `+${evolution}% em relação ao último treino.` };
@@ -31,18 +30,15 @@ export default function WorkoutCompleteScreen({ route, navigation }) {
   const heroOpacity = useRef(new Animated.Value(0)).current;
   const xpPulse = useRef(new Animated.Value(0)).current;
 
-  const prevWeightNum = Number(prevWeight || 0);
-  const isBaseline = !prevWeightNum;
-  const conquest = getConquestMessage(streak, evolution, isBaseline);
+  const conquest = getConquestMessage(streak, evolution);
   const evolutionNum = Number(evolution || 0);
-  const showEvolutionBar = !isBaseline && evolutionNum !== 0;
+  const showEvolutionBar = evolutionNum !== 0;
   const safeXp = Math.max(0, Number(sessionXp || 0));
   const safeVolume = Math.max(0, Number(totalVolume || 0));
   const safePlanned = Math.max(0, Number(plannedExercises || 0));
   const safeDone = Math.max(0, Number(exerciseCount || 0));
-  const normalizedDone = safePlanned > 0 ? Math.min(safeDone, safePlanned) : safeDone;
   const exerciseCompletionPct = safePlanned > 0
-    ? Math.min(100, Math.round((normalizedDone / safePlanned) * 100))
+    ? Math.min(100, Math.round((safeDone / safePlanned) * 100))
     : 0;
   const personalityLine = useMemo(() => {
     if (safeXp >= 160) return 'Hoje você jogou no modo bruto. Continue amanhã.';
@@ -152,7 +148,7 @@ export default function WorkoutCompleteScreen({ route, navigation }) {
       <View style={styles.directionCard}>
         <View style={styles.directionHeader}>
           <Text style={styles.directionTitle}>Progresso do treino</Text>
-          <Text style={styles.directionValue}>{normalizedDone}/{safePlanned || normalizedDone} exercícios</Text>
+          <Text style={styles.directionValue}>{safeDone}/{safePlanned || safeDone} exercícios</Text>
         </View>
         <View style={styles.directionTrack}>
           <View style={[styles.directionFill, { width: `${Math.max(6, exerciseCompletionPct)}%` }]} />
@@ -185,13 +181,6 @@ export default function WorkoutCompleteScreen({ route, navigation }) {
           </View>
         </View>
       )}
-
-      {isBaseline ? (
-        <View style={styles.baselineCard}>
-          <Text style={styles.baselineTitle}>Baseline estabelecida!</Text>
-          <Text style={styles.baselineText}>Sem treino anterior para comparação. O próximo resumo já mostrará sua evolução real.</Text>
-        </View>
-      ) : null}
 
       {/* ── CTAs ── */}
       <View style={styles.actions}>
@@ -420,26 +409,6 @@ const styles = StyleSheet.create({
   },
   evolutionFillNeg: {
     backgroundColor: colors.danger,
-  },
-  baselineCard: {
-    width: '100%',
-    backgroundColor: '#0E2233',
-    borderWidth: 1,
-    borderColor: '#2E6B9A',
-    borderRadius: radius.md,
-    padding: spacing.md,
-  },
-  baselineTitle: {
-    color: '#86EFAC',
-    fontSize: 14,
-    fontWeight: '900',
-    marginBottom: spacing.xs,
-  },
-  baselineText: {
-    color: '#BFDBFE',
-    fontSize: 12,
-    fontWeight: '700',
-    lineHeight: 18,
   },
 
   // AÇÕES

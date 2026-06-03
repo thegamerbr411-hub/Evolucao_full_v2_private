@@ -9,12 +9,6 @@ const KEYS = [
   ['.', '0', '⌫'],
 ];
 
-function digitTestId(key) {
-  if (key === '⌫') return 'keypad-backspace';
-  if (key === '.') return 'keypad-digit-dot';
-  return `keypad-digit-${key}`;
-}
-
 export default function CustomKeypad({
   visible,
   value,
@@ -27,8 +21,6 @@ export default function CustomKeypad({
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
-    slideAnim.stopAnimation();
-    fadeAnim.stopAnimation();
     Animated.parallel([
       Animated.timing(slideAnim, {
         toValue: visible ? 0 : 120,
@@ -71,12 +63,8 @@ export default function CustomKeypad({
       <View style={styles.headerRow}>
         <Text style={styles.title}>{title}</Text>
         <View style={styles.headerActions}>
-          <TouchableOpacity testID="keypad-close" onPress={onClose} style={styles.headerBtn}>
-            <Text style={styles.headerBtnText}>Fechar</Text>
-          </TouchableOpacity>
-          <TouchableOpacity testID="keypad-confirm" onPress={onConfirm} style={[styles.headerBtn, styles.confirmBtn]}>
-            <Text style={[styles.headerBtnText, styles.confirmBtnText]}>OK</Text>
-          </TouchableOpacity>
+          <TouchableOpacity onPress={onClose} style={styles.headerBtn}><Text style={styles.headerBtnText}>Fechar</Text></TouchableOpacity>
+          <TouchableOpacity onPress={onConfirm} style={[styles.headerBtn, styles.confirmBtn]}><Text style={[styles.headerBtnText, styles.confirmBtnText]}>OK</Text></TouchableOpacity>
         </View>
       </View>
       <Text style={styles.valueText}>{String(value || '0')}</Text>
@@ -84,12 +72,7 @@ export default function CustomKeypad({
         {KEYS.map((row, rowIndex) => (
           <View key={`row-${rowIndex}`} style={styles.row}>
             {row.map((key) => (
-              <TouchableOpacity
-                key={key}
-                testID={digitTestId(key)}
-                onPress={() => appendKey(key)}
-                style={styles.keyBtn}
-              >
+              <TouchableOpacity key={key} onPress={() => appendKey(key)} style={styles.keyBtn}>
                 <Text style={styles.keyText}>{key}</Text>
               </TouchableOpacity>
             ))}
