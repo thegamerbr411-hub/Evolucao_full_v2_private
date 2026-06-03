@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -8,8 +7,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
-import { AppCard, PrimaryButton, ScreenHeader } from '../components/ui';
+import { AnimatedToast, AppCard, PrimaryButton, ScreenHeader } from '../components/ui';
 import { colors, radius, spacing, typography } from '../theme';
 import { logError } from '../utils/errorLogger';
 
@@ -66,11 +66,26 @@ function NumberField({ label, value, onChangeText, placeholder, testID }) {
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        keyboardType="numeric"
+        keyboardType="decimal-pad"
         style={styles.input}
       />
     </View>
   );
+}
+
+function parseLocalizedNumber(value = '') {
+  const sanitized = String(value || '').trim().replace(',', '.');
+  const parsed = Number(sanitized);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function parseHeightCm(value = '') {
+  const parsed = parseLocalizedNumber(value);
+  if (!parsed) return 0;
+  if (parsed > 0 && parsed <= 3) {
+    return Math.round(parsed * 100);
+  }
+  return Math.round(parsed);
 }
 
 export default function QuestionnaireScreen({ navigation }) {
@@ -82,18 +97,13 @@ export default function QuestionnaireScreen({ navigation }) {
   const [targetWeight, setTargetWeight] = useState('');
   const [height, setHeight] = useState('');
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
 
   const handleSubmit = () => {
-    console.log('[ONBOARDING_SUBMIT_ATTEMPT]', {
-      daysPerWeek,
-      goal,
-      level,
-      weight,
-    });
-    const currentWeight = Number(String(weight || '').replace(',', '.'));
+    const currentWeight = parseLocalizedNumber(weight);
     const trainingDaysValue = Number(daysPerWeek);
-    const safeTargetWeight = Number(String(targetWeight || weight || '').replace(',', '.'));
-    const safeHeight = Number(String(height || '170').replace(',', '.'));
+    const safeTargetWeight = parseLocalizedNumber(targetWeight || weight);
+    const safeHeight = parseHeightCm(height || '170');
 
     const payload = {
       goal,
@@ -110,7 +120,7 @@ export default function QuestionnaireScreen({ navigation }) {
         severity: 'low',
         extra: { currentWeight },
       });
-      Alert.alert('Dados invalidos', 'Informe um peso atual valido.');
+      setToastMessage('Dados invalidos. Informe um peso atual valido.');
       return;
     }
 
@@ -120,7 +130,7 @@ export default function QuestionnaireScreen({ navigation }) {
         severity: 'low',
         extra: { trainingDaysPerWeek: trainingDaysValue },
       });
-      Alert.alert('Dados invalidos', 'Escolha de 2 a 7 dias por semana.');
+      setToastMessage('Dados invalidos. Escolha de 2 a 7 dias por semana.');
       return;
     }
 
@@ -130,17 +140,17 @@ export default function QuestionnaireScreen({ navigation }) {
         severity: 'low',
         extra: { height: safeHeight, targetWeight: safeTargetWeight },
       });
-      Alert.alert('Dados invalidos', 'Ajuste peso meta e altura nas opcoes avancadas.');
+      setToastMessage('Dados invalidos. Altura aceita: 180, 1.80 ou 1,80.');
       return;
     }
 
     try {
-      saveQuestionnaire(payload);
-      console.log('[ONBOARDING_COMPLETED]', {
-        goal,
-        level,
-        trainingDaysPerWeek: payload.trainingDaysPerWeek,
-      });
+      const result = saveQuestionnaire(payload);
+      if (!result?.ok) {
+        setToastMessage('Algo deu errado ao salvar o questionario. Revise os dados e tente novamente.');
+        return;
+      }
+
       navigation.reset({
         index: 0,
         routes: [{ name: 'MainTabs' }],
@@ -151,18 +161,20 @@ export default function QuestionnaireScreen({ navigation }) {
         severity: 'medium',
         extra: { action: 'saveQuestionnaire' },
       });
-      Alert.alert('Erro ao salvar', 'Nao foi possivel concluir o questionario agora. Tente novamente.');
+      setToastMessage('Erro ao salvar. Nao foi possivel concluir o questionario agora.');
     }
   };
 
   return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top', 'bottom']}>
     <ScrollView
       testID="scroll-container"
       contentContainerStyle={styles.container}
       keyboardShouldPersistTaps="handled"
     >
+      <AnimatedToast message={toastMessage} onHide={() => setToastMessage('')} />
       <View testID="questionnaire-screen">
-      <ScreenHeader title="Comece em 30 segundos" subtitle="So o essencial para criar seu plano." />
+      <ScreenHeader title="Personalize seu plano" subtitle="Preencha rapidamente para o coach criar sua estratégia ideal." />
 
       <AppCard>
         <OptionGroup title="Objetivo" options={goals} selected={goal} onSelect={setGoal} testIDPrefix="chip-goal" />
@@ -225,6 +237,7 @@ export default function QuestionnaireScreen({ navigation }) {
       <PrimaryButton testID="btn-continuar" title="Comecar agora" onPress={handleSubmit} />
       </View>
     </ScrollView>
+    </SafeAreaView>
   );
 }
 

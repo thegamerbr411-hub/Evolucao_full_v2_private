@@ -1,4 +1,15 @@
-import { trackAppError, trackUnknownErrorWithContext } from '../utils/analytics.js';
+const NODE_TEST_RUNNER =
+  typeof process !== 'undefined' &&
+  String(process.env.EVOLUCAO_NODE_TEST_RUNNER || '') === '1';
+
+let runtimeModulePromise = null;
+
+function loadRuntimeModule() {
+  if (!runtimeModulePromise) {
+    runtimeModulePromise = import('./logger.runtime.js');
+  }
+  return runtimeModulePromise;
+}
 
 export function logError(error, context = {}) {
   const safeContext = {
@@ -7,20 +18,33 @@ export function logError(error, context = {}) {
     ...context,
   };
 
-  console.error('[ERROR]', {
-    code: error?.code,
-    message: error?.message,
-    ...safeContext,
-  });
+  if (typeof __DEV__ !== 'undefined' && __DEV__) {
+    console.error('[ERROR]', {
+      code: error?.code,
+      message: error?.message,
+      ...safeContext,
+    });
+  }
 
-  if (error?.code === 'UNKNOWN_ERROR' || !error?.code) {
-    trackUnknownErrorWithContext(error, safeContext);
+  if (NODE_TEST_RUNNER) {
     return;
   }
 
-  trackAppError(error, safeContext);
+  void loadRuntimeModule().then(({ logErrorRuntime }) => {
+    logErrorRuntime(error, safeContext);
+  });
 }
 
 export function logEvent(name, data = {}) {
-  console.log('[EVENT]', name, data);
+  if (typeof __DEV__ !== 'undefined' && __DEV__) {
+    console.log('[EVENT]', name, data);
+  }
+
+  if (NODE_TEST_RUNNER) {
+    return;
+  }
+
+  void loadRuntimeModule().then(({ logEventRuntime }) => {
+    logEventRuntime(name, data);
+  });
 }

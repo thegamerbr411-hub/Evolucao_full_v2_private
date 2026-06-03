@@ -1,6 +1,7 @@
 import { create } from 'zustand';
+import * as Sentry from '@sentry/react-native';
 import { getLocal, setLocal } from '../storage/mmkv';
-import * as SecureStore from 'expo-secure-store';
+import { secureDeleteItemAsync, secureGetItemAsync, secureSetItemAsync } from '../services/secureStorage';
 
 const APP_STORE_KEY = 'app.store.v1';
 const APP_STORE_SECURE_KEY = 'app.store.secure.v1';
@@ -38,7 +39,7 @@ const persistAppState = (state: Pick<AppStore, 'hasCompletedQuestionnaire' | 'us
   };
 
   setLocal(APP_STORE_KEY, payload);
-  SecureStore.setItemAsync(APP_STORE_SECURE_KEY, JSON.stringify(payload)).catch(() => {
+  secureSetItemAsync(APP_STORE_SECURE_KEY, JSON.stringify(payload)).catch(() => {
     // best effort: MMKV já cobre caminho principal
   });
 };
@@ -87,19 +88,54 @@ export const useAppStore = create<AppStore>((set) => ({
     }),
   hydrateAppStore: async () => {
     try {
-      const secureRaw = await SecureStore.getItemAsync(APP_STORE_SECURE_KEY);
+      Sentry.addBreadcrumb({
+        category: 'hydration',
+        level: 'info',
+        message: 'app_store.hydrate.start',
+      });
+      const secureRaw = await secureGetItemAsync(APP_STORE_SECURE_KEY);
       if (secureRaw) {
-        const parsed = JSON.parse(secureRaw);
-        const next = {
-          hasCompletedQuestionnaire: Boolean(parsed?.hasCompletedQuestionnaire),
-          userRoutines: Array.isArray(parsed?.userRoutines) ? parsed.userRoutines : [],
-        };
-        setLocal(APP_STORE_KEY, next);
-        set({ ...next, isHydrated: true });
-        return;
+        let parsed: any = null;
+        try {
+          parsed = JSON.parse(secureRaw);
+        } catch (parseError) {
+          // Corrupted payload: NÃO crashar, mas reportar como hydration_corrupt.
+          try {
+            Sentry.captureException(parseError, {
+              tags: { layer: 'zustand', store: 'app', hydration_status: 'corrupt' },
+              contexts: {
+                hydration: {
+                  key: APP_STORE_SECURE_KEY,
+                  bytes: secureRaw ? secureRaw.length : 0,
+                },
+              },
+            });
+          } catch {}
+          // limpa payload corrompido para evitar loop
+          try { await secureDeleteItemAsync(APP_STORE_SECURE_KEY); } catch {}
+        }
+        if (parsed) {
+          const next = {
+            hasCompletedQuestionnaire: Boolean(parsed?.hasCompletedQuestionnaire),
+            userRoutines: Array.isArray(parsed?.userRoutines) ? parsed.userRoutines : [],
+          };
+          setLocal(APP_STORE_KEY, next);
+          set({ ...next, isHydrated: true });
+          Sentry.addBreadcrumb({
+            category: 'hydration',
+            level: 'info',
+            message: 'app_store.hydrate.success',
+            data: { routines: next.userRoutines.length, questionnaire: next.hasCompletedQuestionnaire },
+          });
+          return;
+        }
       }
-    } catch {
-      // fallback abaixo
+    } catch (error) {
+      try {
+        Sentry.captureException(error, {
+          tags: { layer: 'zustand', store: 'app', hydration_status: 'fail' },
+        });
+      } catch {}
     }
 
     set({ isHydrated: true });

@@ -1,5 +1,17 @@
 import { searchNutritionDatabase } from '../data/nutritionDatabase.js';
 
+const TEXT_CONNECTORS = /(?:\+|,|;|\be\b|\bcom\b)/i;
+const FOOD_STOP_WORDS = new Set(['de', 'da', 'do', 'das', 'dos', 'com', 'sem', 'no', 'na', 'em']);
+const UNIT_HINTS = new Set(['fatia', 'fatias', 'colher', 'colheres', 'scoop', 'un', 'unid', 'unidade', 'unidades', 'copo', 'copos', 'xicara', 'xicaras']);
+const FOOD_TYPO_ALIASES = {
+  muzarela: 'mussarela',
+  mussarelaa: 'mussarela',
+  paoziho: 'paozinho',
+  paozinhoo: 'paozinho',
+  ovvo: 'ovo',
+  aveiaa: 'aveia',
+};
+
 function normalize(value = '') {
   return String(value || '')
     .normalize('NFD')
@@ -11,6 +23,100 @@ function normalize(value = '') {
 function toNumber(value, fallback = 0) {
   const parsed = Number(String(value || '').replace(',', '.'));
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function normalizeFoodToken(token = '') {
+  const base = normalize(token);
+  return FOOD_TYPO_ALIASES[base] || base;
+}
+
+function buildFoodSearchVariants(label = '') {
+  const normalized = normalize(label)
+    .replace(/\b(fatia|fatias|colher|colheres|scoop|unidade|unidades|unid|copo|copos|xicara|xicaras)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const baseTokens = normalized
+    .split(/\s+/)
+    .map((token) => normalizeFoodToken(token.trim()))
+    .filter((token) => token && !FOOD_STOP_WORDS.has(token));
+
+  const singularTokens = baseTokens.map((token) => (token.endsWith('s') && token.length > 3 ? token.slice(0, -1) : token));
+  const tokenPool = Array.from(new Set([...baseTokens, ...singularTokens]));
+  const phrases = [];
+
+  for (let size = Math.min(3, tokenPool.length); size >= 1; size -= 1) {
+    for (let index = 0; index <= tokenPool.length - size; index += 1) {
+      phrases.push(tokenPool.slice(index, index + size).join(' '));
+    }
+  }
+
+  return Array.from(new Set([
+    baseTokens.join(' '),
+    normalized,
+    ...phrases,
+    ...baseTokens,
+  ].filter(Boolean)));
+}
+
+function getMatchQualityScore(candidate, phrase = '') {
+  const normalizedPhrase = normalize(phrase);
+  if (!normalizedPhrase || !candidate) {
+    return 0;
+  }
+
+  const candidateLabel = normalize(candidate.label);
+  const candidateAliases = Array.isArray(candidate.aliases) ? candidate.aliases.map((alias) => normalize(alias)) : [];
+  const phraseTokens = normalizedPhrase.split(/\s+/).filter(Boolean);
+  const candidateTokenPool = [candidateLabel, ...candidateAliases].join(' ').split(/\s+/).filter(Boolean);
+
+  if (candidateLabel === normalizedPhrase || candidateAliases.includes(normalizedPhrase)) {
+    return 300;
+  }
+
+  if (candidateLabel.includes(normalizedPhrase) || candidateAliases.some((alias) => alias.includes(normalizedPhrase))) {
+    return 180 + normalizedPhrase.split(/\s+/).length * 10;
+  }
+
+  const matchedTokens = phraseTokens.filter((token) =>
+    candidateTokenPool.some((candidateToken) => candidateToken.startsWith(token) || token.startsWith(candidateToken))
+  ).length;
+
+  if (matchedTokens > 0) {
+    return 120 + matchedTokens * 25;
+  }
+
+  return 0;
+}
+
+function findFlexibleFoodMatches(label = '') {
+  const phrases = buildFoodSearchVariants(label);
+  const matches = new Map();
+
+  phrases.forEach((phrase) => {
+    const phraseTokens = phrase.split(/\s+/).filter(Boolean);
+    const rawCandidates = [
+      ...searchNutritionDatabase(phrase),
+      ...phraseTokens.flatMap((token) => (token.length >= 3 ? searchNutritionDatabase(token) : [])),
+    ];
+    const candidates = Array.from(new Map(rawCandidates.map((item) => [item.id, item])).values());
+
+    candidates.forEach((candidate) => {
+      const score = getMatchQualityScore(candidate, phrase);
+      if (score <= 0) {
+        return;
+      }
+
+      const current = matches.get(candidate.id);
+      if (!current || score > current.score) {
+        matches.set(candidate.id, { ...candidate, score });
+      }
+    });
+  });
+
+  return Array.from(matches.values())
+    .sort((a, b) => b.score - a.score || a.label.localeCompare(b.label))
+    .slice(0, 3);
 }
 
 function macroTemplate(name) {
@@ -42,17 +148,10 @@ export function createFoodFromText(input = '') {
     };
   }
 
-  if (!/[,+;]|\se\s/i.test(raw)) {
-    return {
-      name: raw,
-      calories: 0,
-      protein: 0,
-      carbs: 0,
-      fat: 0,
-    };
-  }
-
-  const pieces = raw.split(/[,+;]|\se\s/).map((item) => item.trim()).filter(Boolean);
+  const pieces = raw
+    .split(TEXT_CONNECTORS)
+    .map((item) => item.trim())
+    .filter(Boolean);
   const entries = [];
 
   pieces.forEach((piece) => {
@@ -68,36 +167,70 @@ export function createFoodFromText(input = '') {
       return;
     }
 
-    const dbMatch = searchNutritionDatabase(label)[0] || null;
-    const base = dbMatch
-      ? {
-          label: dbMatch.label,
-          calories: Number(dbMatch.calories || 0),
-          protein: Number(dbMatch.protein || 0),
-          carbs: Number(dbMatch.carbs || 0),
-          fats: Number(dbMatch.fats || 0),
-        }
-      : {
+    const dbMatches = findFlexibleFoodMatches(label);
+    const resolvedMatches = dbMatches.length
+      ? dbMatches
+      : [{
           label,
-          ...macroTemplate(label),
-        };
+          calories: 0,
+          protein: 0,
+          carbs: 0,
+          fats: 0,
+        }];
 
-    const factor = quantityMatch && /g|ml/i.test(quantityMatch[2] || '') ? quantity / 100 : quantity;
-    entries.push({
-      label: base.label,
-      quantity,
-      quantityUnit,
-      calories: Number((base.calories * factor).toFixed(1)),
-      protein: Number((base.protein * factor).toFixed(1)),
-      carbs: Number((base.carbs * factor).toFixed(1)),
-      fats: Number((base.fats * factor).toFixed(1)),
+    resolvedMatches.forEach((match, matchIndex) => {
+      const base = Number(match.calories || match.protein || match.carbs || match.fats)
+        ? {
+            label: match.label,
+            calories: Number(match.calories || 0),
+            protein: Number(match.protein || 0),
+            carbs: Number(match.carbs || 0),
+            fats: Number(match.fats || 0),
+          }
+        : {
+            label: match.label,
+            ...macroTemplate(match.label),
+          };
+
+      const shouldUseExactWeight = quantityMatch && /g|ml/i.test(quantityMatch[2] || '');
+      const hasUnitHint = label.split(/\s+/).some((token) => UNIT_HINTS.has(token));
+      const factor = shouldUseExactWeight
+        ? quantity / 100
+        : matchIndex === 0 || hasUnitHint
+          ? quantity
+          : 1;
+
+      entries.push({
+        label: base.label,
+        quantity: matchIndex === 0 || hasUnitHint ? quantity : 1,
+        quantityUnit,
+        calories: Number((base.calories * factor).toFixed(1)),
+        protein: Number((base.protein * factor).toFixed(1)),
+        carbs: Number((base.carbs * factor).toFixed(1)),
+        fats: Number((base.fats * factor).toFixed(1)),
+      });
     });
   });
 
+  const dedupedEntries = entries.reduce((acc, entry) => {
+    const existing = acc.find((item) => normalize(item.label) === normalize(entry.label));
+    if (!existing) {
+      acc.push(entry);
+      return acc;
+    }
+
+    existing.quantity += Number(entry.quantity || 0);
+    existing.calories = Number((existing.calories + Number(entry.calories || 0)).toFixed(1));
+    existing.protein = Number((existing.protein + Number(entry.protein || 0)).toFixed(1));
+    existing.carbs = Number((existing.carbs + Number(entry.carbs || 0)).toFixed(1));
+    existing.fats = Number((existing.fats + Number(entry.fats || 0)).toFixed(1));
+    return acc;
+  }, []);
+
   return {
     source: 'text',
-    items: entries,
-    totals: entries.reduce(
+    items: dedupedEntries,
+    totals: dedupedEntries.reduce(
       (acc, item) => ({
         calories: acc.calories + item.calories,
         protein: acc.protein + item.protein,
@@ -113,6 +246,7 @@ export function parseNutritionLabel(image) {
   const rawText = typeof image === 'string'
     ? image
     : String(image?.ocrText || image?.hint || image?.uri || '');
+  const hasServingReference = /por[cç][aã]o\s*(?:de)?\s*\d+[\.,]?\d*\s*(g|ml|un|unid|unidade|lata|copo)?/i.test(String(rawText || ''));
 
   const text = normalize(rawText);
 
@@ -139,6 +273,18 @@ export function parseNutritionLabel(image) {
       'calorias',
       'valor energetico',
       'energia',
+      'gorduras saturadas',
+      'gordura saturada',
+      'saturadas',
+      'saturated fat',
+      'gorduras trans',
+      'gordura trans',
+      'trans',
+      'trans fat',
+      'fibras alimentares',
+      'fibra alimentar',
+      'fibras',
+      'fiber',
       'carboidratos',
       'carboidrato',
       'carbs',
@@ -187,7 +333,7 @@ export function parseNutritionLabel(image) {
       }
 
       const hasReferenceColumns = /100\s*(g|ml)|por\s*100/i.test(line);
-      if (values.length >= 2 && hasReferenceColumns) {
+      if (values.length >= 2 && (hasReferenceColumns || hasServingReference)) {
         return values[1];
       }
 
@@ -222,7 +368,7 @@ export function parseNutritionLabel(image) {
     return '';
   };
 
-  const servingMatch = String(rawText || '').match(/por[cç][aã]o\s*de\s*(\d+[\.,]?\d*)\s*(g|ml)/i);
+  const servingMatch = String(rawText || '').match(/por[cç][aã]o\s*(?:de)?\s*(\d+[\.,]?\d*)\s*(g|ml|un|unid|unidade|lata|copo)/i);
   const serving = servingMatch
     ? {
         value: parseNumericValue(servingMatch[1]),
@@ -230,13 +376,25 @@ export function parseNutritionLabel(image) {
       }
     : null;
 
+  const portionQtyMatch = String(rawText || '').match(/(?:quantidade\s*(?:por\s*por[cç][aã]o)?|quantidade\s*consumida|consumo)\s*[:=]?\s*(\d+[\.,]?\d*)\s*(g|ml|un|unid|unidade|lata|copo)?/i);
+  const consumedQuantity = portionQtyMatch
+    ? {
+        value: parseNumericValue(portionQtyMatch[1]),
+        unit: String(portionQtyMatch[2] || serving?.unit || '').toLowerCase(),
+      }
+    : null;
+
   const parsed = {
     productName: detectProductName(),
     serving,
+    consumedQuantity,
     calories: extractMacro(['kcal', 'calorias', 'valor energetico', 'energia']),
     carbs: extractMacro(['carboidratos', 'carboidrato', 'carbs']),
     protein: extractMacro(['proteinas', 'proteina', 'protein']),
     fat: extractMacro(['gorduras totais', 'gordura total', 'gorduras', 'fat']),
+    saturatedFat: extractMacro(['gorduras saturadas', 'gordura saturada', 'saturadas', 'saturated fat']),
+    transFat: extractMacro(['gorduras trans', 'gordura trans', 'trans fat', 'trans']),
+    fiber: extractMacro(['fibras alimentares', 'fibra alimentar', 'fibras', 'fiber']),
     sodium: extractMacro(['sodio', 'sodium']),
     sugars: extractMacro(['acucares totais', 'acucar', 'sugars']),
     addedSugars: extractMacro(['acucares adicionados']),

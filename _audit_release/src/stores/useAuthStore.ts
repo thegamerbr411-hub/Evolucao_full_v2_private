@@ -1,6 +1,6 @@
 // src/stores/useAuthStore.ts
 import { create } from 'zustand'
-import * as SecureStore from 'expo-secure-store'
+import { secureDeleteItemAsync, secureGetItemAsync, secureSetItemAsync } from '../services/secureStorage'
 
 export type User = {
   id: string
@@ -33,8 +33,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   setToken: async (accessToken, refreshToken) => {
     try {
-      await SecureStore.setItemAsync('accessToken', accessToken)
-      await SecureStore.setItemAsync('refreshToken', refreshToken)
+      await secureSetItemAsync('accessToken', accessToken)
+      await secureSetItemAsync('refreshToken', refreshToken)
     } catch (e) {
       console.error('Error saving tokens:', e)
     }
@@ -42,7 +42,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   getToken: async () => {
     try {
-      return await SecureStore.getItemAsync('accessToken')
+      return await secureGetItemAsync('accessToken')
     } catch (e) {
       console.error('Error getting token:', e)
       return null
@@ -51,8 +51,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   logout: async () => {
     try {
-      await SecureStore.deleteItemAsync('accessToken')
-      await SecureStore.deleteItemAsync('refreshToken')
+      await secureDeleteItemAsync('accessToken')
+      await secureDeleteItemAsync('refreshToken')
       set({ user: null, isLogged: false })
     } catch (e) {
       console.error('Error logging out:', e)

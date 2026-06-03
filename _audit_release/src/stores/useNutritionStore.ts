@@ -77,13 +77,15 @@ type NutritionStore = {
 
 const NUTRITION_STATE_KEY = 'nutrition.store.v2';
 
-const getTodayKey = (): string => {
+export const getNutritionTodayKey = (): string => {
   const now = new Date();
   const y = now.getFullYear();
   const m = String(now.getMonth() + 1).padStart(2, '0');
   const d = String(now.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 };
+
+const getTodayKey = getNutritionTodayKey;
 
 const clamp = (value: number, min: number, max: number): number => Math.max(min, Math.min(max, value));
 
@@ -246,13 +248,30 @@ export const useNutritionStore = create<NutritionStore>((set) => ({
   },
   addHydrationIntake: (amountMl) =>
     set((state) => {
-      if (!state.hydration) {
+      const today = getTodayKey();
+      const safeAmount = Math.max(0, Number(amountMl || 0));
+      if (!safeAmount) {
         return state;
       }
 
+      let base = state.hydration;
+      if (!base || base.dayKey !== today) {
+        const goalFromPlan = Math.round(Number(state.plan?.waterLitersPerDay || 3) * 1000);
+        base = {
+          dayKey: today,
+          waterGoalMl: goalFromPlan > 0 ? goalFromPlan : 3000,
+          consumedMl: 0,
+          weightKg: Number(base?.weightKg || 0),
+          trainedToday: Boolean(base?.trainedToday),
+          trainingHours: Number(base?.trainingHours || 0),
+          updatedAt: new Date().toISOString(),
+        };
+      }
+
       const nextHydration: HydrationState = {
-        ...state.hydration,
-        consumedMl: clamp(Math.round((state.hydration.consumedMl || 0) + Number(amountMl || 0)), 0, 15000),
+        ...base,
+        dayKey: today,
+        consumedMl: clamp(Math.round((base.consumedMl || 0) + safeAmount), 0, 15000),
         updatedAt: new Date().toISOString(),
       };
 

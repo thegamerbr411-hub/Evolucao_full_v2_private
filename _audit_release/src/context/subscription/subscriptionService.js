@@ -5,6 +5,8 @@ export const DEFAULT_MONETIZATION = {
   proSince: null,
 };
 
+const DEFAULT_TEST_PRO_CODE = 'EVO-PRO-TESTE-2026';
+
 const FREE_FEATURES = new Set([
   'guided_workout',
   'free_workout',
@@ -88,4 +90,33 @@ export function withActivatedProPlan(monetization) {
     plan: 'pro',
     proSince: getTodayKey(),
   };
+}
+
+export function getTestProCodes() {
+  const fromEnv = String(
+    (typeof process !== 'undefined' ? process?.env?.EXPO_PUBLIC_PRO_TEST_CODES : '') || ''
+  )
+    .split(',')
+    .map((item) => String(item || '').trim())
+    .filter(Boolean);
+
+  if (fromEnv.length > 0) {
+    return Array.from(new Set(fromEnv));
+  }
+
+  return [DEFAULT_TEST_PRO_CODE];
+}
+
+export function isValidTestProCode(code) {
+  const safeCode = String(code || '').trim();
+  if (!safeCode) {
+    return false;
+  }
+
+  const allowed = getTestProCodes();
+  return allowed.includes(safeCode);
+}
+
+export function getDefaultTestProCode() {
+  return getTestProCodes()[0] || DEFAULT_TEST_PRO_CODE;
 }

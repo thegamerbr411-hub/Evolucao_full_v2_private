@@ -2,8 +2,10 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   DEFAULT_MONETIZATION,
+  getDefaultTestProCode,
   getSubscriptionStatusFor,
   hasFeatureAccessFor,
+  isValidTestProCode,
   normalizeMonetization,
   withActivatedProPlan,
   withStartedProTrial,
@@ -92,6 +94,20 @@ export function SubscriptionProvider({ children }) {
     return { ok: true };
   }, []);
 
+  const activateProByCode = useCallback(async (activationCode) => {
+    const safeCode = String(activationCode || '').trim();
+    if (!safeCode) {
+      return { ok: false, error: 'activation_code_required' };
+    }
+
+    if (!isValidTestProCode(safeCode)) {
+      return { ok: false, error: 'activation_code_invalid' };
+    }
+
+    setMonetization((prev) => withActivatedProPlan(prev));
+    return { ok: true, source: 'test_code' };
+  }, []);
+
   const resetSubscription = useCallback(() => {
     setMonetization(DEFAULT_MONETIZATION);
   }, []);
@@ -103,6 +119,8 @@ export function SubscriptionProvider({ children }) {
       hasFeatureAccess,
       startProTrial,
       activateProPlan,
+      activateProByCode,
+      getDefaultTestProCode,
       resetSubscription,
     }),
     [
@@ -111,6 +129,7 @@ export function SubscriptionProvider({ children }) {
       hasFeatureAccess,
       startProTrial,
       activateProPlan,
+      activateProByCode,
       resetSubscription,
     ]
   );

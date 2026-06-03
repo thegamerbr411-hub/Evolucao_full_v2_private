@@ -1,10 +1,11 @@
-import { EXERCISES, getExerciseByName } from './exercises';
+import * as exercisesModule from './exercises';
 
 const GIF_FALLBACK = 'https://placehold.co/320x180/0f172a/dbeafe?text=Exercise';
 
 function normalize(value = '') {
-  return String(value || '')
-    .normalize('NFD')
+  const base = String(value || '');
+  const normalized = typeof base.normalize === 'function' ? base.normalize('NFD') : base;
+  return normalized
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .trim();
@@ -30,7 +31,10 @@ function toLegacyItem(exercise) {
   };
 }
 
-const SAFE_EXERCISES = Array.isArray(EXERCISES) ? EXERCISES : [];
+const SAFE_EXERCISES = Array.isArray(exercisesModule?.EXERCISES) ? exercisesModule.EXERCISES : [];
+const safeGetExerciseByName = typeof exercisesModule?.getExerciseByName === 'function'
+  ? exercisesModule.getExerciseByName
+  : () => null;
 
 export const EXERCISE_LIBRARY_V2 = SAFE_EXERCISES.map(toLegacyItem);
 export const EXERCISE_NAMES_V2 = EXERCISE_LIBRARY_V2.map((item) => item.name);
@@ -54,8 +58,12 @@ export function getExerciseMetaByName(name = '') {
     return fromLegacy;
   }
 
-  const fromPremium = getExerciseByName(name);
-  return fromPremium ? toLegacyItem(fromPremium) : null;
+  try {
+    const fromPremium = safeGetExerciseByName(name);
+    return fromPremium ? toLegacyItem(fromPremium) : null;
+  } catch {
+    return null;
+  }
 }
 
 export function getExerciseGifFallback() {

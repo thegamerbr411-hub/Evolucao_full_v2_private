@@ -74,8 +74,8 @@ export default function RankingEvolutionScreen({ navigation }) {
   const showGoalFallback = xpRemaining <= 0 && Number(myStats?.xp || localGamification?.xp || 0) <= 0;
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <ScreenHeader title="Ranking e Evolucao" subtitle="Suba de liga, acompanhe XP e pressione o topo." />
+    <ScrollView testID="screen-ranking" contentContainerStyle={styles.container}>
+      <ScreenHeader title="Ranking e Evolucao" subtitle="Suba de liga, acompanhe XP e pressione o topo." onBack={() => navigation.goBack()} />
 
       <AppCard>
         <Text style={styles.title}>Seu progresso</Text>

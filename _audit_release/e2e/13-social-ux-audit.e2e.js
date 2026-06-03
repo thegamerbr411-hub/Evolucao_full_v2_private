@@ -1,22 +1,21 @@
 const { getUserProfile } = require('./helpers/userProfiles');
-const { ensureOnboarded } = require('./helpers/flows');
-const { tapElement } = require('./helpers/utils');
+const { ensureOnboarded, goToSocial, launchApp } = require('./helpers/flows');
+const { tapElement, waitForAny } = require('./helpers/utils');
 
 describe('13 - social ux audit', () => {
   const profile = getUserProfile();
   jest.setTimeout(480000);
 
   it('valida aba social obrigatoria e captura evidencias visuais', async () => {
-    await device.launchApp({ newInstance: false });
-    await device.disableSynchronization();
+    await launchApp({ deleteApp: true });
     await ensureOnboarded(profile);
+    await device.disableSynchronization();
 
-    await expect(element(by.id('tab-social'))).toBeVisible();
-    await device.takeScreenshot('ux-home-with-social-tab');
-
-    // Critico: aba social deve existir e abrir a tela social.
-    await tapElement('tab-social');
-    await expect(element(by.id('screen-social'))).toBeVisible();
+    await goToSocial();
+    const socialScreen = await waitForAny(['screen-social', 'screen_social'], 15000);
+    if (!socialScreen) {
+      throw new Error('tela social nao ficou visivel apos tocar na aba social.');
+    }
     await device.takeScreenshot('ux-social');
   });
 });

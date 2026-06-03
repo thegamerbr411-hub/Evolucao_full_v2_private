@@ -1,4 +1,4 @@
-import type { Exercise } from '../../data/exercises';
+import type { Exercise } from '../../data/exercises.js';
 
 export type UserLevel = 'iniciante' | 'intermediario' | 'avancado';
 

@@ -1,6 +1,7 @@
-const { ensureOnboarded, goHome, launchApp } = require('./helpers/flows');
+const { ensureOnboarded, goHome, goToSocial, launchApp } = require('./helpers/flows');
 const { getPersona } = require('./helpers/personas');
-const { isVisible, logStep, sleep, tapElement, waitForAny } = require('./helpers/utils');
+const { isAttachedRun } = require('./helpers/runtime');
+const { logStep, sleep, waitForAny } = require('./helpers/utils');
 
 async function disableSyncSafely(timeoutMs = 7000) {
   let timedOut = false;
@@ -24,6 +25,7 @@ async function ensureRootTabsReady(persona, isAttachedRun) {
     'tab-treino',
     'tab-nutricao',
     'tab-conversa',
+    'tab_mais',
     'tab-social',
     'tab-perfil',
     'screen-home',
@@ -60,15 +62,15 @@ async function ensureRootTabsReady(persona, isAttachedRun) {
 
 describe('17 - social tab smoke', () => {
   const persona = getPersona();
-  const isAttachedRun = String(process.env.DETOX_CONFIGURATION || '').includes('android.attached');
+  const attachedRun = isAttachedRun();
 
   beforeAll(async () => {
-    await launchApp({ deleteApp: !isAttachedRun });
+    await launchApp({ deleteApp: !attachedRun });
 
     const syncDisabled = await disableSyncSafely(7000);
     logStep(`social-smoke:sync-disabled=${syncDisabled}`);
 
-    if (!isAttachedRun) {
+    if (!attachedRun) {
       await ensureOnboarded(persona);
       await goHome();
       return;
@@ -79,28 +81,15 @@ describe('17 - social tab smoke', () => {
   });
 
   it('abre social pela tab principal', async () => {
-    await ensureRootTabsReady(persona, isAttachedRun);
+    await ensureRootTabsReady(persona, attachedRun);
 
-    if (await isVisible('tab-social', 2500)) {
-      await tapElement('tab-social', 10000);
-    } else {
-      try {
-        await waitFor(element(by.text('Social'))).toBeVisible().withTimeout(1800);
-        await element(by.text('Social')).tap();
-      } catch {
-        if (isAttachedRun) {
-          logStep('social-smoke:attached-safe-no-root-tab');
-          await device.takeScreenshot('smoke-social-attached-safe-no-root-tab');
-          throw new Error('social-smoke falhou: tab-social nao encontrada no attached.');
-        }
-      }
-    }
+    await goToSocial();
 
-    const target = await waitForAny(['screen-social', 'tab-social'], isAttachedRun ? 30000 : 15000).catch(() => null);
-    if (!target && isAttachedRun) {
+    const target = await waitForAny(['screen-social', 'tab-social', 'screen_social'], attachedRun ? 30000 : 15000).catch(() => null);
+    if (!target && attachedRun) {
       logStep('social-smoke:attached-safe-no-social-target');
       await device.takeScreenshot('smoke-social-attached-safe-no-target');
-      throw new Error('social-smoke falhou: nenhum alvo social detectado apos toque na aba Social.');
+      throw new Error('social-smoke falhou: nenhum alvo social detectado apos goToSocial.');
     }
     await device.takeScreenshot(`smoke-social-${target}`);
     if (!target) {

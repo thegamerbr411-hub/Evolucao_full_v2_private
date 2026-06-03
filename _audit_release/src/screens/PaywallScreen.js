@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { getAnalyticsMetrics, getConversionRates, trackEvent } from '../utils/analytics';
 import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
@@ -35,7 +35,14 @@ const FEATURE_COPY = {
 };
 
 export default function PaywallScreen({ navigation, route }) {
-  const { getSubscriptionStatus, startProTrial, activateProPlan, user } = useApp();
+  const {
+    getSubscriptionStatus,
+    startProTrial,
+    activateProPlan,
+    activateProByCode,
+    getDefaultTestProCode,
+    user,
+  } = useApp();
   const status = useMemo(() => getSubscriptionStatus(), [getSubscriptionStatus]);
 
   const featureKey = route?.params?.featureKey || 'auto_coach';
@@ -58,8 +65,35 @@ export default function PaywallScreen({ navigation, route }) {
     : baseCopy;
   const metrics = getAnalyticsMetrics();
   const rates = getConversionRates();
+  const [activationCode, setActivationCode] = useState('');
+  const [activationFeedback, setActivationFeedback] = useState('');
 
   const canStartTrial = !status.isPro && status.source === 'free';
+
+  const handleActivateWithCode = async () => {
+    if (typeof activateProByCode !== 'function') {
+      setActivationFeedback('Ativacao por codigo indisponivel nesta versao.');
+      return;
+    }
+
+    const result = await activateProByCode(activationCode);
+    if (result?.ok) {
+      setActivationFeedback('PRO ativado com sucesso pelo codigo de teste.');
+      trackEvent('pro_activated', {
+        source,
+        featureKey,
+        cta: 'code_activation',
+        copyExperimentKey: PAYWALL_COPY_EXPERIMENT_KEY,
+        copyVariant,
+        timingExperimentKey,
+        timingVariant,
+      });
+      navigation.goBack();
+      return;
+    }
+
+    setActivationFeedback('Codigo invalido. Confira e tente novamente.');
+  };
 
   useEffect(() => {
     trackEvent('paywall_open', {
@@ -76,7 +110,7 @@ export default function PaywallScreen({ navigation, route }) {
   return (
     <ScrollView testID="screen-paywall" contentContainerStyle={styles.container}>
       <Text style={styles.badge}>EVOLUCAO PRO</Text>
-      <ScreenHeader title="Seu personal com IA" subtitle="Treine e evolua com inteligencia real." />
+      <ScreenHeader title="Seu personal com IA" subtitle="Treine e evolua com inteligencia real." onBack={() => navigation.goBack()} />
 
       <AppCard style={styles.highlightCard}>
         <Text style={styles.highlightTitle}>Voce tentou acessar:</Text>
@@ -184,7 +218,31 @@ export default function PaywallScreen({ navigation, route }) {
         }}
       />
 
+      <AppCard style={styles.activationCard}>
+        <Text style={styles.activationTitle}>Ativacao por codigo (teste)</Text>
+        <TextInput
+          testID="input-pro-activation-code"
+          value={activationCode}
+          onChangeText={setActivationCode}
+          placeholder="Digite seu codigo"
+          placeholderTextColor="#8EA9D1"
+          autoCapitalize="characters"
+          style={styles.activationInput}
+        />
+        <PrimaryButton
+          testID="btn-pro-activation-code"
+          title="Ativar PRO com codigo"
+          onPress={handleActivateWithCode}
+        />
+        {activationFeedback ? <Text style={styles.activationFeedback}>{activationFeedback}</Text> : null}
+        {__DEV__ && typeof getDefaultTestProCode === 'function' ? (
+          <Text style={styles.activationHint}>Codigo padrao teste: {getDefaultTestProCode()}</Text>
+        ) : null}
+      </AppCard>
+
       <TouchableOpacity
+        testID="btn-paywall-dismiss"
+        accessibilityLabel="Continuar no plano gratis"
         style={styles.backButton}
         onPress={() => {
           trackEvent('paywall_exit', {
@@ -369,6 +427,39 @@ const styles = StyleSheet.create({
   },
   trialButton: {
     marginTop: spacing.sm,
+  },
+  activationCard: {
+    marginTop: spacing.sm,
+  },
+  activationTitle: {
+    color: '#E8F0FF',
+    fontSize: 13,
+    fontWeight: '800',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+  },
+  activationInput: {
+    borderWidth: 1,
+    borderColor: '#35598A',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: '#FFFFFF',
+    marginBottom: 10,
+    fontSize: 14,
+    backgroundColor: '#122743',
+  },
+  activationFeedback: {
+    marginTop: 8,
+    color: '#FFDFAE',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  activationHint: {
+    marginTop: 8,
+    color: '#9FBCE5',
+    fontSize: 11,
+    fontWeight: '700',
   },
   backButton: {
     marginTop: 10,

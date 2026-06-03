@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { Platform } from 'react-native';
+import { trackApiFailure } from '../core/observability.js';
 
 export const QA_LOCAL_HEADER = 'x-qa-local';
 export const QA_CLIENT_ID_HEADER = 'x-qa-client-id';
@@ -180,6 +181,12 @@ export async function postToAvailableQaHost(endpoint, payload, options = {}) {
       status: response.status,
     };
   } catch (error) {
+    trackApiFailure({
+      method: 'POST',
+      endpoint,
+      url,
+      error: String(error?.message || 'request_failed'),
+    });
     if (!silentFailure && typeof __DEV__ !== 'undefined' && __DEV__) {
       console.log('[API ERROR]', url, String(error?.message || error || 'unknown_error'));
     }
@@ -219,6 +226,12 @@ export async function getFromAvailableQaHost(endpoint, options = {}) {
       status: response.status,
     };
   } catch (error) {
+    trackApiFailure({
+      method: 'GET',
+      endpoint,
+      url,
+      error: String(error?.message || 'request_failed'),
+    });
     if (typeof __DEV__ !== 'undefined' && __DEV__) console.log('[API ERROR]', url, String(error?.message || error || 'unknown_error'));
     return {
       ok: false,

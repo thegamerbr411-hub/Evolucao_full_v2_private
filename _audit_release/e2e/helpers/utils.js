@@ -1,9 +1,160 @@
 const fs = require('fs');
 const path = require('path');
+const { hasDetoxGlobals } = require('./runtime');
 
 const expoQaClientId = process.env['EXPO_PUBLIC_QA_CLIENT_ID'];
 const DEFAULT_CLIENT_ID = expoQaClientId || process.env.QA_CLIENT_ID || 'default';
 const ARTIFACTS_DIR = path.resolve(__dirname, '..', '..', 'artifacts');
+// Mapeamento bidirecional: ID semântico (novo) ↔ ID legado (antigo)
+// Quando um teste usar o ID novo, o Detox também tenta o legado (e vice-versa),
+// garantindo que qualquer uma das duas formas encontre o elemento na UI.
+const ID_ALIASES = {
+  // Inputs de treino
+  'input-peso': ['input-peso', 'input-weight'],
+  'input-weight': ['input-weight', 'input-peso'],
+  'input-reps': ['input-reps'],
+  'btn-salvar-serie': ['btn-salvar-serie', 'btn-save-set'],
+  'btn-save-set': ['btn-save-set', 'btn-salvar-serie'],
+
+  // Telas semânticas (novo) ↔ legado (antigo)
+  screen_home: ['screen_home', 'screen-home', 'home-screen'],
+  'screen-home': ['screen-home', 'screen_home', 'home-screen'],
+  'home-screen': ['home-screen', 'screen-home', 'screen_home'],
+  screen_treinos: ['screen_treinos', 'screen-treinos'],
+  'screen-treinos': ['screen-treinos', 'screen_treinos'],
+  screen_profile: ['screen_profile', 'screen-perfil', 'screen-profile'],
+  'screen-perfil': ['screen-perfil', 'screen_profile'],
+  screen_login: ['screen_login', 'screen-login'],
+  'screen-login': ['screen-login', 'screen_login'],
+  screen_register: ['screen_register', 'screen-register', 'screen-cadastro'],
+  'screen-register': ['screen-register', 'screen_register'],
+
+  // Elementos bootstrap
+  app_root: ['app_root', 'app-root'],
+  'app-root': ['app-root', 'app_root'],
+  app_bootstrap_ready: ['app_bootstrap_ready', 'app-bootstrap-ready'],
+  'app-bootstrap-ready': ['app-bootstrap-ready', 'app_bootstrap_ready'],
+  home_ready: ['home_ready', 'home-ready'],
+  'home-ready': ['home-ready', 'home_ready'],
+
+  // Tabs semânticas (novo) ↔ legado (antigo)
+  tab_home: ['tab_home', 'tab-home'],
+  'tab-home': ['tab-home', 'tab_home'],
+  tab_treinos: ['tab_treinos', 'tab-treino'],
+  'tab-treino': ['tab-treino', 'tab_treinos'],
+  tab_nutricao: ['tab_nutricao', 'tab-nutricao'],
+  'tab-nutricao': ['tab-nutricao', 'tab_nutricao'],
+  tab_coach: ['tab_coach', 'tab-conversa'],
+  'tab-conversa': ['tab-conversa', 'tab_coach'],
+  tab_social: ['tab_social', 'tab-social'],
+  'tab-social': ['tab-social', 'tab_social'],
+  tab_profile: ['tab_profile', 'tab-perfil'],
+  'tab-perfil': ['tab-perfil', 'tab_profile'],
+  tab_more: ['tab_more', 'tab_mais', 'tab-mais'],
+  tab_mais: ['tab_mais', 'tab_more', 'tab-mais'],
+  'tab-mais': ['tab-mais', 'tab_mais', 'tab_more'],
+
+  // Botões autenticação
+  btn_login: ['btn_login', 'btn-login'],
+  'btn-login': ['btn-login', 'btn_login'],
+  btn_register: ['btn_register', 'btn-register', 'btn-cadastrar'],
+  btn_go_login: ['btn_go_login', 'btn-go-login'],
+  btn_go_register: ['btn_go_register', 'btn-go-register'],
+  input_email: ['input_email', 'input-email'],
+  input_password: ['input_password', 'input-password', 'input-senha'],
+  input_name: ['input_name', 'input-name', 'input-nome'],
+
+  // Botões de ação
+  btn_start_workout: ['btn_start_workout', 'btn-iniciar-treino'],
+  'btn-iniciar-treino': ['btn-iniciar-treino', 'btn_start_workout'],
+  btn_logout: ['btn_logout', 'btn-profile-session-logout'],
+  'btn-profile-session-logout': ['btn-profile-session-logout', 'btn_logout'],
+  btn_google_login: ['btn_google_login', 'btn-profile-google-login'],
+  btn_google_logout: ['btn_google_logout', 'btn-profile-google-logout'],
+  btn_save_profile: ['btn_save_profile', 'btn-profile-save'],
+  'btn-profile-save': ['btn-profile-save', 'btn_save_profile'],
+  btn_open_admin: ['btn_open_admin', 'btn-open-admin'],
+  'btn-open-admin': ['btn-open-admin', 'btn_open_admin'],
+
+  // Video / player
+  btn_open_video_external: ['btn_open_video_external', 'btn-open-video-external'],
+  btn_enable_player: ['btn_enable_player', 'btn-enable-player'],
+  btn_player_fullscreen: ['btn_player_fullscreen', 'btn-video-fullscreen'],
+  'btn-video-fullscreen': ['btn-video-fullscreen', 'btn_player_fullscreen'],
+  btn_player_close: ['btn_player_close', 'btn-video-close-player'],
+  player_internal: ['player_internal', 'player-internal'],
+};
+
+function getIdCandidates(id) {
+  const target = String(id || '').trim();
+  if (!target) {
+    return [];
+  }
+
+  const aliases = Array.isArray(ID_ALIASES[target]) ? ID_ALIASES[target] : [target];
+  return Array.from(new Set(aliases));
+}
+
+const KNOWN_SCROLL_CONTAINERS = [
+  // IDs semânticos (novo padrão)
+  'screen_home',
+  'screen_treinos',
+  'screen_profile',
+  'screen_login',
+  'screen_register',
+  // IDs legados (mantidos por compatibilidade)
+  'screen-workout',
+  'screen-home',
+  'screen-treinos',
+  'screen-routines',
+  'screen-nutricao',
+  'screen-social',
+  'screen-mais',
+  'screen_mais',
+  'screen-perfil',
+  'screen-profile',
+  'screen-free-workout',
+  'scroll-container',
+];
+
+async function tryScrollToTarget(id) {
+  for (const containerId of KNOWN_SCROLL_CONTAINERS) {
+    try {
+      const containerReady = await isVisible(containerId, 450);
+      if (!containerReady) {
+        continue;
+      }
+      const found = await scrollToElement(containerId, id, 'down', 360, 6);
+      if (found) {
+        return true;
+      }
+    } catch {
+      // tenta o proximo container
+    }
+  }
+
+  return false;
+}
+
+async function resolveElementWithFallback(id, timeout = 5000) {
+  const candidates = getIdCandidates(id);
+  for (const candidate of candidates) {
+    const target = element(by.id(candidate));
+    try {
+      await waitFor(target).toBeVisible().withTimeout(Math.max(1200, timeout));
+      return { id: candidate, target };
+    } catch {
+      try {
+        await waitFor(target).toExist().withTimeout(Math.max(1200, timeout));
+        return { id: candidate, target };
+      } catch {
+        // tenta proximo alias
+      }
+    }
+  }
+
+  return null;
+}
 
 function ensureArtifactsDir() {
   if (!fs.existsSync(ARTIFACTS_DIR)) {
@@ -52,7 +203,32 @@ async function humanDelay(persona, label = 'delay') {
 }
 
 async function isVisible(target, timeout = 1000) {
-  const matcher = typeof target === 'string' ? element(by.id(target)) : target;
+  if (!hasDetoxGlobals()) {
+    return false;
+  }
+
+  if (typeof target === 'string') {
+    const candidates = getIdCandidates(target);
+    for (const candidate of candidates) {
+      const matcher = element(by.id(candidate));
+      const visible = await withDetoxGuard(
+        async () => {
+          await waitFor(matcher).toBeVisible().withTimeout(timeout);
+          return true;
+        },
+        false,
+        Math.max(1200, Number(timeout || 0) + 800)
+      );
+
+      if (visible) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  const matcher = target;
   return withDetoxGuard(
     async () => {
       await waitFor(matcher).toBeVisible().withTimeout(timeout);
@@ -64,6 +240,10 @@ async function isVisible(target, timeout = 1000) {
 }
 
 async function dismissBlockingSystemDialogs() {
+  if (!hasDetoxGlobals()) {
+    return false;
+  }
+
   const labels = [
     'Nao permitir',
     'Não permitir',
@@ -90,6 +270,10 @@ async function dismissBlockingSystemDialogs() {
 }
 
 async function waitForAny(ids, timeout = 15000) {
+  if (!hasDetoxGlobals()) {
+    throw new Error('Detox globals indisponiveis durante waitForAny.');
+  }
+
   const startedAt = Date.now();
 
   while (Date.now() - startedAt < timeout) {
@@ -108,46 +292,45 @@ async function waitForAny(ids, timeout = 15000) {
 }
 
 async function tapElement(id, timeout = 12000) {
-  const becameVisible = await withDetoxGuard(
+  if (!hasDetoxGlobals()) {
+    throw new Error('Detox globals indisponiveis durante tapElement.');
+  }
+
+  let resolved = await resolveElementWithFallback(id, Math.min(timeout, 5000));
+  if (!resolved) {
+    await tryScrollToTarget(id);
+    resolved = await resolveElementWithFallback(id, timeout);
+  }
+
+  if (!resolved) {
+    throw new Error(`elemento ${id} nao ficou disponivel para tap`);
+  }
+
+  const { target } = resolved;
+
+  await withDetoxGuard(
     async () => {
-      await waitFor(element(by.id(id))).toBeVisible().withTimeout(timeout);
+      await waitFor(target).toExist().withTimeout(timeout);
       return true;
     },
     false,
-    Math.max(3000, Number(timeout || 0) + 1000)
+    Math.max(2500, Number(timeout || 0) + 800)
   );
 
-  if (!becameVisible) {
-    const exists = await withDetoxGuard(
-      async () => {
-        await waitFor(element(by.id(id))).toExist().withTimeout(timeout);
-        return true;
-      },
-      false,
-      Math.max(3000, Number(timeout || 0) + 1000)
-    );
-
-    if (!exists) {
-      throw new Error(`elemento ${id} nao ficou disponivel para tap`);
-    }
-
-    const visibleAfterExist = await withDetoxGuard(
-      async () => {
-        await waitFor(element(by.id(id))).toBeVisible().withTimeout(Math.max(1500, timeout));
-        return true;
-      },
-      false,
-      Math.max(2500, Number(timeout || 0) + 500)
-    );
-
-    if (!visibleAfterExist) {
-      throw new Error(`elemento ${id} nao ficou visivel para tap`);
-    }
-  }
-
-  const tapped = await withDetoxGuard(
+  await withDetoxGuard(
     async () => {
-      await element(by.id(id)).tap();
+      await waitFor(target).toBeVisible().withTimeout(Math.min(2500, timeout));
+      return true;
+    },
+    false,
+    Math.max(1800, Number(timeout || 0) + 500)
+  );
+
+  await expect(target).toBeVisible();
+
+  let tapped = await withDetoxGuard(
+    async () => {
+      await target.tap();
       return true;
     },
     false,
@@ -155,12 +338,51 @@ async function tapElement(id, timeout = 12000) {
   );
 
   if (!tapped) {
+    if (device.getPlatform() === 'android') {
+      try {
+        await device.pressBack();
+        await sleep(180);
+      } catch {
+        // teclado pode ja estar fechado
+      }
+    }
+
+    await tryScrollToTarget(id);
+    const resolvedAfterScroll = await resolveElementWithFallback(id, Math.max(3000, timeout));
+    if (resolvedAfterScroll) {
+      tapped = await withDetoxGuard(
+        async () => {
+          await resolvedAfterScroll.target.tap();
+          return true;
+        },
+        false,
+        2500
+      );
+    }
+  }
+
+  if (!tapped) {
     throw new Error(`falha ao tocar no elemento ${id}`);
   }
 }
 
 async function replaceInput(id, value, timeout = 12000) {
-  const target = element(by.id(id));
+  if (!hasDetoxGlobals()) {
+    throw new Error('Detox globals indisponiveis durante replaceInput.');
+  }
+
+  let resolved = await resolveElementWithFallback(id, Math.min(timeout, 5000));
+
+  if (!resolved) {
+    await tryScrollToTarget(id);
+    resolved = await resolveElementWithFallback(id, timeout);
+  }
+
+  if (!resolved) {
+    throw new Error(`campo ${id} nao foi encontrado para preenchimento`);
+  }
+
+  const { target } = resolved;
 
   try {
     await waitFor(target).toBeVisible().withTimeout(timeout);
@@ -172,6 +394,8 @@ async function replaceInput(id, value, timeout = 12000) {
       // segue para tentativa de clear/replace mesmo sem tap
     }
   }
+
+  await expect(target).toBeVisible();
 
   try {
     await target.tap();
@@ -391,6 +615,7 @@ module.exports = {
   countBugEntries,
   countBugOccurrences,
   countEventEntries,
+  dismissBlockingSystemDialogs,
   fetchHeatmap,
   hideKeyboardIfNeeded,
   humanDelay,

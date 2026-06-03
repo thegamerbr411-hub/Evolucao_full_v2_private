@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -11,12 +10,13 @@ import {
   Vibration,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { getExerciseByName, getExerciseFilters, searchExercises } from '../data/exercises.js';
-import { matchNutritionToken } from '../data/nutritionDatabase';
+import { matchNutritionToken } from '../data/nutritionDatabase.js';
 import { logError } from '../utils/errorLogger';
-import { AppCard, PrimaryButton, ScreenHeader } from '../components/ui';
+import { AnimatedToast, AppCard, PrimaryButton, ScreenHeader } from '../components/ui';
 import { colors, spacing, radius, typography } from '../theme';
 
 const CATEGORIES = [
@@ -60,7 +60,33 @@ function toTestId(value) {
     .replace(/^-+|-+$/g, '');
 }
 
+function isCardioExerciseName(value = '') {
+  const normalized = String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+
+  if (!normalized) {
+    return false;
+  }
+
+  return [
+    'cardio',
+    'corrida',
+    'caminhada',
+    'bike',
+    'bicicleta',
+    'esteira',
+    'eliptico',
+    'corda',
+    'hiit',
+    'aerobico',
+  ].some((term) => normalized.includes(term));
+}
+
 export default function FreeWorkoutScreen({ navigation }) {
+  const [toastMessage, setToastMessage] = useState('');
   const {
     saveFreeWorkoutSet,
     getExerciseCatalog,
@@ -91,12 +117,12 @@ export default function FreeWorkoutScreen({ navigation }) {
   const categoryExercises = useMemo(
     () => {
       const muscleMap = {
-        peito: 'peito',
-        costas: 'costas',
-        perna: 'pernas',
-        ombro: 'ombro',
-        braco: 'biceps',
-        core: 'core',
+        peito:  'chest',
+        costas: 'back',
+        perna:  'legs',
+        ombro:  'shoulders',
+        braco:  'biceps',
+        core:   'core',
       };
 
       const premiumResults = searchExercises({
@@ -137,7 +163,7 @@ export default function FreeWorkoutScreen({ navigation }) {
     const nutritionHit = matchNutritionToken(name);
     const exerciseHit = getExerciseByName(name);
     if (nutritionHit && !exerciseHit) {
-      Alert.alert('Entrada inválida', 'Esse item parece um alimento. No treino livre, adicione apenas exercícios.');
+      setToastMessage('Entrada invalida. Esse item parece alimento; adicione apenas exercicios.');
       return;
     }
 
@@ -167,7 +193,7 @@ export default function FreeWorkoutScreen({ navigation }) {
     if (restSeconds <= 0) {
       setRestRunning(false);
       Vibration.vibrate(450);
-      Alert.alert('Descanso concluido', 'Pode fazer o proximo set.');
+      setToastMessage('Descanso concluido. Pode fazer o proximo set.');
       return;
     }
 
@@ -193,13 +219,29 @@ export default function FreeWorkoutScreen({ navigation }) {
     navigation.navigate('ExerciseDetail', { exercise: detail });
   };
 
+  const finishFreeWorkout = () => {
+    // Resetar estado local e voltar para a aba de treino.
+    // Os logs já foram persistidos via saveFreeWorkoutSet a cada série salva,
+    // então finalizar é puramente UX (limpar seleção + parar descanso + navegar).
+    setRestRunning(false);
+    setRestSeconds(0);
+    setSelectedExercises([]);
+    setSetData({});
+    setToastMessage('Treino concluído. Bom trabalho.');
+    try {
+      if (navigation && typeof navigation.navigate === 'function') {
+        navigation.navigate('Treino');
+      }
+    } catch {}
+  };
+
   const saveSelectionAsRoutine = () => {
     if (!selectedExercises.length) {
       logError(new Error('free_workout_empty_routine'), {
         screen: 'FreeWorkout',
         severity: 'low',
       });
-      Alert.alert('Sem exercicios', 'Adicione ao menos 1 exercicio para salvar sua rotina.');
+      setToastMessage('Sem exercicios. Adicione ao menos 1 exercicio para salvar sua rotina.');
       return;
     }
 
@@ -215,20 +257,45 @@ export default function FreeWorkoutScreen({ navigation }) {
         severity: 'low',
         extra: { reason: result.message },
       });
-      Alert.alert('Nao foi possivel salvar', result.message);
+      setToastMessage(`Nao foi possivel salvar: ${String(result?.message || 'erro desconhecido')}`);
       return;
     }
 
-    Alert.alert('Rotina criada', 'Seu treino livre foi salvo em Minhas Rotinas.');
+    setToastMessage('Rotina criada e salva em Minhas Rotinas.');
     navigation.navigate('Rotinas');
   };
 
   const submitSet = (exerciseName, failed) => {
+    // Hard guard: bloquear registrar série após o limite (bug "X/3 + 1").
+    const currentProgress = typeof getExerciseSetProgress === 'function'
+      ? getExerciseSetProgress(exerciseName, 3)
+      : { completedSets: 0, totalSets: 3, nextSet: 1 };
+    if (Number(currentProgress.completedSets || 0) >= 3) {
+      setToastMessage(`Limite de 3 séries para ${exerciseName}. Adicione outro exercício ou finalize.`);
+      return;
+    }
+
     const values = setData[exerciseName] || { weight: '', reps: '' };
+    const isCardio = isCardioExerciseName(exerciseName);
+    const weightText = String(values.weight || '').trim().replace(',', '.');
+    const repsText = String(values.reps || '').trim().replace(',', '.');
+    const parsedWeight = Number(weightText);
+    const parsedReps = Number(repsText);
+
+    if (isCardio) {
+      if (!repsText || !Number.isFinite(parsedReps) || parsedReps <= 0) {
+        setToastMessage('Para cardio, informe o tempo (em minutos) antes de concluir.');
+        return;
+      }
+    } else if (!weightText || !repsText || !Number.isFinite(parsedWeight) || !Number.isFinite(parsedReps) || parsedWeight <= 0 || parsedReps <= 0) {
+      setToastMessage('Preencha carga e reps válidas antes de concluir a série.');
+      return;
+    }
+
     const result = saveFreeWorkoutSet({
       exerciseName,
-      weight: Number(values.weight),
-      reps: Number(values.reps),
+      weight: isCardio && !weightText ? 0 : parsedWeight,
+      reps: parsedReps,
       failed,
     });
 
@@ -238,14 +305,14 @@ export default function FreeWorkoutScreen({ navigation }) {
         severity: 'low',
         extra: { exerciseName, reason: result.message, failed },
       });
-      Alert.alert('Dados invalidos', result.message);
+      setToastMessage(`Dados invalidos: ${String(result?.message || 'verifique os campos')}`);
       return;
     }
 
     setSetData((prev) => ({
       ...prev,
       [exerciseName]: {
-        weight: values.weight,
+        weight: isCardio ? '' : values.weight,
         reps: '',
       },
     }));
@@ -254,17 +321,19 @@ export default function FreeWorkoutScreen({ navigation }) {
   };
 
   return (
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={{ flex: 1 }}
     >
+      <AnimatedToast message={toastMessage} onHide={() => setToastMessage('')} />
       <ScrollView
         testID="screen-free-workout"
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
       >
-      <ScreenHeader title="Treino livre" subtitle="Monte seu treino na hora com fluxo rápido e organizado." />
+      <ScreenHeader title="Treino livre" subtitle="Monte seu treino na hora com fluxo rápido e organizado." onBack={() => navigation.goBack()} />
 
       <AppCard elevated>
         <Text style={styles.kpiLabel}>SELEÇÃO ATUAL</Text>
@@ -282,6 +351,15 @@ export default function FreeWorkoutScreen({ navigation }) {
           </View>
         </View>
         <PrimaryButton testID="btn-free-save-routine" title="Salvar seleção como rotina" onPress={saveSelectionAsRoutine} style={styles.primaryButton} />
+        {selectedExercises.length ? (
+          <TouchableOpacity
+            testID="btn-free-finish-workout"
+            style={styles.finishButton}
+            onPress={finishFreeWorkout}
+          >
+            <Text style={styles.finishButtonText}>Finalizar treino</Text>
+          </TouchableOpacity>
+        ) : null}
       </AppCard>
 
       <View style={styles.timerBox}>
@@ -296,12 +374,12 @@ export default function FreeWorkoutScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.card}>
+      <AppCard>
         <Text style={styles.cardTitle}>Adicionar exercicio</Text>
         <TextInput
           testID="input-free-exercise-name"
           placeholder="Nome do exercicio"
-          placeholderTextColor="#8AA2C7"
+          placeholderTextColor={colors.textMuted}
           value={exerciseNameInput}
           onChangeText={setExerciseNameInput}
           style={styles.input}
@@ -316,14 +394,14 @@ export default function FreeWorkoutScreen({ navigation }) {
         >
           <Text style={styles.addButtonText}>Adicionar</Text>
         </TouchableOpacity>
-      </View>
+      </AppCard>
 
-      <View style={styles.card}>
+      <AppCard>
         <Text style={styles.cardTitle}>Categorias</Text>
         <TextInput
           testID="input-free-catalog-search"
           placeholder="Buscar exercicio"
-          placeholderTextColor="#8AA2C7"
+          placeholderTextColor={colors.textMuted}
           value={catalogSearch}
           onChangeText={setCatalogSearch}
           style={styles.input}
@@ -374,10 +452,10 @@ export default function FreeWorkoutScreen({ navigation }) {
             </View>
           ))}
         </View>
-      </View>
+      </AppCard>
 
       {selectedExercises.length ? (
-        <View style={styles.cardGreen}>
+        <AppCard accent>
           <Text style={styles.cardTitleGreen}>Sugestoes para continuar</Text>
           <View style={styles.chipsWrap}>
             {suggestions.map((name) => (
@@ -386,24 +464,25 @@ export default function FreeWorkoutScreen({ navigation }) {
               </TouchableOpacity>
             ))}
           </View>
-        </View>
+        </AppCard>
       ) : null}
 
       {selectedExercises.map((exerciseName) => {
         const values = setData[exerciseName] || { weight: '', reps: '' };
         const setProgress = getExerciseSetProgress(exerciseName, 3);
+        const isCardio = isCardioExerciseName(exerciseName);
 
         return (
-          <View key={exerciseName} testID={`card-free-exercise-${toTestId(exerciseName)}`} style={styles.exerciseCard}>
+          <AppCard key={exerciseName} testID={`card-free-exercise-${toTestId(exerciseName)}`}>
             <Text style={styles.exerciseName}>{exerciseName}</Text>
-            <Text style={styles.progressText}>Serie {setProgress.nextSet}/3</Text>
+            <Text style={styles.progressText}>Serie {Math.min(setProgress.nextSet, 3)}/3</Text>
 
             <View style={styles.row}>
               <TextInput
                 testID={`input-free-weight-${toTestId(exerciseName)}`}
                 keyboardType="numeric"
-                placeholder="Carga"
-                placeholderTextColor="#8AA2C7"
+                placeholder={isCardio ? 'Carga (opcional)' : 'Carga'}
+                placeholderTextColor={colors.textMuted}
                 value={values.weight}
                 onChangeText={(text) => setField(exerciseName, 'weight', text)}
                 style={styles.input}
@@ -411,8 +490,8 @@ export default function FreeWorkoutScreen({ navigation }) {
               <TextInput
                 testID={`input-free-reps-${toTestId(exerciseName)}`}
                 keyboardType="numeric"
-                placeholder="Reps"
-                placeholderTextColor="#8AA2C7"
+                placeholder={isCardio ? 'Tempo (min)' : 'Reps'}
+                placeholderTextColor={colors.textMuted}
                 value={values.reps}
                 onChangeText={(text) => setField(exerciseName, 'reps', text)}
                 style={styles.input}
@@ -430,15 +509,20 @@ export default function FreeWorkoutScreen({ navigation }) {
                 <Text style={styles.restText}>descanso</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </AppCard>
         );
       })}
       </ScrollView>
     </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   keyboardContainer: {
     flex: 1,
     backgroundColor: colors.background,
@@ -452,6 +536,19 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     marginTop: spacing.sm,
+  },
+  finishButton: {
+    marginTop: spacing.sm,
+    backgroundColor: colors.success,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  finishButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '900',
+    fontSize: 14,
+    letterSpacing: 0.3,
   },
   kpiLabel: {
     ...typography.sectionTitle,

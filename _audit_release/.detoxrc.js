@@ -73,7 +73,7 @@ module.exports = {
       type: 'android.emulator',
       device: {
         // Prefer available AVDs used in this workspace; can still be overridden via DETOX_AVD_NAME.
-        avdName: process.env.DETOX_AVD_NAME || 'Detox_API_34',
+        avdName: process.env.DETOX_AVD_NAME || 'Evolucao-QA',
       },
     },
     attached: {

@@ -1,12 +1,29 @@
 import React, { createContext, useContext, useEffect, useMemo, useCallback, useRef } from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
+import { isLogoutInProgress } from '../services/sessionCleanupService';
+import { getUserIdentity } from '../services/appIdentityService';
+import { secureGetItemAsync } from '../services/secureStorage';
 
 import { useUserStore } from '../stores/useUserStore';
 import { useWorkoutStore } from '../stores/useWorkoutStore';
+import { resolveEffectiveWorkoutLogs } from '../utils/workoutSessionLogs';
 import { useNutritionStore } from '../stores/useNutritionStore';
 import { useAppStore } from '../stores/useAppStore';
 import { useCoachStore } from '../stores/useCoachStore';
 import { useGamificationStore } from '../stores/useGamificationStore';
 import { useSubscriptionDomain } from './subscription/SubscriptionProvider';
+import { auth } from '../services/firebase';
+import { buildDailyState, computeXpTodayFromLogs } from '../services/dailyState';
+import {
+  validateWorkoutSetInput,
+} from '../services/workoutInputValidation';
+import {
+  analyzeWorkoutLogIntegrity,
+  sanitizeWorkoutLogsForRead,
+} from '../services/workoutLogIntegrity';
+import { buildWorkoutHistorySummary } from '../services/workoutHistoryFlow';
+import { getDropRecoveryCandidate } from '../core/observability';
+import { logEvent } from '../core/logger';
 
 // Import logic modules
 import {
@@ -117,12 +134,18 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const nutritionLogs = nutritionStore.nutritionLogs;
   const history = nutritionStore.history;
   const plan = nutritionStore.plan;
+  const hydration = nutritionStore.hydration;
 
   const hasCompletedQuestionnaire = appStore.hasCompletedQuestionnaire;
   const userRoutines = appStore.userRoutines;
   const monetization = subscriptionDomain.monetization;
 
   const gamification = gamificationStore.gamification;
+  const setUserInStore = userStore.setUser;
+  const logoutUserInStore = userStore.logout;
+  const setUserHydrated = userStore.setHydrated;
+
+  const workoutIntegrityReportRef = useRef('');
 
   // Initialize hydration
   useEffect(() => {
@@ -132,16 +155,93 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
           if (!isAppStoreHydrated && typeof appStore.hydrateAppStore === 'function') {
             await appStore.hydrateAppStore();
           }
-          userStore.setHydrated(true);
+
+          const currentUser = useUserStore.getState().user;
+          if (!currentUser?.id) {
+            const persistedIdentity = await getUserIdentity().catch(() => null);
+            const hasFirebaseSession = Boolean(auth?.currentUser?.uid);
+            const accessToken = await secureGetItemAsync('accessToken').catch(() => null);
+            const hasBackendToken = Boolean(String(accessToken || '').trim());
+            if (persistedIdentity?.userId && (hasFirebaseSession || hasBackendToken)) {
+              setUserInStore({
+                id: persistedIdentity.userId,
+                name: 'Usuário',
+                email: null,
+                role: 'user',
+              } as any);
+            }
+          }
+
+          setUserHydrated(true);
         } catch (error) {
           logError(error, { screen: SCREENS?.CONTEXT || 'Context', action: 'hydrateApp' });
-          userStore.setHydrated(true);
+          setUserHydrated(true);
         }
       };
 
       hydrateApp();
     }
-  }, [isHydrated, isAppStoreHydrated]);
+  }, [isHydrated, isAppStoreHydrated, setUserInStore, setUserHydrated]);
+
+  useEffect(() => {
+    if (!__DEV__) {
+      return;
+    }
+    const report = analyzeWorkoutLogIntegrity(workoutLogs);
+    if (report.invalidLogs <= 0) {
+      return;
+    }
+    const signature = `${report.totalLogs}:${report.invalidLogs}:${report.invalidIds.join(',')}`;
+    if (workoutIntegrityReportRef.current === signature) {
+      return;
+    }
+    workoutIntegrityReportRef.current = signature;
+    logEvent('workout_log_integrity_report', {
+      screen: 'AppContext',
+      ...report,
+    });
+  }, [workoutLogs]);
+
+  useEffect(() => {
+    if (!auth) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (isLogoutInProgress()) {
+        return;
+      }
+
+      if (currentUser) {
+        const resolvedUser = {
+          id: currentUser.uid,
+          name: currentUser.displayName || currentUser.email?.split('@')?.[0] || 'Usuário',
+          email: currentUser.email || null,
+          role: 'user',
+        };
+
+        const currentStoreUser = useUserStore.getState().user;
+        if (!currentStoreUser || currentStoreUser.id !== resolvedUser.id) {
+          setUserInStore(resolvedUser as any);
+        }
+      } else {
+        // Do not auto-clear local user state on null auth events.
+        // Firebase can emit null transiently during cold start before restoring persistence.
+        // Explicit user logout actions already clear the stores directly.
+      }
+
+      if (!useUserStore.getState().isHydrated) {
+        setUserHydrated(true);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [logoutUserInStore, setUserHydrated, setUserInStore]);
 
   useEffect(() => {
     const today = getTodayKey();
@@ -384,13 +484,11 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
   const getTodayWorkout = useCallback(() => {
     const adaptive = getTodayWorkoutUseCase({
-      trainingSplit: plan?.trainingSplit,
-      exerciseTargets,
-      profile,
       workoutLogs,
-      library: WORKOUT_LIBRARY,
-      applyPainAdaptiveWorkout,
-      getExerciseCatalogFromSources,
+      weeklyTarget: Math.max(1, Number(profile?.trainingDaysPerWeek || 3)),
+      trainingSplit: plan?.trainingSplit,
+      pain: String(profile?.currentPain || profile?.pain || ''),
+      todayKey: getTodayKey(),
     });
 
     if (adaptive?.error) {
@@ -398,26 +496,50 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     }
 
     return Array.isArray(adaptive?.exercises) ? adaptive.exercises : [];
-  }, [plan?.trainingSplit, exerciseTargets, profile, workoutLogs]);
+  }, [plan?.trainingSplit, profile?.trainingDaysPerWeek, profile?.currentPain, profile?.pain, workoutLogs]);
 
   const getTodayWorkoutSummary = useCallback(() => {
     const today = getTodayKey();
     const todayLogs = workoutLogs.filter((item) => item.date === today);
-    const todayGuidedLogs = todayLogs.filter((item) => (item.mode || 'guided') !== 'free');
-    const plannedSets = getWorkoutBySplit(plan?.trainingSplit).reduce(
-      (acc, item) => acc + Number(item.sets || 0),
+    const plausibleTodayLogs = sanitizeWorkoutLogsForRead(todayLogs);
+    const todayGuidedLogs = plausibleTodayLogs.filter((item) => (item.mode || 'guided') !== 'free');
+    const todayWorkout = getTodayWorkout();
+    const plannedSets = todayWorkout.reduce(
+      (acc, item) => acc + Math.max(1, Number(item.sets || 1)),
       0
     );
-    const uniqueExercises = new Set(todayLogs.map((item) => item.exerciseName));
+    const uniqueExercises = new Set(plausibleTodayLogs.map((item) => item.exerciseName));
+    const guidedSets = todayGuidedLogs.length;
+    const completionRate = plannedSets ? clamp(guidedSets / plannedSets, 0, 1) : 0;
+    const sessionXp = computeXpTodayFromLogs(workoutLogs, today);
 
     return {
-      totalSets: todayLogs.length,
+      totalSets: plausibleTodayLogs.length,
       totalExercises: uniqueExercises.size,
-      guidedSets: todayGuidedLogs.length,
+      guidedSets,
       plannedSets,
-      completionRate: plannedSets ? clamp(todayGuidedLogs.length / plannedSets, 0, 1) : 0,
+      plannedExerciseCount: todayWorkout.length,
+      completionRate,
+      sessionXp,
     };
-  }, [workoutLogs, plan?.trainingSplit]);
+  }, [workoutLogs, getTodayWorkout]);
+
+  const getDailyState = useCallback(() => {
+    const today = getTodayKey();
+    return buildDailyState({
+      todayKey: today,
+      plan,
+      profile,
+      gamification,
+      nutritionLogs,
+      history,
+      hydration,
+      workoutLogs,
+      todayWorkout: getTodayWorkout(),
+      workoutSummary: getTodayWorkoutSummary(),
+      recovery: getDropRecoveryCandidate(),
+    });
+  }, [plan, profile, gamification, nutritionLogs, history, hydration, workoutLogs, getTodayWorkout, getTodayWorkoutSummary]);
 
   const getNutritionFeedback = useCallback(({ proteinConsumed, caloriesConsumed, trainedToday } = {}) => {
     const macroTargets = getNutritionMacroTargets(plan, profile);
@@ -501,7 +623,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const getSmartWorkoutRecommendation = useCallback(() => {
     const weeklyTarget = Math.max(1, Number(profile?.trainingDaysPerWeek || 3));
     const recommendation = getRecommendedWorkout({
-      workoutLogs,
+      workoutLogs: sanitizeWorkoutLogsForRead(workoutLogs),
       weeklyTarget,
       pain: profile?.currentPain,
       library: WORKOUT_LIBRARY,
@@ -537,9 +659,14 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       return { ok: false, reason: 'invalid_amount' };
     }
 
-    nutritionStore.addHydrationIntake(safeAmount);
-
     const today = getTodayKey();
+    if (!hydration || hydration.dayKey !== today) {
+      nutritionStore.refreshHydrationForToday({
+        targetWaterMl: Math.round(Number(plan?.waterLitersPerDay || 3) * 1000),
+      });
+    }
+
+    nutritionStore.addHydrationIntake(safeAmount);
     const todayEntry = history.find((item) => item.date === today);
     const currentWater = Number(todayEntry?.waterMl || 0);
 
@@ -557,11 +684,11 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     });
 
     return { ok: true, amountMl: safeAmount };
-  }, [history]);
+  }, [history, hydration, plan?.waterLitersPerDay, nutritionStore]);
 
   const getExerciseProgressionSuggestion = useCallback((exerciseName, exerciseId = null) => {
     const identity = resolveExerciseIdentity(exerciseName, exerciseId);
-    const logs = filterLogsByExercise(workoutLogs, identity);
+    const logs = sanitizeWorkoutLogsForRead(filterLogsByExercise(workoutLogs, identity));
 
     if (!logs.length) {
       const starter = getDefaultStartingWeight(exerciseName, profile?.level);
@@ -577,7 +704,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
     return getExerciseProgressionSuggestionUseCase({
       exerciseName,
-      workoutLogs,
+      workoutLogs: logs,
       profile,
     });
   }, [workoutLogs, profile]);
@@ -634,6 +761,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       addExercise: workoutStore.addExercise,
       updateSet: workoutStore.updateSet,
       getTodayWorkout,
+      getDailyState,
       getSmartWorkoutRecommendation,
       getRecommendedWorkoutV4: getSmartWorkoutRecommendation,
       prepareTodayWorkoutTargets: () => {
@@ -670,37 +798,62 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         }
       },
       saveWorkoutSet: (data) => {
+        const validation = validateWorkoutSetInput({
+          weight: data?.weight,
+          reps: data?.reps,
+          rpe: data?.rpe,
+          isCardio: Boolean(data?.isCardio),
+        });
+        if (!validation.ok || !validation.sanitized) {
+          return { ok: false, errors: validation.errors, xpDelta: 0 };
+        }
+
         const log = {
           id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
           date: getTodayKey(),
           createdAt: new Date().toISOString(),
+          sessionId: useWorkoutStore.getState().workoutSessionId || undefined,
           exerciseId: data.exerciseId,
           exerciseName: data.exerciseName,
-          weight: Number(data.weight),
-          reps: Number(data.reps),
-          rpe: data.rpe ? Number(data.rpe) : undefined,
+          weight: validation.sanitized.weight,
+          reps: validation.sanitized.reps,
+          rpe: validation.sanitized.rpe,
           failed: Boolean(data.failed),
           mode: data.mode || 'guided',
         };
+        const xpDelta = Number(data?.failed ? 3 : 10);
         workoutStore.addWorkoutLog(log);
-        return { ok: true, xpDelta: 10 };
+        gamificationStore.addXp(xpDelta);
+        return { ok: true, xpDelta };
       },
 
       saveFreeWorkoutSet: (data) => {
+        const validation = validateWorkoutSetInput({
+          weight: data?.weight,
+          reps: data?.reps,
+          rpe: data?.rpe,
+          isCardio: Boolean(data?.isCardio),
+        });
+        if (!validation.ok || !validation.sanitized) {
+          return { ok: false, errors: validation.errors, xpDelta: 0 };
+        }
+
         const log = {
           id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
           date: getTodayKey(),
           createdAt: new Date().toISOString(),
           exerciseId: data.exerciseId,
           exerciseName: data.exerciseName,
-          weight: Number(data.weight),
-          reps: Number(data.reps),
-          rpe: data.rpe ? Number(data.rpe) : undefined,
+          weight: validation.sanitized.weight,
+          reps: validation.sanitized.reps,
+          rpe: validation.sanitized.rpe,
           failed: Boolean(data.failed),
           mode: 'free',
         };
+        const xpDelta = Number(data?.failed ? 2 : 6);
         workoutStore.addWorkoutLog(log);
-        return { ok: true };
+        gamificationStore.addXp(xpDelta);
+        return { ok: true, xpDelta };
       },
 
       removeTodayWorkoutSet: ({ exerciseName, setIndex, mode = 'guided' }) => {
@@ -715,16 +868,25 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         return { ok: false };
       },
 
-      getExerciseProgress: (exerciseName) => {
-        const logs = filterLogsByExercise(workoutLogs, resolveExerciseIdentity(exerciseName));
-        const successful = logs.filter((item) => !item.failed);
-        const recent = successful.slice(0, 5);
-        const totalReps = recent.reduce((acc, item) => acc + Number(item.reps || 0), 0);
+      getExerciseProgress: (exerciseName, exerciseId = null) => {
+        const summary = buildWorkoutHistorySummary({
+          workoutLogs,
+          exerciseName,
+          exerciseId: exerciseId || undefined,
+        });
+
+        if (summary.hasInvalidIgnored && __DEV__) {
+          logEvent('workout_history_invalid_ignored', {
+            exerciseName: String(exerciseName || ''),
+            exerciseId: String(exerciseId || ''),
+            ignoredCount: summary.ignoredCount,
+          });
+        }
 
         return {
-          bestWeight: successful.length ? Math.max(...successful.map((item) => Number(item.weight || 0))) : 0,
-          totalSets: logs.length,
-          recentAverageReps: recent.length ? round(totalReps / recent.length) : 0,
+          bestWeight: summary.bestWeight,
+          totalSets: summary.totalSets,
+          recentAverageReps: summary.recentAverageReps,
         };
       },
 
@@ -733,7 +895,10 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       getExerciseSetProgress: (exerciseName, plannedSets = 3) => {
         const today = getTodayKey();
         const identity = resolveExerciseIdentity(exerciseName);
-        const todayExerciseLogs = filterLogsByExercise(workoutLogs.filter((item) => item.date === today), identity);
+        const activeSessionId = useWorkoutStore.getState().workoutSessionId;
+        const todayLogs = workoutLogs.filter((item) => item.date === today);
+        const effectiveLogs = resolveEffectiveWorkoutLogs(todayLogs, activeSessionId);
+        const todayExerciseLogs = filterLogsByExercise(effectiveLogs, identity);
         const completedSets = todayExerciseLogs.length;
         const totalSets = Math.max(1, Number(plannedSets) || 1);
 
@@ -865,11 +1030,59 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       getScoreTrendSummary: (days = 7) => ({ points: [], averageScore: 0 }),
 
       // Other
-      getWorkoutDelta: () => ({}),
-      getExerciseCatalog: () => [],
-      getExerciseHistorySnapshot: () => [],
-      getExercisesByMuscleGroup: () => [],
-      getFreeWorkoutSuggestions: () => [],
+      getWorkoutDelta: (current = {}, previous = null) => {
+        const currentSets = Number(current?.totalSets || 0);
+        const previousSets = Number(previous?.totalSets || 0);
+        const currentLoad = Number(current?.totalLoad || 0);
+        const previousLoad = Number(previous?.totalLoad || 0);
+        return {
+          setsDiff: currentSets - previousSets,
+          loadDiff: currentLoad - previousLoad,
+          setsDiffPct: previousSets > 0 ? round(((currentSets - previousSets) / previousSets) * 100) : 0,
+          loadDiffPct: previousLoad > 0 ? round(((currentLoad - previousLoad) / previousLoad) * 100) : 0,
+        };
+      },
+      getExerciseCatalog: () => {
+        const catalog = getExerciseCatalogFromSources(WORKOUT_LIBRARY);
+        return Array.isArray(catalog) ? catalog : [];
+      },
+      getExerciseHistorySnapshot: (exerciseName: string, limit = 5, exerciseId?: string) => {
+        const summary = buildWorkoutHistorySummary({
+          workoutLogs,
+          exerciseName,
+          exerciseId,
+          limit: Math.max(1, Number(limit || 5)),
+        });
+
+        return summary.logs
+          .filter((item) => !item.failed)
+          .map((item) => ({
+            date: String(item.date || ''),
+            weight: Number(item.weight || 0),
+            reps: Number(item.reps || 0),
+            rpe: Number(item.rpe || 0),
+          }));
+      },
+      getExercisesByMuscleGroup: (group: string) => {
+        const normalizedGroup = normalizeText(group || '');
+        if (!normalizedGroup) {
+          return [];
+        }
+
+        const libraryList = Array.isArray(WORKOUT_LIBRARY) ? WORKOUT_LIBRARY : [];
+        return libraryList
+          .filter((item: any) => normalizeText(item?.muscle || item?.group || '').includes(normalizedGroup))
+          .map((item: any) => String(item?.name || '').trim())
+          .filter(Boolean)
+          .slice(0, 40);
+      },
+      getFreeWorkoutSuggestions: (excluded = []) => {
+        const excludedSet = new Set((Array.isArray(excluded) ? excluded : []).map((name) => normalizeText(name)));
+        const catalog = getExerciseCatalogFromSources(WORKOUT_LIBRARY);
+        return (Array.isArray(catalog) ? catalog : [])
+          .filter((name: string) => !excludedSet.has(normalizeText(name)))
+          .slice(0, 20);
+      },
       getWorkoutTemplates: () => [
         { key: 'fullBody', name: 'Full Body' },
         { key: 'upper', name: 'Superior' },
@@ -912,6 +1125,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       hasFeatureAccess: subscriptionDomain.hasFeatureAccess,
       startProTrial: subscriptionDomain.startProTrial,
       activateProPlan: subscriptionDomain.activateProPlan,
+      activateProByCode: subscriptionDomain.activateProByCode,
+      getDefaultTestProCode: subscriptionDomain.getDefaultTestProCode,
       addWaterIntake,
       createRoutineFromTemplate: ({ templateKey, frequency } = {}) => {
         const templates = {
@@ -979,6 +1194,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       isHydrated,
       userRoutines,
       getTodayWorkout,
+      getDailyState,
       getTodayWorkoutSummary,
       getNutritionFeedback,
       getWorkoutGamification,
@@ -1042,14 +1258,15 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       removeTodayWorkoutSet: contextValue.removeTodayWorkoutSet,
       getExerciseProgress: contextValue.getExerciseProgress,
       getExerciseSetProgress: contextValue.getExerciseSetProgress,
-      getExerciseProgressionSuggestion,
-      getExerciseCatalog: () => [],
-      getExercisesByMuscleGroup: () => [],
-      getFreeWorkoutSuggestions: () => [],
+      getExerciseProgressionSuggestion: contextValue.getExerciseProgressionSuggestion,
+      getExerciseCatalog: contextValue.getExerciseCatalog,
+      getExercisesByMuscleGroup: contextValue.getExercisesByMuscleGroup,
+      getFreeWorkoutSuggestions: contextValue.getFreeWorkoutSuggestions,
       getWorkoutGamification,
-      getExerciseHistorySnapshot: () => [],
+      getExerciseHistorySnapshot: contextValue.getExerciseHistorySnapshot,
       getTodayWorkoutSummary,
-      getWorkoutDelta: () => ({}),
+      getDailyState,
+      getWorkoutDelta: contextValue.getWorkoutDelta,
       workoutLogs,
       gamification,
       exerciseTargets,

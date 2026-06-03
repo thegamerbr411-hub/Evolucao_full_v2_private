@@ -1,49 +1,10 @@
-import React, { createContext, useMemo, useState } from 'react';
+import React from 'react';
 
-// Função provisória para feedback de nutrição
-function getNutritionFeedback() {
-  return {
-    status: 'ok',
-    message: 'fallback ativo',
-  };
-}
-// Função provisória para targets de macros
-function getDailyMacroTargets() {
-  return {
-    calories: 2000,
-    protein: 150,
-    carbs: 200,
-    fat: 70,
-  };
-}
+/**
+ * @deprecated Stub removido (Final Hardening 2026-05).
+ * Fonte de verdade: useNutritionStore + AppContext-v2 (useNutritionDomain).
+ * Mantido apenas para compatibilidade de import — Provider é passthrough.
+ */
+export const NutritionContext = React.createContext(null);
 
-const defaultValue = {
-  water: 0,
-  addWaterIntake: () => ({ ok: false }),
-};
-
-export const NutritionContext = createContext(defaultValue);
-
-export const NutritionProvider = ({ children }) => {
-  const [water, setWater] = useState(0);
-
-  const addWaterIntake = (amount = 0) => {
-    const value = Number(amount);
-    if (!Number.isFinite(value) || value < 0) {
-      return { ok: false, error: 'invalid_amount' };
-    }
-    setWater((prev) => prev + value);
-    return { ok: true };
-  };
-
-  const value = useMemo(
-    () => ({ water, addWaterIntake, getDailyMacroTargets, getNutritionFeedback }),
-    [water]
-  );
-
-  return (
-    <NutritionContext.Provider value={value}>
-      {children}
-    </NutritionContext.Provider>
-  );
-};
+export const NutritionProvider = ({ children }) => children;

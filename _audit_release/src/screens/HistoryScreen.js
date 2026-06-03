@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useApp } from '../context/AppContext';
+import { useWorkout } from '../hooks';
+import { buildLocalWorkoutLogsPresentation } from '../services/workoutHistoryPresentation';
 import { AppCard, PrimaryButton, ScreenHeader } from '../components/ui';
 import { colors, spacing } from '../theme';
 import { listUserWorkoutsFromApi } from '../services/workoutApiService';
@@ -30,6 +32,11 @@ function statusLabel(status, trained) {
 
 export default function HistoryScreen({ navigation }) {
   const { getRecentHistory, getWeeklySummary, user } = useApp();
+  const { workoutLogs = [] } = useWorkout() || {};
+  const localLogsPresentation = useMemo(
+    () => buildLocalWorkoutLogsPresentation(workoutLogs, { limit: 10 }),
+    [workoutLogs]
+  );
   const [remoteLoading, setRemoteLoading] = useState(true);
   const [remoteWorkouts, setRemoteWorkouts] = useState([]);
   const [selectedWorkoutId, setSelectedWorkoutId] = useState('');
@@ -68,9 +75,17 @@ export default function HistoryScreen({ navigation }) {
     };
   }, [user?.id]);
 
+  const handleHistoryBack = () => {
+    if (selectedWorkoutId) {
+      setSelectedWorkoutId('');
+      return;
+    }
+    navigation.goBack();
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <ScreenHeader title="Historico dos Ultimos 7 Dias" subtitle="Consistencia diaria e resumo semanal." />
+      <ScreenHeader title="Historico dos Ultimos 7 Dias" subtitle="Consistencia diaria e resumo semanal." onBack={handleHistoryBack} />
 
       <AppCard>
         <Text style={styles.summaryTitle}>Resumo semanal</Text>
@@ -79,6 +94,24 @@ export default function HistoryScreen({ navigation }) {
         <Text style={styles.summaryLine}>Dias fora da meta: {outOfTargetDays}</Text>
 
         <PrimaryButton title="IA analisar minha semana" onPress={() => navigation.navigate('Insights')} style={styles.button} />
+      </AppCard>
+
+      <AppCard testID="history-local-logs-panel">
+        <Text style={styles.summaryTitle}>Historico de series (local)</Text>
+        {localLogsPresentation.isEmpty ? (
+          <Text style={styles.empty}>{localLogsPresentation.emptyCopy}</Text>
+        ) : (
+          <>
+            {localLogsPresentation.entries.map((entry) => (
+              <Text key={entry.id} style={styles.summaryLine}>
+                {entry.lineText}
+              </Text>
+            ))}
+            {localLogsPresentation.ignoredHint ? (
+              <Text style={styles.localLogsFooter}>{localLogsPresentation.ignoredHint}</Text>
+            ) : null}
+          </>
+        )}
       </AppCard>
 
       <AppCard style={styles.listCard}>
@@ -191,6 +224,12 @@ const styles = StyleSheet.create({
     padding: 14,
     color: colors.textSecondary,
     fontSize: 14,
+  },
+  localLogsFooter: {
+    color: colors.textMuted,
+    fontSize: 12,
+    marginTop: 8,
+    fontWeight: '600',
   },
   remoteRow: {
     borderWidth: 1,

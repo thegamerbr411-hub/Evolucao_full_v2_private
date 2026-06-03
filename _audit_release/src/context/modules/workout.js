@@ -1,6 +1,23 @@
 import { getCanonicalMuscleGroup } from '../../data/exerciseDatabase.js';
 import { getExerciseById } from '../../data/exerciseDatabase.js';
 import { listExerciseNames } from '../../data/exercises.js';
+import { getLocal } from '../../storage/mmkv';
+import { sanitizeWorkoutLogsForRead } from '../../services/workoutLogIntegrity.js';
+import {
+  filterLogsByExercise,
+  matchesExerciseLog,
+  normalizeExerciseLabel,
+  resolveExerciseIdentity,
+} from '../../services/workoutExerciseIdentity.js';
+
+export {
+  filterLogsByExercise,
+  matchesExerciseLog,
+  normalizeExerciseLabel,
+  resolveExerciseIdentity,
+} from '../../services/workoutExerciseIdentity.js';
+
+const ADMIN_LOCAL_EXERCISES_KEY = 'admin.local.exercises.v1';
 
 export function getWeekBounds(dateKey) {
   const base = new Date(`${dateKey}T12:00:00`);
@@ -122,7 +139,21 @@ function findReplacementExercise({ blockedName, group, catalog = [], normalizedP
     return preferred;
   }
 
-  return safeCatalog.find((name) => !isBlockedByPain(name, normalizedPain)) || blockedName;
+  const sameGroupFallback = safeCatalog.find((name) => {
+    if (normalize(name) === normalize(blockedName)) {
+      return false;
+    }
+    if (isBlockedByPain(name, normalizedPain)) {
+      return false;
+    }
+    return inferMuscleGroup(name) === group;
+  });
+  if (sameGroupFallback) {
+    return sameGroupFallback;
+  }
+
+  // Nunca trocar por exercicio de outro grupo muscular (evita "peito" com costas/perna).
+  return blockedName;
 }
 
 export function applyPainAdaptiveWorkout(exercises = [], pain = '', catalog = []) {
@@ -192,21 +223,22 @@ export function getRecommendedWorkout({
   catalog = [],
   todayKey,
 }) {
+  const safeLogs = sanitizeWorkoutLogsForRead(workoutLogs);
   const dateKey = todayKey || new Date().toISOString().slice(0, 10);
   const week = getWeekBounds(dateKey);
 
   const trainedThisWeek = new Set(
-    workoutLogs
+    safeLogs
       .filter((item) => String(item.date || '') >= week.startKey && String(item.date || '') <= week.endKey)
       .map((item) => item.date)
   ).size;
 
-  const recentDates = Array.from(new Set(workoutLogs.map((item) => item.date))).sort((a, b) => String(b).localeCompare(String(a)));
+  const recentDates = Array.from(new Set(safeLogs.map((item) => item.date))).sort((a, b) => String(b).localeCompare(String(a)));
   const recentGroups = [];
 
   recentDates.slice(0, 5).forEach((key) => {
     const groups = Array.from(new Set(
-      workoutLogs
+      safeLogs
         .filter((item) => item.date === key)
         .map((item) => inferMuscleGroupFromLog(item))
         .filter(Boolean)
@@ -230,7 +262,7 @@ export function getRecommendedWorkout({
   ].filter((item) => item.exercises.length > 0);
 
   const recentExerciseNames = new Set(
-    workoutLogs
+    safeLogs
       .slice(0, 120)
       .filter((item) => {
         const key = String(item?.date || '');
@@ -306,7 +338,8 @@ export function getNextWeightSuggestion({
   repsHit = 0,
   targetRepMax = 12,
 }) {
-  const recent = logs
+  const safeLogs = sanitizeWorkoutLogsForRead(logs);
+  const recent = safeLogs
     .filter((item) => item.exerciseName === exerciseName)
     .slice(0, 5);
 
@@ -339,12 +372,17 @@ export function getNextWeightSuggestion({
   };
 }
 
+/** Preset de 5 exercícios para auditoria multi-exercício (QA + full body real). */
+export const WORKOUT_MULTI_QA_PRESET = [
+  { name: 'Agachamento Livre', sets: 4, reps: '6-10' },
+  { name: 'Supino Reto Barra', sets: 4, reps: '6-10' },
+  { name: 'Remada Curvada Barra', sets: 3, reps: '8-12' },
+  { name: 'Desenvolvimento Militar Halter', sets: 3, reps: '8-12' },
+  { name: 'Rosca Direta Barra', sets: 3, reps: '10-12' },
+];
+
 export const WORKOUT_LIBRARY = {
-  fullBody: [
-    { name: 'Agachamento Livre', sets: 4, reps: '6-10' },
-    { name: 'Supino Reto Barra', sets: 4, reps: '6-10' },
-    { name: 'Remada Curvada Barra', sets: 3, reps: '8-12' },
-  ],
+  fullBody: WORKOUT_MULTI_QA_PRESET,
   upper: [
     { name: 'Supino Reto Barra', sets: 4, reps: '6-10' },
     { name: 'Puxada Frontal Polia', sets: 4, reps: '8-12' },
@@ -385,15 +423,48 @@ export const getTodayWorkoutUseCase = ({
   trainingSplit,
   pain = '',
   todayKey,
-}) => getRecommendedWorkout({
-  workoutLogs,
-  weeklyTarget,
-  pain,
-  library: WORKOUT_LIBRARY,
-  catalog: getExerciseCatalogFromSources(),
-  todayKey,
-  trainingSplit,
-});
+}) => {
+  const dateKey = todayKey || new Date().toISOString().slice(0, 10);
+  const qaMulti = typeof __DEV__ !== 'undefined' && __DEV__
+    && String(process.env.EXPO_PUBLIC_QA_MULTI_WORKOUT || '').trim() === '1';
+
+  if (qaMulti && WORKOUT_MULTI_QA_PRESET.length >= 5) {
+    const recommended = getRecommendedWorkout({
+      workoutLogs,
+      weeklyTarget,
+      pain,
+      library: WORKOUT_LIBRARY,
+      catalog: getExerciseCatalogFromSources(),
+      todayKey: dateKey,
+      trainingSplit,
+    });
+    return {
+      ...recommended,
+      key: 'full',
+      title: recommended?.title || 'Full body de consistencia',
+      exercises: WORKOUT_MULTI_QA_PRESET.map((exercise, index) => ({
+        ...exercise,
+        id: buildConsistentExerciseId({
+          dateKey,
+          workoutKey: 'full',
+          exerciseName: exercise?.name || '',
+          index,
+        }),
+      })),
+      source: 'qa_multi_preset',
+    };
+  }
+
+  return getRecommendedWorkout({
+    workoutLogs,
+    weeklyTarget,
+    pain,
+    library: WORKOUT_LIBRARY,
+    catalog: getExerciseCatalogFromSources(),
+    todayKey: dateKey,
+    trainingSplit,
+  });
+};
 
 export const getWorkoutBySplit = (split = '') => {
   const value = normalize(split);
@@ -410,7 +481,11 @@ export const getExerciseCatalogFromSources = () => {
     .filter(Boolean);
 
   const premium = listExerciseNames();
-  return Array.from(new Set([...premium, ...names]));
+  const localAdminExercises = (getLocal(ADMIN_LOCAL_EXERCISES_KEY) || [])
+    .map((item) => String(item?.name || '').trim())
+    .filter(Boolean);
+
+  return Array.from(new Set([...premium, ...names, ...localAdminExercises]));
 };
 
 export const getWeeklyMacroSummary = (history = []) => {
@@ -435,22 +510,6 @@ export const getRecoveryInsightUseCase = (logs = []) => {
     recommendation: trained >= 5 ? 'priorize recuperacao ativa' : 'recuperacao adequada',
   };
 };
-
-export const normalizeExerciseLabel = (value = '') => normalize(value).replace(/\s+/g, ' ').trim();
-
-export const resolveExerciseIdentity = (exerciseName = '', exerciseId = '') => ({
-  exerciseId: String(exerciseId || '').trim(),
-  normalizedName: normalizeExerciseLabel(exerciseName),
-});
-
-export const matchesExerciseLog = (log = {}, identity = {}) => {
-  if (!log || !identity) return false;
-  if (identity.exerciseId && String(log.exerciseId || '') === identity.exerciseId) return true;
-  return normalizeExerciseLabel(log.exerciseName || '') === identity.normalizedName;
-};
-
-export const filterLogsByExercise = (logs = [], identity = {}) =>
-  (Array.isArray(logs) ? logs : []).filter((item) => matchesExerciseLog(item, identity));
 
 export const isLowerBodyExercise = (exerciseName = '') => inferMuscleGroup(exerciseName) === 'perna';
 

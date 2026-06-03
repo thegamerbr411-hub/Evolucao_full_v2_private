@@ -6,6 +6,7 @@ const {
   goHome,
   goToCoach,
   goToNutrition,
+  goToProfile,
   goToSocial,
   goToTreinos,
   launchApp,
@@ -262,26 +263,24 @@ describe('18 - visual map audit', () => {
     report.visited.push('social-tab');
     await captureScrollable('screen-social', 'social-tab-main');
 
-    if (await isVisible('tab-perfil', 1200)) {
-      await tapElement('tab-perfil');
-      await sleep(500);
-      report.visited.push('perfil');
-      await shot('perfil-start');
-      try {
-        await element(by.type('RCTScrollView')).atIndex(0).scroll(420, 'down');
-        await sleep(120);
-      } catch {
-        // best effort
-      }
-      await shot('perfil-mid');
-      try {
-        await element(by.type('RCTScrollView')).atIndex(0).scroll(980, 'down');
-        await sleep(120);
-      } catch {
-        // best effort
-      }
-      await shot('perfil-end');
+    await goToProfile();
+    await sleep(500);
+    report.visited.push('perfil');
+    await shot('perfil-start');
+    try {
+      await element(by.id('screen_profile')).scroll(420, 'down');
+      await sleep(120);
+    } catch {
+      // best effort
     }
+    await shot('perfil-mid');
+    try {
+      await element(by.id('screen_profile')).scroll(980, 'down');
+      await sleep(120);
+    } catch {
+      // best effort
+    }
+    await shot('perfil-end');
 
     await goHome();
     await shot('home-final-check');

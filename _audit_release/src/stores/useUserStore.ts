@@ -6,6 +6,8 @@ const USER_STORE_KEY = 'user.store.v1';
 export type User = {
   id: string | null;
   role: 'user' | 'admin';
+  name?: string | null;
+  email?: string | null;
 };
 
 export type Profile = {
@@ -18,6 +20,8 @@ export type Profile = {
   timezone?: string;
   energyLevel?: string;
   currentPain?: string;
+  /** E-mail de recuperacao / secundario (conta Google ou backup), opcional */
+  recoveryEmail?: string | null;
 };
 
 type UserStore = {

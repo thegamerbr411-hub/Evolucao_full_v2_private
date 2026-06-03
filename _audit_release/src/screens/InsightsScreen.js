@@ -4,6 +4,7 @@ import { useApp } from '../context/AppContext';
 import { AppCard, PrimaryButton, ScreenHeader } from '../components/ui';
 import { trackEvent } from '../utils/analytics';
 import { calculateVolume, getDailyPriority } from '../services/performanceEngine';
+import { sanitizeWorkoutLogsForRead } from '../services/workoutLogIntegrity';
 import { buildLocalRanking, calculateXpForWorkout, getLevelFromXp } from '../services/gamificationEngine';
 import { colors, spacing } from '../theme';
 import { getRankingFromApi, getUserStatsFromApi } from '../services/workoutApiService';
@@ -22,7 +23,7 @@ export default function InsightsScreen({ navigation, route }) {
   const safeHistory = Array.isArray(history) ? history : [];
 
   const dashboardStats = useMemo(() => {
-    const safeLogs = Array.isArray(workoutLogs) ? workoutLogs : [];
+    const safeLogs = sanitizeWorkoutLogsForRead(Array.isArray(workoutLogs) ? workoutLogs : []);
     const getDateShiftKey = (baseDate, shiftDays) => {
       const next = new Date(baseDate);
       next.setDate(next.getDate() + shiftDays);
@@ -90,7 +91,7 @@ export default function InsightsScreen({ navigation, route }) {
   }, [safeHistory, macros?.macroTargets?.protein]);
 
   const socialStats = useMemo(() => {
-    const safeLogs = Array.isArray(workoutLogs) ? workoutLogs : [];
+    const safeLogs = sanitizeWorkoutLogsForRead(Array.isArray(workoutLogs) ? workoutLogs : []);
     const myVolume = calculateVolume(safeLogs);
     const mySets = safeLogs.length;
     const baseGamification = getWorkoutGamification();
@@ -171,6 +172,7 @@ export default function InsightsScreen({ navigation, route }) {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      <View testID="insights-dashboard" style={styles.dashboardMarker} />
       <ScreenHeader title="Insights" subtitle="So o que importa para decidir melhor." />
 
       {shouldShowPostValueUpsell ? (
@@ -181,7 +183,7 @@ export default function InsightsScreen({ navigation, route }) {
         </AppCard>
       ) : null}
 
-      <AppCard testID="insights-dashboard">
+      <AppCard>
         <Text style={styles.title}>Dashboard da semana</Text>
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
@@ -248,6 +250,17 @@ export default function InsightsScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
+  hiddenMarker: {
+    width: 1,
+    height: 1,
+    opacity: 0,
+  },
+  dashboardMarker: {
+    width: '100%',
+    height: 0,
+    opacity: 0,
+    pointerEvents: 'none',
+  },
   container: {
     flexGrow: 1,
     backgroundColor: colors.background,

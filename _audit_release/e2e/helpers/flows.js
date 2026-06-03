@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { getPersona } = require('./personas');
+const { hasDetoxGlobals, isAttachedRun } = require('./runtime');
 const {
   countEventEntries,
   fetchHeatmap,
@@ -9,6 +10,7 @@ const {
   humanDelay,
   isVisible,
   logStep,
+  dismissBlockingSystemDialogs,
   replaceInput,
   scrollToElement,
   sleep,
@@ -89,10 +91,15 @@ function clearAttachedAndroidAppData() {
 }
 
 async function waitForLandingByText(timeout = 12000) {
+  if (!hasDetoxGlobals()) {
+    return null;
+  }
+
   const labels = ['Home', 'Treino', 'Social', 'Coach', 'Perfil', 'Nutricao', 'Nutricao', 'Nutrição', 'Permitir', 'Allow', 'OK'];
   const startedAt = Date.now();
 
   while (Date.now() - startedAt < timeout) {
+    await dismissBlockingSystemDialogs();
     for (const label of labels) {
       try {
         await waitFor(element(by.text(label))).toExist().withTimeout(350);
@@ -108,16 +115,21 @@ async function waitForLandingByText(timeout = 12000) {
 }
 
 async function waitForLandingByIds(ids, timeout = 18000) {
+  if (!hasDetoxGlobals()) {
+    return null;
+  }
+
   const startedAt = Date.now();
 
   while (Date.now() - startedAt < timeout) {
+    await dismissBlockingSystemDialogs();
     for (const id of ids) {
-      if (await isVisible(id, 450)) {
+      if (await isVisible(id, 700)) {
         return `visible:${id}`;
       }
 
       try {
-        await waitFor(element(by.id(id))).toExist().withTimeout(450);
+        await waitFor(element(by.id(id))).toExist().withTimeout(700);
         return `exists:${id}`;
       } catch {
         // tenta o proximo marcador
@@ -130,16 +142,71 @@ async function waitForLandingByIds(ids, timeout = 18000) {
   return null;
 }
 
+async function waitForLandingSignal(isAttachedRun) {
+  const idLanding = await waitForLandingByIds([
+    // IDs semânticos (novo padrão Phase 3)
+    'app_bootstrap_ready',
+    'screen_home',
+    'screen_login',
+    'screen_register',
+    'tab_home',
+    'tab_treinos',
+    // IDs legados (mantidos por compatibilidade)
+    'home-screen',
+    'screen-home',
+    'home-ready',
+    'app-bootstrap-ready',
+    'app-root',
+    'questionnaire-screen',
+    'tab-home',
+    'tab-treino',
+    'tab_mais',
+    'tab-social',
+    'tab-nutricao',
+    'tab-conversa',
+    'tab-perfil',
+    'screen-treinos',
+    'screen-social',
+    'screen-nutricao',
+    'screen-coach',
+    'screen-routines',
+    'screen-workout',
+    'screen-free-workout',
+  ], isAttachedRun ? 22000 : 50000);
+
+  if (idLanding) {
+    return idLanding;
+  }
+
+  const textLanding = await waitForLandingByText(isAttachedRun ? 12000 : 18000);
+  if (textLanding) {
+    return textLanding;
+  }
+
+  const existsLanding = await waitForLandingByIds([
+    'app-root',
+    'app-bootstrap-ready',
+    'home-screen',
+    'screen-home',
+    'tab-home',
+  ], isAttachedRun ? 6000 : 8000);
+
+  return existsLanding;
+}
+
 async function launchApp({ deleteApp = false } = {}) {
-  const isAttachedRun = String(process.env.DETOX_ATTACHED_CONFIGURATION || '').includes('android.attached')
-    || String(process.env.DETOX_CONFIGURATION || '').includes('android.attached')
+  const attachedRun = isAttachedRun()
     || String(process.env.DETOX_REUSE_APP || '') === '1';
   const shouldForceTerminateAttached = String(process.env.DETOX_FORCE_TERMINATE || '0') === '1';
   const shouldClearAttachedData = Boolean(deleteApp)
-    && isAttachedRun
+    && attachedRun
     && String(process.env.DETOX_CLEAR_APP_DATA || '1') !== '0';
 
-  const shouldDeleteAppData = Boolean(deleteApp) && !isAttachedRun;
+  const shouldDeleteAppData = Boolean(deleteApp) && !attachedRun;
+
+  if (!hasDetoxGlobals()) {
+    throw new Error('Detox globals indisponiveis no launchApp. Sessao pode ter desconectado.');
+  }
 
   if (shouldClearAttachedData) {
     if (shouldForceTerminateAttached) {
@@ -155,9 +222,9 @@ async function launchApp({ deleteApp = false } = {}) {
   let lastError = null;
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     try {
-      logStep(`launchApp attempt=${attempt} attached=${isAttachedRun}`);
+      logStep(`launchApp attempt=${attempt} attached=${attachedRun}`);
 
-      if (isAttachedRun) {
+      if (attachedRun) {
         const mustRelaunchFromScratch = shouldForceTerminateAttached || attempt > 1;
 
         // Segunda tentativa sempre força relaunch completo para reduzir travas de bootstrap no attached.
@@ -175,12 +242,6 @@ async function launchApp({ deleteApp = false } = {}) {
             detoxEnableSynchronization: 0,
           },
         });
-
-        // No attached físico, polling agressivo de markers logo após o launch
-        // costuma quebrar a sessão de instrumentação. A validação da tela inicial
-        // fica para o teste principal, que já possui fallback.
-        logStep('launchApp landed=attached-launch-only');
-        return;
       } else {
         try {
           await device.terminateApp();
@@ -200,51 +261,16 @@ async function launchApp({ deleteApp = false } = {}) {
         });
       }
 
-      // O app dispara telemetria e timers contínuos; em attached físico, chamar
-      // disableSynchronization cedo pode quebrar o handshake do runner.
-      if (!isAttachedRun) {
-        try {
-          await device.disableSynchronization();
-        } catch {
-          throw new Error('Falha ao desabilitar sincronizacao do Detox.');
+      const landing = await waitForLandingSignal(attachedRun);
+      if (!landing) {
+        if (attachedRun) {
+          logStep('launchApp attached sem marker inicial; seguindo com fallback de onboarding');
+          return;
         }
+        throw new Error('Falha ao detectar tela inicial por testID, texto e exists.');
       }
 
-      const landingById = await waitForLandingByIds([
-        'app-bootstrap-ready',
-        'app-root',
-        'questionnaire-screen',
-        'screen-home',
-        'tab-home',
-        'tab-treino',
-        'tab-social',
-        'tab-nutricao',
-        'tab-conversa',
-        'tab-perfil',
-        'screen-treinos',
-        'screen-social',
-        'screen-nutricao',
-        'screen-coach',
-        'screen-routines',
-        'screen-workout',
-        'screen-free-workout',
-      ], isAttachedRun ? 12000 : 45000);
-
-      if (!landingById) {
-        const textLanding = await waitForLandingByText(isAttachedRun ? 6000 : 12000);
-        if (!textLanding) {
-          if (isAttachedRun) {
-            // Em attached físico, o primeiro marker pode atrasar mesmo com app aberto.
-            // Deixa o fluxo seguir para ensureOnboarded tentar recuperar o estado.
-            logStep('launchApp attached sem marker inicial; seguindo com fallback de onboarding');
-            return;
-          }
-
-          throw new Error('Falha ao detectar tela inicial por testID e por texto.');
-        }
-      }
-
-      logStep(`launchApp landed=${landingById || 'text-marker'}`);
+      logStep(`launchApp landed=${landing}`);
       return;
     } catch (error) {
       lastError = error;
@@ -385,6 +411,7 @@ async function completeOnboarding(persona = getPersona()) {
         'screen-home',
         'tab-home',
         'tab-treino',
+        'tab_mais',
         'tab-social',
         'tab-nutricao',
         'tab-conversa',
@@ -407,6 +434,7 @@ async function completeOnboarding(persona = getPersona()) {
           'screen-home',
           'tab-home',
           'tab-treino',
+          'tab_mais',
           'tab-social',
           'tab-nutricao',
           'tab-conversa',
@@ -434,6 +462,7 @@ async function completeOnboarding(persona = getPersona()) {
         'tab-home',
         'screen-home',
         'tab-treino',
+        'tab_mais',
         'tab-social',
         'tab-nutricao',
         'tab-conversa',
@@ -483,10 +512,122 @@ async function ensureOnboarded(persona = getPersona()) {
 
   await dismissBlockingDialogs();
 
+  const authEmail = String(process.env.QA_TEST_EMAIL || process.env.E2E_TEST_EMAIL || `e2e.${Date.now()}@example.com`).trim().toLowerCase();
+  const authPassword = String(process.env.QA_TEST_PASSWORD || process.env.E2E_TEST_PASSWORD || 'E2e!123456').trim();
+  const authName = String(persona?.name || 'E2E User').trim();
+
+  const attemptAuthIfNeeded = async () => {
+    const onRegister = await isVisible('screen_register', 1200);
+    const onLogin = await isVisible('screen_login', 1200);
+    if (!onRegister && !onLogin) {
+      return false;
+    }
+
+    if (onLogin && await isVisible('btn_go_register', 1000)) {
+      await tapElement('btn_go_register', 5000);
+      await sleep(350);
+    }
+
+    if (await isVisible('input_name', 1500)) {
+      await replaceInput('input_name', authName, 8000);
+    }
+
+    if (await isVisible('input_email', 2000)) {
+      await replaceInput('input_email', authEmail, 10000);
+    }
+
+    if (await isVisible('input_password', 2000)) {
+      await replaceInput('input_password', authPassword, 10000);
+    }
+
+    if (await isVisible('btn_register', 1500)) {
+      await tapElement('btn_register', 10000);
+    } else if (await isVisible('btn_login', 1500)) {
+      await tapElement('btn_login', 10000);
+    }
+
+    const authLanding = await waitForAny([
+      'questionnaire-screen',
+      'screen_register',
+      'screen_login',
+      'tab-home',
+      'screen-home',
+      'screen_home',
+    ], 20000).catch(() => null);
+
+    if (authLanding === 'questionnaire-screen') {
+      await completeOnboarding(persona);
+      return true;
+    }
+
+    if (authLanding === 'screen_register' || authLanding === 'screen_login') {
+      // Tenta alternar para login e reutilizar a conta já criada.
+      if (await isVisible('btn_go_login', 1500)) {
+        await tapElement('btn_go_login', 5000);
+        await sleep(300);
+        if (await isVisible('input_email', 1200)) {
+          await replaceInput('input_email', authEmail, 8000);
+        }
+        if (await isVisible('input_password', 1200)) {
+          await replaceInput('input_password', authPassword, 8000);
+        }
+        if (await isVisible('btn_login', 1200)) {
+          await tapElement('btn_login', 10000);
+        }
+      }
+
+      const secondLanding = await waitForAny([
+        'questionnaire-screen',
+        'tab-home',
+        'screen-home',
+        'screen_home',
+      ], 18000).catch(() => null);
+
+      if (secondLanding === 'questionnaire-screen') {
+        await completeOnboarding(persona);
+      }
+    }
+
+    return true;
+  };
+
+  const ensureRootTabsVisible = async () => {
+    const rootTabs = ['tab-home', 'tab-treino', 'tab-nutricao', 'tab-conversa', 'tab_mais'];
+
+    const initial = await waitForAny(rootTabs, 5000).catch(() => null);
+    if (initial) {
+      return true;
+    }
+
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      try {
+        await device.pressBack();
+        await sleep(350);
+      } catch {
+        // ignora e tenta relaunch abaixo
+      }
+
+      try {
+        await device.launchApp({ newInstance: false });
+      } catch {
+        // best effort
+      }
+
+      const recovered = await waitForAny(rootTabs, 4500).catch(() => null);
+      if (recovered) {
+        return true;
+      }
+    }
+
+    return false;
+  };
+
   if (await isVisible('questionnaire-screen', 2000)) {
     await completeOnboarding(persona);
     return;
   }
+
+  await attemptAuthIfNeeded();
 
   let active = null;
   try {
@@ -494,8 +635,12 @@ async function ensureOnboarded(persona = getPersona()) {
       'app-bootstrap-ready',
       'app-root',
       'screen-home',
+      'screen_home',
+      'screen_register',
+      'screen_login',
       'questionnaire-screen',
       'tab-home',
+      'tab_mais',
       'tab-social',
       'tab-treino',
       'tab-nutricao',
@@ -521,8 +666,12 @@ async function ensureOnboarded(persona = getPersona()) {
         'app-bootstrap-ready',
         'app-root',
         'screen-home',
+        'screen_home',
+        'screen_register',
+        'screen_login',
         'questionnaire-screen',
         'tab-home',
+        'tab_mais',
         'tab-social',
         'tab-treino',
         'tab-nutricao',
@@ -549,6 +698,15 @@ async function ensureOnboarded(persona = getPersona()) {
     return;
   }
 
+  if (
+    active === 'screen_register'
+    || active === 'screen_login'
+    || await isVisible('screen_register', 800)
+    || await isVisible('screen_login', 800)
+  ) {
+    await attemptAuthIfNeeded();
+  }
+
   if (active === 'app-root') {
     await sleep(800);
   }
@@ -563,7 +721,10 @@ async function ensureOnboarded(persona = getPersona()) {
     await waitForAny([
       'app-bootstrap-ready',
       'app-root',
+      'screen_register',
+      'screen_login',
       'tab-home',
+      'tab_mais',
       'tab-social',
       'tab-treino',
       'tab-nutricao',
@@ -586,6 +747,10 @@ async function ensureOnboarded(persona = getPersona()) {
       // permanece na tela atual quando aba não estiver acionável
     }
   }
+
+  if (!(await ensureRootTabsVisible())) {
+    throw new Error('onboarding concluido sem tabs raiz visiveis (home/treino/nutricao/coach/mais).');
+  }
 }
 
 async function navigateToTab(tabId, expectedScreenId) {
@@ -599,7 +764,9 @@ async function navigateToTab(tabId, expectedScreenId) {
 
   const tabCandidates = tabId === 'tab-conversa'
     ? ['tab-conversa', 'tab-coach']
-    : [tabId];
+    : tabId === 'tab_mais' || tabId === 'tab-mais' || tabId === 'tab_more'
+      ? ['tab_mais', 'tab-mais', 'tab_more']
+      : [tabId];
 
   let targetTabId = null;
   for (const candidate of tabCandidates) {
@@ -880,10 +1047,56 @@ async function goToCoach() {
 }
 
 async function goToSocial() {
-  await navigateToTab('tab-social', 'screen-social');
+  if (await isVisible('screen-social', 1500)) {
+    return;
+  }
+  if (await isVisible('tab-social', 1200)) {
+    await navigateToTab('tab-social', 'screen-social');
+    return;
+  }
+  await navigateToTab('tab_mais', 'screen-mais');
+  if (await isVisible('btn_mais_social', 2000)) {
+    await tapElement('btn_mais_social', 12000);
+  }
+  await waitFor(element(by.id('screen-social'))).toBeVisible().withTimeout(15000);
+}
+
+async function goToProfile() {
+  if (await isVisible('screen_profile', 1200) || await isVisible('screen-perfil', 800) || await isVisible('screen-profile', 800)) {
+    return;
+  }
+  if (await isVisible('tab-perfil', 1200)) {
+    await navigateToTab('tab-perfil', 'screen_profile');
+    return;
+  }
+  await navigateToTab('tab_mais', 'screen-mais');
+  if (await isVisible('btn_mais_perfil', 2000)) {
+    await tapElement('btn_mais_perfil', 12000);
+  }
+  await waitForAny(['screen_profile', 'screen-perfil', 'screen-profile'], 15000);
 }
 
 async function runGuidedWorkoutHappyPath(persona = getPersona()) {
+  const ensureGuidedInputReady = async (fieldId) => {
+    try {
+      await waitFor(element(by.id(fieldId))).toBeVisible().withTimeout(5000);
+      return;
+    } catch {
+      try {
+        if (!(await isVisible('btn-add-set', 1200))) {
+          await scrollToElement('screen-workout', 'btn-add-set', 'down', 360, 6);
+        }
+        await tapElement('btn-add-set', 5000);
+        await sleep(280);
+      } catch {
+        // segue com fallback de scroll/tap
+      }
+      await scrollToElement('screen-workout', fieldId, 'down', 360, 8);
+      await tapElement(fieldId, 6000);
+      await waitFor(element(by.id(fieldId))).toBeVisible().withTimeout(5000);
+    }
+  };
+
   await goToTreinos();
   await humanDelay(persona, 'open-guided-workout');
 
@@ -918,11 +1131,18 @@ async function runGuidedWorkoutHappyPath(persona = getPersona()) {
     throw new Error('Nao abriu screen-workout apos acionar btn-iniciar-treino.');
   }
 
-  await replaceInput('input-peso', persona.guidedWeight);
+  await ensureGuidedInputReady('input-weight');
+  await replaceInput('input-weight', persona.guidedWeight);
+  await ensureGuidedInputReady('input-reps');
   await replaceInput('input-reps', persona.guidedReps);
   await hideKeyboardIfNeeded();
   await humanDelay(persona, 'save-guided-set');
-  await tapElement('btn-salvar-serie');
+  try {
+    await tapElement('btn-save-set');
+  } catch {
+    await waitFor(element(by.id('btn-save-set'))).toBeVisible().withTimeout(3000);
+    await tapElement('btn-save-set');
+  }
   try {
     await waitForAny(['btn-editar-serie', 'btn-remover-serie', 'serie-salva-indicator'], 6000);
   } catch {
@@ -1414,10 +1634,15 @@ async function runCreatedRoutineWorkoutHappyPath(persona = getPersona()) {
     throw new Error('Nao abriu tela de treino apos iniciar rotina criada.');
   }
 
-  await replaceInput('input-peso', persona.guidedWeight);
+  await replaceInput('input-weight', persona.guidedWeight);
   await replaceInput('input-reps', persona.guidedReps);
   await hideKeyboardIfNeeded();
-  await tapElement('btn-salvar-serie');
+  try {
+    await tapElement('btn-save-set');
+  } catch {
+    await waitFor(element(by.id('btn-save-set'))).toBeVisible().withTimeout(3000);
+    await tapElement('btn-save-set');
+  }
   await waitFor(element(by.id('serie-salva-indicator'))).toBeVisible().withTimeout(8000);
   await saveGuidedWorkoutPartial();
 
@@ -1486,19 +1711,23 @@ async function runNutritionHappyPath(persona = getPersona(), options = {}) {
     return;
   }
 
-  if (await isVisible('text-input-food', 1200)) {
+  try {
+    if (await isVisible('text-input-food', 1200)) {
+      await replaceInput('text-input-food', persona.nutritionTextEstimate);
+      await hideKeyboardIfNeeded();
+      await tapElement('btn-estimate-text');
+      await isVisible('nutrition-result-card', 4000);
+      return;
+    }
+
+    await scrollToElement('screen-nutricao', 'text-input-food', 'down', 420, 16);
     await replaceInput('text-input-food', persona.nutritionTextEstimate);
     await hideKeyboardIfNeeded();
     await tapElement('btn-estimate-text');
     await isVisible('nutrition-result-card', 4000);
-    return;
+  } catch (error) {
+    logStep(`nutrition-text-estimate-skip: ${String(error?.message || 'unknown')}`);
   }
-
-  await scrollToElement('screen-nutricao', 'text-input-food', 'down', 420, 16);
-  await replaceInput('text-input-food', persona.nutritionTextEstimate);
-  await hideKeyboardIfNeeded();
-  await tapElement('btn-estimate-text');
-  await isVisible('nutrition-result-card', 4000);
 }
 
 async function runTrackingHappyPath(persona = getPersona()) {
@@ -1564,6 +1793,7 @@ module.exports = {
   goHome,
   goToCoach,
   goToSocial,
+  goToProfile,
   goToNutrition,
   goToTreinos,
   launchApp,

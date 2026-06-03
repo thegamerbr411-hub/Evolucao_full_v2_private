@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
-import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
+import { AnimatedToast, AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { colors, spacing } from '../theme';
 import {
   addFriendFromApi,
@@ -20,6 +22,7 @@ export default function SocialChallengesScreen() {
   const [challengeTarget, setChallengeTarget] = useState('3');
   const [progressInput, setProgressInput] = useState('1');
   const [selectedMetric, setSelectedMetric] = useState('xp');
+  const [toastMessage, setToastMessage] = useState('');
 
   const myUserId = useMemo(() => String(user?.id || '').trim(), [user?.id]);
 
@@ -32,7 +35,7 @@ export default function SocialChallengesScreen() {
     setLoading(false);
 
     if (!result?.ok) {
-      Alert.alert('Social indisponivel', 'Nao foi possivel carregar o painel social agora.');
+      setToastMessage('Social indisponivel. Nao foi possivel carregar o painel social agora.');
       return;
     }
 
@@ -74,6 +77,18 @@ export default function SocialChallengesScreen() {
     { key: 'completed', label: 'Concluídos' },
   ]), []);
 
+  const visibleActiveChallenges = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    const rows = Array.isArray(overview?.activeChallenges) ? overview.activeChallenges : [];
+    return rows.filter((challenge) => {
+      if (!challenge || !challenge.id || !challenge.title) {
+        return false;
+      }
+      const endDate = String(challenge.endDate || today);
+      return endDate >= today;
+    });
+  }, [overview?.activeChallenges]);
+
   const mapSocialError = (code) => {
     const key = String(code || '').trim();
     if (key === 'cannot_add_self') return 'Voce nao pode adicionar seu proprio perfil.';
@@ -87,13 +102,13 @@ export default function SocialChallengesScreen() {
   const onAddFriend = async () => {
     const friendUserId = String(friendInput || '').trim();
     if (!friendUserId) {
-      Alert.alert('Informe o ID', 'Digite o user ID do amigo.');
+      setToastMessage('Informe o ID do amigo.');
       return;
     }
 
     const result = await addFriendFromApi({ userId: myUserId, friendUserId });
     if (!result?.ok) {
-      Alert.alert('Falha', mapSocialError(result?.error));
+      setToastMessage(`Falha: ${mapSocialError(result?.error)}`);
       return;
     }
 
@@ -105,7 +120,7 @@ export default function SocialChallengesScreen() {
     const title = String(challengeTitle || '').trim();
     const target = Number(challengeTarget || 3);
     if (!title || !Number.isFinite(target) || target <= 0) {
-      Alert.alert('Dados invalidos', 'Informe titulo e meta validos.');
+      setToastMessage('Dados invalidos. Informe titulo e meta validos.');
       return;
     }
 
@@ -117,7 +132,7 @@ export default function SocialChallengesScreen() {
     });
 
     if (!result?.ok) {
-      Alert.alert('Falha', mapSocialError(result?.error));
+      setToastMessage(`Falha: ${mapSocialError(result?.error)}`);
       return;
     }
 
@@ -127,7 +142,7 @@ export default function SocialChallengesScreen() {
   const onJoinChallenge = async (challengeId) => {
     const result = await joinChallengeFromApi({ userId: myUserId, challengeId });
     if (!result?.ok) {
-      Alert.alert('Falha', mapSocialError(result?.error));
+      setToastMessage(`Falha: ${mapSocialError(result?.error)}`);
       return;
     }
 
@@ -137,7 +152,7 @@ export default function SocialChallengesScreen() {
   const onUpdateProgress = async (challengeId) => {
     const progress = Number(progressInput || 0);
     if (!Number.isFinite(progress) || progress < 0) {
-      Alert.alert('Valor invalido', 'Informe um progresso numerico valido.');
+      setToastMessage('Valor invalido. Informe um progresso numerico valido.');
       return;
     }
 
@@ -148,7 +163,7 @@ export default function SocialChallengesScreen() {
     });
 
     if (!result?.ok) {
-      Alert.alert('Falha', mapSocialError(result?.error));
+      setToastMessage(`Falha: ${mapSocialError(result?.error)}`);
       return;
     }
 
@@ -156,8 +171,17 @@ export default function SocialChallengesScreen() {
   };
 
   return (
+    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.background }}>
     <ScrollView testID="screen-social" contentContainerStyle={styles.container}>
-      <ScreenHeader title="Social e Desafios" subtitle="Amigos, ranking e desafios semanais." />
+      <View testID="screen-social-challenges" style={styles.hiddenMarker} />
+      <AnimatedToast message={toastMessage} onHide={() => setToastMessage('')} />
+      <ScreenHeader title="Social e Desafios" subtitle="Amigos, ranking e desafios semanais." onBack={() => navigation.goBack()} />
+
+      {__DEV__ ? (
+        <View style={styles.devFeatureTagWrap}>
+          <Text style={styles.devFeatureTag}>[F-Social] Ranking + desafios + amizades</Text>
+        </View>
+      ) : null}
 
       <AppCard>
         <Text style={styles.title}>Painel social</Text>
@@ -186,6 +210,14 @@ export default function SocialChallengesScreen() {
           style={styles.input}
         />
         <PrimaryButton testID="btn-social-add-friend" title="Adicionar" onPress={onAddFriend} />
+        
+        {Number(overview?.friendsCount || 0) === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="people-outline" size={40} color={colors.primary} />
+            <Text style={styles.emptyStateTitle}>Nenhum amigo adicionado ainda</Text>
+            <Text style={styles.emptyStateText}>Convide amigos para competir, comparar XP e criar desafios juntos.</Text>
+          </View>
+        ) : null}
       </AppCard>
 
       <AppCard>
@@ -234,7 +266,7 @@ export default function SocialChallengesScreen() {
       </AppCard>
 
       <AppCard>
-        <Text style={styles.title}>Desafios ativos</Text>
+        <Text style={styles.title}>Desafios ativos: {visibleActiveChallenges.length}</Text>
         <TextInput
           value={progressInput}
           onChangeText={setProgressInput}
@@ -245,8 +277,8 @@ export default function SocialChallengesScreen() {
         />
 
         {loading ? <Text style={styles.meta}>Atualizando desafios...</Text> : null}
-        {!loading && Array.isArray(overview?.activeChallenges) && overview.activeChallenges.length ? (
-          overview.activeChallenges.map((challenge) => (
+        {!loading && visibleActiveChallenges.length ? (
+          visibleActiveChallenges.map((challenge) => (
             <View key={challenge.id} style={styles.challengeCard}>
               <Text style={styles.challengeTitle}>{challenge.title}</Text>
               <Text style={styles.meta}>Meta: {challenge.target} • Seu progresso: {challenge.myProgress}</Text>
@@ -264,19 +296,29 @@ export default function SocialChallengesScreen() {
               )) : null}
             </View>
           ))
-        ) : (
-          <Text style={styles.meta}>Nenhum desafio ativo por enquanto. Crie um novo desafio semanal para engajar sua rede.</Text>
-        )}
+        ) : !loading ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="flag-outline" size={40} color={colors.primary} />
+            <Text style={styles.emptyStateTitle}>Nenhum desafio ativo</Text>
+            <Text style={styles.emptyStateText}>Crie um novo desafio semanal para engajar sua rede de amigos em competições.</Text>
+          </View>
+        ) : null}
       </AppCard>
     </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  hiddenMarker: {
+    width: 1,
+    height: 1,
+    opacity: 0,
+  },
   container: {
     flexGrow: 1,
     backgroundColor: colors.background,
-    paddingTop: 56,
+    paddingTop: spacing.md,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xl,
   },
@@ -316,6 +358,21 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     marginTop: 2,
   },
+  devFeatureTagWrap: {
+    borderWidth: 1,
+    borderColor: '#3B82F6',
+    backgroundColor: '#0B1730',
+    borderRadius: 999,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    marginBottom: 8,
+  },
+  devFeatureTag: {
+    color: '#BFDBFE',
+    fontSize: 11,
+    fontWeight: '800',
+  },
   metricTabs: {
     flexDirection: 'row',
     gap: 6,
@@ -348,7 +405,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 10,
-    backgroundColor: '#111822',
+    backgroundColor: colors.surface,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
     marginBottom: spacing.sm,
@@ -368,7 +425,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 12,
-    backgroundColor: colors.cardElevated,
     backgroundColor: colors.secondary,
     paddingHorizontal: 10,
     paddingVertical: 8,
@@ -377,5 +433,26 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: 12,
     fontWeight: '700',
+  },
+  emptyState: {
+    marginTop: spacing.lg,
+    paddingVertical: spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyStateTitle: {
+    color: colors.textPrimary,
+    fontSize: 16,
+    fontWeight: '800',
+    marginTop: spacing.sm,
+    letterSpacing: -0.3,
+  },
+  emptyStateText: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: spacing.xs,
+    textAlign: 'center',
+    maxWidth: '85%',
   },
 });

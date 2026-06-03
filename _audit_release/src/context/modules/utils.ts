@@ -12,8 +12,10 @@ export const roundToStep = (value: number, step = 1): number => {
   return round(Math.round((Number(value) || 0) / safeStep) * safeStep, 4);
 };
 
+/** Local calendar day YYYY-MM-DD (aligned with dailyState / Home / nutrition store). */
 export const getTodayKey = (): string => {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
 export const getPreviousDateKey = (dateKey?: string): string => {
