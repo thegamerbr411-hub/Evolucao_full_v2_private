@@ -1,14 +1,16 @@
 import React from 'react';
-import { FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { AppCard } from '../ui';
 import { colors, spacing, typography } from '../../theme';
 import { getExerciseGifFallback } from '../../data/exerciseLibraryV2.js';
+import { buildWorkoutSetRowState } from '../../services/workoutSetRowState.js';
 import { SetRow } from './SetRow';
 
 export const ExerciseCard = React.memo(function ExerciseCard({
   exercise,
   lastSet,
   simpleMode,
+  isSaving = false,
   onChangeSet,
   onCompleteSet,
   onAddSet,
@@ -28,9 +30,21 @@ export const ExerciseCard = React.memo(function ExerciseCard({
     return pendingIndex >= 0 ? pendingIndex : safeSets.length;
   }, [safeSets]);
 
-  const renderSetItem = React.useCallback(({ item: setItem, index }) => {
+  const renderSetRow = React.useCallback((setItem, index) => {
     const resolvedSetIndex = Number.isInteger(setItem?.index) ? setItem.index : index;
     const canComplete = resolvedSetIndex === nextPendingSetIndex;
+
+    const isFuture = resolvedSetIndex > nextPendingSetIndex;
+    const isActiveSet = canComplete;
+    const rowState = buildWorkoutSetRowState({
+      weight: setItem?.weight,
+      reps: setItem?.reps,
+      rpe: setItem?.rpe,
+      isSaved: Boolean(setItem?.done),
+      isFuture,
+      isActiveSet,
+      isCardio: exercise?.category === 'cardio',
+    });
 
     return (
       <SetRow
@@ -39,6 +53,8 @@ export const ExerciseCard = React.memo(function ExerciseCard({
         index={resolvedSetIndex}
         simpleMode={simpleMode}
         isCardio={exercise?.category === 'cardio'}
+        rowState={rowState}
+        isSaving={isSaving}
         onChange={(field, value) => {
           if (typeof onChangeSet !== 'function' || !safeExerciseName) {
             return;
@@ -46,7 +62,7 @@ export const ExerciseCard = React.memo(function ExerciseCard({
           onChangeSet(safeExerciseName, resolvedSetIndex, field, value);
         }}
         onComplete={() => {
-          if (typeof onCompleteSet !== 'function' || !safeExerciseName || setItem?.done || !canComplete) {
+          if (typeof onCompleteSet !== 'function' || !safeExerciseName || setItem?.done || !rowState.canSave) {
             return;
           }
           onCompleteSet(safeExerciseName, resolvedSetIndex);
@@ -54,7 +70,7 @@ export const ExerciseCard = React.memo(function ExerciseCard({
         testIDs={typeof testIDs === 'function' ? testIDs(setItem, resolvedSetIndex) : {}}
       />
     );
-  }, [exercise?.category, nextPendingSetIndex, onChangeSet, onCompleteSet, safeExerciseName, simpleMode, testIDs]);
+  }, [exercise?.category, isSaving, nextPendingSetIndex, onChangeSet, onCompleteSet, safeExerciseName, simpleMode, testIDs]);
 
   return (
     <AppCard>
@@ -79,12 +95,14 @@ export const ExerciseCard = React.memo(function ExerciseCard({
         </>
       ) : null}
 
-      <FlatList
-        data={safeSets}
-        scrollEnabled={false}
-        keyExtractor={(item, index) => String(item?.id || `${safeExerciseName}-${index}`)}
-        renderItem={renderSetItem}
-      />
+      {/*
+        P0: evitar FlatList virtualizada dentro de FlatList+ScrollView (WorkoutScreen).
+        Com scrollEnabled=false o ganho de virtualizacao e zero; no Android costuma
+        truncar linhas / altura errada. Map mantem mesma UX com lista pequena (series).
+      */}
+      <View>
+        {safeSets.map((setItem, index) => renderSetRow(setItem, index))}
+      </View>
 
       <TouchableOpacity testID={testIDs?.addSet || 'btn-add-set'} onPress={() => typeof onAddSet === 'function' && safeExerciseName && onAddSet(safeExerciseName)} style={styles.addButton}>
         <Text style={styles.addText}>+ Serie</Text>

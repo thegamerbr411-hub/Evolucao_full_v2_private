@@ -1,4 +1,4 @@
-import { getFoodCatalog } from '../../data/nutritionDatabase.js';
+import { sanitizeWorkoutLogsForRead } from '../../services/workoutLogIntegrity.js';
 import {
   SCREENS,
   trackEvent,
@@ -12,6 +12,7 @@ import { logError } from '../../core/logger';
 import { getLevelFromXp } from '../../services/gamificationEngine';
 import { estimateNutritionFromTextInput } from './nutrition';
 import { getCanonicalFoodData as _getCanonicalFoodData } from './nutrition';
+import { getFoodCatalog } from '../../data/nutritionDatabase.js';
 import {
   getWeekBounds,
   filterLogsByExercise,
@@ -168,7 +169,7 @@ const roundToStep = (value, step = 2.5) => Math.round(value / step) * step;
 
 export function getExerciseProgressionSuggestion({ exerciseName = '', workoutLogs = [], profile = {} } = {}) {
   const identity = resolveExerciseIdentity(exerciseName, null);
-  const logs = filterLogsByExercise(workoutLogs, identity);
+  const logs = sanitizeWorkoutLogsForRead(filterLogsByExercise(workoutLogs, identity));
   const template = getExerciseTemplate(exerciseName);
   const repRange = parseRepRange(template?.reps);
   const step = getProgressionStep(exerciseName);

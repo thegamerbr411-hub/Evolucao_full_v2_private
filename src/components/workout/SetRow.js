@@ -1,19 +1,79 @@
 import React, { memo, useRef, useState } from 'react';
 import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors, radius, spacing } from '../../theme';
+import {
+  buildWorkoutSetInputDisplay,
+  formatDisplayText,
+  normalizeSetFieldValue,
+} from '../../services/workoutSetDisplayValue';
 
-export const SetRow = memo(function SetRow({ set, index, onChange, onComplete, onSubmitWeight, onSubmitReps, simpleMode, testIDs }) {
+export const SetRow = memo(function SetRow({
+  set,
+  index,
+  onChange,
+  onComplete,
+  onSubmitWeight,
+  onSubmitReps,
+  simpleMode,
+  isCardio,
+  rowState,
+  isSaving = false,
+  testIDs,
+}) {
   const buttonScaleAnim = useRef(new Animated.Value(1)).current;
   const [activeField, setActiveField] = useState(null);
 
-  const values = {
-    weight: String(set?.weight || ''),
-    reps: String(set?.reps || ''),
-    rpe: String(set?.rpe || ''),
+  const isSaved = Boolean(set?.done);
+  const isDisabled = !isSaved && !(rowState?.canSave);
+
+  const weightPlaceholder = isCardio ? 'Km' : 'Kg';
+  const repsPlaceholder = isCardio ? 'Min' : 'Reps';
+
+  const weightDisplay = buildWorkoutSetInputDisplay({
+    rawValue: set?.weight,
+    savedValue: isSaved ? set?.weight : '',
+    placeholder: weightPlaceholder,
+    isSaving,
+    isSaved,
+    isDisabled,
+  });
+
+  const repsDisplay = buildWorkoutSetInputDisplay({
+    rawValue: set?.reps,
+    savedValue: isSaved ? set?.reps : '',
+    placeholder: repsPlaceholder,
+    isSaving,
+    isSaved,
+    isDisabled,
+  });
+
+  const weightText = formatDisplayText({
+    displayValue: weightDisplay.displayValue,
+    placeholder: weightPlaceholder,
+    showPlaceholder: weightDisplay.showPlaceholder,
+  });
+
+  const repsText = formatDisplayText({
+    displayValue: repsDisplay.displayValue,
+    placeholder: repsPlaceholder,
+    showPlaceholder: repsDisplay.showPlaceholder,
+  });
+
+  const safeRowState = rowState || {
+    status: 'pending',
+    label: 'Pendente',
+    actionLabel: '',
+    canSave: false,
+    showAction: false,
+    accessibilityLabel: 'Pendente',
+    helperText: '',
   };
 
   const handlePress = () => {
-    // Animação de escala: 1 → 0.92 → 1 (200ms total)
+    if (!safeRowState.canSave) {
+      return;
+    }
+
     Animated.sequence([
       Animated.timing(buttonScaleAnim, {
         toValue: 0.92,
@@ -27,14 +87,17 @@ export const SetRow = memo(function SetRow({ set, index, onChange, onComplete, o
       }),
     ]).start();
 
-    // Chama callback original
     if (typeof onComplete === 'function') {
       onComplete();
     }
   };
 
   const applyKey = (field, key) => {
-    const current = String(values?.[field] || '');
+    if (typeof onChange !== 'function') {
+      return;
+    }
+
+    const current = normalizeSetFieldValue(field === 'weight' ? set?.weight : field === 'reps' ? set?.reps : set?.rpe);
 
     if (key === 'backspace') {
       onChange(field, current.slice(0, -1));
@@ -70,6 +133,14 @@ export const SetRow = memo(function SetRow({ set, index, onChange, onComplete, o
     setActiveField(null);
   };
 
+  const statusStyle = safeRowState.status === 'saved'
+    ? styles.statusSaved
+    : safeRowState.status === 'ready'
+      ? styles.statusReady
+      : safeRowState.status === 'invalid'
+        ? styles.statusInvalid
+        : styles.statusPending;
+
   return (
     <View style={styles.wrapper}>
       <View style={styles.row}>
@@ -80,7 +151,9 @@ export const SetRow = memo(function SetRow({ set, index, onChange, onComplete, o
           onPress={() => setActiveField('weight')}
           style={[styles.input, activeField === 'weight' ? styles.inputActive : null]}
         >
-          <Text style={styles.inputText}>{values.weight || 'Kg'}</Text>
+          <Text style={[styles.inputText, weightDisplay.showPlaceholder ? styles.inputPlaceholder : null]}>
+            {weightText}
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -88,7 +161,9 @@ export const SetRow = memo(function SetRow({ set, index, onChange, onComplete, o
           onPress={() => setActiveField('reps')}
           style={[styles.input, activeField === 'reps' ? styles.inputActive : null]}
         >
-          <Text style={styles.inputText}>{values.reps || 'Reps'}</Text>
+          <Text style={[styles.inputText, repsDisplay.showPlaceholder ? styles.inputPlaceholder : null]}>
+            {repsText}
+          </Text>
         </TouchableOpacity>
 
         {!simpleMode ? (
@@ -96,26 +171,48 @@ export const SetRow = memo(function SetRow({ set, index, onChange, onComplete, o
             onPress={() => setActiveField('rpe')}
             style={[styles.input, activeField === 'rpe' ? styles.inputActive : null]}
           >
-            <Text style={styles.inputText}>{values.rpe || 'RPE'}</Text>
+            <Text style={styles.inputText}>{normalizeSetFieldValue(set?.rpe) || 'RPE'}</Text>
           </TouchableOpacity>
         ) : null}
 
-        <Animated.View
-          style={[
-            {
-              transform: [{ scale: buttonScaleAnim }],
-            },
-          ]}
-        >
-          <TouchableOpacity
-            testID={testIDs?.done}
-            onPress={handlePress}
-            style={[styles.button, set?.done ? styles.buttonDone : null]}
+        <View style={[styles.statusBadge, statusStyle]}>
+          <Text style={styles.statusText}>{safeRowState.label}</Text>
+        </View>
+
+        {safeRowState.showAction ? (
+          <Animated.View
+            style={[
+              {
+                transform: [{ scale: buttonScaleAnim }],
+              },
+            ]}
           >
-            <Text style={styles.buttonText}>✔</Text>
-          </TouchableOpacity>
-        </Animated.View>
+            <TouchableOpacity
+              testID={testIDs?.done}
+              onPress={handlePress}
+              disabled={!safeRowState.canSave}
+              accessibilityRole="button"
+              accessibilityLabel={safeRowState.accessibilityLabel}
+              style={[
+                styles.button,
+                safeRowState.status === 'saved' ? styles.buttonSaved : null,
+                safeRowState.status === 'ready' ? styles.buttonReady : null,
+                !safeRowState.canSave ? styles.buttonDisabled : null,
+              ]}
+            >
+              <Text style={styles.buttonText}>
+                {safeRowState.status === 'saved'
+                  ? '✔'
+                  : safeRowState.actionLabel || safeRowState.label}
+              </Text>
+            </TouchableOpacity>
+          </Animated.View>
+        ) : null}
       </View>
+
+      {safeRowState.helperText ? (
+        <Text style={styles.helperText}>{safeRowState.helperText}</Text>
+      ) : null}
 
       {activeField ? (
         <View style={styles.keypadWrap}>
@@ -177,8 +274,39 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textAlign: 'center',
   },
+  inputPlaceholder: {
+    color: colors.textSecondary,
+    fontWeight: '700',
+  },
+  statusBadge: {
+    borderRadius: radius.pill,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderWidth: 1,
+  },
+  statusPending: {
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceElevated,
+  },
+  statusReady: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryMuted,
+  },
+  statusSaved: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
+  statusInvalid: {
+    borderColor: '#B45309',
+    backgroundColor: '#3A2510',
+  },
+  statusText: {
+    color: colors.textSecondary,
+    fontSize: 10,
+    fontWeight: '800',
+  },
   button: {
-    width: 40,
+    minWidth: 40,
     height: 40,
     borderRadius: radius.pill,
     alignItems: 'center',
@@ -186,14 +314,31 @@ const styles = StyleSheet.create({
     backgroundColor: '#1A2435',
     borderWidth: 1,
     borderColor: colors.border,
+    paddingHorizontal: 8,
   },
-  buttonDone: {
+  buttonReady: {
+    backgroundColor: colors.success,
+    borderColor: colors.success,
+    minWidth: 88,
+  },
+  buttonSaved: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
+  },
+  buttonDisabled: {
+    opacity: 0.45,
   },
   buttonText: {
     color: colors.textPrimary,
     fontWeight: '800',
+    fontSize: 11,
+  },
+  helperText: {
+    color: '#FCA5A5',
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 4,
+    marginLeft: 28,
   },
   keypadWrap: {
     marginTop: spacing.xs,
