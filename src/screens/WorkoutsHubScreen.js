@@ -35,9 +35,17 @@ export function WorkoutsHubView({
   smartSuggestions = [],
   onQuickAddSuggestion,
   quickAddMessage,
+  workoutSession,
 }) {
   const safeSummary = summary || { guidedSets: 0 };
   const safeTodayWorkout = Array.isArray(todayWorkout) ? todayWorkout : [];
+  const session = workoutSession || {
+    status: 'not_started',
+    label: 'Nao iniciado',
+    ctaLabel: 'INICIAR TREINO',
+    ctaSubtitle: 'Comece agora',
+    isContinue: false,
+  };
   const safeRecommended = recommended || {
     title: 'Sem recomendação',
     source: 'fallback',
@@ -89,7 +97,7 @@ export function WorkoutsHubView({
           <View style={styles.statsDivider} />
           <WorkoutStatBadge
             label="Status"
-            value={(safeSummary.guidedSets || 0) > 0 ? '✓' : '–'}
+            value={session.label || '—'}
             color={(safeSummary.guidedSets || 0) > 0 ? colors.success : colors.textMuted}
           />
         </View>
@@ -154,7 +162,7 @@ export function WorkoutsHubView({
       {/* CTAs principais */}
       <PrimaryButton
         {...qaAliasProps(QA_ELEMENTS.btnStartWorkout, 'btn-iniciar-treino')}
-        title="Iniciar treino"
+        title={session.ctaLabel || 'Iniciar treino'}
         onPress={() => navigation.navigate('TreinoHoje')}
       />
 
@@ -285,7 +293,7 @@ function buildSmartSuggestions({ recommended, todayWorkout }) {
 }
 
 export default function WorkoutsHubScreen({ navigation }) {
-  const { getTodayWorkoutSummary, getTodayWorkout, getRecommendedWorkoutV4 } = useApp();
+  const { getTodayWorkoutSummary, getTodayWorkout, getRecommendedWorkoutV4, getDailyState } = useApp();
   const { addExercise } = useWorkoutDomain();
   const user = useUserStore((state) => state.user);
   const isAdmin = user?.role === 'admin';
@@ -293,6 +301,8 @@ export default function WorkoutsHubScreen({ navigation }) {
 
   const summary = typeof getTodayWorkoutSummary === 'function' ? getTodayWorkoutSummary() : { guidedSets: 0 };
   const todayWorkout = typeof getTodayWorkout === 'function' ? getTodayWorkout() : [];
+  const dailyState = typeof getDailyState === 'function' ? getDailyState() : null;
+  const workoutSession = dailyState?.workoutSession || null;
   const recommended = typeof getRecommendedWorkoutV4 === 'function'
     ? getRecommendedWorkoutV4()
     : {
@@ -369,6 +379,7 @@ export default function WorkoutsHubScreen({ navigation }) {
       smartSuggestions={smartSuggestions}
       onQuickAddSuggestion={isSmartEmptyEnabled ? handleQuickAddSuggestion : null}
       quickAddMessage={quickAddMessage}
+      workoutSession={workoutSession}
     />
   );
 }
