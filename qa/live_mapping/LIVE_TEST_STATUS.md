@@ -11,7 +11,30 @@
 
 **Push + workspace (2026-06-02):** 4 commits Home+Treino em `origin/hotfix` (`d4e9b7d`) · [`EVOLUCAO_WORKSPACE_AUDIT.md`](EVOLUCAO_WORKSPACE_AUDIT.md)
 
-**GitHub PR (2026-06-03):** [#2](https://github.com/thegamerbr411-hub/Evolucao_full_v2_private/pull/2) hotfix→main · e-mail **Verified+Primary** · **conflitos SIM** · merge **NÃO** · PASS global **NÃO** · [`GITHUB_PR_PREP_REPORT.md`](GITHUB_PR_PREP_REPORT.md)
+**GitHub PR (2026-06-03):** [#2](https://github.com/thegamerbr411-hub/Evolucao_full_v2_private/pull/2) hotfix→main · **merged** · SHA **`9d5040c`** · PASS global **NÃO**
+
+**QA leve pós-merge (2026-06-03 — worktree `F:\projetos\evolucao-main-clean`):**
+
+| Check | Resultado |
+|-------|-----------|
+| `npm ci` | **PASS** (~1141 pkgs) · `package-lock.json` **não alterado** |
+| **Gate 11/11 Home/Treino** | **PASS** (2026-06-03 pós-correção RN test-safe) |
+| `__tests__/dailyState.test.mjs` | **PASS** |
+| `__tests__/workoutFinishFlow.test.mjs` | **PASS** |
+| Demais 9 suites `__tests__/*.mjs` | **PASS** |
+| Workspace oficial `evolucao app` | **não tocado** (~269 sujos preservados) |
+| **PASS global app** | **NÃO** |
+| QA visual device | **aguardar OK Felipe** |
+
+**Bloqueio React Native em testes Node (2026-06-03 — OK Felipe):**
+
+| Item | Detalhe |
+|------|---------|
+| **Causa real** | Cadeia `dailyState` → `logger` → `analytics` → `qaTransport` → `observability` → `@react-native-async-storage/async-storage` → `react-native` (SyntaxError `typeof` em Node) |
+| **Solução** | `runtimeEnv.js` + guard `isNodePureTest()` em `observability.js`, `analytics.js`, `qaTransport.js`: stub AsyncStorage e no-op Platform em `node --test`; runtime mobile inalterado (dynamic import RN/AsyncStorage fora de teste) |
+| **Arquivos** | `src/utils/runtimeEnv.js` (novo), `src/core/observability.js`, `src/utils/analytics.js`, `src/utils/qaTransport.js` |
+| `audit:release:check` pós-patch | **drift=4** — `observability.js`, `analytics.js`, `qaTransport.js` (content_mismatch); `runtimeEnv.js` (missing_in_audit). **Não** sincronizar `_audit_release` sem OK Felipe |
+| Commit / push | **NÃO** |
 
 ---
 

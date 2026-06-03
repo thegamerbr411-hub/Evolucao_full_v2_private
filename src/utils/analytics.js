@@ -1,5 +1,9 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createAsyncStorageStub, isNodePureTest } from './runtimeEnv.js';
 import { fireAndForgetQaPost } from './qaTransport.js';
+
+const AsyncStorage = isNodePureTest()
+  ? createAsyncStorageStub()
+  : (await import('@react-native-async-storage/async-storage')).default;
 import { APP_VERSION } from './appVersion.js';
 
 const metrics = {

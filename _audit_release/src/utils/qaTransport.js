@@ -1,6 +1,10 @@
 import axios from 'axios';
-import { Platform } from 'react-native';
-import { trackApiFailure } from '../core/observability';
+import { isNodePureTest } from './runtimeEnv.js';
+import { trackApiFailure } from '../core/observability.js';
+
+const platformOs = isNodePureTest()
+  ? 'web'
+  : (await import('react-native')).Platform.OS;
 
 export const QA_LOCAL_HEADER = 'x-qa-local';
 export const QA_CLIENT_ID_HEADER = 'x-qa-client-id';
@@ -23,7 +27,7 @@ function normalizeBaseUrl(value) {
   }
 
   // Emulador Android nao enxerga localhost do host; usa 10.0.2.2
-  if (Platform.OS === 'android') {
+  if (platformOs === 'android') {
     return raw.replace(/^http:\/\/localhost(?=[:/]|$)/i, 'http://10.0.2.2');
   }
 

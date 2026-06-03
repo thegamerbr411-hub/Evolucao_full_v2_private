@@ -1,4 +1,8 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createAsyncStorageStub, isNodePureTest } from '../utils/runtimeEnv.js';
+
+const AsyncStorage = isNodePureTest()
+  ? createAsyncStorageStub()
+  : (await import('@react-native-async-storage/async-storage')).default;
 
 const EVENT_LIMIT = 500;
 const ERROR_LIMIT = 120;
