@@ -66,8 +66,12 @@ ios/build/
 # Logs
 *.log
 
-# imagens temporárias
+# imagens temporárias (ícones da app versionados — ver exceções abaixo)
 *.png
+!assets/icon.png
+!assets/splash-icon.png
+!_audit_release/assets/icon.png
+!_audit_release/assets/splash-icon.png
 screen*
 screenshots/
 
@@ -88,3 +92,28 @@ dist/
 # eas
 eas-log*
 eas-result*
+
+# firebase local export (nao versionar arquivo raiz)
+/google-services.json
+
+# qa artifacts temporarios (manter evidencias locais sem ir para o git)
+baseline_runs/
+nightly_runs/
+qa_runs/
+stress_runs/
+qa_phase4_hardening/QA_RUNS/
+qa_phase4_hardening/metrics/
+qa_phase8_production_readiness/QA_RUNS/video/
+qa_phase8_production_readiness/QA_RUNS/regression/
+qa_phase9_final_blockers/QA_RUNS/
+stabilization_phase_2/VIDEO_VALIDATION/
+recovery_audit/**/video/
+qa/**/interactions/
+
+# capturas e dumps locais
+evol_v2_*.jpg
+evol_v3_*.jpg
+qa/**/*.xml
+qa/**/*.png
+qa/**/*logcat*.txt
+qa/**/*dump*.txt

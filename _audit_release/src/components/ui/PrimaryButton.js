@@ -1,7 +1,8 @@
 import React from 'react';
 import { Animated, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { colors, radius, spacing, typography } from '../../theme';
-import { trackEvent } from '../../utils/analytics';
+import { getAnalyticsContext, trackEvent } from '../../utils/analytics';
+import { trackButtonClick } from '../../core/observability';
 
 export function PrimaryButton({ title, onPress, style, testID }) {
   const scaleAnim = React.useRef(new Animated.Value(1)).current;
@@ -25,13 +26,24 @@ export function PrimaryButton({ title, onPress, style, testID }) {
   }, [scaleAnim]);
 
   const handlePress = React.useCallback(() => {
+    const analyticsContext = getAnalyticsContext();
+    const buttonId = String(testID || title || 'primary-button');
+    const screen = String(analyticsContext?.screen || 'unknown');
+
+    trackButtonClick({
+      screen,
+      id: buttonId,
+      label: String(title || ''),
+      component: 'PrimaryButton',
+    });
+
     trackEvent('tap', {
-      screen: 'ui',
+      screen,
       meta: {
         allowBurst: true,
         component: 'PrimaryButton',
         domain: 'interaction',
-        id: String(testID || title || 'primary-button'),
+        id: buttonId,
         label: String(title || ''),
       },
     });
@@ -53,11 +65,18 @@ export function PrimaryButton({ title, onPress, style, testID }) {
 const styles = StyleSheet.create({
   button: {
     backgroundColor: colors.primary,
+    borderWidth: 1,
+    borderColor: colors.primaryDim,
     padding: spacing.md,
     borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 52,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.24,
+    shadowRadius: 12,
+    elevation: 6,
   },
   text: {
     ...typography.cta,

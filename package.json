@@ -7,7 +7,6 @@
     "node": "20.x"
   },
   "scripts": {
-    "postinstall": "npm install --prefix dashboard --omit=dev",
     "start": "expo start",
     "start:android:stable": "powershell -ExecutionPolicy Bypass -File scripts/start-expo-android-stable.ps1",
     "backend": "npm --prefix backend run start",
@@ -95,6 +94,8 @@
     "qa:audit:safe": "powershell -ExecutionPolicy Bypass -File scripts/qa-audit-safe.ps1",
     "ops:preflight": "node scripts/ops-preflight.mjs",
     "ops:health:smoke": "powershell -ExecutionPolicy Bypass -File scripts/ops-health-smoke.ps1",
+    "ops:validate:oauth": "node scripts/validate-oauth.mjs",
+    "ops:validate:ci": "node scripts/validate-ci-config.mjs",
     "release:gate": "powershell -ExecutionPolicy Bypass -File scripts/release-gate.ps1"
   },
   "dependencies": {
@@ -112,6 +113,7 @@
     "expo-auth-session": "~55.0.14",
     "expo-av": "^16.0.8",
     "expo-clipboard": "~55.0.13",
+    "expo-crypto": "~55.0.14",
     "expo-haptics": "~55.0.14",
     "expo-image-picker": "~55.0.18",
     "expo-modules-core": "~55.0.22",

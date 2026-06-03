@@ -1,5 +1,6 @@
 const { ensureOnboarded, goHome, launchApp } = require('./helpers/flows');
 const { getPersona } = require('./helpers/personas');
+const { isAttachedRun } = require('./helpers/runtime');
 const { isVisible, logStep, sleep, tapElement, waitForAny } = require('./helpers/utils');
 
 async function disableSyncSafely(timeoutMs = 7000) {
@@ -60,15 +61,15 @@ async function ensureRootTabsReady(persona, isAttachedRun) {
 
 describe('16 - treino tab smoke', () => {
   const persona = getPersona();
-  const isAttachedRun = String(process.env.DETOX_CONFIGURATION || '').includes('android.attached');
+  const attachedRun = isAttachedRun();
 
   beforeAll(async () => {
-    await launchApp({ deleteApp: !isAttachedRun });
+    await launchApp({ deleteApp: !attachedRun });
 
     const syncDisabled = await disableSyncSafely(7000);
     logStep(`treino-smoke:sync-disabled=${syncDisabled}`);
 
-    if (!isAttachedRun) {
+    if (!attachedRun) {
       await ensureOnboarded(persona);
       await goHome();
       return;
@@ -79,7 +80,7 @@ describe('16 - treino tab smoke', () => {
   });
 
   it('abre treino pela tab principal', async () => {
-    await ensureRootTabsReady(persona, isAttachedRun);
+    await ensureRootTabsReady(persona, attachedRun);
 
     if (await isVisible('tab-treino', 2500)) {
       logStep('smoke treino: tocando tab-treino');
@@ -89,7 +90,7 @@ describe('16 - treino tab smoke', () => {
         await waitFor(element(by.text('Treino'))).toBeVisible().withTimeout(1800);
         await element(by.text('Treino')).tap();
       } catch {
-        if (isAttachedRun) {
+        if (attachedRun) {
           logStep('treino-smoke:attached-safe-no-root-tab');
           await device.takeScreenshot('smoke-treino-attached-safe-no-root-tab');
           throw new Error('treino-smoke falhou: tab-treino nao encontrada no attached.');
@@ -110,9 +111,9 @@ describe('16 - treino tab smoke', () => {
       'screen-social',
       'screen-nutricao',
       'screen-coach',
-    ], isAttachedRun ? 30000 : 20000).catch(() => null);
+    ], attachedRun ? 30000 : 20000).catch(() => null);
 
-    if (!target && isAttachedRun) {
+    if (!target && attachedRun) {
       logStep('treino-smoke:attached-safe-no-target');
       await device.takeScreenshot('smoke-treino-attached-safe-no-target');
       throw new Error('treino-smoke falhou: nenhum alvo detectado apos toque na aba Treino.');

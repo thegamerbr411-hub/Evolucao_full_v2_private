@@ -34,7 +34,7 @@
         <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
         <data android:scheme="evolucao"/>
-        <data android:scheme="com.googleusercontent.apps.910587302920-69smjbt52gc1saanpr1p6179kjcjk48f"/>
+        <data android:scheme="com.googleusercontent.apps.910587302920-4sls8n06ol9vsedteutiur8mnvdg553q"/>
       </intent-filter>
     </activity>
   </application>

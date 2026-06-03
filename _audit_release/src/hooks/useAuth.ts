@@ -17,6 +17,22 @@ export const useAuth = () => {
     try {
       setError(null)
       const authResponse = await promptAsync()
+      if (authResponse?.type === 'error') {
+        const raw = String(
+          authResponse?.error?.message
+            || (authResponse as any)?.params?.error_description
+            || (authResponse as any)?.params?.error
+            || ''
+        )
+        if (/invalid_client/i.test(raw)) {
+          setError(
+            'Login Google bloqueado (invalid_client). Neste APK, confirme SHA-1/SHA-256 de release no Firebase e o client OAuth Android.'
+          )
+          return false
+        }
+        setError(raw || 'Falha na autenticação Google.')
+        return false
+      }
       const idToken = authResponse?.type === 'success'
         ? (authResponse.authentication?.idToken || (authResponse as any)?.params?.id_token)
         : null

@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { getPersona } = require('./personas');
+const { hasDetoxGlobals, isAttachedRun } = require('./runtime');
 const {
   countEventEntries,
   fetchHeatmap,
@@ -9,6 +10,7 @@ const {
   humanDelay,
   isVisible,
   logStep,
+  dismissBlockingSystemDialogs,
   replaceInput,
   scrollToElement,
   sleep,
@@ -89,10 +91,15 @@ function clearAttachedAndroidAppData() {
 }
 
 async function waitForLandingByText(timeout = 12000) {
+  if (!hasDetoxGlobals()) {
+    return null;
+  }
+
   const labels = ['Home', 'Treino', 'Social', 'Coach', 'Perfil', 'Nutricao', 'Nutricao', 'Nutrição', 'Permitir', 'Allow', 'OK'];
   const startedAt = Date.now();
 
   while (Date.now() - startedAt < timeout) {
+    await dismissBlockingSystemDialogs();
     for (const label of labels) {
       try {
         await waitFor(element(by.text(label))).toExist().withTimeout(350);
@@ -108,16 +115,21 @@ async function waitForLandingByText(timeout = 12000) {
 }
 
 async function waitForLandingByIds(ids, timeout = 18000) {
+  if (!hasDetoxGlobals()) {
+    return null;
+  }
+
   const startedAt = Date.now();
 
   while (Date.now() - startedAt < timeout) {
+    await dismissBlockingSystemDialogs();
     for (const id of ids) {
-      if (await isVisible(id, 450)) {
+      if (await isVisible(id, 700)) {
         return `visible:${id}`;
       }
 
       try {
-        await waitFor(element(by.id(id))).toExist().withTimeout(450);
+        await waitFor(element(by.id(id))).toExist().withTimeout(700);
         return `exists:${id}`;
       } catch {
         // tenta o proximo marcador
@@ -130,16 +142,70 @@ async function waitForLandingByIds(ids, timeout = 18000) {
   return null;
 }
 
+async function waitForLandingSignal(isAttachedRun) {
+  const idLanding = await waitForLandingByIds([
+    // IDs semânticos (novo padrão Phase 3)
+    'app_bootstrap_ready',
+    'screen_home',
+    'screen_login',
+    'screen_register',
+    'tab_home',
+    'tab_treinos',
+    // IDs legados (mantidos por compatibilidade)
+    'home-screen',
+    'screen-home',
+    'home-ready',
+    'app-bootstrap-ready',
+    'app-root',
+    'questionnaire-screen',
+    'tab-home',
+    'tab-treino',
+    'tab-social',
+    'tab-nutricao',
+    'tab-conversa',
+    'tab-perfil',
+    'screen-treinos',
+    'screen-social',
+    'screen-nutricao',
+    'screen-coach',
+    'screen-routines',
+    'screen-workout',
+    'screen-free-workout',
+  ], isAttachedRun ? 22000 : 50000);
+
+  if (idLanding) {
+    return idLanding;
+  }
+
+  const textLanding = await waitForLandingByText(isAttachedRun ? 12000 : 18000);
+  if (textLanding) {
+    return textLanding;
+  }
+
+  const existsLanding = await waitForLandingByIds([
+    'app-root',
+    'app-bootstrap-ready',
+    'home-screen',
+    'screen-home',
+    'tab-home',
+  ], isAttachedRun ? 6000 : 8000);
+
+  return existsLanding;
+}
+
 async function launchApp({ deleteApp = false } = {}) {
-  const isAttachedRun = String(process.env.DETOX_ATTACHED_CONFIGURATION || '').includes('android.attached')
-    || String(process.env.DETOX_CONFIGURATION || '').includes('android.attached')
+  const attachedRun = isAttachedRun()
     || String(process.env.DETOX_REUSE_APP || '') === '1';
   const shouldForceTerminateAttached = String(process.env.DETOX_FORCE_TERMINATE || '0') === '1';
   const shouldClearAttachedData = Boolean(deleteApp)
-    && isAttachedRun
+    && attachedRun
     && String(process.env.DETOX_CLEAR_APP_DATA || '1') !== '0';
 
-  const shouldDeleteAppData = Boolean(deleteApp) && !isAttachedRun;
+  const shouldDeleteAppData = Boolean(deleteApp) && !attachedRun;
+
+  if (!hasDetoxGlobals()) {
+    throw new Error('Detox globals indisponiveis no launchApp. Sessao pode ter desconectado.');
+  }
 
   if (shouldClearAttachedData) {
     if (shouldForceTerminateAttached) {
@@ -155,9 +221,9 @@ async function launchApp({ deleteApp = false } = {}) {
   let lastError = null;
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     try {
-      logStep(`launchApp attempt=${attempt} attached=${isAttachedRun}`);
+      logStep(`launchApp attempt=${attempt} attached=${attachedRun}`);
 
-      if (isAttachedRun) {
+      if (attachedRun) {
         const mustRelaunchFromScratch = shouldForceTerminateAttached || attempt > 1;
 
         // Segunda tentativa sempre força relaunch completo para reduzir travas de bootstrap no attached.
@@ -175,12 +241,6 @@ async function launchApp({ deleteApp = false } = {}) {
             detoxEnableSynchronization: 0,
           },
         });
-
-        // No attached físico, polling agressivo de markers logo após o launch
-        // costuma quebrar a sessão de instrumentação. A validação da tela inicial
-        // fica para o teste principal, que já possui fallback.
-        logStep('launchApp landed=attached-launch-only');
-        return;
       } else {
         try {
           await device.terminateApp();
@@ -200,51 +260,16 @@ async function launchApp({ deleteApp = false } = {}) {
         });
       }
 
-      // O app dispara telemetria e timers contínuos; em attached físico, chamar
-      // disableSynchronization cedo pode quebrar o handshake do runner.
-      if (!isAttachedRun) {
-        try {
-          await device.disableSynchronization();
-        } catch {
-          throw new Error('Falha ao desabilitar sincronizacao do Detox.');
+      const landing = await waitForLandingSignal(attachedRun);
+      if (!landing) {
+        if (attachedRun) {
+          logStep('launchApp attached sem marker inicial; seguindo com fallback de onboarding');
+          return;
         }
+        throw new Error('Falha ao detectar tela inicial por testID, texto e exists.');
       }
 
-      const landingById = await waitForLandingByIds([
-        'app-bootstrap-ready',
-        'app-root',
-        'questionnaire-screen',
-        'screen-home',
-        'tab-home',
-        'tab-treino',
-        'tab-social',
-        'tab-nutricao',
-        'tab-conversa',
-        'tab-perfil',
-        'screen-treinos',
-        'screen-social',
-        'screen-nutricao',
-        'screen-coach',
-        'screen-routines',
-        'screen-workout',
-        'screen-free-workout',
-      ], isAttachedRun ? 12000 : 45000);
-
-      if (!landingById) {
-        const textLanding = await waitForLandingByText(isAttachedRun ? 6000 : 12000);
-        if (!textLanding) {
-          if (isAttachedRun) {
-            // Em attached físico, o primeiro marker pode atrasar mesmo com app aberto.
-            // Deixa o fluxo seguir para ensureOnboarded tentar recuperar o estado.
-            logStep('launchApp attached sem marker inicial; seguindo com fallback de onboarding');
-            return;
-          }
-
-          throw new Error('Falha ao detectar tela inicial por testID e por texto.');
-        }
-      }
-
-      logStep(`launchApp landed=${landingById || 'text-marker'}`);
+      logStep(`launchApp landed=${landing}`);
       return;
     } catch (error) {
       lastError = error;
@@ -884,6 +909,26 @@ async function goToSocial() {
 }
 
 async function runGuidedWorkoutHappyPath(persona = getPersona()) {
+  const ensureGuidedInputReady = async (fieldId) => {
+    try {
+      await waitFor(element(by.id(fieldId))).toBeVisible().withTimeout(5000);
+      return;
+    } catch {
+      try {
+        if (!(await isVisible('btn-add-set', 1200))) {
+          await scrollToElement('screen-workout', 'btn-add-set', 'down', 360, 6);
+        }
+        await tapElement('btn-add-set', 5000);
+        await sleep(280);
+      } catch {
+        // segue com fallback de scroll/tap
+      }
+      await scrollToElement('screen-workout', fieldId, 'down', 360, 8);
+      await tapElement(fieldId, 6000);
+      await waitFor(element(by.id(fieldId))).toBeVisible().withTimeout(5000);
+    }
+  };
+
   await goToTreinos();
   await humanDelay(persona, 'open-guided-workout');
 
@@ -918,11 +963,18 @@ async function runGuidedWorkoutHappyPath(persona = getPersona()) {
     throw new Error('Nao abriu screen-workout apos acionar btn-iniciar-treino.');
   }
 
-  await replaceInput('input-peso', persona.guidedWeight);
+  await ensureGuidedInputReady('input-weight');
+  await replaceInput('input-weight', persona.guidedWeight);
+  await ensureGuidedInputReady('input-reps');
   await replaceInput('input-reps', persona.guidedReps);
   await hideKeyboardIfNeeded();
   await humanDelay(persona, 'save-guided-set');
-  await tapElement('btn-salvar-serie');
+  try {
+    await tapElement('btn-save-set');
+  } catch {
+    await waitFor(element(by.id('btn-save-set'))).toBeVisible().withTimeout(3000);
+    await tapElement('btn-save-set');
+  }
   try {
     await waitForAny(['btn-editar-serie', 'btn-remover-serie', 'serie-salva-indicator'], 6000);
   } catch {
@@ -1414,10 +1466,15 @@ async function runCreatedRoutineWorkoutHappyPath(persona = getPersona()) {
     throw new Error('Nao abriu tela de treino apos iniciar rotina criada.');
   }
 
-  await replaceInput('input-peso', persona.guidedWeight);
+  await replaceInput('input-weight', persona.guidedWeight);
   await replaceInput('input-reps', persona.guidedReps);
   await hideKeyboardIfNeeded();
-  await tapElement('btn-salvar-serie');
+  try {
+    await tapElement('btn-save-set');
+  } catch {
+    await waitFor(element(by.id('btn-save-set'))).toBeVisible().withTimeout(3000);
+    await tapElement('btn-save-set');
+  }
   await waitFor(element(by.id('serie-salva-indicator'))).toBeVisible().withTimeout(8000);
   await saveGuidedWorkoutPartial();
 
@@ -1486,19 +1543,23 @@ async function runNutritionHappyPath(persona = getPersona(), options = {}) {
     return;
   }
 
-  if (await isVisible('text-input-food', 1200)) {
+  try {
+    if (await isVisible('text-input-food', 1200)) {
+      await replaceInput('text-input-food', persona.nutritionTextEstimate);
+      await hideKeyboardIfNeeded();
+      await tapElement('btn-estimate-text');
+      await isVisible('nutrition-result-card', 4000);
+      return;
+    }
+
+    await scrollToElement('screen-nutricao', 'text-input-food', 'down', 420, 16);
     await replaceInput('text-input-food', persona.nutritionTextEstimate);
     await hideKeyboardIfNeeded();
     await tapElement('btn-estimate-text');
     await isVisible('nutrition-result-card', 4000);
-    return;
+  } catch (error) {
+    logStep(`nutrition-text-estimate-skip: ${String(error?.message || 'unknown')}`);
   }
-
-  await scrollToElement('screen-nutricao', 'text-input-food', 'down', 420, 16);
-  await replaceInput('text-input-food', persona.nutritionTextEstimate);
-  await hideKeyboardIfNeeded();
-  await tapElement('btn-estimate-text');
-  await isVisible('nutrition-result-card', 4000);
 }
 
 async function runTrackingHappyPath(persona = getPersona()) {

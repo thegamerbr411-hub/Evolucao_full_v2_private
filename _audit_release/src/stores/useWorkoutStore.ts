@@ -7,6 +7,7 @@ export type WorkoutLog = {
   id: string;
   date: string;
   createdAt: string;
+  sessionId?: string;
   exerciseId?: string;
   exerciseName: string;
   weight: number;
@@ -30,8 +31,13 @@ type WorkoutStore = {
   workout: WorkoutData;
   workoutLogs: WorkoutLog[];
   exerciseTargets: Record<string, ExerciseTarget>;
+  currentExercise: any | null;
+  currentSet: number;
+  isResting: boolean;
+  workoutSessionId: string | null;
 
   setWorkout: (workout: WorkoutData) => void;
+  setWorkoutSessionId: (id: string | null) => void;
   addExercise: (exercise: any) => void;
   updateSet: (exerciseIndex: number, setIndex: number, field: string, value: any) => void;
   addWorkoutLog: (log: WorkoutLog) => void;
@@ -39,6 +45,9 @@ type WorkoutStore = {
   setWorkoutLogs: (logs: WorkoutLog[]) => void;
   setExerciseTargets: (targets: Record<string, ExerciseTarget>) => void;
   updateExerciseTarget: (exerciseName: string, target: ExerciseTarget) => void;
+  setCurrentExerciseState: (exercise: any | null, currentSet?: number) => void;
+  advanceCurrentSet: (exercise: any | null, completedSetIndex: number) => void;
+  setRestingState: (isResting: boolean) => void;
 };
 
 const persistWorkoutState = (state: Pick<WorkoutStore, 'workoutLogs' | 'exerciseTargets'>) => {
@@ -56,8 +65,13 @@ export const useWorkoutStore = create<WorkoutStore>((set) => ({
   exerciseTargets: initialPersistedState.exerciseTargets && typeof initialPersistedState.exerciseTargets === 'object'
     ? initialPersistedState.exerciseTargets
     : {},
+  currentExercise: null,
+  currentSet: 1,
+  isResting: false,
+  workoutSessionId: null,
 
   setWorkout: (workout) => set({ workout }),
+  setWorkoutSessionId: (id) => set({ workoutSessionId: id }),
   addExercise: (exercise) =>
     set((state) => ({
       workout: {
@@ -118,4 +132,21 @@ export const useWorkoutStore = create<WorkoutStore>((set) => ({
       persistWorkoutState(next);
       return next;
     }),
+  setCurrentExerciseState: (exercise, currentSet = 1) =>
+    set(() => ({
+      currentExercise: exercise || null,
+      currentSet: Math.max(1, Number(currentSet || 1)),
+    })),
+  advanceCurrentSet: (exercise, completedSetIndex) =>
+    set((state) => {
+      const safeExercise = exercise || state.currentExercise || null;
+      const plannedSets = Math.max(1, Number(safeExercise?.sets || 1));
+      const nextSet = Math.max(1, Number(completedSetIndex || 0) + 2);
+      return {
+        currentExercise: safeExercise,
+        currentSet: Math.min(nextSet, plannedSets),
+      };
+    }),
+  setRestingState: (isResting) =>
+    set(() => ({ isResting: Boolean(isResting) })),
 }));

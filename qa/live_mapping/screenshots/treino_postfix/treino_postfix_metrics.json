@@ -1,0 +1,82 @@
+﻿{
+    "timestamp":  "2026-06-02T18:54:34",
+    "serial":  "emulator-5554",
+    "skipRelaunch":  false,
+    "metroOnline":  true,
+    "navigationWorkoutOk":  true,
+    "xmlDumpCount":  6,
+    "pngCaptured":  6,
+    "optional007":  {
+                        "captured":  false,
+                        "reason":  "time_budget_or_xml_limit"
+                    },
+    "optional008":  {
+                        "captured":  false,
+                        "reason":  "covered_by_workoutSetDisplayValue.test.mjs"
+                    },
+    "screens":  {
+                    "treino_postfix_001_home_treino_state":  {
+                                                                 "label":  "home_state",
+                                                                 "png":  "screenshots/treino_postfix/treino_postfix_001_home_treino_state.png",
+                                                                 "pngOk":  true,
+                                                                 "xmlOk":  true,
+                                                                 "dumpTimedOut":  false,
+                                                                 "homeConflict":  {
+                                                                                      "continuar":  false,
+                                                                                      "conflict":  false,
+                                                                                      "concluido":  false
+                                                                                  }
+                                                             },
+                    "_navigationWorkout":  true,
+                    "treino_postfix_002_treino_inicio_modo_simples":  {
+                                                                          "label":  "workout_simple",
+                                                                          "png":  "screenshots/treino_postfix/treino_postfix_002_treino_inicio_modo_simples.png",
+                                                                          "pngOk":  true,
+                                                                          "xmlOk":  true,
+                                                                          "dumpTimedOut":  false
+                                                                      },
+                    "treino_postfix_003_treino_modo_avancado":  {
+                                                                    "label":  "workout_advanced",
+                                                                    "png":  "screenshots/treino_postfix/treino_postfix_003_treino_modo_avancado.png",
+                                                                    "pngOk":  true,
+                                                                    "xmlOk":  false,
+                                                                    "dumpTimedOut":  false
+                                                                },
+                    "treino_postfix_004_finish_incompleto_alert":  {
+                                                                       "label":  "finish_incomplete_alert",
+                                                                       "png":  "screenshots/treino_postfix/treino_postfix_004_finish_incompleto_alert.png",
+                                                                       "pngOk":  true,
+                                                                       "xmlOk":  false,
+                                                                       "dumpTimedOut":  false,
+                                                                       "alertVisible":  false
+                                                                   },
+                    "treino_postfix_005_historico_exercicio":  {
+                                                                   "label":  "exercise_history_panel",
+                                                                   "png":  "screenshots/treino_postfix/treino_postfix_005_historico_exercicio.png",
+                                                                   "pngOk":  true,
+                                                                   "xmlOk":  false,
+                                                                   "dumpTimedOut":  false,
+                                                                   "historyPanel":  false,
+                                                                   "absurdValues":  false
+                                                               },
+                    "treino_postfix_006_history_screen_local_logs":  {
+                                                                         "label":  "history_screen_local",
+                                                                         "png":  "screenshots/treino_postfix/treino_postfix_006_history_screen_local_logs.png",
+                                                                         "pngOk":  true,
+                                                                         "xmlOk":  false,
+                                                                         "dumpTimedOut":  false,
+                                                                         "localPanel":  false,
+                                                                         "histNavOk":  false
+                                                                     },
+                    "treino_postfix_007_input_invalido_bloqueado":  {
+                                                                        "label":  "not_captured",
+                                                                        "pngOk":  false,
+                                                                        "reason":  "covered_by_workoutInputValidation.test.mjs"
+                                                                    },
+                    "treino_postfix_008_finish_fields_preserved":  {
+                                                                       "label":  "not_captured",
+                                                                       "pngOk":  false,
+                                                                       "reason":  "covered_by_workoutSetDisplayValue.test.mjs"
+                                                                   }
+                }
+}

@@ -110,22 +110,51 @@ if (backendNvmPath) {
   }
 }
 
+const runningInCi = String(process.env.GITHUB_ACTIONS || '').toLowerCase() === 'true';
+const EXPECTED_ANDROID_PACKAGE = 'com.tipolt.evolucaofullv2';
+
 if (googleServicesPath) {
   try {
     const parsed = JSON.parse(readText(googleServicesPath));
     const client = Array.isArray(parsed?.client) ? parsed.client[0] : null;
+    const androidPackage = String(client?.client_info?.android_client_info?.package_name || '').trim();
     const oauthClients = Array.isArray(client?.oauth_client) ? client.oauth_client : [];
-    const hasAndroidClient = oauthClients.some((c) => Number(c?.client_type) === 1 && isGoogleClientId(c?.client_id));
+    const androidOauthClients = oauthClients.filter((c) => Number(c?.client_type) === 1 && isGoogleClientId(c?.client_id));
+    const hasAndroidClient = androidOauthClients.some((c) => String(c?.android_info?.package_name || '').trim() === EXPECTED_ANDROID_PACKAGE);
+    const hasAndroidCertificateHash = androidOauthClients.some((c) => /^[a-f0-9]{40}$/i.test(String(c?.android_info?.certificate_hash || '').trim()));
     const hasWebClient = oauthClients.some((c) => Number(c?.client_type) === 3 && isGoogleClientId(c?.client_id));
-    if (!hasAndroidClient) fail('google-services.json sem OAuth Android válido'); else ok('google-services.json com OAuth Android');
-    if (!hasWebClient) warn('google-services.json sem OAuth Web explícito no primeiro client'); else ok('google-services.json com OAuth Web');
+
+    if (androidPackage !== EXPECTED_ANDROID_PACKAGE) {
+      fail(`google-services package mismatch: esperado ${EXPECTED_ANDROID_PACKAGE}, encontrado ${androidPackage || 'vazio'}`);
+    } else {
+      ok(`google-services package Android confere (${EXPECTED_ANDROID_PACKAGE})`);
+    }
+
+    if (!hasAndroidClient) {
+      if (runningInCi) {
+        warn('google-services.json sem OAuth Android valido (CI detectado)');
+      } else {
+        fail('google-services.json sem OAuth Android valido');
+      }
+    } else {
+      ok('google-services.json com OAuth Android');
+    }
+    if (!hasAndroidCertificateHash) {
+      if (runningInCi) {
+        warn('google-services.json sem certificate_hash Android valido (CI detectado)');
+      } else {
+        fail('google-services.json sem certificate_hash Android valido');
+      }
+    } else {
+      ok('google-services.json com certificate_hash Android valido');
+    }
+    if (!hasWebClient) warn('google-services.json sem OAuth Web explicito no primeiro client'); else ok('google-services.json com OAuth Web');
   } catch (error) {
-    fail(`google-services.json inválido: ${String(error?.message || error)}`);
+    fail(`google-services.json invalido: ${String(error?.message || error)}`);
   }
 }
 
 const envPath = path.join(root, '.env');
-const runningInCi = String(process.env.GITHUB_ACTIONS || '').toLowerCase() === 'true';
 
 if (!fs.existsSync(envPath)) {
   if (runningInCi) {

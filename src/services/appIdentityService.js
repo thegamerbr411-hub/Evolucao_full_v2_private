@@ -41,3 +41,17 @@ export async function saveUserIdentity(partial = {}) {
   await setJsonItem(USER_IDENTITY_KEY, normalized);
   return normalized;
 }
+
+export async function getUserIdentity() {
+  const current = await getJsonItem(USER_IDENTITY_KEY);
+  const userId = String(current?.userId || '').trim();
+  if (!userId) {
+    return null;
+  }
+
+  return {
+    userId,
+    createdAt: String(current?.createdAt || ''),
+    source: String(current?.source || 'unknown').trim() || 'unknown',
+  };
+}

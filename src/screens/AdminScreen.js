@@ -10,6 +10,7 @@ import { MUSCLE_GROUP_LABELS, MUSCLE_GROUPS } from '../data/exercises';
 import { getLocal, setLocal } from '../storage/mmkv';
 import { colors, spacing } from '../theme';
 import { postToAvailableQaHost, setQaRuntimeAuth } from '../utils/qaTransport';
+import { getFromAvailableQaHost } from '../utils/qaTransport';
 import { clearObservabilitySnapshot, getObservabilitySnapshot } from '../core/observability';
 
 const ADMIN_TOKEN_STORAGE_KEY = 'evolucao.admin.token.v1';
@@ -17,6 +18,35 @@ const ADMIN_LOCAL_UNLOCK_KEY = 'evolucao.admin.local.unlock.v1';
 const ADMIN_LOCAL_EXERCISES_KEY = 'admin.local.exercises.v1';
 const ADMIN_LOCAL_FOODS_KEY = 'admin.local.foods.v1';
 const EQUIPMENT_OPTIONS = ['maquina', 'halter', 'barra', 'cabo', 'peso_corporal', 'corda'];
+const FALLBACK_MUSCLE_GROUPS = {
+  LEGS: 'legs',
+  CHEST: 'chest',
+  BACK: 'back',
+  SHOULDERS: 'shoulders',
+  BICEPS: 'biceps',
+  TRICEPS: 'triceps',
+  HAMSTRINGS: 'hamstrings',
+  GLUTES: 'glutes',
+  CALVES: 'calves',
+  CORE: 'core',
+};
+const SAFE_MUSCLE_GROUPS = MUSCLE_GROUPS && typeof MUSCLE_GROUPS === 'object'
+  ? MUSCLE_GROUPS
+  : FALLBACK_MUSCLE_GROUPS;
+const SAFE_MUSCLE_GROUP_LABELS = MUSCLE_GROUP_LABELS && typeof MUSCLE_GROUP_LABELS === 'object'
+  ? MUSCLE_GROUP_LABELS
+  : {
+    chest: 'Peito',
+    back: 'Costas',
+    shoulders: 'Ombro',
+    biceps: 'Biceps',
+    triceps: 'Triceps',
+    legs: 'Pernas (Quadriceps)',
+    hamstrings: 'Posterior',
+    glutes: 'Gluteo',
+    calves: 'Panturrilha',
+    core: 'Abdomen / Core',
+  };
 
 function loadLocalExercises() {
   const persisted = getLocal(ADMIN_LOCAL_EXERCISES_KEY);
@@ -40,7 +70,7 @@ export default function AdminScreen() {
   const [authLoading, setAuthLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [localExerciseName, setLocalExerciseName] = useState('');
-  const [localPrimaryMuscle, setLocalPrimaryMuscle] = useState(MUSCLE_GROUPS.LEGS);
+  const [localPrimaryMuscle, setLocalPrimaryMuscle] = useState(SAFE_MUSCLE_GROUPS.LEGS || 'legs');
   const [localEquipment, setLocalEquipment] = useState('maquina');
   const [localExercises, setLocalExercises] = useState(() => loadLocalExercises());
   const [localFoodName, setLocalFoodName] = useState('');
@@ -50,6 +80,9 @@ export default function AdminScreen() {
   const [localFoodProtein, setLocalFoodProtein] = useState('0');
   const [localFoodFats, setLocalFoodFats] = useState('0');
   const [localFoods, setLocalFoods] = useState(() => loadLocalFoods());
+  const [accountTarget, setAccountTarget] = useState('');
+  const [accountBlockReason, setAccountBlockReason] = useState('beta_access_control');
+  const [adminUsers, setAdminUsers] = useState([]);
   const [bugLogs, setBugLogs] = useState([]);
   const [logsLoaded, setLogsLoaded] = useState(false);
   const [localAdminUnlocked, setLocalAdminUnlocked] = useState(false);
@@ -217,6 +250,82 @@ export default function AdminScreen() {
     await Clipboard.setStringAsync(JSON.stringify(payload, null, 2));
     Alert.alert('Exportacao concluida', `${localExercises.length} exercicio(s) copiado(s) em JSON.`);
     setToastMessage('Novos exercicios copiados para a area de transferencia.');
+  };
+
+  const loadAdminUsers = async () => {
+    const response = await getFromAvailableQaHost('/api/auth/admin/users');
+    if (!response?.ok) {
+      setToastMessage(`Falha ao carregar usuarios: ${response?.error || 'erro desconhecido'}`);
+      return;
+    }
+
+    const users = Array.isArray(response?.data?.users) ? response.data.users : [];
+    setAdminUsers(users);
+    setToastMessage(`${users.length} usuario(s) carregado(s).`);
+  };
+
+  const getAccountPayload = () => {
+    const raw = String(accountTarget || '').trim();
+    if (!raw) return null;
+    if (raw.includes('@')) {
+      return { email: raw.toLowerCase() };
+    }
+    return { userId: raw };
+  };
+
+  const handleBlockAccount = async () => {
+    const payload = getAccountPayload();
+    if (!payload) {
+      setToastMessage('Informe UID ou e-mail para bloquear.');
+      return;
+    }
+
+    const response = await postToAvailableQaHost('/api/auth/admin/block', {
+      ...payload,
+      reason: String(accountBlockReason || '').trim() || 'blocked_by_admin',
+    });
+
+    if (!response?.ok) {
+      setToastMessage(`Falha ao bloquear: ${response?.error || response?.data?.error || 'erro desconhecido'}`);
+      return;
+    }
+
+    setToastMessage('Conta bloqueada com sucesso.');
+    loadAdminUsers();
+  };
+
+  const handleUnblockAccount = async () => {
+    const payload = getAccountPayload();
+    if (!payload) {
+      setToastMessage('Informe UID ou e-mail para desbloquear.');
+      return;
+    }
+
+    const response = await postToAvailableQaHost('/api/auth/admin/unblock', payload);
+    if (!response?.ok) {
+      setToastMessage(`Falha ao desbloquear: ${response?.error || response?.data?.error || 'erro desconhecido'}`);
+      return;
+    }
+
+    setToastMessage('Conta desbloqueada com sucesso.');
+    loadAdminUsers();
+  };
+
+  const handleRevokeSession = async () => {
+    const payload = getAccountPayload();
+    if (!payload) {
+      setToastMessage('Informe UID ou e-mail para revogar sessao.');
+      return;
+    }
+
+    const response = await postToAvailableQaHost('/api/auth/admin/revoke-session', payload);
+    if (!response?.ok) {
+      setToastMessage(`Falha ao revogar sessao: ${response?.error || response?.data?.error || 'erro desconhecido'}`);
+      return;
+    }
+
+    setToastMessage('Sessao revogada com sucesso.');
+    loadAdminUsers();
   };
 
   if (!isAdmin) {
@@ -387,7 +496,7 @@ export default function AdminScreen() {
 
         <Text style={styles.label}>Grupo muscular principal</Text>
         <View style={styles.optionWrap}>
-          {Object.entries(MUSCLE_GROUP_LABELS).map(([value, label]) => (
+          {Object.entries(SAFE_MUSCLE_GROUP_LABELS).map(([value, label]) => (
             <TouchableOpacity
               key={value}
               style={[styles.optionChip, localPrimaryMuscle === value ? styles.optionChipActive : null]}
@@ -418,7 +527,7 @@ export default function AdminScreen() {
           <View key={exercise.id} style={styles.localExerciseRow}>
             <Text style={styles.localExerciseName}>{exercise.name}</Text>
             <Text style={styles.localExerciseMeta}>
-              {MUSCLE_GROUP_LABELS[exercise.primaryMuscle] || exercise.primaryMuscle} • {exercise.equipment}
+              {SAFE_MUSCLE_GROUP_LABELS[exercise.primaryMuscle] || exercise.primaryMuscle} • {exercise.equipment}
             </Text>
           </View>
         ))}
@@ -491,6 +600,39 @@ export default function AdminScreen() {
         <Text style={styles.helperText}>Gera JSON com exercicios e alimentos locais e copia para a area de transferencia.</Text>
         <PrimaryButton title="Exportar Pacote Admin (JSON)" onPress={handleExportAdminPack} />
         <SecondaryButton title="Exportar Novos Exercicios (JSON)" onPress={handleExportNewExercisesJson} style={styles.secondary} />
+      </AppCard>
+
+      <AppCard>
+        <Text style={styles.label}>Controle de acesso beta</Text>
+        <Text style={styles.helperText}>Bloqueia conta por UID/e-mail, revoga sessao e impede novo acesso quando bloqueada.</Text>
+        <TextInput
+          value={accountTarget}
+          onChangeText={setAccountTarget}
+          placeholder="UID ou e-mail"
+          placeholderTextColor={colors.textSecondary}
+          style={styles.input}
+        />
+        <TextInput
+          value={accountBlockReason}
+          onChangeText={setAccountBlockReason}
+          placeholder="Motivo do bloqueio"
+          placeholderTextColor={colors.textSecondary}
+          style={styles.input}
+        />
+        <PrimaryButton title="Bloquear conta" onPress={handleBlockAccount} />
+        <SecondaryButton title="Desbloquear conta" style={styles.secondary} onPress={handleUnblockAccount} />
+        <SecondaryButton title="Revogar sessao" style={styles.secondary} onPress={handleRevokeSession} />
+        <SecondaryButton title="Atualizar lista de usuarios" style={styles.secondary} onPress={loadAdminUsers} />
+
+        {adminUsers.slice(0, 8).map((item) => (
+          <View key={String(item?.id || item?.email)} style={styles.localExerciseRow}>
+            <Text style={styles.localExerciseName}>{item?.email || item?.id}</Text>
+            <Text style={styles.localExerciseMeta}>
+              {item?.active === false ? 'BLOQUEADO' : 'ATIVO'} • role {item?.role || 'user'}
+            </Text>
+            {item?.blockedReason ? <Text style={styles.localExerciseMeta}>motivo: {item.blockedReason}</Text> : null}
+          </View>
+        ))}
       </AppCard>
 
       <AppCard>

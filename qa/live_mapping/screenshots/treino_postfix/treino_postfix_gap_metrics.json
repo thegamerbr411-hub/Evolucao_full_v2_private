@@ -1,0 +1,29 @@
+﻿{
+  "timestamp": "2026-06-02T19:36:00",
+  "serial": "emulator-5554",
+  "script": "treino_postfix_gap_check.ps1 + supplemental bounded taps",
+  "metroOnline": true,
+  "capture003": {
+    "result": "PARTIAL",
+    "modoAvancado": true,
+    "modeBarCompact": true,
+    "helperModoAvancado": true,
+    "advancedLayout": true,
+    "trocarExercicio": false,
+    "helperSubstitui": false,
+    "reason": "Trocar exercicio e helper swap so renderizam com hasHistory (ultimo set > 0). Exercicio ativo mostra 0kg x 0 nesta sessao."
+  },
+  "capture005": {
+    "result": "PASS",
+    "historyPanelVisible": false,
+    "historyEmptyDocumented": true,
+    "absurdValuesInHistoryPanel": false,
+    "absurdValuesInDraftInputs": true,
+    "invalidSetStateVisible": true,
+    "workoutUiVisible": true,
+    "localLogsReference": "treino_postfix_006_history_screen_local_logs.png (Puxada 20kg x 12)",
+    "note": "Historico vazio no estado atual para Agachamento/Supino; UI de leitura comprovada em 006; painel workout-exercise-history-panel requer logs validos no exercicio ativo."
+  },
+  "treinoVisualPartialPass": true,
+  "treinoLabel": "PASS VISUAL PARCIAL COM RESSALVAS"
+}

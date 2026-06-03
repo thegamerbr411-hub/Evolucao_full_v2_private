@@ -1,5 +1,5 @@
 import { getMacroTargetsUseCase } from '../../domains/nutrition/useCases/getMacroTargets';
-import { searchNutritionDatabase, getCanonicalFoodData as getCanonicalFoodDataFromDb } from '../../data/nutritionDatabase';
+import { searchNutritionDatabase, getCanonicalFoodData as getCanonicalFoodDataFromDb } from '../../data/nutritionDatabase.js';
 
 export function sumNutritionTotals(items = []) {
   return items.reduce(

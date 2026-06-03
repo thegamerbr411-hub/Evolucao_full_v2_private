@@ -2,10 +2,13 @@ export const colors = {
   // Fundação escura
   background: '#0B0B0F',
   surface: '#111118',
+  surfaceElevated: '#151522',
+  surfaceAlt: '#181826',
   card: '#16161E',
   cardElevated: '#1C1C26',
   border: '#242430',
   borderSubtle: '#1A1A22',
+  outlineStrong: '#2F3A4A',
 
   // Primária — verde energia
   primary: '#22C55E',
@@ -24,8 +27,9 @@ export const colors = {
   // Texto
   text: '#FFFFFF',
   textPrimary: '#F8FAFC',
-  textSecondary: '#94A3B8',
-  textMuted: '#4B5563',
+  textSecondary: '#A8B6CA',
+  textMuted: '#7E8CA2',
+  textTertiary: '#5B6678',
   textInverse: '#0B0B0F',
 
   // Semântico

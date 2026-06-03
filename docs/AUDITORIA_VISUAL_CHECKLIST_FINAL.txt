@@ -1,0 +1,109 @@
+AUDITORIA VISUAL FINAL - T-EVO
+
+REGRA
+- Executar com app aberto no device e tela visivel o tempo inteiro.
+- Nao pular aba, modal, popup ou estado de erro/loading.
+- Registrar evidencia (screenshot/video/log) por etapa.
+
+RODADA 1 a 5 (repetir 5 vezes)
+
+1. AUTH
+[ ] Cadastro e-mail completo
+[ ] Envio/validacao codigo
+[ ] Login e-mail
+[ ] Esqueci senha/reset
+[ ] Reenvio/cooldown
+[ ] Logout/relogin
+
+2. GOOGLE LOGIN
+[ ] Inicia consentimento correto
+[ ] Retorna ao app
+[ ] Sessao persiste
+[ ] Logout/relogin Google
+[ ] Sem erro 400/invalid_request
+
+3. HOME
+[ ] Scroll completo
+[ ] Cards/CTA clicaveis
+[ ] Estado vazio
+[ ] Estado erro/loading
+
+4. TREINO
+[ ] Treino hub
+[ ] Treino livre
+[ ] Modo avancado
+[ ] Criar treino
+[ ] Registrar series
+[ ] Trocar exercicio
+[ ] Descanso
+[ ] Salvar/finalizar
+
+5. EXERCICIO/VIDEO
+[ ] Abrir detalhe
+[ ] Abrir video
+[ ] Fullscreen
+[ ] Fechar sem travar
+
+6. NUTRICAO
+[ ] Adicionar alimento manual
+[ ] Refeicao com multiplos alimentos
+[ ] Repetir refeicao
+[ ] Fracao parcial (metade, etc)
+[ ] Agua em varias quantidades
+
+7. OCR
+[ ] Foto lata preta
+[ ] Foto pote vermelho
+[ ] Leitura calorias/proteina/carbo/gordura/sodio/acucar
+[ ] Pergunta fracao de consumo
+[ ] Salvar item novo quando nao existe
+[ ] Fallback claro quando leitura falhar
+
+8. COACH
+[ ] Envio de mensagem
+[ ] Resposta visivel
+[ ] Teclado nao cobre chat
+[ ] Scroll consistente
+[ ] Sem sumir mensagens
+
+9. SOCIAL
+[ ] Ver feed
+[ ] Adicionar amigo
+[ ] Criar desafio geral
+[ ] Criar desafio para amigos
+[ ] Progressao atualiza
+
+10. PERFIL
+[ ] Layout premium/coeso
+[ ] Sem barra preta/sobra
+[ ] Conta e versao visiveis
+[ ] Export beta funcional
+[ ] Logout/relogin funcional
+
+11. ADMIN
+[ ] Criar exercicio manual
+[ ] Criar alimento manual
+[ ] Bloquear conta por UID/e-mail
+[ ] Desbloquear conta
+[ ] Revogar sessao
+
+12. EXPORT BETA
+[ ] Exportar analise
+[ ] Exportar relatorio
+[ ] Exportar timeline
+[ ] Exportar diagnostico
+[ ] Exportar melhorias
+[ ] Validar pasta pacote com JSON/TXT
+
+13. GO/NO-GO POR RODADA
+[ ] RODADA 1 GO
+[ ] RODADA 2 GO
+[ ] RODADA 3 GO
+[ ] RODADA 4 GO
+[ ] RODADA 5 GO
+
+STATUS FINAL
+- GO BETA 10 AMIGOS: [ ] SIM [ ] NAO
+- GO RELEASE FINAL: [ ] SIM [ ] NAO
+- BLOQUEIOS ABERTOS:
+- ACOES CORRETIVAS:

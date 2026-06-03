@@ -1,6 +1,9 @@
 module.exports = {
   rootDir: '..',
-  testMatch: ['<rootDir>/e2e/[0-9][0-9]-*.e2e.js'],
+  testMatch: [
+    '<rootDir>/e2e/[0-9][0-9]-*.e2e.js',
+    '<rootDir>/e2e/semantic/[0-9][0-9]-*.e2e.js',
+  ],
   transform: {},
   testTimeout: 240000,
   maxWorkers: 1,

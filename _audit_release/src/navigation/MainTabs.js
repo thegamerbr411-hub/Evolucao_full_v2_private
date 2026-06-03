@@ -2,7 +2,7 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { TouchableOpacity, View } from 'react-native';
+import { Platform, TouchableOpacity, View } from 'react-native';
 import HomeScreen from '../screens/HomeScreen';
 import NutritionScanner from '../screens/NutritionScanner';
 import WorkoutsHubScreen from '../screens/WorkoutsHubScreen';
@@ -11,6 +11,7 @@ import SocialChallengesScreen from '../screens/SocialChallengesScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import { colors } from '../theme';
 import { trackEvent } from '../utils/analytics';
+import { QA_ELEMENTS } from '../qa/selectorRegistry';
 
 const Tab = createBottomTabNavigator();
 
@@ -27,25 +28,38 @@ const Tab = createBottomTabNavigator();
 export default function MainTabs() {
   const insets = useSafeAreaInsets();
 
-  const createTabButton = (testID, routeName) => {
+  const createTabButton = (testID, routeName, qaId) => {
     return function TabButton(props) {
       const handlePress = () => {
-        trackEvent('tap', {
-          screen: 'MainTabs',
-          meta: {
-            allowBurst: true,
-            domain: 'navigation',
-            id: testID,
-            routeName,
-          },
-        });
+        try {
+          trackEvent('tap', {
+            screen: 'MainTabs',
+            meta: {
+              allowBurst: true,
+              domain: 'navigation',
+              id: testID,
+              routeName,
+            },
+          });
+        } catch {
+          // Analytics nao pode bloquear a navegacao entre abas.
+        }
 
         if (typeof props.onPress === 'function') {
           props.onPress();
         }
       };
 
-      return <TouchableOpacity {...props} onPress={handlePress} testID={testID} />;
+      return (
+        <TouchableOpacity
+          {...props}
+          onPress={handlePress}
+          testID={testID}
+          accessibilityLabel={qaId}
+          nativeID={qaId}
+          accessibilityHint={`legacy:${testID}`}
+        />
+      );
     };
   };
 
@@ -76,8 +90,9 @@ export default function MainTabs() {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
           borderTopWidth: 1,
-          height: 56 + Math.max(8, insets.bottom),
-          paddingBottom: Math.max(8, insets.bottom),
+          minHeight: 56,
+          height: 56 + Math.max(10, insets.bottom + (Platform.OS === 'android' ? 4 : 0)),
+          paddingBottom: Math.max(10, insets.bottom + (Platform.OS === 'android' ? 4 : 0)),
           paddingTop: 6,
         },
         tabBarLabelStyle: {
@@ -92,7 +107,7 @@ export default function MainTabs() {
         component={HomeScreen}
         options={{
           title: 'Home',
-          tabBarButton: createTabButton('tab-home', 'Home'),
+          tabBarButton: createTabButton('tab-home', 'Home', QA_ELEMENTS.tabHome),
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons name={getTabIcon('Home', focused)} color={color} size={size} />
           ),
@@ -104,7 +119,7 @@ export default function MainTabs() {
         component={WorkoutsHubScreen}
         options={{
           title: 'Treino',
-          tabBarButton: createTabButton('tab-treino', 'Treino'),
+          tabBarButton: createTabButton('tab-treino', 'Treino', QA_ELEMENTS.tabTreinos),
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons name={getTabIcon('Treino', focused)} color={color} size={size} />
           ),
@@ -116,7 +131,7 @@ export default function MainTabs() {
         component={NutritionScanner}
         options={{
           title: 'Nutrição',
-          tabBarButton: createTabButton('tab-nutricao', 'Nutricao'),
+          tabBarButton: createTabButton('tab-nutricao', 'Nutricao', QA_ELEMENTS.tabNutricao),
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons name={getTabIcon('Nutricao', focused)} color={color} size={size} />
           ),
@@ -128,7 +143,7 @@ export default function MainTabs() {
         component={CoachChatScreen}
         options={{
           title: 'Coach',
-          tabBarButton: createTabButton('tab-conversa', 'Coach'),
+          tabBarButton: createTabButton('tab-conversa', 'Coach', QA_ELEMENTS.tabCoach),
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons name={getTabIcon('Coach', focused)} color={color} size={size} />
           ),
@@ -140,7 +155,7 @@ export default function MainTabs() {
         component={SocialChallengesScreen}
         options={{
           title: 'Social',
-          tabBarButton: createTabButton('tab-social', 'Social'),
+          tabBarButton: createTabButton('tab-social', 'Social', QA_ELEMENTS.tabSocial),
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons name={focused ? 'people' : 'people-outline'} color={color} size={size} />
           ),
@@ -152,7 +167,7 @@ export default function MainTabs() {
         component={ProfileScreen}
         options={{
           title: 'Perfil',
-          tabBarButton: createTabButton('tab-perfil', 'Perfil'),
+          tabBarButton: createTabButton('tab-perfil', 'Perfil', QA_ELEMENTS.tabProfile),
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons name={getTabIcon('Perfil', focused)} color={color} size={size} />
           ),

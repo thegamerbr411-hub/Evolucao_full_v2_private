@@ -62,6 +62,43 @@ const macroStyles = StyleSheet.create({
   target: { fontSize: 10, color: colors.textMuted },
 });
 
+/** Compact horizontal bar for dashboard metrics (Home). */
+function InlineMetricBar({ label, valueText, ratio, barColor }) {
+  const pct = Math.max(0, Math.min(100, Math.round(Math.max(0, Math.min(1, ratio)) * 100)));
+  return (
+    <View style={{ marginBottom: spacing.sm }}>
+      <View
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'baseline',
+          marginBottom: 4,
+        }}
+      >
+        <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textPrimary }}>{label}</Text>
+        <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textSecondary }}>{valueText}</Text>
+      </View>
+      <View
+        style={{
+          height: 6,
+          borderRadius: 3,
+          backgroundColor: colors.border,
+          overflow: 'hidden',
+        }}
+      >
+        <View
+          style={{
+            width: `${pct}%`,
+            height: '100%',
+            borderRadius: 3,
+            backgroundColor: barColor,
+          }}
+        />
+      </View>
+    </View>
+  );
+}
+
 function QuickAction({ icon, label, onPress, accent, testID, legacyId }) {
   return (
     <TouchableOpacity {...qaAliasProps(testID, legacyId)} onPress={onPress} style={[qaStyles.btn, accent && qaStyles.btnAccent]}>
@@ -208,16 +245,18 @@ export default function HomeScreen({ navigation }) {
   const history = useNutritionStore((state) => state.history);
   const plan = useNutritionStore((state) => state.plan);
   const hydration = useNutritionStore((state) => state.hydration);
-  const { getTodayWorkout, getTodayWorkoutSummary, addWaterIntake } = useApp();
+  const { getTodayWorkout, getDailyState, addWaterIntake } = useApp();
   const [waterFeedback, setWaterFeedback] = useState(false);
   const [adaptiveConfig, setAdaptiveConfig] = useState(() => getAdaptiveHomeConfig());
   const [showMore, setShowMore] = useState(false);
+  const [homeStateTick, setHomeStateTick] = useState(0);
   const lastCoachTrackedRef = useRef('');
   const waterDebounceRef = useRef(null);
 
   React.useEffect(() => {
     const refresh = () => {
       setAdaptiveConfig(getAdaptiveHomeConfig());
+      setHomeStateTick((tick) => tick + 1);
     };
     refresh();
     const unsubscribe = navigation?.addListener?.('focus', refresh);
@@ -230,8 +269,13 @@ export default function HomeScreen({ navigation }) {
 
   const todayKey = useMemo(() => getTodayKey(), []);
 
-  const streak = gamification?.streakDays || 0;
-  const xp = gamification?.xp || 0;
+  const dailyState = useMemo(() => {
+    try { return getDailyState?.() || null; }
+    catch { return null; }
+  }, [getDailyState, gamification, nutritionLogs, history, hydration, plan, profile, homeStateTick]);
+
+  const streak = dailyState?.streakDays ?? (gamification?.streakDays || 0);
+  const xp = dailyState?.xpTotal ?? (gamification?.xp || 0);
   const isNewUser = xp === 0 && streak === 0;
   const level = Math.floor(xp / XP_PER_LEVEL) + 1;
   const xpInLevel = xp % XP_PER_LEVEL;
@@ -255,28 +299,20 @@ export default function HomeScreen({ navigation }) {
     () => todayLogs.reduce((a, l) => a + Number(l.calories || 0), 0),
     [todayLogs],
   );
-  const todayProtein = useMemo(
+  const todayProteinFromLogs = useMemo(
     () => todayLogs.reduce((a, l) => a + Number(l.protein || 0), 0),
     [todayLogs],
   );
+  const todayProtein = useMemo(() => {
+    const fromDaily = Number(dailyState?.proteinToday ?? 0);
+    return Math.max(fromDaily, todayProteinFromLogs);
+  }, [dailyState?.proteinToday, todayProteinFromLogs]);
   const todayCarbs = useMemo(
     () => todayLogs.reduce((a, l) => a + Number(l.carbs || 0), 0),
     [todayLogs],
   );
 
-  const macroTargets = useMemo(() => {
-    const caloriesPerDay = Number(plan?.caloriesPerDay || 2000);
-    // Distribuição padrão: 30% proteína, 40% carbo, 30% gordura
-    const protein = Math.round((caloriesPerDay * 0.30) / 4);
-    const carbs = Math.round((caloriesPerDay * 0.40) / 4);
-    const fat = Math.round((caloriesPerDay * 0.30) / 9);
-    return {
-      calories: caloriesPerDay,
-      protein,
-      carbs,
-      fat,
-    };
-  }, [plan]);
+  const macroTargets = dailyState?.macroTargets || { calories: 0, protein: 0, carbs: 0, fats: 0 };
 
   const caloriesPct = macroTargets.calories > 0
     ? Math.min(Math.round((todayCalories / macroTargets.calories) * 100), 100)
@@ -287,35 +323,41 @@ export default function HomeScreen({ navigation }) {
     catch { return []; }
   }, [getTodayWorkout]);
 
-  const workoutSummary = useMemo(() => {
-    try { return getTodayWorkoutSummary?.() || { guidedSets: 0 }; }
-    catch { return { guidedSets: 0 }; }
-  }, [getTodayWorkoutSummary]);
-
-  const workoutDone = (workoutSummary?.guidedSets || 0) > 0;
+  const workoutSession = dailyState?.workoutSession;
+  const workoutDone = workoutSession?.status === 'completed';
 
   const greeting = getGreeting();
-  const waterTargetMl = Math.round(Number(hydration?.waterGoalMl || (Number(plan?.waterLitersPerDay || 3) * 1000)));
-  const waterTodayMl = Math.round(
-    hydration?.dayKey === todayKey
+  const waterTargetMl = dailyState?.waterTargetMl
+    ?? Math.round(Number(hydration?.waterGoalMl || (Number(plan?.waterLitersPerDay || 3) * 1000)));
+  const waterTodayMlComputed = useMemo(() => {
+    const fromHydration = hydration?.dayKey === todayKey
       ? Number(hydration?.consumedMl || 0)
-      : todayHistoryWaterMl
-  );
-  const proteinTarget = Math.round(Number(macroTargets?.protein || 120));
+      : 0;
+    return Math.round(Math.max(fromHydration, todayHistoryWaterMl));
+  }, [hydration, todayKey, todayHistoryWaterMl]);
+  const waterTodayMl = dailyState?.waterTodayMl ?? waterTodayMlComputed;
+
+  React.useEffect(() => {
+    if (!__DEV__) return;
+    console.log(
+      `[WATER][HOME_RENDER] value=${(waterTodayMl / 1000).toFixed(1)}L hydrationDay=${hydration?.dayKey || '-'} todayKey=${todayKey} consumedMl=${hydration?.consumedMl ?? '-'} historyMl=${todayHistoryWaterMl}`,
+    );
+  }, [waterTodayMl, hydration?.dayKey, hydration?.consumedMl, todayKey, todayHistoryWaterMl]);
+  const proteinTarget = Math.round(Number(dailyState?.proteinTarget || macroTargets?.protein || 0));
   const missionTitle = todayWorkout.length > 0
     ? `Treino de hoje: ${todayWorkout[0]?.name || 'Sessao principal'}`
     : 'Treino de hoje: Sessao principal';
 
   const coachMessage = adaptiveConfig?.coach || null;
-  const recovery = adaptiveConfig?.recovery || null;
+  const recovery = workoutDone ? null : (adaptiveConfig?.recovery || null);
   const highlightedFeature = String(adaptiveConfig?.highlightedFeature || 'workout');
   const isLightweightMode = Boolean(adaptiveConfig?.lightweightMode);
 
-  const isContinueWorkout = Boolean(recovery) || (todayWorkout.length > 0 && !workoutDone);
-  const primaryCtaLabel = isContinueWorkout ? 'CONTINUAR TREINO' : 'INICIAR TREINO';
-  const primaryCtaSubtitle = isContinueWorkout
+  const isContinueWorkout = Boolean(workoutSession?.isContinue);
+  const primaryCtaLabel = workoutSession?.ctaLabel || (isContinueWorkout ? 'CONTINUAR TREINO' : 'INICIAR TREINO');
+  const primaryCtaSubtitle = workoutSession?.ctaSubtitle || (isContinueWorkout
     ? 'Volte para o treino atual'
-    : 'Comece agora';
+    : 'Comece agora');
 
   const orderedActions = useMemo(() => {
     const actionByKey = {
@@ -344,7 +386,7 @@ export default function HomeScreen({ navigation }) {
         key: 'nutrition',
         testID: 'btn_home_nutrition',
         legacyId: 'home-quick-nutricao',
-        label: '+ Registrar refeicao',
+        label: '+ Registrar refeição',
         onPress: () => navigation.navigate('Nutricao'),
       },
       workout: {
@@ -358,10 +400,23 @@ export default function HomeScreen({ navigation }) {
         key: 'water',
         testID: 'btn_add_water',
         legacyId: 'btn-add-agua',
-        label: '+ Beber agua',
+        label: '+ Beber água',
         onPress: () => {
           if (waterDebounceRef.current) return;
-          try { addWaterIntake?.(300); } catch { return; }
+          if (__DEV__) {
+            console.log('[WATER][TAP] source=home amountMl=300');
+          }
+          try {
+            const result = addWaterIntake?.(300);
+            if (__DEV__) {
+              console.log('[WATER][TAP] result=', result);
+            }
+          } catch (error) {
+            if (__DEV__) {
+              console.log('[WATER][TAP] error=', error?.message || error);
+            }
+            return;
+          }
           setWaterFeedback(true);
           waterDebounceRef.current = setTimeout(() => {
             setWaterFeedback(false);
@@ -414,8 +469,8 @@ export default function HomeScreen({ navigation }) {
         <View {...qaAliasProps('home_screen_anchor', 'home-screen')} style={{ width: 1, height: 1 }} />
         <View style={styles.dailyTopCard}>
           <Text style={styles.greeting}>{greeting}</Text>
-          <Text style={styles.dailyTopTitle}>🔥 Dia {Math.max(1, Number(streak || 0))} de sequência</Text>
-          <Text style={styles.dailyTopXp}>+{Math.max(0, Number(workoutSummary?.sessionXp || 120))} XP hoje</Text>
+          <Text style={styles.dailyTopTitle}>🔥 {dailyState?.streakLabel || `Dia ${streak} de sequencia`}</Text>
+          <Text style={styles.dailyTopXp}>+{Math.max(0, Number(dailyState?.xpToday || 0))} XP hoje</Text>
         </View>
 
         <TouchableOpacity
@@ -438,11 +493,26 @@ export default function HomeScreen({ navigation }) {
         </TouchableOpacity>
 
         <View {...qaAliasProps('home_ready', 'home-ready')} style={styles.progressCard}>
-          <Text style={styles.progressTitle}>CONTEXTO DO TREINO</Text>
+          <Text style={styles.progressTitle}>Resumo de hoje</Text>
           <Text style={styles.progressLine}>{missionTitle}</Text>
-          <Text style={styles.progressLine}>Treino: {workoutDone ? '✅' : '⬜'}</Text>
-          <Text style={styles.progressLine}>Proteina: {Math.round(todayProtein)}/{proteinTarget}g</Text>
-          <Text style={styles.progressLine}>Agua: {(waterTodayMl / 1000).toFixed(1)}L / {(waterTargetMl / 1000).toFixed(1)}L</Text>
+          <InlineMetricBar
+            label="Treino"
+            valueText={workoutSession?.label || (workoutDone ? 'Concluido' : 'Pendente')}
+            ratio={workoutDone ? 1 : (dailyState?.completionRate || 0.08)}
+            barColor={workoutDone ? colors.success : colors.textMuted}
+          />
+          <InlineMetricBar
+            label="Proteína"
+            valueText={`${Math.round(todayProtein)} / ${proteinTarget} g`}
+            ratio={proteinTarget > 0 ? todayProtein / proteinTarget : 0}
+            barColor={colors.primary}
+          />
+          <InlineMetricBar
+            label="Água"
+            valueText={`${(waterTodayMl / 1000).toFixed(1)} / ${(waterTargetMl / 1000).toFixed(1)} L`}
+            ratio={waterTargetMl > 0 ? waterTodayMl / waterTargetMl : 0}
+            barColor={colors.secondary}
+          />
           <Text style={styles.progressFeature}>Prioridade atual: {highlightedFeature}</Text>
           {recovery ? <Text style={styles.progressMode}>{recovery.message}</Text> : null}
           {isLightweightMode ? (
@@ -451,7 +521,7 @@ export default function HomeScreen({ navigation }) {
         </View>
 
         <View style={styles.quickCard}>
-          <Text style={styles.quickTitle}>ACOES RAPIDAS</Text>
+          <Text style={styles.quickTitle}>Ações rápidas</Text>
           <View style={styles.quickActionsDailyRow}>
             {secondaryActions.slice(0, 2).map((action, index) => (
               <TouchableOpacity
@@ -482,7 +552,7 @@ export default function HomeScreen({ navigation }) {
             style={styles.moreToggle}
             onPress={() => setShowMore((prev) => !prev)}
           >
-            <Text style={styles.quickTitle}>MAIS OPCOES</Text>
+            <Text style={styles.quickTitle}>Mais opções</Text>
             <Text style={styles.moreToggleText}>{showMore ? 'Ocultar' : 'Expandir'}</Text>
           </TouchableOpacity>
 

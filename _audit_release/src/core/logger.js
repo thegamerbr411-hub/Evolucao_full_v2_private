@@ -1,4 +1,5 @@
 import { trackAppError, trackUnknownErrorWithContext } from '../utils/analytics.js';
+import { logEvent as observeEvent, logRuntimeError } from './observability.js';
 
 export function logError(error, context = {}) {
   const safeContext = {
@@ -13,6 +14,11 @@ export function logError(error, context = {}) {
     ...safeContext,
   });
 
+  logRuntimeError(error, {
+    source: 'logger',
+    ...safeContext,
+  });
+
   if (error?.code === 'UNKNOWN_ERROR' || !error?.code) {
     trackUnknownErrorWithContext(error, safeContext);
     return;
@@ -23,4 +29,5 @@ export function logError(error, context = {}) {
 
 export function logEvent(name, data = {}) {
   console.log('[EVENT]', name, data);
+  observeEvent(name, data);
 }

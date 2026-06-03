@@ -1,4 +1,4 @@
-﻿// backend/routes/auth.js
+// backend/routes/auth.js
 import express from 'express'
 import nodemailer from 'nodemailer'
 import { generateToken, authMiddleware, setAuthUserResolver } from '../middleware/auth.js'
@@ -121,9 +121,9 @@ async function validateGoogleIdToken(idToken) {
   }
 }
 
-// Armazenamento em mem├│ria ÔÇö aceita para MVP/beta.
-// Em produ├º├úo: substituir por banco de dados persistente (PostgreSQL, Firestore, etc).
-// Dados se perdem a cada restart do servidor. Usu├írios precisam refazer login.
+// Armazenamento em memória — aceita para MVP/beta.
+// Em produção: substituir por banco de dados persistente (PostgreSQL, Firestore, etc).
+// Dados se perdem a cada restart do servidor. Usuários precisam refazer login.
 const userStore = new Map()
 
 // Helpers para isolar acesso
@@ -179,10 +179,10 @@ setAuthUserResolver((claims = {}) => {
   return findUserByEmail(claims?.email)
 })
 
-// Manter compatibilidade com c├│digo legado que usava array
+// Manter compatibilidade com código legado que usava array
 const users = { find: (fn) => [...userStore.values()].find(fn) }
 
-// Armazenamento tempor├írio de c├│digos de verifica├º├úo (TTL: 15 min)
+// Armazenamento temporário de códigos de verificação (TTL: 15 min)
 const pendingCodes = new Map()
 const pendingResetTokens = new Map()
 
@@ -192,29 +192,54 @@ function createSmtpTransporter() {
   const user = process.env.SMTP_USER
   const pass = process.env.SMTP_PASS
   if (!host || !user || !pass) return null
+  const secureExplicit = String(process.env.SMTP_SECURE || '').trim() === '1'
+  const secure = port === 465 || secureExplicit
+  const requireTLS = !secure && port === 587 && String(process.env.SMTP_REQUIRE_TLS || '1').trim() !== '0'
+  const rejectUnauthorized = String(process.env.SMTP_TLS_REJECT_UNAUTHORIZED || '1').trim() !== '0'
   return nodemailer.createTransport({
     host,
     port,
-    secure: port === 465,
-    connectionTimeout: 8000,
-    greetingTimeout: 8000,
-    socketTimeout: 12000,
+    secure,
+    requireTLS,
+    connectionTimeout: 15000,
+    greetingTimeout: 10000,
+    socketTimeout: 20000,
     auth: { user, pass },
+    tls: { rejectUnauthorized },
   })
 }
 
 function getEmailDeliveryDiagnostics() {
   const resendApiKey = String(process.env.RESEND_API_KEY || '').trim()
-  const resendFrom = String(process.env.RESEND_FROM || process.env.SMTP_FROM || '').trim()
+  const resendFrom = String(process.env.RESEND_FROM || '').trim()
   const smtpHost = String(process.env.SMTP_HOST || '').trim()
   const smtpUser = String(process.env.SMTP_USER || '').trim()
   const smtpPass = String(process.env.SMTP_PASS || '').trim()
+  const smtpFrom = String(process.env.SMTP_FROM || '').trim()
 
   return {
     resendConfigured: Boolean(resendApiKey),
     resendFromConfigured: Boolean(resendFrom),
     smtpConfigured: Boolean(smtpHost && smtpUser && smtpPass),
+    smtpFromConfigured: Boolean(smtpFrom || smtpUser),
   }
+}
+
+async function readResendErrorBody(response) {
+  const raw = await response.text()
+  let parsed = null
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    parsed = null
+  }
+  const name = parsed && typeof parsed.name === 'string' ? parsed.name : null
+  const message = parsed && typeof parsed.message === 'string' ? parsed.message : raw.slice(0, 800)
+  return { raw: raw.slice(0, 1500), name, message, status: response.status }
+}
+
+function isProductionEnv() {
+  return String(process.env.NODE_ENV || '').toLowerCase() === 'production'
 }
 
 function escapeHtml(value) {
@@ -225,16 +250,7 @@ function escapeHtml(value) {
     .replace(/"/g, '&quot;')
 }
 
-export const VERIFICATION_EMAIL_TEMPLATE_VERSION = 'ascii_safe_20260530'
-const AUTH_EMAIL_ROUTE_FILE = 'backend/routes/auth.js'
-
-function maskEmailForLog(email) {
-  const safe = String(email || '').trim().toLowerCase()
-  if (!safe || !safe.includes('@')) return '(invalid)'
-  const [local, domain] = safe.split('@')
-  const maskedLocal = local.length <= 2 ? `${local[0] || ''}*` : `${local.slice(0, 2)}***`
-  return `${maskedLocal}@${domain}`
-}
+const VERIFICATION_EMAIL_TEMPLATE_VERSION = 'ascii_safe_20260530'
 
 function buildVerificationEmail(code) {
   const safeCode = escapeHtml(code)
@@ -289,16 +305,35 @@ function buildVerificationEmail(code) {
   return { subject, text, html, templateVersion: VERIFICATION_EMAIL_TEMPLATE_VERSION }
 }
 
-async function sendWithResend({ email, subject, text, html }) {
+/**
+ * Resend: use apenas RESEND_FROM (nunca misturar com SMTP_FROM — domínios diferentes).
+ * onboarding@resend.dev só pode enviar para o e-mail da conta Resend; em produção não
+ * faz retry para onboarding após falha de domínio (evita segundo 403 inútil para OTP).
+ */
+async function sendWithResend({ email, subject, text, html, trace }) {
   const apiKey = String(process.env.RESEND_API_KEY || '').trim()
-  const configuredFrom = String(process.env.RESEND_FROM || process.env.SMTP_FROM || '').trim()
+  const configuredFrom = String(process.env.RESEND_FROM || '').trim()
   const fallbackFrom = 'onboarding@resend.dev'
   const primaryFrom = configuredFrom || fallbackFrom
   if (!apiKey) return false
 
   const sendRequest = async (fromAddress) => {
     const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 8000)
+    const timeout = setTimeout(() => controller.abort(), 12000)
+    const replyTo = String(process.env.RESEND_REPLY_TO || '').trim()
+    const payload = {
+      from: fromAddress,
+      to: [email],
+      subject,
+      text,
+      html,
+      headers: {
+        'Content-Type': 'text/html; charset=UTF-8',
+      },
+    }
+    if (replyTo) {
+      payload.reply_to = replyTo
+    }
     try {
       const response = await fetch('https://api.resend.com/emails', {
         method: 'POST',
@@ -306,13 +341,7 @@ async function sendWithResend({ email, subject, text, html }) {
           Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          from: fromAddress,
-          to: [email],
-          subject,
-          text,
-          html,
-        }),
+        body: JSON.stringify(payload),
         signal: controller.signal,
       })
       return response
@@ -321,86 +350,115 @@ async function sendWithResend({ email, subject, text, html }) {
     }
   }
 
-  try {
-    // Retry logic: primary from address with up to 2 attempts
-    for (let attempt = 1; attempt <= 2; attempt++) {
-      try {
-        let response = await sendRequest(primaryFrom)
-        if (response.ok) return true
-
-        const shouldRetryWithOnboarding =
-          response.status === 403 && primaryFrom.toLowerCase() !== fallbackFrom
-
-        if (shouldRetryWithOnboarding) {
-          console.warn('[email] Resend denied sender domain, retrying with onboarding@resend.dev')
-          response = await sendRequest(fallbackFrom)
-          if (response.ok) return true
-        }
-
-        if (attempt < 2) {
-          console.warn(`[email] Resend attempt ${attempt} failed with status ${response.status}, retrying...`)
-          await new Promise(r => setTimeout(r, 500))
-        }
-      } catch (attemptErr) {
-        console.warn(`[email] Resend attempt ${attempt} error: ${attemptErr.message}`)
-        if (attempt < 2) {
-          await new Promise(r => setTimeout(r, 500))
-        }
-      }
+  const logResendFailure = async (label, response) => {
+    const body = await readResendErrorBody(response)
+    const line = `[email][resend] ${label} status=${body.status} name=${body.name || 'n/a'} message=${body.message}`
+    console.error(line)
+    if (trace) {
+      trace.resendFailures = trace.resendFailures || []
+      trace.resendFailures.push({ label, ...body })
     }
+  }
+
+  try {
+    let response = await sendRequest(primaryFrom)
+    if (response.ok) {
+      console.log('[email] Delivered via Resend to', email, 'from', primaryFrom)
+      return true
+    }
+
+    await logResendFailure(`send from=${primaryFrom}`, response)
+
+    const prod = isProductionEnv()
+    const usedCustomFrom = Boolean(configuredFrom)
+    const canTryOnboardingFallback =
+      usedCustomFrom &&
+      primaryFrom.toLowerCase() !== fallbackFrom &&
+      (response.status === 403 || response.status === 422) &&
+      !prod
+
+    if (canTryOnboardingFallback) {
+      console.warn('[email][resend] non-production: retrying with onboarding@resend.dev after sender/domain rejection')
+      response = await sendRequest(fallbackFrom)
+      if (response.ok) {
+        console.log('[email] Delivered via Resend (onboarding) to', email)
+        return true
+      }
+      await logResendFailure(`retry from=${fallbackFrom}`, response)
+    } else if (usedCustomFrom && !response.ok && prod) {
+      console.error(
+        '[email][resend] production: no onboarding retry after custom RESEND_FROM failure. ' +
+          'Fix: verify domain at resend.com/domains or configure working SMTP_* vars.',
+      )
+    }
+
     return false
   } catch (err) {
-    console.warn('[email] Resend fatal error:', err.message)
+    console.error('[email][resend] transport error:', err && err.message ? err.message : err)
+    if (trace) trace.resendTransportError = String(err && err.message ? err.message : err)
     return false
   }
 }
 
-async function sendEmail({ email, subject, text, html }) {
+async function sendEmail({ email, subject, text, html, trace }) {
   const hasResendConfigured = Boolean(String(process.env.RESEND_API_KEY || '').trim())
-  
-  // Try Resend if configured
+
   if (hasResendConfigured) {
-    const deliveredByResend = await sendWithResend({ email, subject, text, html })
+    const deliveredByResend = await sendWithResend({ email, subject, text, html, trace })
     if (deliveredByResend) {
-      return true
+      return { ok: true, channel: 'resend' }
     }
-    console.warn('[email] Resend unavailable, attempting SMTP fallback')
+    console.warn('[email] Resend did not deliver; attempting SMTP fallback')
   }
 
-  // Fallback to SMTP
   const transporter = createSmtpTransporter()
   if (!transporter) {
-    console.warn('[email] Neither Resend nor SMTP configured')
-    return false
+    console.warn('[email] SMTP transporter not created (missing SMTP_HOST/SMTP_USER/SMTP_PASS)')
+    return { ok: false, channel: null }
+  }
+
+  const fromAddr = String(process.env.SMTP_FROM || process.env.SMTP_USER || '').trim()
+  if (!fromAddr) {
+    console.error('[email][smtp] SMTP_FROM and SMTP_USER are empty; cannot set From header')
+    return { ok: false, channel: 'smtp' }
   }
 
   try {
     await transporter.sendMail({
-      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      from: fromAddr,
       to: email,
       subject,
       text,
       html,
     })
-    console.log('[email] Delivered via SMTP to', email)
-    return true
+    console.log('[email] Delivered via SMTP to', email, 'from', fromAddr)
+    return { ok: true, channel: 'smtp' }
   } catch (err) {
-    console.warn('[email] SMTP failed:', err.message)
-    return false
+    const smtpMsg = [
+      err && err.message,
+      err && err.response,
+      err && err.responseCode,
+      err && err.command,
+    ]
+      .filter(Boolean)
+      .join(' | ')
+    console.error('[email][smtp] sendMail failed:', smtpMsg)
+    if (trace) trace.smtpError = smtpMsg
+    return { ok: false, channel: 'smtp' }
   }
 }
 
 /**
  * POST /auth/send-code
- * Gera c├│digo de 6 d├¡gitos e envia por e-mail (Resend ou SMTP),
- * sen├úo retorna o c├│digo na resposta (modo dev/offline).
+ * Gera código de 6 dígitos e envia por e-mail (Resend ou SMTP),
+ * senão retorna o código na resposta (modo dev/offline).
  */
 router.post('/send-code', async (req, res) => {
   try {
     const { email } = req.body
     const safeEmail = String(email || '').trim().toLowerCase()
     if (!safeEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(safeEmail)) {
-      return res.status(400).json({ error: 'E-mail inv├ílido.' })
+      return res.status(400).json({ error: 'E-mail inválido.' })
     }
 
     const isProduction = String(process.env.NODE_ENV || '').toLowerCase() === 'production'
@@ -410,6 +468,13 @@ router.post('/send-code', async (req, res) => {
       resendConfigured: emailDiagnostics.resendConfigured,
       smtpConfigured: emailDiagnostics.smtpConfigured,
     })
+    if (isProduction && emailDiagnostics.resendConfigured && !emailDiagnostics.resendFromConfigured) {
+      console.error(
+        '[email][send-code] RESEND_API_KEY is set but RESEND_FROM is empty. ' +
+          'Resend will use onboarding@resend.dev, which only delivers to your Resend account email (not arbitrary users). ' +
+          'Set RESEND_FROM to a sender on a verified domain (resend.com/domains) or configure SMTP_*.',
+      )
+    }
 
     if (isProduction && !emailDiagnostics.resendConfigured && !emailDiagnostics.smtpConfigured) {
       console.error('[email][send-code] blocked: no email provider configured in production')
@@ -429,27 +494,22 @@ router.post('/send-code', async (req, res) => {
     const expiresAt = Date.now() + 15 * 60 * 1000 // 15 min
     pendingCodes.set(safeEmail, { code, expiresAt })
 
+    const emailTrace = {}
     const verificationEmail = buildVerificationEmail(code)
-    const fromAddress = String(process.env.RESEND_FROM || process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply').trim()
-    console.log(
-      '[auth-email] service=evolucao-api-dou2 template_version=%s route_file=%s from=%s to=%s',
-      verificationEmail.templateVersion || VERIFICATION_EMAIL_TEMPLATE_VERSION,
-      AUTH_EMAIL_ROUTE_FILE,
-      fromAddress,
-      maskEmailForLog(safeEmail),
-    )
+    console.log('[email][send-code] template_version=', verificationEmail.templateVersion || 'unknown')
     const delivered = await sendEmail({
       email: safeEmail,
       subject: verificationEmail.subject,
       text: verificationEmail.text,
       html: verificationEmail.html,
+      trace: emailTrace,
     })
-    if (delivered) {
+    if (delivered.ok) {
       return res.json({ ok: true, delivery: 'email' })
     }
 
     if (isProduction) {
-      console.error('[email][send-code] delivery failed in production', emailDiagnostics)
+      console.error('[email][send-code] delivery failed in production', emailDiagnostics, 'trace=', emailTrace)
       return res.status(503).json({
         ok: false,
         error: 'Servico de e-mail indisponivel no momento.',
@@ -457,24 +517,24 @@ router.post('/send-code', async (req, res) => {
       })
     }
 
-    // Sem SMTP configurado: retorna o c├│digo na resposta (dev/local)
+    // Sem SMTP configurado: retorna o código na resposta (dev/local)
     return res.json({ ok: true, delivery: 'local', code })
   } catch (error) {
     console.error('[email][send-code] unexpected error', error)
-    return res.status(500).json({ error: 'Falha ao enviar c├│digo. Tente novamente.' })
+    return res.status(500).json({ error: 'Falha ao enviar código. Tente novamente.' })
   }
 })
 
 /**
  * POST /auth/forgot-password
- * Envia link/token de recupera├º├úo por e-mail.
+ * Envia link/token de recuperação por e-mail.
  */
 router.post('/forgot-password', async (req, res) => {
   try {
     const { email } = req.body
     const safeEmail = String(email || '').trim().toLowerCase()
     if (!safeEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(safeEmail)) {
-      return res.status(400).json({ error: 'E-mail inv├ílido.' })
+      return res.status(400).json({ error: 'E-mail inválido.' })
     }
 
     const existingUser = findUserByEmail(safeEmail)
@@ -489,28 +549,29 @@ router.post('/forgot-password', async (req, res) => {
     const resetBaseUrl = String(process.env.PASSWORD_RESET_URL || process.env.FRONTEND_URL || '').trim()
     const resetLink = resetBaseUrl
       ? `${resetBaseUrl.replace(/\/+$/, '')}?token=${encodeURIComponent(resetToken)}&email=${encodeURIComponent(safeEmail)}`
-      : `Token de recupera├º├úo: ${resetToken}`
+      : `Token de recuperação: ${resetToken}`
 
     const delivered = await sendEmail({
       email: safeEmail,
-      subject: 'Recupera├º├úo de senha ÔÇö Evolu├º├úo App',
-      text: `Voc├¬ solicitou recupera├º├úo de senha.\n\n${resetLink}\n\nExpira em 30 minutos. Se n├úo foi voc├¬, ignore este e-mail.`,
-      html: `<h2>Recupera├º├úo de senha</h2><p>Use o link abaixo para redefinir sua senha:</p><p><a href="${String(resetLink).replace(/"/g, '&quot;')}">${resetLink}</a></p><p>Expira em 30 minutos.</p>`,
+      subject: 'Recuperação de senha — Evolução App',
+      text: `Você solicitou recuperação de senha.\n\n${resetLink}\n\nExpira em 30 minutos. Se não foi você, ignore este e-mail.`,
+      html: `<h2>Recuperação de senha</h2><p>Use o link abaixo para redefinir sua senha:</p><p><a href="${String(resetLink).replace(/"/g, '&quot;')}">${resetLink}</a></p><p>Expira em 30 minutos.</p>`,
+      trace: {},
     })
 
-    if (!delivered) {
+    if (!delivered.ok) {
       return res.status(503).json({ error: 'Servico de e-mail indisponivel no momento.' })
     }
 
     return res.json({ ok: true, delivery: 'email' })
   } catch {
-    return res.status(500).json({ error: 'Falha ao processar recupera├º├úo de senha.' })
+    return res.status(500).json({ error: 'Falha ao processar recuperação de senha.' })
   }
 })
 
 /**
  * POST /auth/reset-password
- * Consome token de recupera├º├úo e define nova senha (MVP/in-memory).
+ * Consome token de recuperação e define nova senha (MVP/in-memory).
  */
 router.post('/reset-password', (req, res) => {
   try {
@@ -520,12 +581,12 @@ router.post('/reset-password', (req, res) => {
     const safePassword = String(newPassword || '').trim()
 
     if (!safeEmail || !safeToken || safePassword.length < 6) {
-      return res.status(400).json({ error: 'Dados inv├ílidos para redefini├º├úo.' })
+      return res.status(400).json({ error: 'Dados inválidos para redefinição.' })
     }
 
     const entry = pendingResetTokens.get(safeEmail)
     if (!entry || entry.token !== safeToken) {
-      return res.status(400).json({ error: 'Token inv├ílido ou j├í utilizado.' })
+      return res.status(400).json({ error: 'Token inválido ou já utilizado.' })
     }
 
     if (Date.now() > entry.expiresAt) {
@@ -573,12 +634,12 @@ router.post('/login-password', (req, res) => {
     const safePassword = String(password || '').trim()
 
     if (!identifier || !safePassword) {
-      return res.status(400).json({ error: 'Credenciais inv├ílidas.' })
+      return res.status(400).json({ error: 'Credenciais inválidas.' })
     }
 
     let authUser = findUserByEmail(identifier)
 
-    // Bootstrap admin de emerg├¬ncia para ambientes sem seed persistente.
+    // Bootstrap admin de emergência para ambientes sem seed persistente.
     // Permite login com ADMIN_USER ou ADMIN_EMAIL + ADMIN_PASS.
     if (!authUser) {
       const adminUser = String(process.env.ADMIN_USER || '').trim().toLowerCase()
@@ -604,7 +665,7 @@ router.post('/login-password', (req, res) => {
     }
 
     if (!authUser || String(authUser.password || '') !== safePassword) {
-      return res.status(401).json({ error: 'E-mail ou senha inv├ílidos.' })
+      return res.status(401).json({ error: 'E-mail ou senha inválidos.' })
     }
 
     if (!ensureAccountActive(authUser, res)) {
@@ -631,7 +692,7 @@ router.post('/login-password', (req, res) => {
 
 /**
  * POST /auth/verify-code
- * Valida o c├│digo informado pelo usu├írio.
+ * Valida o código informado pelo usuário.
  */
 router.post('/verify-code', (req, res) => {
   try {
@@ -641,28 +702,28 @@ router.post('/verify-code', (req, res) => {
 
     const entry = pendingCodes.get(safeEmail)
     if (!entry) {
-      return res.status(400).json({ error: 'C├│digo n├úo encontrado ou expirado.' })
+      return res.status(400).json({ error: 'Código não encontrado ou expirado.' })
     }
 
     if (Date.now() > entry.expiresAt) {
       pendingCodes.delete(safeEmail)
-      return res.status(400).json({ error: 'C├│digo expirado. Solicite um novo.' })
+      return res.status(400).json({ error: 'Código expirado. Solicite um novo.' })
     }
 
     if (safeCode !== entry.code) {
-      return res.status(400).json({ error: 'C├│digo incorreto.' })
+      return res.status(400).json({ error: 'Código incorreto.' })
     }
 
     pendingCodes.delete(safeEmail)
     return res.json({ ok: true })
   } catch (error) {
-    return res.status(500).json({ error: 'Falha ao verificar c├│digo.' })
+    return res.status(500).json({ error: 'Falha ao verificar código.' })
   }
 })
 
 /**
  * POST /auth/google
- * Google login ÔåÆ validar token ÔåÆ retornar JWT
+ * Google login → validar token → retornar JWT
  */
 router.post('/google', async (req, res) => {
   try {
@@ -684,7 +745,7 @@ router.post('/google', async (req, res) => {
 
     const role = resolveRoleByEmail(email)
 
-    // Reusar usu├írio existente pelo email para evitar duplicatas por restart
+    // Reusar usuário existente pelo email para evitar duplicatas por restart
     const existing = findUserByEmail(email)
     const user = existing || upsertUser({
       id: Math.random().toString(36).substr(2, 9),
@@ -712,7 +773,7 @@ router.post('/google', async (req, res) => {
     res.json({
       ok: true,
       accessToken,
-      refreshToken: 'refresh-token-aqui', // em produ├º├úo seria diferente
+      refreshToken: 'refresh-token-aqui', // em produção seria diferente
       user: {
         id: user.id,
         email: user.email,
@@ -728,13 +789,13 @@ router.post('/google', async (req, res) => {
 
 /**
  * POST /auth/refresh
- * Refresh token autom├ítico
+ * Refresh token automático
  */
 router.post('/refresh', (req, res) => {
   try {
     const { refreshToken } = req.body
 
-    // Mock - em produ├º├úo validaria refresh token com base de dados
+    // Mock - em produção validaria refresh token com base de dados
     const user = findUserById(req.user?.id) || { id: req.user?.id, email: req.user?.email, name: req.user?.name, role: req.user?.role || 'user', isAdmin: Boolean(req.user?.isAdmin) }
 
     const accessToken = generateToken(user)
@@ -751,14 +812,14 @@ router.post('/refresh', (req, res) => {
 
 /**
  * GET /auth/me
- * Informa├º├Áes do usu├írio logado
+ * Informações do usuário logado
  */
 router.get('/me', authMiddleware, (req, res) => {
   try {
     const user = findUserById(req.user.id)
 
     if (!user) {
-      // Usu├írio n├úo encontrado na sess├úo atual (rein├¡cio do servidor)
+      // Usuário não encontrado na sessão atual (reinício do servidor)
       // Retornar dados do JWT como fallback para evitar quebrar o cliente
       return res.json({
         ok: true,
@@ -790,7 +851,7 @@ router.get('/me', authMiddleware, (req, res) => {
  * POST /auth/logout
  */
 router.post('/logout', authMiddleware, (req, res) => {
-  // Em produ├º├úo voc├¬ blacklistaria o token
+  // Em produção você blacklistaria o token
   res.json({ ok: true })
 })
 
