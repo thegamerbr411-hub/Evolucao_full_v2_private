@@ -1,0 +1,90 @@
+﻿{
+    "timestamp":  "2026-05-30T22:27:45",
+    "serial":  "emulator-5554",
+    "skipRelaunch":  false,
+    "navigationOk":  true,
+    "bugFinishPass":  true,
+    "failReasons":  [
+
+                    ],
+    "screens":  {
+                    "finish_002_after_fix_1_of_17":  {
+                                                         "label":  "workout_incomplete",
+                                                         "png":  "screenshots/fix_p1/finish_002_after_fix_1_of_17.png",
+                                                         "xml":  "screenshots/fix_p1/finish_002_after_fix_1_of_17.xml",
+                                                         "pngOk":  true,
+                                                         "xmlOk":  true,
+                                                         "dumpTimedOut":  false,
+                                                         "continueButtonVisible":  true,
+                                                         "workoutMetrics":  {
+                                                                                "restPresetsOk":  true,
+                                                                                "seriesDone":  0,
+                                                                                "seriesTotal":  17,
+                                                                                "exerciseTotalOk":  true,
+                                                                                "finishVisible":  false,
+                                                                                "exerciseCurrent":  1,
+                                                                                "exerciseTotal":  5,
+                                                                                "simpleMode":  true,
+                                                                                "advancedMode":  false,
+                                                                                "progressPct":  0
+                                                                            },
+                                                         "fecheEm1Toque":  false,
+                                                         "partialExitVisible":  true,
+                                                         "finishVisibleEarly":  false,
+                                                         "progressHintVisible":  true,
+                                                         "finishButtonVisible":  false
+                                                     },
+                    "finish_003_partial_exit_if_available":  {
+                                                                 "label":  "partial_alert_visible",
+                                                                 "png":  "screenshots/fix_p1/finish_003_partial_exit_if_available.png",
+                                                                 "xml":  "screenshots/fix_p1/finish_003_partial_exit_if_available.xml",
+                                                                 "pngOk":  true,
+                                                                 "xmlOk":  true,
+                                                                 "dumpTimedOut":  false,
+                                                                 "continueButtonVisible":  false,
+                                                                 "workoutMetrics":  {
+                                                                                        "restPresetsOk":  false,
+                                                                                        "seriesDone":  0,
+                                                                                        "seriesTotal":  0,
+                                                                                        "exerciseTotalOk":  false,
+                                                                                        "finishVisible":  false,
+                                                                                        "exerciseCurrent":  0,
+                                                                                        "exerciseTotal":  0,
+                                                                                        "simpleMode":  false,
+                                                                                        "advancedMode":  false,
+                                                                                        "progressPct":  -1
+                                                                                    },
+                                                                 "fecheEm1Toque":  false,
+                                                                 "partialExitVisible":  true,
+                                                                 "finishVisibleEarly":  false,
+                                                                 "progressHintVisible":  false,
+                                                                 "finishButtonVisible":  false
+                                                             },
+                    "finish_004_home_after_partial_exit":  {
+                                                               "label":  "home_after_partial",
+                                                               "png":  "screenshots/fix_p1/finish_004_home_after_partial_exit.png",
+                                                               "xml":  "screenshots/fix_p1/finish_004_home_after_partial_exit.xml",
+                                                               "pngOk":  true,
+                                                               "xmlOk":  true,
+                                                               "dumpTimedOut":  false,
+                                                               "continueButtonVisible":  false,
+                                                               "workoutMetrics":  {
+                                                                                      "restPresetsOk":  false,
+                                                                                      "seriesDone":  0,
+                                                                                      "seriesTotal":  0,
+                                                                                      "exerciseTotalOk":  false,
+                                                                                      "finishVisible":  false,
+                                                                                      "exerciseCurrent":  0,
+                                                                                      "exerciseTotal":  0,
+                                                                                      "simpleMode":  false,
+                                                                                      "advancedMode":  false,
+                                                                                      "progressPct":  -1
+                                                                                  },
+                                                               "fecheEm1Toque":  false,
+                                                               "partialExitVisible":  true,
+                                                               "finishVisibleEarly":  false,
+                                                               "progressHintVisible":  false,
+                                                               "finishButtonVisible":  false
+                                                           }
+                }
+}

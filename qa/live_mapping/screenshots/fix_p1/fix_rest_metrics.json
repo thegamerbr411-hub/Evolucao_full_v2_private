@@ -1,0 +1,94 @@
+﻿{
+    "timestamp":  "2026-05-30T23:16:25",
+    "serial":  "emulator-5554",
+    "bugRestPass":  true,
+    "failReasons":  [
+
+                    ],
+    "screens":  {
+                    "rest_001_presets_visible":  {
+                                                     "label":  "initial",
+                                                     "png":  "screenshots/fix_p1/rest_001_presets_visible.png",
+                                                     "xml":  "screenshots/fix_p1/rest_001_presets_visible.xml",
+                                                     "pngOk":  true,
+                                                     "xmlOk":  true,
+                                                     "skipVisible":  false,
+                                                     "timerText":  null,
+                                                     "finishVisible":  false,
+                                                     "timerVisible":  false,
+                                                     "presetsVisible":  true,
+                                                     "renderError":  false,
+                                                     "presetSeconds":  60
+                                                 },
+                    "rest_002_30s_selected":  {
+                                                  "label":  "preset_30s",
+                                                  "png":  "screenshots/fix_p1/rest_002_30s_selected.png",
+                                                  "xml":  "screenshots/fix_p1/rest_002_30s_selected.xml",
+                                                  "pngOk":  true,
+                                                  "xmlOk":  true,
+                                                  "skipVisible":  false,
+                                                  "timerText":  null,
+                                                  "finishVisible":  false,
+                                                  "timerVisible":  false,
+                                                  "presetsVisible":  true,
+                                                  "renderError":  false,
+                                                  "presetSeconds":  30
+                                              },
+                    "rest_003_60s_selected":  {
+                                                  "label":  "preset_60s",
+                                                  "png":  "screenshots/fix_p1/rest_003_60s_selected.png",
+                                                  "xml":  "screenshots/fix_p1/rest_003_60s_selected.xml",
+                                                  "pngOk":  true,
+                                                  "xmlOk":  true,
+                                                  "skipVisible":  false,
+                                                  "timerText":  null,
+                                                  "finishVisible":  false,
+                                                  "timerVisible":  false,
+                                                  "presetsVisible":  true,
+                                                  "renderError":  false,
+                                                  "presetSeconds":  60
+                                              },
+                    "rest_004_120s_selected":  {
+                                                   "label":  "preset_120s",
+                                                   "png":  "screenshots/fix_p1/rest_004_120s_selected.png",
+                                                   "xml":  "screenshots/fix_p1/rest_004_120s_selected.xml",
+                                                   "pngOk":  true,
+                                                   "xmlOk":  true,
+                                                   "skipVisible":  false,
+                                                   "timerText":  null,
+                                                   "finishVisible":  false,
+                                                   "timerVisible":  false,
+                                                   "presetsVisible":  true,
+                                                   "renderError":  false,
+                                                   "presetSeconds":  120
+                                               },
+                    "rest_005_timer_started":  {
+                                                   "label":  "timer_start",
+                                                   "png":  "screenshots/fix_p1/rest_005_timer_started.png",
+                                                   "xml":  "screenshots/fix_p1/rest_005_timer_started.xml",
+                                                   "pngOk":  true,
+                                                   "xmlOk":  false,
+                                                   "skipVisible":  false,
+                                                   "timerText":  null,
+                                                   "finishVisible":  false,
+                                                   "timerVisible":  true,
+                                                   "presetsVisible":  false,
+                                                   "renderError":  false,
+                                                   "presetSeconds":  -1
+                                               },
+                    "rest_006_timer_after_wait":  {
+                                                      "label":  "timer_after_3s",
+                                                      "png":  "screenshots/fix_p1/rest_006_timer_after_wait.png",
+                                                      "xml":  "screenshots/fix_p1/rest_006_timer_after_wait.xml",
+                                                      "pngOk":  true,
+                                                      "xmlOk":  true,
+                                                      "skipVisible":  false,
+                                                      "timerText":  null,
+                                                      "finishVisible":  false,
+                                                      "timerVisible":  false,
+                                                      "presetsVisible":  true,
+                                                      "renderError":  false,
+                                                      "presetSeconds":  120
+                                                  }
+                }
+}
