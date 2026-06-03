@@ -1,4 +1,4 @@
-# ANTI-HANG RULES — EVOLUÇÃO APP QA
+﻿# ANTI-HANG RULES — EVOLUÇÃO APP QA
 
 ## Objetivo
 
@@ -210,7 +210,7 @@ Validações já **PASS** em 2026-05-30. Não rerodar por ansiedade:
 | `fix_rest_validate.ps1` | PASS | `fix_rest_metrics.json` (bugRestPass: true) |
 | `home_deep_batch_audit.ps1` | Captura concluída | 27 PNG em `screenshots/home_deep/` |
 | `live_watch_mapping.ps1` | PAUSADO | não usar em paralelo |
-| `treino_batch_audit.ps1` | Captura concluída | aguarda envio ChatGPT |
+| `treino_batch_audit.ps1` | Captura concluída | aguarda envio auditoria externa |
 
 Só rerodar com `MaxScriptSec` hard e motivo documentado.
 
@@ -242,7 +242,7 @@ Próxima ação deve ser determinada pelo gate atual:
 - se P1 técnico PASS;
 - se HOME 3/3A registrado;
 - se Felipe autorizar;
-- então enviar **TREINO 1/3–3/3** via Playwright ao ChatGPT no projeto **Dever de casa** / chat **chat para o cursor**.
+- então enviar **TREINO 1/3–3/3** via automacao de browser ao auditoria externa no projeto **canal interno QA** / chat **canal interno QA**.
 
 **Não** rodar scripts QA agora sem necessidade explícita.  
 **Não** iniciar Nutrição profunda (3/3B).  

@@ -1,4 +1,4 @@
-# P1 State Fix Report
+﻿# P1 State Fix Report
 
 **Data:** 2026-05-30  
 **Device:** emulator-5554  
@@ -113,7 +113,7 @@ __tests__/workoutsHubScreen.integrity.test.mjs     # PASS
 ## Proxima acao recomendada
 
 1. **Nao repetir** validadores PASS — ver [`ANTI_HANG_RULES.md`](ANTI_HANG_RULES.md)
-2. Aguardar **autorizacao Felipe** para enviar TREINO 1/3–3/3 ao ChatGPT (Playwright, Dever de casa)
+2. Aguardar **autorizacao Felipe** para enviar TREINO 1/3–3/3 ao auditoria externa (automacao de browser, canal interno QA)
 3. Bugs Home pos-fix (Concluido+Continuar, troca exercicio) — **Concluido+Continuar FIXED** 2026-05-28
 4. BUG_MEAL / Insights — fora escopo imediato
 
@@ -210,7 +210,7 @@ __tests__/workoutsHubScreen.integrity.test.mjs     # PASS
 
 **Validacao:** `node --test __tests__/dailyState.test.mjs` — **12/12 PASS** (sem QA visual)
 
-**Evidencia ChatGPT:** treino_013, treino_015 (prints pre-fix)
+**Evidencia auditoria externa:** treino_013, treino_015 (prints pre-fix)
 
 ### Fix validacao carga/reps (2026-05-28)
 

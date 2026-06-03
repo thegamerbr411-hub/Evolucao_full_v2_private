@@ -1,4 +1,4 @@
-# Commit Prep — Home + Treino
+﻿# Commit Prep — Home + Treino
 
 **Data:** 2026-06-02  
 **Autorização:** OK Felipe — organizar fixes; **commit NÃO realizado**  
@@ -34,7 +34,7 @@
 |---------|--------|
 | Arquivos modificados (total repo) | ~196 tracked + centenas untracked |
 | **In scope Home+Treino** | ~45 paths (ver abaixo) |
-| **Fora de escopo** | auth, e2e, `_audit_release`, android, package-lock, qa_metrics, docs infra, vídeos, `.gradle-user-home`, `.playwright-mcp`, etc. |
+| **Fora de escopo** | auth, e2e, `_audit_release`, android, package-lock, qa_metrics, docs infra, vídeos, `.gradle-user-home`, `.automacao de browser-mcp`, etc. |
 
 **Recomendação:** usar `git add` **cirúrgico** apenas nos paths *In scope*. Deixar o resto unstaged.
 
@@ -99,12 +99,12 @@
 | `LIVE_TEST_STATUS.md` |
 | `LIVE_BUGS_FOUND.md` |
 | `P1_STATE_FIX_REPORT.md` |
-| `TREINO_CHATGPT_ANALYSIS_SUMMARY.md` |
-| `CHATGPT_ANALYSIS_RESPONSES.md` |
-| `HOME_3_3A_CHATGPT_ANALYSIS_SUMMARY.md` |
+| `TREINO — resumo auditoria visual (removido do PR)` |
+| `(relatorio interno removido do PR)` |
+| `HOME_3_3A — resumo auditoria visual (removido do PR)` |
 | `HOME_DEEP_AUDIT_REPORT.md` |
 | `ANTI_HANG_RULES.md` |
-| `CHATGPT_BATCHES.md` (se rastreio Treino/Home) |
+| `(pacote de analise removido do PR)` (se rastreio Treino/Home) |
 | `PACOTE_COMPLETO_TREINO_P1_P2_2026-05-28.md` |
 | `LIVE_APP_MAP.md`, `LIVE_COORDINATE_MAP.md`, `LIVE_CLICK_LOG.md` (opcional rastreio) |
 | `screenshots/treino_postfix/*.md`, `*.json`, `*.xml` (PNG gitignored) |
@@ -136,7 +136,7 @@
 | Env / secrets | `.env` (gitignored); `.env.example` modificado — **revisar diff antes de qualquer commit amplo** |
 | Pacotes / lock | `package.json`, `package-lock.json` |
 | QA pesada / métricas | `qa_metrics/`, `qa/full-visual-qa-report.json`, `qa_phase4_*` |
-| Cache / tooling local | `.gradle-user-home/`, `.playwright-mcp/`, `device-video-*.mp4` |
+| Cache / tooling local | `.gradle-user-home/`, `.automacao de browser-mcp/`, `device-video-*.mp4` |
 | Nutrição profunda | fluxos fora Home meal sync |
 | `_audit_release/` mirror | inteiro |
 
@@ -229,7 +229,7 @@ Gate documentado Treino: 126/126 — diferença +2 por testes novos em `dailySta
 - `qa/live_mapping/HOME_FINAL_PENDING_REPORT.md`
 - `qa/live_mapping/COMMIT_PREP_HOME_TREINO_REPORT.md`
 - `qa/live_mapping/LIVE_TEST_STATUS.md`, `LIVE_BUGS_FOUND.md`, `P1_STATE_FIX_REPORT.md`
-- `qa/live_mapping/TREINO_CHATGPT_ANALYSIS_SUMMARY.md`, `CHATGPT_ANALYSIS_RESPONSES.md`, `HOME_3_3A_*`
+- `qa/live_mapping/TREINO — resumo auditoria visual (removido do PR)`, `(relatorio interno removido do PR)`, `HOME_3_3A_*`
 - `qa/live_mapping/screenshots/**` (md/json/xml; sem png)
 - `qa/live_mapping/*.ps1` (bounded), `tools/lib/AndroidQaTarget.ps1`
 
@@ -240,7 +240,7 @@ Gate documentado Treino: 126/126 — diferença +2 por testes novos em `dailySta
 ## O que NÃO commitar
 
 - Auth, e2e, android, sentry, gradle, package-lock, `_audit_release`
-- `metro_debug` logs, `.gradle-user-home`, `.playwright-mcp`, vídeos
+- `metro_debug` logs, `.gradle-user-home`, `.automacao de browser-mcp`, vídeos
 - Nutrição profunda / escopos não relacionados
 - Prints PNG (gitignored)
 

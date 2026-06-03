@@ -1,7 +1,7 @@
 ﻿# Mapa Vivo do App Evolução
 
 **Device:** `emulator-5554`  
-**Modo:** Auditoria por pacotes + envio ChatGPT navegador PC (2026-05-30)  
+**Modo:** Auditoria por pacotes + envio auditoria externa navegador PC (2026-05-30)  
 **Evidencias:** `screenshots/home/`
 
 ---
@@ -28,7 +28,7 @@
 | Ver insights do dia | Insights | OK | home_004_ver_insights.png |
 | Aba Treino | Hub Treino | OK | home_005_tab_treino.png |
 | Aba Nutricao | Nutricao | OK | home_006_tab_nutricao.png |
-| Aba Coach | Coach | OK (ChatGPT confirma) | home_007_tab_coach.png |
+| Aba Coach | Coach | OK (auditoria externa confirma) | home_007_tab_coach.png |
 | Aba Mais | Mais / Perfil | OK | home_008_tab_mais.png |
 | Aba Home | Home | OK | home_010_tab_home.png |
 
@@ -83,7 +83,7 @@
 | Historico | OK | treino_014 |
 | Reopen app | OK | treino_015 |
 
-### Analise ChatGPT (HOME 2/2)
+### Analise auditoria externa (HOME 2/2)
 
 - Navegacao inferior **OK** — abas abrem telas corretas
 - **P1:** Estado treino desincronizado Home/Treino/Coach

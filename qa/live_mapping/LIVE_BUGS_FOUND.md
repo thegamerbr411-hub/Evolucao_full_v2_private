@@ -1,4 +1,4 @@
-# Bugs Encontrados — Mapeamento ao Vivo
+﻿# Bugs Encontrados — Mapeamento ao Vivo
 
 ---
 
@@ -22,7 +22,7 @@ Ao clicar "Continuar treino" na Home, a WorkoutScreen abre com **Exercicio 1 de 
 
 **Impacto:** **Alto** — invalida fluxo real de treino e testes de progresso multi-exercicio
 
-**Correcao sugerida:** (nao aplicar ate analise ChatGPT) Revisar carga de `sessionBaseExercises` / preset / persistencia de rascunho
+**Correcao sugerida:** (nao aplicar ate analise auditoria externa) Revisar carga de `sessionBaseExercises` / preset / persistencia de rascunho
 
 **Status:** Aberto — **P1 fix 2026-05-30:** resync multi-exercicio em `WorkoutScreen`; validar apos reload Metro
 
@@ -122,7 +122,7 @@ Apos salvar **1 serie** de **4**, barra mostra **25% concluido** (correto para 1
 
 ---
 
-## BUG_005 — Streak inconsistente entre telas (ChatGPT HOME 1/2)
+## BUG_005 — Streak inconsistente entre telas (auditoria externa HOME 1/2)
 
 **Codigo:** `STREAK_STATE_INCONSISTENT`  
 **Categoria:** Logica / Estado global  
@@ -131,26 +131,26 @@ Apos salvar **1 serie** de **4**, barra mostra **25% concluido** (correto para 1
 **Descricao:** Home mostra "Dia 1 de sequencia"; Treino e Insights mostram "0 dias".
 
 **Evidencia:** home_001_inicio.png, home_002_continuar_treino.png, home_004_ver_insights.png  
-**Fonte:** ChatGPT HOME 1/2  
+**Fonte:** auditoria externa HOME 1/2  
 **Impacto:** Alto  
 **Status:** Corrigido em codigo (P1 fix 2026-05-30) — validar pos-reload
 
 ---
 
-## BUG_006 — Meta de proteina inconsistente (ChatGPT)
+## BUG_006 — Meta de proteina inconsistente (auditoria externa)
 
 **Codigo:** `PROTEIN_GOAL_INCONSISTENT`  
 **Categoria:** Logica / Dados  
 **Telas:** Home (150g), Nutricao/Coach (160g)  
 
 **Evidencia:** home_001, home_003, home_006, home_007  
-**Fonte:** ChatGPT HOME 1/2 + 2/2  
+**Fonte:** auditoria externa HOME 1/2 + 2/2  
 **Impacto:** Alto  
 **Status:** Corrigido — meta unificada via `dailyState` (160g peso-based)
 
 ---
 
-## BUG_007 — Texto invisivel na tela treino (ChatGPT)
+## BUG_007 — Texto invisivel na tela treino (auditoria externa)
 
 **Codigo:** `WORKOUT_TEXT_INVISIBLE_CONTRAST`  
 **Categoria:** Visual / Contraste  
@@ -159,52 +159,52 @@ Apos salvar **1 serie** de **4**, barra mostra **25% concluido** (correto para 1
 **Descricao:** "Supino Reto Barra" quase preto em fundo preto acima do botao "Registrar 10kg".
 
 **Evidencia:** home_002_continuar_treino.png  
-**Fonte:** ChatGPT HOME 1/2  
+**Fonte:** auditoria externa HOME 1/2  
 **Impacto:** Alto  
 **Status:** Corrigido — QuickExerciseRegister com contraste + oculto fora __DEV__
 
 ---
 
-## BUG_008 — Botao "Registrar 10kg" parece debug (ChatGPT)
+## BUG_008 — Botao "Registrar 10kg" parece debug (auditoria externa)
 
 **Codigo:** `WORKOUT_DEBUG_REGISTER_BUTTON`  
 **Categoria:** UX / Debug exposto  
 **Tela:** Treino de hoje  
 
 **Evidencia:** home_002_continuar_treino.png  
-**Fonte:** ChatGPT HOME 1/2  
+**Fonte:** auditoria externa HOME 1/2  
 **Impacto:** Medio  
 **Status:** Corrigido — oculto fora de __DEV__ (modo avancado)
 
 ---
 
-## BUG_009 — Estado treino inconsistente entre abas (ChatGPT HOME 2/2)
+## BUG_009 — Estado treino inconsistente entre abas (auditoria externa HOME 2/2)
 
 **Codigo:** `WORKOUT_ACTIVE_STATE_DESYNC`  
 **Categoria:** Logica / Navegacao  
 **Telas:** Home (Continuar treino), Treino (Iniciar), Coach (nao treinou)  
 
 **Evidencia:** home_001, home_005, home_007  
-**Fonte:** ChatGPT HOME 2/2  
+**Fonte:** auditoria externa HOME 2/2  
 **Impacto:** Alto  
 **Status:** Aberto
 
 ---
 
-## BUG_010 — Labels tecnicas expostas (ChatGPT)
+## BUG_010 — Labels tecnicas expostas (auditoria externa)
 
 **Codigo:** `DEBUG_FEATURE_LABELS_EXPOSED`  
 **Categoria:** UX / Debug  
 **Telas:** Nutricao `[F-Nutrition]`, Coach `[F-Coach]`  
 
 **Evidencia:** home_006, home_007  
-**Fonte:** ChatGPT HOME 2/2  
+**Fonte:** auditoria externa HOME 2/2  
 **Impacto:** Medio  
 **Status:** Aberto
 
 ---
 
-## BUG_011 — Card Treino "Hoje" status vazio (ChatGPT)
+## BUG_011 — Card Treino "Hoje" status vazio (auditoria externa)
 
 **Codigo:** `WORKOUT_HUB_STATUS_DASH`  
 **Categoria:** UX / Dados  
@@ -213,7 +213,7 @@ Apos salvar **1 serie** de **4**, barra mostra **25% concluido** (correto para 1
 **Descricao:** Card mostra "1 exercicio, 0 series, status = —"
 
 **Evidencia:** home_005_tab_treino.png  
-**Fonte:** ChatGPT HOME 2/2  
+**Fonte:** auditoria externa HOME 2/2  
 **Impacto:** Medio  
 **Status:** Aberto
 
@@ -257,7 +257,7 @@ Apos salvar **1 serie** de **4**, barra mostra **25% concluido** (correto para 1
 Apos finalizar ou com treino parcial, Home mostrava **Concluido** e **CONTINUAR TREINO** simultaneamente, com copy "Voce parou no treino".
 
 **Evidencia:** treino_013, treino_015 (prints pre-fix 2026-05-30)  
-**Fonte:** ChatGPT TREINO 3/3  
+**Fonte:** auditoria externa TREINO 3/3  
 
 **Correcao (2026-05-28):**
 - `src/services/dailyState.js` — `completed` via `canFinishWorkout`; recovery guard em `buildDailyState`
@@ -281,7 +281,7 @@ Apos finalizar ou com treino parcial, Home mostrava **Concluido** e **CONTINUAR 
 Com 1 serie de 17, Home/Coach tratavam treino como **Concluido 100%** em vez de **Em andamento**.
 
 **Evidencia:** treino_013, treino_015  
-**Fonte:** ChatGPT TREINO 3/3  
+**Fonte:** auditoria externa TREINO 3/3  
 
 **Correcao (2026-05-28):**
 - `src/context/modules/coachRules.js` — `workoutCompleted` somente quando `workoutStatus === 'completed'`
@@ -344,7 +344,7 @@ App aceitava 2060kg x 1010 reps e botao DEV "Registrar 2163kg".
 Treino incompleto podia ser encerrado ou finalizado sem modal claro; copy/botoes da confirmacao nao seguiam spec; saida com treino completo marcava `partial_exit` indevidamente.
 
 **Evidencia:** treino_012 ("Salvando treino..." sem modal)  
-**Fonte:** ChatGPT TREINO 3/3  
+**Fonte:** auditoria externa TREINO 3/3  
 
 **Causa real:** Alert com copy antiga (`Cancelar` / `Sair e salvar`); `finishWorkout` bloqueado usava toast apenas; `flushPartialWorkoutState` sempre chamava `markWorkoutSessionState({ partial_exit })` mesmo quando `canFinishWorkout`.
 
@@ -379,7 +379,7 @@ node --test __tests__/workoutHistoryCleanup.test.mjs   # 8/8 PASS
 Substituir exercicio (ex. Supino → Puxada) ocorria sem copy contextual, sem confirmacao quando havia progresso, e sem deixar claro que series registradas permanecem no exercicio anterior.
 
 **Evidencia:** treino_006..010  
-**Fonte:** ChatGPT TREINO 2/3  
+**Fonte:** auditoria externa TREINO 2/3  
 
 **Causa real:** `replaceActiveExercise` trocava nome silenciosamente; toast generico; nenhum `buildExerciseSwapPlan`; draft orfao sob nome antigo.
 
@@ -415,7 +415,7 @@ node --test __tests__/workoutExerciseSwap.test.mjs   # 13/13 PASS
 Pipeline de historico por exercicio nao estava centralizado nem coberto por testes; matching por `exerciseId` fraco; progressao podia usar logs de outros exercicios.
 
 **Evidencia:** treino_014 (print aba Treinos — evidencia visual insuficiente)  
-**Fonte:** ChatGPT TREINO 3/3  
+**Fonte:** auditoria externa TREINO 3/3  
 
 **Causa real:**
 - `getExerciseProgressionSuggestion` filtrava logs mas passava `workoutLogs` global ao use case
@@ -449,7 +449,7 @@ Pipeline de historico por exercicio nao estava centralizado nem coberto por test
 Contadores de progresso repetidos (topRow 1/17, Treino X%, footer com X/Y, badge 1/5 no card).
 
 **Evidencia:** treino_001, treino_002  
-**Fonte:** ChatGPT TREINO 1/3  
+**Fonte:** auditoria externa TREINO 1/3  
 
 **Causa real:** copy espalhada sem helper unico; footer repetia metricas em vez de orientar acao.
 
@@ -478,7 +478,7 @@ Contadores de progresso repetidos (topRow 1/17, Treino X%, footer com X/Y, badge
 SecondaryButton full-width ("Modo simples ativo") ocupava faixa grande da tela.
 
 **Evidencia:** treino_008, treino_009  
-**Fonte:** ChatGPT TREINO 2/3 + PACOTE_COMPLETO 2026-06-02  
+**Fonte:** auditoria externa TREINO 2/3 + PACOTE_COMPLETO 2026-06-02  
 
 **Causa real:** `SecondaryButton` padrao (minHeight 48) usado como toggle de modo; copy redundante com "ativo".
 
@@ -510,7 +510,7 @@ SecondaryButton full-width ("Modo simples ativo") ocupava faixa grande da tela.
 Botao check/concluir aparecia em todas as linhas; series futuras pareciam concluidas (verde ou ✔ desabilitado).
 
 **Evidencia:** treino_008  
-**Fonte:** ChatGPT TREINO 2/3 + PACOTE_COMPLETO 2026-06-02  
+**Fonte:** auditoria externa TREINO 2/3 + PACOTE_COMPLETO 2026-06-02  
 
 **Causa real:** UI usava check como affordance generica; nao distinguia pendente/pronta/salva/invalida/futura.
 
@@ -544,7 +544,7 @@ Botao check/concluir aparecia em todas as linhas; series futuras pareciam conclu
 Chip/botao "Substituir" nao deixava claro que troca apenas o exercicio atual no treino de hoje.
 
 **Evidencia:** treino_002  
-**Fonte:** ChatGPT TREINO 2/3 + PACOTE_COMPLETO 2026-06-02  
+**Fonte:** auditoria externa TREINO 2/3 + PACOTE_COMPLETO 2026-06-02  
 
 **Causa real:** copy generica "Substituir" sem helper nem titulo de confirmacao contextual.
 
@@ -571,7 +571,7 @@ Chip/botao "Substituir" nao deixava claro que troca apenas o exercicio atual no 
 Durante salvar serie ou finalizar treino, campos Kg/Reps podiam mostrar placeholder em vez do valor digitado/salvo.
 
 **Evidencia:** treino_012  
-**Fonte:** ChatGPT TREINO 3/3 + PACOTE_COMPLETO 2026-06-02  
+**Fonte:** auditoria externa TREINO 3/3 + PACOTE_COMPLETO 2026-06-02  
 
 **Causa real:** coercao falsy (`value || placeholder`) tratava peso `0` como vazio; `clearWorkoutDraftStorage` antes de `navigate` esvaziava UI durante "Salvando treino...".
 
@@ -609,7 +609,7 @@ Durante salvar serie ou finalizar treino, campos Kg/Reps podiam mostrar placehol
 Leitura de historico ja estava correta em `workoutHistoryFlow`, mas a UI nao mostrava lista auditavel de series nem aviso de registros ignorados na leitura.
 
 **Evidencia:** treino_014  
-**Fonte:** ChatGPT TREINO 3/3 + plano fix_history_capture_ui  
+**Fonte:** auditoria externa TREINO 3/3 + plano fix_history_capture_ui  
 
 **Causa real:** gap de apresentacao — sparkline/ultimo/PR sem painel explicito; HistoryScreen sem `workoutLogs` locais; `getExerciseProgress` sem `exerciseId` em um ponto do treino.
 

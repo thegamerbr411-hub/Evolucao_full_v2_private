@@ -7,7 +7,11 @@
 
 **TREINO — STATUS FINAL:** **PASS VISUAL PARCIAL COM RESSALVAS** (fechado 2026-06-02 — OK Felipe) · ver [`TREINO_FINAL_STATUS.md`](TREINO_FINAL_STATUS.md)
 
-**Commit prep (2026-06-02):** [`COMMIT_PREP_HOME_TREINO_REPORT.md`](COMMIT_PREP_HOME_TREINO_REPORT.md) — gate `__tests__/` 128/128 PASS · commits **NÃO** realizados · escopo A (Home+Treino+QA only)
+**Commit prep (2026-06-02):** [`COMMIT_PREP_HOME_TREINO_REPORT.md`](COMMIT_PREP_HOME_TREINO_REPORT.md) — gate `__tests__/` 128/128 PASS · escopo A (Home+Treino+QA only)
+
+**Push + workspace (2026-06-02):** 4 commits Home+Treino em `origin/hotfix` (`d4e9b7d`) · [`EVOLUCAO_WORKSPACE_AUDIT.md`](EVOLUCAO_WORKSPACE_AUDIT.md)
+
+**GitHub PR (2026-06-03):** [#2](https://github.com/thegamerbr411-hub/Evolucao_full_v2_private/pull/2) hotfix→main · e-mail **Verified+Primary** · **conflitos SIM** · merge **NÃO** · PASS global **NÃO** · [`GITHUB_PR_PREP_REPORT.md`](GITHUB_PR_PREP_REPORT.md)
 
 ---
 
@@ -46,7 +50,7 @@
 | Script validacao rest | `fix_rest_validate.ps1` (MaxScriptSec 110, bounded dump) |
 | **BUG_FINISH** | **FIXED** 2026-05-30T22:27 — finish_002 + `finish_button.analysis.md` |
 | **BUG_REST** | **FIXED** 2026-05-30T23:16 — rest_001..006 + `rest_buttons.analysis.md` |
-| **Gate P1** | **PASS tecnico** — estado global + finish + rest OK; TREINO 1/3–3/3 enviado ChatGPT |
+| **Gate P1** | **PASS tecnico** — estado global + finish + rest OK; TREINO 1/3–3/3 enviado auditoria externa |
 
 **Ultima validacao P1:** 2026-05-30T17:52:58 · `fix_p1_metrics.json`  
 **Ultima validacao finish:** 2026-05-30T22:27:45 · `fix_finish_metrics.json`  
@@ -71,7 +75,7 @@
 | `fix_rest_validate.ps1` | PASS | `fix_rest_metrics.json` |
 | `home_deep_batch_audit.ps1` | Captura OK | `screenshots/home_deep/` |
 | `live_watch_mapping.ps1` | PAUSADO | — |
-| `treino_batch_audit.ps1` | Captura OK | enviado ChatGPT 2026-05-31 |
+| `treino_batch_audit.ps1` | Captura OK | enviado auditoria externa 2026-05-31 |
 
 Scripts antigos sem timeout (`Get-UiXmlSnapshot` ilimitado, uiautomator em loop) **nao devem ser usados**.
 
@@ -99,8 +103,8 @@ Scripts antigos sem timeout (`Get-UiXmlSnapshot` ilimitado, uiautomator em loop)
 
 | Pacote | Escopo | Status |
 |---|---|---|
-| HOME 1/2 | Navegacao basica | Capturado · ChatGPT respondido |
-| HOME 2/2 | Bottom nav | Capturado · ChatGPT respondido |
+| HOME 1/2 | Navegacao basica | Capturado · auditoria externa respondido |
+| HOME 2/2 | Bottom nav | Capturado · auditoria externa respondido |
 | **HOME 3/3A** | Scroll + Continuar treino | **ANALISE_RECEBIDA** — P1 + pendências finais 2026-06-02 |
 | HOME 3/3B | Nutricao profunda | Pronto — nao iniciar |
 | HOME 3/3C | Insights/Coach | Pronto — nao iniciar |
@@ -110,14 +114,14 @@ Scripts antigos sem timeout (`Get-UiXmlSnapshot` ilimitado, uiautomator em loop)
 - Funcao/estado/dados: **PASS PARCIAL** (meal sync corrigido 2026-06-02)
 - PASS global Home: **NAO**
 
-**Resumo 3/3A:** `HOME_3_3A_CHATGPT_ANALYSIS_SUMMARY.md`  
+**Resumo 3/3A:** `HOME_3_3A — resumo auditoria visual (removido do PR)`  
 **Script deep:** `qa/live_mapping/home_deep_batch_audit.ps1` (histórico — não rerodar)  
 **Screenshots:** 27 PNG em `screenshots/home_deep/`  
 **Relatorio:** `HOME_DEEP_AUDIT_REPORT.md` · **Pendências finais:** `HOME_FINAL_PENDING_REPORT.md`
 
 ---
 
-## Treino — analise ChatGPT (2026-05-31)
+## Treino — analise auditoria externa (2026-05-31)
 
 | Pacote | Status |
 |---|---|
@@ -125,17 +129,17 @@ Scripts antigos sem timeout (`Get-UiXmlSnapshot` ilimitado, uiautomator em loop)
 | TREINO 2/3 | **ANALISE_RECEBIDA_E_REGISTRADA** |
 | TREINO 3/3 | **ANALISE_RECEBIDA_E_REGISTRADA** |
 
-**Resumo:** [`TREINO_CHATGPT_ANALYSIS_SUMMARY.md`](TREINO_CHATGPT_ANALYSIS_SUMMARY.md)  
-**Respostas:** [`CHATGPT_ANALYSIS_RESPONSES.md`](CHATGPT_ANALYSIS_RESPONSES.md)  
+**Resumo:** [`TREINO — resumo auditoria visual (removido do PR)`](TREINO — resumo auditoria visual (removido do PR))  
+**Respostas:** [`(relatorio interno removido do PR)`]((relatorio interno removido do PR))  
 **Prints:** 15 PNG pre-fix em `screenshots/treino/` (captura 2026-05-30)
 
-**Veredito Treino (ChatGPT):** **NAO PASS** nas imagens antigas; multi/finish/rest **FIXED** pos-fix; pos-finalizacao **FIXED** 2026-05-28; validacao carga/reps **FIXED** 2026-05-28 (codigo).
+**Veredito Treino (auditoria externa):** **NAO PASS** nas imagens antigas; multi/finish/rest **FIXED** pos-fix; pos-finalizacao **FIXED** 2026-05-28; validacao carga/reps **FIXED** 2026-05-28 (codigo).
 
 ---
 
-## TREINO 1/3–3/3 — analise ChatGPT
+## TREINO 1/3–3/3 — analise auditoria externa
 
-**Status captura resposta:** 2026-05-31 via Playwright
+**Status captura resposta:** 2026-05-31 via automacao de browser
 
 | Pacote | Envio | Resposta |
 |---|---|---|
@@ -433,7 +437,7 @@ node --test __tests__/workoutExerciseSwap.test.mjs      # 23/23 PASS
 
 ---
 
-## Gate ChatGPT (navegador PC)
+## Gate auditoria externa (navegador PC)
 
 | Pacote | Envio | Resposta |
 |---|---|---|
@@ -448,17 +452,17 @@ node --test __tests__/workoutExerciseSwap.test.mjs      # 23/23 PASS
 | **PACOTE_COMPLETO_TREINO_P1_P2** | Enviado 2026-06-02T17:05:58-03:00 | **Registrado** |
 | Metro anti-parada | Resolvido localmente | — |
 
-### PACOTE_COMPLETO_TREINO_P1_P2 — envio Playwright (2026-06-02)
+### PACOTE_COMPLETO_TREINO_P1_P2 — envio de pacote QA (2026-06-02)
 
 | Item | Valor |
 |---|---|
 | **Status** | **ENVIADO** → **ANALISE_RECEBIDA** |
-| **Canal** | Dever de casa → Chat do Cursor |
-| **Link** | https://chatgpt.com/g/g-p-69ca44b08b848191926fe19ddcb48d3d/c/6a19e72a-0cc0-83e9-a620-a3e496ea1953 |
+| **Canal** | canal interno QA |
+| **Link** | [URL de chat removida do PR] |
 | **Pacote** | `PACOTE_COMPLETO_TREINO_P1_P2_2026-05-28.md` (colado no chat + anexo) |
 | **Gate citado** | 76/76 PASS |
-| **Veredito ChatGPT** | PASS tecnico parcial; **NAO** PASS visual/global |
-| **Proxima correcao (ChatGPT)** | ~~`BUG_WORKOUT_FINISH_FIELDS_RESET`~~ **FIXED** 2026-06-02 |
+| **Veredito auditoria externa** | PASS tecnico parcial; **NAO** PASS visual/global |
+| **Proxima correcao (auditoria externa)** | ~~`BUG_WORKOUT_FINISH_FIELDS_RESET`~~ **FIXED** 2026-06-02 |
 | **Pode avancar?** | SIM — PASS visual parcial Treino (PARTIAL 6/8); aguarda OK Felipe |
 
 ---

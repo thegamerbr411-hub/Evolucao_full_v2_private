@@ -1,4 +1,4 @@
-# PACOTE COMPLETO — ChatGPT / Cursor — Projeto Evolução (Treino P1/P2)
+﻿# PACOTE COMPLETO — auditoria externa / Cursor — Projeto Evolução (Treino P1/P2)
 
 **Data do pacote:** 2026-05-28  
 **Workspace:** `F:\projetos\evolucao app`  
@@ -179,7 +179,7 @@ export function canFinishWorkout({ plannedSets = 0, completedSets = 0 } = {}) {
 
 - `LIVE_TEST_STATUS.md`: PASS global NÃO; gate 76/76; próximo MODE_CARD_BLOATED
 - `LIVE_BUGS_FOUND.md`: FIXED finish, swap, history, progress duplicate
-- `TREINO_CHATGPT_ANALYSIS_SUMMARY.md`: 2 bugs P2 abertos
+- `TREINO — resumo auditoria visual (removido do PR)`: 2 bugs P2 abertos
 - `ANTI_HANG_RULES.md`: watcher PAUSADO; MaxScriptSec obrigatório
 
 ---

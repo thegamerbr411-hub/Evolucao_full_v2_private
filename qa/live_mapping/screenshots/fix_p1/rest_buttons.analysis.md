@@ -1,4 +1,4 @@
-# BUG_REST — Análise presets + timer Descanso
+﻿# BUG_REST — Análise presets + timer Descanso
 
 **Device:** emulator-5554  
 **App:** com.tipolt.evolucaofullv2  
@@ -82,7 +82,7 @@
 
 ## Compreensão do estado (UX)
 
-- **Antes fix:** múltiplos presets pareciam selecionados (ChatGPT HOME 3/3A P1)
+- **Antes fix:** múltiplos presets pareciam selecionados (auditoria externa HOME 3/3A P1)
 - **Depois fix:** label `Descanso: Xs` + um botão highlighted + timer flutuante claro
 - Usuário entende: preset escolhido → tap Descanso → countdown com Pular/+30s
 

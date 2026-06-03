@@ -1,4 +1,4 @@
-# HOME 3/3 — Auditoria Funcional Profunda
+﻿# HOME 3/3 — Auditoria Funcional Profunda
 
 **Device:** emulator-5554  
 **App:** com.tipolt.evolucaofullv2  
@@ -147,8 +147,8 @@
 
 ## Proxima acao recomendada
 
-1. Enviar **HOME 3/3A** ao ChatGPT no navegador PC (6 prints)
-2. Apos analise ChatGPT 3/3A–C, aguardar autorizacao Felipe para corrigir **fonte de verdade global** (streak, XP, proteina, treino ativo)
+1. Enviar **HOME 3/3A** ao auditoria externa no navegador PC (6 prints)
+2. Apos analise auditoria externa 3/3A–C, aguardar autorizacao Felipe para corrigir **fonte de verdade global** (streak, XP, proteina, treino ativo)
 3. **Nao declarar PASS** na Home ate re-auditoria pos-correcao
 
 **Cliques registrados:** 022–044 (23 acoes)  

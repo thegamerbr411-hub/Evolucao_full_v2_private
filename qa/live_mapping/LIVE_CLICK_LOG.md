@@ -1,4 +1,4 @@
-# Log de Cliques — Mapeamento ao Vivo (Batch Audit)
+﻿# Log de Cliques — Mapeamento ao Vivo (Batch Audit)
 
 **Device:** `emulator-5554`  
 **Modo:** Auditoria por pacotes (`home_batch_audit.ps1`)  
@@ -25,7 +25,7 @@
 - Bugs: `MULTI_EXERCISE_WORKOUT_NOT_LOADED`, `WORKOUT_PRESET_ONLY_ONE_EXERCISE`
 - Nao declarar PASS
 
-**Proxima acao recomendada:** Enviar HOME 1/2 ao ChatGPT; depois validar treino com 5 exercicios
+**Proxima acao recomendada:** Enviar HOME 1/2 ao auditoria externa; depois validar treino com 5 exercicios
 
 ---
 

@@ -1,4 +1,4 @@
-# TREINO — Final Status
+﻿# TREINO — Final Status
 
 **Data fechamento:** 2026-06-02  
 **Autorização:** OK Felipe — fechar Treino como PASS VISUAL PARCIAL COM RESSALVAS  
@@ -64,8 +64,8 @@ Suites Treino/P1 em `__tests__/` (workoutHistoryFlow, workoutProgressCopy, worko
 - [`LIVE_TEST_STATUS.md`](LIVE_TEST_STATUS.md)
 - [`LIVE_BUGS_FOUND.md`](LIVE_BUGS_FOUND.md)
 - [`P1_STATE_FIX_REPORT.md`](P1_STATE_FIX_REPORT.md)
-- [`TREINO_CHATGPT_ANALYSIS_SUMMARY.md`](TREINO_CHATGPT_ANALYSIS_SUMMARY.md)
-- [`CHATGPT_ANALYSIS_RESPONSES.md`](CHATGPT_ANALYSIS_RESPONSES.md)
+- [`TREINO — resumo auditoria visual (removido do PR)`](TREINO — resumo auditoria visual (removido do PR))
+- [`(relatorio interno removido do PR)`]((relatorio interno removido do PR))
 - Este arquivo
 
 ---
@@ -132,4 +132,4 @@ Escolher próximo escopo (fora deste fechamento):
 | **C** | Revisão visual geral leve pós-fixes |
 | **D** | Commit / organização dos fixes Treino |
 
-**Scripts antigos:** não rerodar `treino_batch_audit`, `live_watch_mapping`, postfix/gap sem motivo explícito. **Novo pacote ChatGPT:** não criar agora.
+**Scripts antigos:** não rerodar `treino_batch_audit`, `live_watch_mapping`, postfix/gap sem motivo explícito. **Novo pacote auditoria externa:** não criar agora.
