@@ -24,6 +24,7 @@ import {
 import { buildWorkoutHistorySummary } from '../services/workoutHistoryFlow';
 import { getDropRecoveryCandidate } from '../core/observability';
 import { logEvent } from '../core/logger';
+import { clampRoutineFrequency } from '../services/routineDisplay';
 
 // Import logic modules
 import {
@@ -1093,17 +1094,33 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
       getUserRoutines: () => (Array.isArray(userRoutines) ? userRoutines : []),
       getUserRoutineById: (id) => (Array.isArray(userRoutines) ? userRoutines : []).find((r) => r.id === id),
-      createUserRoutine: ({ name, exercises }) => {
+      createUserRoutine: ({ name, exercises, frequency } = {} as any) => {
         const safeExercises = Array.isArray(exercises) ? exercises : [];
-        const routine = { id: `routine-${Date.now()}`, name, exercises: safeExercises };
+        const routine = {
+          id: `routine-${Date.now()}`,
+          name,
+          exercises: safeExercises,
+          frequency: clampRoutineFrequency(frequency, profile?.trainingDaysPerWeek),
+        };
         appStore.updateUserRoutines((routines) => [routine, ...(Array.isArray(routines) ? routines : [])]);
         return { ok: true, routine };
       },
 
-      updateUserRoutine: ({ routineId, name, exercises }) => {
+      updateUserRoutine: ({ routineId, name, exercises, frequency } = {} as any) => {
         const safeExercises = Array.isArray(exercises) ? exercises : [];
-        appStore.updateUserRoutines((routines) => 
-          (Array.isArray(routines) ? routines : []).map((r) => (r.id === routineId ? { ...r, name, exercises: safeExercises } : r))
+        const nextFrequency = frequency !== undefined && frequency !== null
+          ? clampRoutineFrequency(frequency, profile?.trainingDaysPerWeek)
+          : undefined;
+        appStore.updateUserRoutines((routines) =>
+          (Array.isArray(routines) ? routines : []).map((r) => {
+            if (r.id !== routineId) return r;
+            return {
+              ...r,
+              name,
+              exercises: safeExercises,
+              ...(nextFrequency !== undefined ? { frequency: nextFrequency } : {}),
+            };
+          })
         );
         return { ok: true };
       },
@@ -1140,7 +1157,12 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         if (!template) {
           return { ok: false, message: 'Template nao encontrado.' };
         }
-        const routine = { id: `routine-${Date.now()}`, name: template.name, exercises: template.exercises };
+        const routine = {
+          id: `routine-${Date.now()}`,
+          name: template.name,
+          exercises: template.exercises,
+          frequency: clampRoutineFrequency(frequency, profile?.trainingDaysPerWeek),
+        };
         appStore.updateUserRoutines((routines) => [routine, ...(Array.isArray(routines) ? routines : [])]);
         return { ok: true, routine };
       },
@@ -1153,6 +1175,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
           id: `routine-${Date.now()}`,
           name: String(name || 'Minha Rotina'),
           exercises: todayExercises.map((e: any) => ({ name: e.name, sets: e.sets, reps: e.reps })),
+          frequency: clampRoutineFrequency(frequency, profile?.trainingDaysPerWeek),
         };
         appStore.updateUserRoutines((routines) => [routine, ...(Array.isArray(routines) ? routines : [])]);
         return { ok: true, routine };
