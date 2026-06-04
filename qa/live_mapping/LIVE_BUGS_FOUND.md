@@ -706,3 +706,21 @@ Modal/sheet com opções 200/300/500/510 ml + personalizado; Cancelar não alter
 **Status:** **CORRIGIDO** (codigo 2026-06-04) — revalidacao visual na Home com Metro ativo (emulator-5554).
 
 **Relacionado:** Rotinas validado emulator — ver `ROUTINE_START_FREQUENCY_FIX_REPORT.md`.
+
+---
+
+## RF-01 — "Criar desafio" visível para não-admin (2026-06-02)
+
+**Codigo:** `RF-01_CHALLENGE_CREATE_VISIBLE_TO_NON_ADMIN`  
+**Categoria:** Permissões / Desafios / Admin  
+**Tela:** Mais → Social e Desafios (`SocialChallengesScreen`)  
+**Severidade:** **P1**
+
+**Descricao:**  
+Usuário comum via card "Criar desafio" e formulário sem restrição de role; API aceitava criação com `userId` + API key.
+
+**Correcao aplicada:** [`CHALLENGE_ADMIN_RBAC_FIX_REPORT.md`](CHALLENGE_ADMIN_RBAC_FIX_REPORT.md) — `isChallengeAdmin`, UI condicional, `admin_required` no serviço, JWT+admin no dashboard, backend social.
+
+**Status:** **CORRIGIDO (codigo)** — QA visual emulator-5554 **pendente**; deploy Render API **pendente** para enforcement servidor em produção.
+
+**PASS global:** NÃO

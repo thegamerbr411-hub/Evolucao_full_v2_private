@@ -216,14 +216,18 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       }
 
       if (currentUser) {
+        const currentStoreUser = useUserStore.getState().user;
+        const preserveAdminRole =
+          currentStoreUser?.id === currentUser.uid
+          && String(currentStoreUser?.role || '').toLowerCase() === 'admin';
+
         const resolvedUser = {
           id: currentUser.uid,
           name: currentUser.displayName || currentUser.email?.split('@')?.[0] || 'Usuário',
           email: currentUser.email || null,
-          role: 'user',
+          role: preserveAdminRole ? 'admin' : 'user',
         };
 
-        const currentStoreUser = useUserStore.getState().user;
         if (!currentStoreUser || currentStoreUser.id !== resolvedUser.id) {
           setUserInStore(resolvedUser as any);
         }
