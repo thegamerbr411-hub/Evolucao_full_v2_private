@@ -679,3 +679,30 @@ Leitura de historico ja estava correta em `workoutHistoryFlow`, mas a UI nao mos
 | Paywall / ranking / acentos | **Aberto** P2 |
 
 **Treino:** nao reabrir — `TREINO_FINAL_STATUS.md`
+
+---
+
+## BUG_HOME_WATER_QUICK_ADD_NO_AMOUNT — Home registra água sem quantidade (2026-06-04)
+
+**Codigo:** `BUG_HOME_WATER_QUICK_ADD_NO_AMOUNT`  
+**Categoria:** UX / Funcionalidade  
+**Tela:** Home — quick action `+ Beber água` (`btn_add_water`)  
+**Severidade:** **P2**
+
+**Descricao:**  
+Ao tocar em registrar/beber água na Home, o app chama `addWaterIntake(300)` **sem** perguntar quantidade. Sempre soma **300 ml** fixos e mostra feedback `+300ml adicionados`.
+
+**Evidencia (codigo):**
+- `src/screens/HomeScreen.js` — `onPress` → `addWaterIntake?.(300)`
+- `src/context/AppContext-v2.ts` — `addWaterIntake` → `hydration.consumedMl` + `history.waterMl`
+
+**Comportamento esperado:**  
+Modal/sheet com opções 200/300/500/510 ml + personalizado; Cancelar não altera total; Registrar atualiza Home com toast `Água registrada: N ml`.
+
+**Impacto:** Medio — hidratacao imprecisa; usuario pode nao perceber registro errado.
+
+**Correcao aplicada:** [`HOME_WATER_QUICK_ADD_FIX_REPORT.md`](HOME_WATER_QUICK_ADD_FIX_REPORT.md) — `waterQuickAdd.js` + Modal sheet na Home.
+
+**Status:** **CORRIGIDO** (codigo 2026-06-04) — revalidacao visual na Home com Metro ativo (emulator-5554).
+
+**Relacionado:** Rotinas validado emulator — ver `ROUTINE_START_FREQUENCY_FIX_REPORT.md`.
