@@ -8,6 +8,13 @@ import * as WebBrowser from 'expo-web-browser';
 import { AppCard, ScreenHeader } from '../components/ui';
 import { colors, spacing, radius } from '../theme';
 import { getExerciseByName } from '../data/exercises.js';
+import { ExerciseMediaFallback } from '../components/exercise/ExerciseMediaFallback';
+import {
+  EXERCISE_INSTRUCTIONS_COMING_SOON,
+  EXERCISE_VIDEO_COMING_SOON,
+  isValidHttpUrl,
+  resolveExerciseMedia,
+} from '../utils/exerciseMedia';
 import { trackAppError } from '../utils/analytics';
 import { logTaggedError, logTaggedEvent } from '../utils/runtimeLogger';
 import { QA_ELEMENTS, QA_SCREENS, qaAliasProps, qaProps } from '../qa/selectorRegistry';
@@ -23,15 +30,6 @@ function formatLabel(value = '') {
   return String(value || '')
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (match) => match.toUpperCase());
-}
-
-function isValidHttpUrl(value = '') {
-  try {
-    const parsed = new URL(String(value || '').trim());
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
-  } catch {
-    return false;
-  }
 }
 
 function toSafeList(value) {
@@ -89,7 +87,7 @@ class ExerciseDetailErrorBoundary extends React.PureComponent {
 
     return (
       <ScrollView {...qaAliasProps(QA_SCREENS.exerciseDetail, 'screen-exercise-detail-fallback')} contentContainerStyle={styles.container}>
-        <ScreenHeader title="Detalhe do exercicio" subtitle="Modo seguro ativado para manter a navegacao." />
+        <ScreenHeader title="Detalhe do exercicio" subtitle="Modo seguro ativado para manter a navegacao." onBack={() => navigation.goBack()} />
         <AppCard>
           <Text style={styles.sectionTitle}>Tela recuperada</Text>
           <Text style={styles.bodyText}>
@@ -141,21 +139,26 @@ function ExerciseDetailContent({ route, navigation }) {
   const safeExercise = exercise && typeof exercise === 'object' ? exercise : {};
 
   const name = safeExercise?.name || 'Exercicio indisponivel';
-  const musclePrimary = toSafeList(safeExercise?.musclePrimary);
-  const muscleSecondary = toSafeList(safeExercise?.muscleSecondary);
+  const musclePrimary = toSafeList(
+    safeExercise?.primaryMuscle
+      ? [safeExercise.primaryMuscle]
+      : safeExercise?.musclePrimary
+  );
+  const muscleSecondary = toSafeList(
+    safeExercise?.secondaryMuscles || safeExercise?.muscleSecondary
+  );
   const instructions = toSafeList(safeExercise?.instructions);
   const tips = toSafeList(safeExercise?.tips);
   const commonMistakes = toSafeList(safeExercise?.commonMistakes);
   const history = toSafeList(safeExercise?.history);
   const metadata = safeExercise?.metadata && typeof safeExercise.metadata === 'object' ? safeExercise.metadata : {};
   const metadataEntries = Object.entries(metadata || {}).filter(([key, value]) => String(key || '').trim() && String(value || '').trim());
-  const videoUrl = String(safeExercise?.videoUrl || safeExercise?.video || '').trim();
-  const thumbnailUrl = String(safeExercise?.thumbnail || '').trim();
-  const isPlaceholderCdn = /cdn\.app\.com/i.test(videoUrl);
-  const directVideoUrl = isValidHttpUrl(videoUrl) && !isPlaceholderCdn ? videoUrl : '';
-  const fallbackVideoUrl = directVideoUrl || buildYoutubeSearchUrl(name);
+  const media = useMemo(() => resolveExerciseMedia(safeExercise), [safeExercise]);
+  const directVideoUrl = media.hasRealVideo ? media.videoUrl : '';
+  const thumbnailUrl = media.hasRealThumbnail ? media.thumbnailUrl : '';
   const canRenderVideo = Boolean(directVideoUrl) && !videoFailed && videoEnabled;
-  const canRenderThumbnail = isValidHttpUrl(thumbnailUrl);
+  const canRenderThumbnail = Boolean(thumbnailUrl);
+  const showLocalMediaFallback = media.isPlaceholder || media.showVideoComingSoon;
   const hasExerciseData = Boolean(
     safeExercise?.name ||
     musclePrimary.length ||
@@ -229,10 +232,17 @@ function ExerciseDetailContent({ route, navigation }) {
   }, [name]);
 
   useEffect(() => {
+    if (showLocalMediaFallback && instructions.length) {
+      setActiveTab('instrucoes');
+    }
+  }, [instructions.length, showLocalMediaFallback]);
+
+  useEffect(() => {
     logTaggedEvent('VIDEO', 'screen_ready', {
       exerciseName: name,
       hasDirectVideo: Boolean(directVideoUrl),
       hasThumbnail: canRenderThumbnail,
+      isPlaceholderMedia: showLocalMediaFallback,
     });
     setQaPlayerState({
       active: false,
@@ -287,11 +297,20 @@ function ExerciseDetailContent({ route, navigation }) {
 
   return (
     <ScrollView {...qaAliasProps(QA_SCREENS.exerciseDetail, 'screen-exercise-detail')} contentContainerStyle={styles.container}>
-      <ScreenHeader title="Detalhe do exercicio" subtitle="Guia visual premium para executar melhor e com seguranca." />
+      <ScreenHeader title="Detalhe do exercicio" subtitle="Guia visual premium para executar melhor e com seguranca." onBack={() => navigation.goBack()} />
 
       <AppCard>
         <View style={styles.videoWrap}>
-          {canRenderVideo ? (
+          {showLocalMediaFallback ? (
+            <>
+              <ExerciseMediaFallback
+                exercise={safeExercise}
+                testID="exercise-detail-media-fallback"
+              />
+              <Text style={styles.videoComingSoonText}>{EXERCISE_VIDEO_COMING_SOON}</Text>
+            </>
+          ) : null}
+          {!showLocalMediaFallback && canRenderVideo ? (
             <Video
               ref={videoRef}
               {...qaProps(QA_ELEMENTS.playerInternal)}
@@ -358,7 +377,7 @@ function ExerciseDetailContent({ route, navigation }) {
               }}
               onError={handleVideoError}
             />
-          ) : directVideoUrl && !videoEnabled ? (
+          ) : !showLocalMediaFallback && directVideoUrl && !videoEnabled ? (
             <View style={styles.videoFallback}>
               <Ionicons name="play-circle-outline" size={34} color={colors.textSecondary} />
               <Text style={styles.videoFallbackText}>Video pronto</Text>
@@ -370,14 +389,14 @@ function ExerciseDetailContent({ route, navigation }) {
                   try {
                     logTaggedEvent('VIDEO', 'external_open', {
                       exerciseName: name,
-                      videoUrl: fallbackVideoUrl,
+                      videoUrl: buildYoutubeSearchUrl(name),
                     });
-                    await WebBrowser.openBrowserAsync(fallbackVideoUrl);
+                    await WebBrowser.openBrowserAsync(buildYoutubeSearchUrl(name));
                   } catch (error) {
                     safeTrackAppError(error || new Error('exercise_video_external_open_failed'), {
                       screen: 'ExerciseDetailScreen',
                       action: 'video_external_open',
-                      context: { exerciseName: name, videoUrl: fallbackVideoUrl },
+                      context: { exerciseName: name, videoUrl: buildYoutubeSearchUrl(name) },
                     });
                   }
                 }}
@@ -407,60 +426,9 @@ function ExerciseDetailContent({ route, navigation }) {
                 <Text style={styles.retryVideoButtonText}>Tentar player interno (beta)</Text>
               </TouchableOpacity>
             </View>
-          ) : canRenderThumbnail ? (
+          ) : !showLocalMediaFallback && canRenderThumbnail ? (
             <Image source={{ uri: thumbnailUrl }} style={styles.video} resizeMode="cover" />
-          ) : (
-            <View style={styles.videoFallback}>
-              <Ionicons name="videocam-off-outline" size={34} color={colors.textSecondary} />
-              <Text style={styles.videoFallbackText}>Video indisponivel</Text>
-              <Text style={styles.videoFallbackSubtext}>Sem bloqueio da tela. Use o resumo e o passo a passo abaixo.</Text>
-              <TouchableOpacity
-                {...qaAliasProps(QA_ELEMENTS.btnOpenVideo, 'btn-open-video')}
-                style={styles.retryVideoButton}
-                onPress={async () => {
-                  try {
-                    logTaggedEvent('VIDEO', 'external_open', {
-                      exerciseName: name,
-                      videoUrl: fallbackVideoUrl,
-                    });
-                    await WebBrowser.openBrowserAsync(fallbackVideoUrl);
-                  } catch (error) {
-                    safeTrackAppError(error || new Error('exercise_video_external_open_failed'), {
-                      screen: 'ExerciseDetailScreen',
-                      action: 'video_external_open',
-                      context: { exerciseName: name, videoUrl: fallbackVideoUrl },
-                    });
-                  }
-                }}
-              >
-                <Text style={styles.retryVideoButtonText}>Abrir video exemplo</Text>
-              </TouchableOpacity>
-              {directVideoUrl ? (
-                <TouchableOpacity
-                  {...qaAliasProps(QA_ELEMENTS.btnEnablePlayer, 'btn-enable-player-retry')}
-                  style={styles.retryVideoButton}
-                  onPress={() => {
-                    setVideoFailed(false);
-                    setVideoLoading(true);
-                    setVideoEnabled(true);
-                    setVideoRetryKey((prev) => prev + 1);
-                    setQaPlayerState({
-                      active: true,
-                      loading: true,
-                      fullscreen: false,
-                      exerciseName: name,
-                    });
-                    logTaggedEvent('PLAYER', 'retry_internal_player', {
-                      exerciseName: name,
-                      videoUrl: directVideoUrl,
-                    });
-                  }}
-                >
-                  <Text style={styles.retryVideoButtonText}>Tentar novamente</Text>
-                </TouchableOpacity>
-              ) : null}
-            </View>
-          )}
+          ) : null}
           {videoLoading ? (
             <View style={styles.videoLoadingOverlay}>
               <ActivityIndicator size="small" color={colors.textPrimary} />
@@ -577,7 +545,7 @@ function ExerciseDetailContent({ route, navigation }) {
                 <Text key={`${index}-${step}`} style={styles.bulletText}>{index + 1}. {step}</Text>
               ))
             ) : (
-              <Text style={styles.bodyText}>Sem instrucoes cadastradas.</Text>
+              <Text style={styles.bodyText}>{EXERCISE_INSTRUCTIONS_COMING_SOON}</Text>
             )}
             <Text style={styles.sectionTitle}>Metadata</Text>
             {metadataEntries.length ? (
@@ -661,6 +629,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'center',
     maxWidth: 220,
+  },
+  videoComingSoonText: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 18,
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.xs,
   },
   retryVideoButton: {
     marginTop: spacing.sm,

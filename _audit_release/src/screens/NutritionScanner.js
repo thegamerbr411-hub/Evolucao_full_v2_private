@@ -11,7 +11,12 @@ import { useApp } from '../context/AppContext';
 import { SCREENS, trackAppError, trackEvent } from '../utils/analytics';
 import { AnimatedToast, AppCard, AppInput, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { colors, spacing } from '../theme';
-import { createFoodFromText, parseNutritionLabel } from '../services/nutritionIntelligence';
+import {
+  buildDraftFromFreeText,
+  buildDraftFromLabel,
+  buildDraftFromPlateHint,
+  getNutritionFlowMeta,
+} from '../services/nutritionDraftProvider';
 import { matchNutritionToken } from '../data/nutritionDatabase.js';
 import { logError } from '../utils/errorLogger';
 
@@ -66,7 +71,9 @@ export default function NutritionScanner({ navigation, route }) {
   const [quickMealItems, setQuickMealItems] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [manualText, setManualText] = useState('');
-  const [photoHintText, setPhotoHintText] = useState('');
+  const [labelHintText, setLabelHintText] = useState('');
+  const [plateHintText, setPlateHintText] = useState('');
+  const scrollRef = useRef(null);
   const [portionFactor, setPortionFactor] = useState(1);
   const [result, setResult] = useState(null);
   const [selectedFood, setSelectedFood] = useState(null);
@@ -91,7 +98,8 @@ export default function NutritionScanner({ navigation, route }) {
         setSelectedFood(null);
         setMealFeedback('');
         setManualText('');
-        setPhotoHintText('');
+        setLabelHintText('');
+        setPlateHintText('');
         setPortionFactor(1);
         setSearchQuery('');
       };
@@ -439,6 +447,7 @@ export default function NutritionScanner({ navigation, route }) {
     }
 
     const safeQuantity = Math.max(0.1, Number(quantity || 1));
+    const hasDirectMacros = [food.calories, food.protein, food.carbs, food.fats].some((value) => Number(value || 0) > 0);
     setMealDraftItems((prev) => [
       ...prev,
       {
@@ -447,6 +456,17 @@ export default function NutritionScanner({ navigation, route }) {
         foodKey: food.key,
         label: food.label,
         quantity: safeQuantity,
+        source: food.source || 'catalog',
+        calories: hasDirectMacros ? Number(food.calories || 0) : undefined,
+        protein: hasDirectMacros ? Number(food.protein || 0) : undefined,
+        carbs: hasDirectMacros ? Number(food.carbs || 0) : undefined,
+        fats: hasDirectMacros ? Number(food.fats || 0) : undefined,
+        saturatedFat: Number(food.saturatedFat || 0),
+        transFat: Number(food.transFat || 0),
+        fiber: Number(food.fiber || 0),
+        sodium: Number(food.sodium || 0),
+        serving: food.serving || null,
+        consumedQuantity: food.consumedQuantity || null,
       },
     ]);
   };
@@ -460,6 +480,17 @@ export default function NutritionScanner({ navigation, route }) {
     () =>
       mealDraftItems.reduce(
         (acc, item) => {
+          const qty = Number(item.quantity || 1);
+          const hasDirectMacros = [item.calories, item.protein, item.carbs, item.fats].some((value) => Number(value || 0) > 0);
+          if (hasDirectMacros) {
+            return {
+              calories: acc.calories + Number(item.calories || 0) * qty,
+              protein: acc.protein + Number(item.protein || 0) * qty,
+              carbs: acc.carbs + Number(item.carbs || 0) * qty,
+              fats: acc.fats + Number(item.fats || 0) * qty,
+            };
+          }
+
           const food = safeSearchFoodCatalog(item.label).find(
             (entry) =>
               (item.foodId && entry.id === item.foodId)
@@ -469,10 +500,10 @@ export default function NutritionScanner({ navigation, route }) {
             return acc;
           }
           return {
-            calories: acc.calories + Number(food.calories || 0) * Number(item.quantity || 1),
-            protein: acc.protein + Number(food.protein || 0) * Number(item.quantity || 1),
-            carbs: acc.carbs + Number(food.carbs || 0) * Number(item.quantity || 1),
-            fats: acc.fats + Number(food.fats || 0) * Number(item.quantity || 1),
+            calories: acc.calories + Number(food.calories || 0) * qty,
+            protein: acc.protein + Number(food.protein || 0) * qty,
+            carbs: acc.carbs + Number(food.carbs || 0) * qty,
+            fats: acc.fats + Number(food.fats || 0) * qty,
           };
         },
         { calories: 0, protein: 0, carbs: 0, fats: 0 }
@@ -572,6 +603,25 @@ export default function NutritionScanner({ navigation, route }) {
     }
 
     result.items.forEach((item) => {
+      const hasDirectMacros = [item.calories, item.protein, item.carbs, item.fats].some((value) => Number(value || 0) > 0);
+      if (hasDirectMacros) {
+        addItemToMealDraft({
+          label: item.label,
+          source: item.source || result.source || 'parsed',
+          calories: Number(item.calories || 0),
+          protein: Number(item.protein || 0),
+          carbs: Number(item.carbs || 0),
+          fats: Number(item.fats || 0),
+          saturatedFat: Number(item.saturatedFat || 0),
+          transFat: Number(item.transFat || 0),
+          fiber: Number(item.fiber || 0),
+          sodium: Number(item.sodium || 0),
+          serving: item.serving || result.serving || null,
+          consumedQuantity: item.consumedQuantity || result.consumedQuantity || null,
+        }, Number(item.quantity || 1));
+        return;
+      }
+
       const food = getFoodByLabel(item.label);
       if (food) {
         addItemToMealDraft(food, Number(item.quantity || 1));
@@ -579,83 +629,72 @@ export default function NutritionScanner({ navigation, route }) {
     });
   };
 
-  const runPhotoEstimate = async (source) => {
-    if (!safeHasFeatureAccess('photo_scanner')) {
-      navigateWithTracking('Paywall', { featureKey: 'photo_scanner', source: 'scanner_photo_button' }, 'photo_scanner_paywall');
-      return;
-    }
+  const scrollToMealDraft = () => {
+    scrollRef.current?.scrollToEnd?.({ animated: true });
+  };
 
-    let selectedAsset = null;
-
+  const pickNutritionImage = async (source) => {
     if (source === 'camera') {
       const permission = await ImagePicker.requestCameraPermissionsAsync();
       if (!permission.granted) {
-        setResult({ ok: false, message: 'Permissao da camera negada.' });
-        return;
+        return { ok: false, message: 'Permissao da camera negada.' };
       }
-
       const cameraResult = await ImagePicker.launchCameraAsync({ quality: 0.7, allowsEditing: true });
       if (cameraResult.canceled) {
-        return;
+        return { ok: false, canceled: true };
       }
-      selectedAsset = cameraResult.assets?.[0] || null;
-    } else {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted) {
-        setResult({ ok: false, message: 'Permissao da galeria negada.' });
-        return;
-      }
-
-      const libraryResult = await ImagePicker.launchImageLibraryAsync({ quality: 0.7, allowsEditing: true });
-      if (libraryResult.canceled) {
-        return;
-      }
-      selectedAsset = libraryResult.assets?.[0] || null;
+      return { ok: true, asset: cameraResult.assets?.[0] || null };
     }
 
-    const normalizedHint = String(photoHintText || '').trim();
-    const parsedLabel = parseNutritionLabel({
-      uri: selectedAsset?.uri,
-      ocrText: normalizedHint,
-    });
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      return { ok: false, message: 'Permissao da galeria negada.' };
+    }
+    const libraryResult = await ImagePicker.launchImageLibraryAsync({ quality: 0.7, allowsEditing: true });
+    if (libraryResult.canceled) {
+      return { ok: false, canceled: true };
+    }
+    return { ok: true, asset: libraryResult.assets?.[0] || null };
+  };
 
-    if (parsedLabel.insufficientData) {
-      setResult({
-        ok: false,
-        source: 'photo_ocr',
-        message: 'Nao consegui ler dados suficientes da tabela. Envie mais texto da tabela (kcal, carboidratos, proteina e gorduras) para estimativa confiavel.',
-      });
+  const ensurePhotoScannerAccess = (paywallSource) => {
+    if (!safeHasFeatureAccess('photo_scanner')) {
+      navigateWithTracking('Paywall', { featureKey: 'photo_scanner', source: paywallSource }, 'photo_scanner_paywall');
+      return false;
+    }
+    return true;
+  };
+
+  const runNutritionLabelScan = async (source) => {
+    if (!ensurePhotoScannerAccess('nutrition_label_scan')) {
       return;
     }
 
-    const factor = Number(portionFactor || 1);
-    const totals = {
-      calories: Math.round(Number(parsedLabel.calories || 0) * factor),
-      protein: Math.round(Number(parsedLabel.protein || 0) * factor),
-      carbs: Math.round(Number(parsedLabel.carbs || 0) * factor),
-      fats: Math.round(Number(parsedLabel.fat || 0) * factor),
-    };
+    const picked = await pickNutritionImage(source);
+    if (!picked.ok) {
+      if (picked.message) {
+        setResult({ ok: false, source: 'nutrition_label', message: picked.message });
+      }
+      return;
+    }
 
-    const confidenceLabel = parsedLabel.confidence === 'high'
-      ? 'alta'
-      : parsedLabel.confidence === 'medium'
-      ? 'media'
-      : 'baixa';
+    setResult(buildDraftFromLabel({ ocrText: labelHintText, portionFactor }));
+  };
 
-    const message = `Tabela nutricional lida com confianca ${confidenceLabel}.`; 
+  const runPlateEstimate = async (source) => {
+    if (!ensurePhotoScannerAccess('nutrition_plate_estimate')) {
+      return;
+    }
 
-    setResult({
-      ok: true,
-      source: 'photo_ocr',
-      totals,
-      items: [
-        {
-          label: parsedLabel.productName || normalizedHint || 'Alimento escaneado',
-          quantity: 1,
-        },
-      ],
-      message,
-    });
+    const picked = await pickNutritionImage(source);
+    if (!picked.ok) {
+      if (picked.message) {
+        setResult({ ok: false, source: 'plate_estimate', message: picked.message });
+      }
+      return;
+    }
+
+    setResult(buildDraftFromPlateHint({ description: plateHintText, portionFactor }));
   };
 
   const useEstimateInDay = () => {
@@ -768,12 +807,33 @@ export default function NutritionScanner({ navigation, route }) {
     const loggedAt = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
     const resolvedDraftItems = mealDraftItems.map((item) => {
+      const qty = Number(item.quantity || 1);
+      const hasDirectMacros = [item.calories, item.protein, item.carbs, item.fats].some((value) => Number(value || 0) > 0);
+      if (hasDirectMacros) {
+        return {
+          foodId: item.foodId,
+          foodKey: item.foodKey,
+          label: item.label,
+          quantity: qty,
+          source: item.source || 'parsed',
+          calories: Math.round(Number(item.calories || 0) * qty),
+          protein: Math.round(Number(item.protein || 0) * qty),
+          carbs: Math.round(Number(item.carbs || 0) * qty),
+          fats: Math.round(Number(item.fats || 0) * qty),
+          saturatedFat: Math.round(Number(item.saturatedFat || 0) * qty),
+          transFat: Math.round(Number(item.transFat || 0) * qty),
+          fiber: Math.round(Number(item.fiber || 0) * qty),
+          sodium: Math.round(Number(item.sodium || 0) * qty),
+          serving: item.serving || null,
+          consumedQuantity: item.consumedQuantity || null,
+        };
+      }
+
       const food = safeSearchFoodCatalog(item.label).find(
         (entry) =>
           (item.foodId && entry.id === item.foodId) ||
           (item.foodKey && entry.key === item.foodKey)
       ) || getFoodByLabel(item.label);
-      const qty = Number(item.quantity || 1);
       return {
         foodId: item.foodId,
         foodKey: item.foodKey,
@@ -895,8 +955,8 @@ export default function NutritionScanner({ navigation, route }) {
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
       <AnimatedToast message={toastMessage} onHide={() => setToastMessage('')} />
-      <ScrollView testID="screen-nutricao" contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-      <ScreenHeader title="Nutrição" subtitle="Registre em 5 segundos." />
+      <ScrollView ref={scrollRef} testID="screen-nutricao" contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <ScreenHeader title="Nutrição" subtitle="Macros e refeições num só lugar." />
 
       {__DEV__ ? (
         <View style={styles.devFeatureTagWrap}>
@@ -1153,8 +1213,8 @@ export default function NutritionScanner({ navigation, route }) {
         <PrimaryButton testID="btn-save-meal" title="Salvar refeição" onPress={saveMealDraft} style={styles.primaryButton} />
       </AppCard>
 
-      <AppCard style={styles.card}>
-        <Text style={styles.cardTitle}>Estimativa por texto</Text>
+      <AppCard testID="nutrition-flow-text" style={styles.card}>
+        <Text style={styles.cardTitle}>Descrever refeicao por texto</Text>
         <AppInput
           testID="text-input-food"
           value={manualText}
@@ -1184,20 +1244,9 @@ export default function NutritionScanner({ navigation, route }) {
           style={styles.primaryButton}
           onPress={() => {
             try {
-              const parsedFromFreeText = createFoodFromText(manualText);
-              if (parsedFromFreeText?.items?.length) {
-                setResult({
-                  ok: true,
-                  source: 'free_text',
-                  items: parsedFromFreeText.items,
-                  totals: {
-                    calories: Math.round(parsedFromFreeText.totals.calories * portionFactor),
-                    protein: Math.round(parsedFromFreeText.totals.protein * portionFactor),
-                    carbs: Math.round(parsedFromFreeText.totals.carbs * portionFactor),
-                    fats: Math.round(parsedFromFreeText.totals.fats * portionFactor),
-                  },
-                  message: `Texto livre processado com sucesso. Porcao aplicada: ${portionFactor}x.`,
-                });
+              const draft = buildDraftFromFreeText({ text: manualText, portionFactor });
+              if (draft.ok) {
+                setResult(draft);
                 return;
               }
 
@@ -1205,6 +1254,7 @@ export default function NutritionScanner({ navigation, route }) {
               if (parsed?.ok) {
                 setResult({
                   ...parsed,
+                  source: parsed.source || 'free_text',
                   totals: {
                     calories: Math.round(parsed.totals.calories * portionFactor),
                     protein: Math.round(parsed.totals.protein * portionFactor),
@@ -1214,12 +1264,7 @@ export default function NutritionScanner({ navigation, route }) {
                   message: `${parsed.message} Porcao aplicada: ${portionFactor}x.`,
                 });
               } else {
-                setResult(
-                  parsed || {
-                    ok: false,
-                    message: 'Nao foi possivel estimar com esse texto. Tente incluir quantidade e alimento (ex: 2 ovos, 100g frango).',
-                  }
-                );
+                setResult(draft.ok === false ? draft : parsed);
               }
             } catch (error) {
               setResult({
@@ -1237,70 +1282,99 @@ export default function NutritionScanner({ navigation, route }) {
             }
           }}
         />
-        {result?.ok && Array.isArray(result.items) && result.items.length ? (
-          <SecondaryButton testID="btn-add-estimate-result" title="Adicionar resultado ao draft" onPress={pushResultItemsToDraft} style={styles.secondaryButton} />
-        ) : null}
-        {result?.ok && Array.isArray(result.items) && result.items.length ? (
-          <View style={styles.chipsWrap}>
-            {result.items.map((item, index) => (
-              <TouchableOpacity
-                key={`${item.label}-${index}`}
-                style={styles.chipAction}
-                onPress={() => {
-                  const food = getFoodByLabel(item.label);
-                  if (food) {
-                    addItemToMealDraft(food, Number(item.quantity || 1));
-                  }
-                }}
-              >
-                <Text style={styles.chipActionText}>+ {item.label} ({formatQuantityLabel(item.quantity || 1, item.quantityUnit)})</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        ) : null}
       </AppCard>
 
       {SHOW_PHOTO_BETA ? (
-      <AppCard style={styles.card}>
-        <Text style={styles.cardTitle}>Foto do prato (beta)</Text>
-        <AppInput
-          value={photoHintText}
-          onChangeText={setPhotoHintText}
-          placeholder="Descreva o prato da foto: arroz, feijao, frango"
-          multiline
-          autoCapitalize="sentences"
-        />
-        <View style={styles.photoButtonRow}>
-          <SecondaryButton title="Tirar foto" style={styles.secondaryButton} onPress={() => runPhotoEstimate('camera')} />
-          <SecondaryButton title="Escolher da galeria" style={styles.secondaryButton} onPress={() => runPhotoEstimate('library')} />
-        </View>
-        {result?.ok && Array.isArray(result.items) && result.items.length ? (
-          <SecondaryButton title="Adicionar resultado ao draft" onPress={pushResultItemsToDraft} style={styles.secondaryButton} />
-        ) : null}
-        {result?.ok && Array.isArray(result.items) && result.items.length ? (
-          <View style={styles.chipsWrap}>
-            {result.items.map((item, index) => (
-              <TouchableOpacity
-                key={`photo-${item.label}-${index}`}
-                style={styles.chipAction}
-                onPress={() => {
-                  const food = getFoodByLabel(item.label);
-                  if (food) {
-                    addItemToMealDraft(food, Number(item.quantity || 1));
-                  }
-                }}
-              >
-                <Text style={styles.chipActionText}>+ {item.label} ({formatQuantityLabel(item.quantity || 1, item.quantityUnit)})</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        ) : null}
-      </AppCard>
+        <>
+          <AppCard testID="nutrition-flow-label" style={styles.card}>
+            <Text style={styles.cardTitle}>Ler tabela nutricional por texto</Text>
+            <Text style={styles.flowHint}>
+              Cole ou digite os dados do rótulo. Foto é opcional e serve só como referência.
+            </Text>
+            <Text testID="nutrition-label-ocr-disclaimer" style={styles.flowDisclaimer}>
+              Hoje a leitura automática da foto ainda não está ativa. Para funcionar, cole o texto da tabela nutricional abaixo.
+            </Text>
+            <AppInput
+              testID="text-input-label-hint"
+              label="Cole aqui os dados da embalagem"
+              value={labelHintText}
+              onChangeText={setLabelHintText}
+              placeholder="Ex: Porção 200 ml, Valor energético 6 kcal, Carboidratos 2,8 g..."
+              multiline
+              autoCapitalize="sentences"
+            />
+            <PrimaryButton
+              testID="btn-process-label-text"
+              title="Processar texto da tabela"
+              style={styles.primaryButton}
+              onPress={() => setResult(buildDraftFromLabel({ ocrText: labelHintText, portionFactor }))}
+            />
+            <Text style={styles.flowHint}>Adicionar foto do rótulo como referência</Text>
+            <View style={styles.photoButtonRow}>
+              <SecondaryButton
+                testID="btn-label-camera"
+                title="Câmera (referência)"
+                style={styles.secondaryButton}
+                onPress={() => runNutritionLabelScan('camera')}
+              />
+              <SecondaryButton
+                testID="btn-label-gallery"
+                title="Galeria (referência)"
+                style={styles.secondaryButton}
+                onPress={() => runNutritionLabelScan('library')}
+              />
+            </View>
+          </AppCard>
+
+          <AppCard testID="nutrition-flow-plate" style={styles.card}>
+            <Text style={styles.cardTitle}>Estimar prato (baixa confianca)</Text>
+            <Text style={styles.flowDisclaimer}>
+              Estimativa aproximada — revise porcoes no rascunho antes de salvar.
+            </Text>
+            <AppInput
+              testID="text-input-plate-hint"
+              value={plateHintText}
+              onChangeText={setPlateHintText}
+              placeholder="Descreva o prato (obrigatorio): arroz, feijao, frango"
+              multiline
+              autoCapitalize="sentences"
+            />
+            <View style={styles.photoButtonRow}>
+              <SecondaryButton
+                testID="btn-plate-camera"
+                title="Tirar foto"
+                style={styles.secondaryButton}
+                onPress={() => runPlateEstimate('camera')}
+              />
+              <SecondaryButton
+                testID="btn-plate-gallery"
+                title="Escolher da galeria"
+                style={styles.secondaryButton}
+                onPress={() => runPlateEstimate('library')}
+              />
+            </View>
+            <PrimaryButton
+              testID="btn-estimate-plate-text"
+              title="Estimar pela descricao"
+              style={styles.primaryButton}
+              onPress={() => setResult(buildDraftFromPlateHint({ description: plateHintText, portionFactor }))}
+            />
+          </AppCard>
+        </>
       ) : null}
 
       {result ? (
         <AppCard testID="nutrition-result-card" style={styles.resultCard}>
           <Text style={styles.resultTitle}>Resultado</Text>
+          {result.source ? (
+            <Text style={styles.flowMetaLine}>
+              Fluxo: {getNutritionFlowMeta(result.source).title}
+              {result.confidence ? ` | Confianca: ${result.confidence}` : ''}
+            </Text>
+          ) : null}
+          {result.source ? (
+            <Text style={styles.flowHint}>{getNutritionFlowMeta(result.source).hint}</Text>
+          ) : null}
           <Text style={styles.resultMessage}>{result.message}</Text>
           {result.ok ? (
             <>
@@ -1311,10 +1385,68 @@ export default function NutritionScanner({ navigation, route }) {
               <Text style={styles.resultLine}>Proteina: {result.totals.protein} g ({getMacroStatus(result.totals).protein})</Text>
               <Text style={styles.resultLine}>Carbo: {result.totals.carbs} g ({getMacroStatus(result.totals).carbs})</Text>
               <Text style={styles.resultLine}>Gordura: {result.totals.fats} g ({getMacroStatus(result.totals).fats})</Text>
+              {Number(result?.totals?.saturatedFat || 0) > 0 ? <Text style={styles.resultLine}>Gordura saturada: {result.totals.saturatedFat} g</Text> : null}
+              {Number(result?.totals?.transFat || 0) > 0 ? <Text style={styles.resultLine}>Gordura trans: {result.totals.transFat} g</Text> : null}
+              {Number(result?.totals?.fiber || 0) > 0 ? <Text style={styles.resultLine}>Fibras: {result.totals.fiber} g</Text> : null}
+              {Number(result?.totals?.sodium || 0) > 0 ? <Text style={styles.resultLine}>Sodio: {result.totals.sodium} mg</Text> : null}
+              {result?.serving?.value ? <Text style={styles.resultLine}>Porcao: {result.serving.value}{result.serving.unit || ''}</Text> : null}
+              {result?.consumedQuantity?.value ? <Text style={styles.resultLine}>Quantidade consumida: {result.consumedQuantity.value}{result.consumedQuantity.unit || ''}</Text> : null}
               <Text style={styles.coachLine}>
                 Meta por refeicao: ~{proteinTargetPerMeal}g proteina | {result.totals.protein >= proteinTargetPerMeal ? 'faixa boa' : 'abaixo do ideal'}
               </Text>
-              <Text style={styles.coachLine}>Dica: use o catalogo acima para salvar no diario com horario.</Text>
+              {Array.isArray(result.items) && result.items.length ? (
+                <>
+                  <SecondaryButton
+                    testID="btn-add-estimate-result"
+                    title="Adicionar ao rascunho"
+                    onPress={pushResultItemsToDraft}
+                    style={styles.secondaryButton}
+                  />
+                  <SecondaryButton
+                    testID="btn-edit-in-draft"
+                    title="Editar no rascunho"
+                    onPress={scrollToMealDraft}
+                    style={styles.secondaryButton}
+                  />
+                  <View style={styles.chipsWrap}>
+                    {result.items.map((item, index) => (
+                      <TouchableOpacity
+                        key={`result-${item.label}-${index}`}
+                        style={styles.chipAction}
+                        onPress={() => {
+                          const food = getFoodByLabel(item.label);
+                          if (food) {
+                            addItemToMealDraft(food, Number(item.quantity || 1));
+                            return;
+                          }
+                          addItemToMealDraft(
+                            {
+                              label: item.label,
+                              source: item.source || result.source || 'parsed',
+                              calories: Number(item.calories || 0),
+                              protein: Number(item.protein || 0),
+                              carbs: Number(item.carbs || 0),
+                              fats: Number(item.fats || 0),
+                              saturatedFat: Number(item.saturatedFat || 0),
+                              transFat: Number(item.transFat || 0),
+                              fiber: Number(item.fiber || 0),
+                              sodium: Number(item.sodium || 0),
+                              serving: item.serving || result.serving || null,
+                              consumedQuantity: item.consumedQuantity || result.consumedQuantity || null,
+                            },
+                            Number(item.quantity || 1)
+                          );
+                        }}
+                      >
+                        <Text style={styles.chipActionText}>
+                          + {item.label} ({formatQuantityLabel(item.quantity || 1, item.quantityUnit)})
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </>
+              ) : null}
+              <Text style={styles.coachLine}>Revise a composicao da refeicao e use Salvar refeicao.</Text>
             </>
           ) : null}
         </AppCard>
@@ -1530,9 +1662,28 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
   },
+  flowHint: {
+    color: colors.textMuted,
+    fontSize: 12,
+    marginBottom: 8,
+    lineHeight: 17,
+  },
+  flowDisclaimer: {
+    color: '#FCD34D',
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  flowMetaLine: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
   photoButtonRow: {
     flexDirection: 'row',
     gap: 8,
+    marginTop: 8,
   },
   chipsWrap: {
     marginTop: 8,

@@ -3,6 +3,15 @@ import { getLocal, setLocal } from '../storage/mmkv';
 
 const WORKOUT_STORE_KEY = 'workout.store.v1';
 
+/** Local calendar day key (must match WorkoutScreen getTodayKeyLocal). */
+export const getWorkoutTodayKey = (): string => {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export type WorkoutLog = {
   id: string;
   date: string;
@@ -35,9 +44,11 @@ type WorkoutStore = {
   currentSet: number;
   isResting: boolean;
   workoutSessionId: string | null;
+  activeRoutineId: string | null;
 
   setWorkout: (workout: WorkoutData) => void;
   setWorkoutSessionId: (id: string | null) => void;
+  setActiveRoutineId: (id: string | null) => void;
   addExercise: (exercise: any) => void;
   updateSet: (exerciseIndex: number, setIndex: number, field: string, value: any) => void;
   addWorkoutLog: (log: WorkoutLog) => void;
@@ -69,9 +80,11 @@ export const useWorkoutStore = create<WorkoutStore>((set) => ({
   currentSet: 1,
   isResting: false,
   workoutSessionId: null,
+  activeRoutineId: null,
 
   setWorkout: (workout) => set({ workout }),
   setWorkoutSessionId: (id) => set({ workoutSessionId: id }),
+  setActiveRoutineId: (id) => set({ activeRoutineId: id || null }),
   addExercise: (exercise) =>
     set((state) => ({
       workout: {

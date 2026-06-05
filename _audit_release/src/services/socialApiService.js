@@ -1,4 +1,5 @@
 import { getFromAvailableQaHost, postToAvailableQaHost } from '../utils/qaTransport';
+import { getChallengeCreateGuardError } from '../utils/challengePermissions';
 
 function safeUserId(userId) {
   return String(userId || '').trim();
@@ -66,7 +67,19 @@ export async function addFriendFromApi({ userId, friendUserId }) {
   return { ok: true, data: response.data };
 }
 
-export async function createChallengeFromApi({ userId, title, target = 3, type = 'workouts_count', endDate }) {
+export async function createChallengeFromApi({
+  user,
+  userId,
+  title,
+  target = 3,
+  type = 'workouts_count',
+  endDate,
+}) {
+  const guardError = getChallengeCreateGuardError(user);
+  if (guardError) {
+    return { ok: false, error: guardError };
+  }
+
   const safeUserIdValue = safeUserId(userId);
   if (!safeUserIdValue || !String(title || '').trim()) {
     return { ok: false, error: 'invalid_challenge_payload' };

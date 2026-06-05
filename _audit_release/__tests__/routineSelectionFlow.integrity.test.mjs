@@ -13,8 +13,8 @@ test('routine start should navigate with selected workout id', () => {
 
   assert.match(
     source,
-    /navigation\.navigate\('Workout',\s*\{\s*workoutId:\s*routine\.id\s*\}\)/,
-    'RoutinesScreen must pass the selected routine id when starting workout'
+    /navigation\.navigate\('TreinoHoje',\s*\{\s*workoutId:\s*routine\.id\s*\}\)/,
+    'RoutinesScreen must pass the selected routine id when starting workout via TreinoHoje'
   );
 
   assert.equal(source.includes('routineExercises:'), false, 'RoutinesScreen should not pass routineExercises fallback payload');
