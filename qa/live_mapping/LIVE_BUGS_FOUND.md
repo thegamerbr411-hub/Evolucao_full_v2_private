@@ -738,3 +738,44 @@ Usuário comum via card "Criar desafio" e formulário sem restrição de role; A
 **Correcao aplicada:** [`EXERCISE_MEDIA_FALLBACK_CTA_FIX_REPORT.md`](EXERCISE_MEDIA_FALLBACK_CTA_FIX_REPORT.md) — fallback local + CTA “Ver execução”.
 
 **Status:** **CORRIGIDO (codigo + QA visual)** — detalhe **4/4 REVALIDADO** (manual) · CTA treino **REVALIDADO** (auto `visual_qa_exercise_workout_cta_auto.ps1`, 43s, nome detalhe PARCIAL).
+
+---
+
+## Full Human Walkthrough — Observações Felipe (2026-06-04)
+
+**Sessão:** [`videos/full_human_walkthrough_20260604_2215/`](videos/full_human_walkthrough_20260604_2215/)  
+**Registro:** [`FELIPE_OBSERVED_BUGS.md`](videos/full_human_walkthrough_20260604_2215/FELIPE_OBSERVED_BUGS.md)  
+**Lote 3:** [`LOTE_3_ANALYSIS_RESPONSE.md`](videos/full_human_walkthrough_20260604_2215/LOTE_3_ANALYSIS_RESPONSE.md)  
+**Status:** 3 lotes analisados — render fix **commitado** `591db27` — **QA v4run 2026-06-05 UIAutomator BLOQUEIO** ([`P1_WORKOUT_SESSION_FIX_REPORT.md`](P1_WORKOUT_SESSION_FIX_REPORT.md))  
+**PASS global:** NÃO  
+
+### Confirmados P1 treino (corrigir)
+
+| ID | Sev. | Status pós-QA emulator |
+|----|------|------------------------|
+| FW-P1-NO_BACK_BUTTON_ON_FLOW_SCREENS | P1 | **SIM (anti-gargalo)** — `extra_back_*` curtos com `back_hits=2` |
+| FW-P1-ROUTINE_SERIES_INPUT_TURNS_INTO_12 | P1 | **ABERTO** — sessão legada **11/15** no smoke; V1 limpo com rotina QA **NÃO** confirmado |
+| FW-P1-WORKOUT_EXCESS_DUPLICATE_SETS | P1 | **ABERTO** — V2 ainda não confirmou fluxo QA limpo |
+| FW-P1-RENDER_INFINITE_UPDATE | P0 | **CORRIGIDO** — commit `591db27`; smoke Home/Hub sem RedBox |
+
+### Suspeitos P1 — status pós-QA (2026-06-05 revalidação)
+
+| ID | Status pós-QA |
+|----|----------------|
+| FW-P1-ADDED_SET_DISAPPEARS | NÃO validado (V3 sem confirmação pós-retorno) |
+| FW-P1-WORKOUT_SCROLL_JUMPS | **CORRIGIDO (estado)** — V4 validado por `workoutExerciseFocusAfterSave.test.mjs` (node_state_test) |
+| FW-P1-HOME_START_CONTINUE | **SIM** (v5 em 0036) |
+| FW-P1-HOME_START_CONTINUE hub | **SIM** — V6 resilient pós-seed (`v6_resilient_state.json`) |
+| FW-P1-FREE_WORKOUT_SET_NOT_SAVED | **CORRIGIDO (estado)** — V7 validado por `freeWorkoutSaveSet.test.mjs`; automação ADB/Detox **PENDENTE_TECNICO** |
+
+### Confirmados fora P1 (registrar)
+
+FW-P1-COACH_BUGGY_GENERIC_NOT_SYNCED · FW-P2-MOTOR_V4_LEGS · FW-P2-LOCAL_EXERCISE_WRONG_MUSCLE · FW-P2-INSIGHTS_NUTRITION_EMPTY · FW-P2-IA_DAY_META_INCOMPLETE · FW-P2-NUTRITION_KEYBOARD · FW-P2-EXERCISE_MEDIA_REAL_ASSETS_MISSING
+
+### Suspeitos (pacote treino)
+
+FW-P1-SIMPLE_MODE · FW-P1-WORKOUT_SCROLL_JUMPS · FW-P1-ADDED_SET_DISAPPEARS · FW-P1-HOME_START_CONTINUE · FW-P1-EXERCISE_SUBSTITUTION · FW-P1-FREE_WORKOUT_SET_NOT_SAVED
+
+**Conclusão:** PACOTE **TREINO / SÉRIES / RETOMADA / NAVEGAÇÃO**
+
+**Relacionados:** BUG_001, BUG_002, BUG_003, RF-02 (UX parcial).
