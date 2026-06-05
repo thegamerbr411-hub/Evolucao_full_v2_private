@@ -1,9 +1,11 @@
 import React, { useMemo, useState, useRef } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -21,6 +23,14 @@ import {
   markCoachInterruption,
 } from '../core/observability';
 import { QA_ELEMENTS, QA_SCREENS, qaAliasProps, qaProps } from '../qa/selectorRegistry';
+import {
+  buildWaterQuickOptions,
+  buildWaterRegisterCopy,
+  validateWaterAmount,
+  WATER_MAX_SINGLE_ML,
+} from '../services/waterQuickAdd';
+import { PrimaryButton, SecondaryButton } from '../components/ui';
+import { resolveWorkoutContinueParams } from '../services/workoutActiveRoutine';
 
 const XP_PER_LEVEL = 500;
 const WEEK_DAYS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
@@ -247,11 +257,89 @@ export default function HomeScreen({ navigation }) {
   const hydration = useNutritionStore((state) => state.hydration);
   const { getTodayWorkout, getDailyState, addWaterIntake } = useApp();
   const [waterFeedback, setWaterFeedback] = useState(false);
+  const [waterFeedbackMessage, setWaterFeedbackMessage] = useState('');
+  const [showWaterQuickAddSheet, setShowWaterQuickAddSheet] = useState(false);
+  const [waterSheetMode, setWaterSheetMode] = useState('quick');
+  const [waterSelectedMl, setWaterSelectedMl] = useState(null);
+  const [waterCustomMl, setWaterCustomMl] = useState('');
+  const [waterSheetError, setWaterSheetError] = useState('');
   const [adaptiveConfig, setAdaptiveConfig] = useState(() => getAdaptiveHomeConfig());
   const [showMore, setShowMore] = useState(false);
   const [homeStateTick, setHomeStateTick] = useState(0);
   const lastCoachTrackedRef = useRef('');
   const waterDebounceRef = useRef(null);
+  const waterQuickOptions = useMemo(() => buildWaterQuickOptions(), []);
+
+  const closeWaterQuickAddSheet = React.useCallback(() => {
+    setShowWaterQuickAddSheet(false);
+    setWaterSheetMode('quick');
+    setWaterSelectedMl(null);
+    setWaterCustomMl('');
+    setWaterSheetError('');
+  }, []);
+
+  const openWaterQuickAddSheet = React.useCallback(() => {
+    if (waterDebounceRef.current) return;
+    setWaterSheetMode('quick');
+    setWaterSelectedMl(null);
+    setWaterCustomMl('');
+    setWaterSheetError('');
+    setShowWaterQuickAddSheet(true);
+  }, []);
+
+  const registerWaterAmount = React.useCallback((amountMl) => {
+    const validation = validateWaterAmount(amountMl);
+    if (!validation.ok) {
+      setWaterSheetError('Informe uma quantidade valida em ml.');
+      return;
+    }
+    try {
+      const result = addWaterIntake?.(validation.amountMl);
+      if (result?.ok === false) {
+        setWaterSheetError('Nao foi possivel registrar a agua.');
+        return;
+      }
+    } catch (error) {
+      if (__DEV__) {
+        console.log('[WATER][REGISTER] error=', error?.message || error);
+      }
+      setWaterSheetError('Nao foi possivel registrar a agua.');
+      return;
+    }
+    closeWaterQuickAddSheet();
+    setWaterFeedbackMessage(buildWaterRegisterCopy(validation.amountMl));
+    setWaterFeedback(true);
+    setHomeStateTick((tick) => tick + 1);
+    if (waterDebounceRef.current) {
+      clearTimeout(waterDebounceRef.current);
+    }
+    waterDebounceRef.current = setTimeout(() => {
+      setWaterFeedback(false);
+      setWaterFeedbackMessage('');
+      waterDebounceRef.current = null;
+    }, 3000);
+  }, [addWaterIntake, closeWaterQuickAddSheet]);
+
+  const handleConfirmWaterQuickAdd = React.useCallback(() => {
+    if (waterSheetMode === 'custom') {
+      const validation = validateWaterAmount(waterCustomMl);
+      if (!validation.ok) {
+        if (validation.reason === 'absurd') {
+          setWaterSheetError(`Use no maximo ${WATER_MAX_SINGLE_ML} ml por registro.`);
+          return;
+        }
+        setWaterSheetError('Informe uma quantidade valida em ml.');
+        return;
+      }
+      registerWaterAmount(validation.amountMl);
+      return;
+    }
+    if (waterSelectedMl === null) {
+      setWaterSheetError('Escolha uma quantidade ou use Personalizado.');
+      return;
+    }
+    registerWaterAmount(waterSelectedMl);
+  }, [waterSheetMode, waterCustomMl, waterSelectedMl, registerWaterAmount]);
 
   React.useEffect(() => {
     const refresh = () => {
@@ -394,7 +482,10 @@ export default function HomeScreen({ navigation }) {
         testID: QA_ELEMENTS.btnStartWorkout,
         legacyId: 'home-quick-workout',
         label: 'Retomar treino agora',
-        onPress: () => navigation.navigate('TreinoHoje'),
+        onPress: async () => {
+          const params = await resolveWorkoutContinueParams();
+          navigation.navigate('TreinoHoje', params);
+        },
       },
       water: {
         key: 'water',
@@ -402,26 +493,10 @@ export default function HomeScreen({ navigation }) {
         legacyId: 'btn-add-agua',
         label: '+ Beber água',
         onPress: () => {
-          if (waterDebounceRef.current) return;
           if (__DEV__) {
-            console.log('[WATER][TAP] source=home amountMl=300');
+            console.log('[WATER][TAP] source=home open_sheet');
           }
-          try {
-            const result = addWaterIntake?.(300);
-            if (__DEV__) {
-              console.log('[WATER][TAP] result=', result);
-            }
-          } catch (error) {
-            if (__DEV__) {
-              console.log('[WATER][TAP] error=', error?.message || error);
-            }
-            return;
-          }
-          setWaterFeedback(true);
-          waterDebounceRef.current = setTimeout(() => {
-            setWaterFeedback(false);
-            waterDebounceRef.current = null;
-          }, 3000);
+          openWaterQuickAddSheet();
         },
       },
     };
@@ -437,7 +512,7 @@ export default function HomeScreen({ navigation }) {
 
     hydrated.push(actionByKey.water);
     return hydrated;
-  }, [adaptiveConfig, addWaterIntake, navigation]);
+  }, [adaptiveConfig, navigation, openWaterQuickAddSheet]);
 
   const secondaryActions = orderedActions.filter((action) => action.key !== 'workout');
 
@@ -484,7 +559,9 @@ export default function HomeScreen({ navigation }) {
                 source: 'main_cta',
               });
             }
-            navigation.navigate('TreinoHoje');
+            resolveWorkoutContinueParams().then((params) => {
+              navigation.navigate('TreinoHoje', params);
+            });
           }}
           activeOpacity={0.92}
         >
@@ -604,9 +681,107 @@ export default function HomeScreen({ navigation }) {
             </>
           ) : null}
 
-          {waterFeedback ? <Text {...qaAliasProps('feedback_add_water', 'feedback-add-agua')} style={styles.waterFeedback}>+300ml adicionados 💧</Text> : null}
+          {waterFeedback && waterFeedbackMessage ? (
+            <Text {...qaAliasProps('feedback_add_water', 'feedback-add-agua')} style={styles.waterFeedback}>
+              {waterFeedbackMessage}
+            </Text>
+          ) : null}
         </View>
       </ScrollView>
+
+      <Modal
+        visible={showWaterQuickAddSheet}
+        transparent
+        animationType="slide"
+        onRequestClose={closeWaterQuickAddSheet}
+      >
+        <View style={styles.waterModalBackdrop} testID="water-quick-add-sheet">
+          <View style={styles.waterBottomSheet}>
+            <Text style={styles.waterSheetTitle}>Registrar agua</Text>
+            <Text style={styles.waterSheetSubtitle}>Quanto voce bebeu agora?</Text>
+
+            <View style={styles.waterOptionsRow}>
+              {waterQuickOptions.map((amount) => (
+                <TouchableOpacity
+                  key={`water-${amount}`}
+                  testID={`water-option-${amount}`}
+                  style={[
+                    styles.waterOptionChip,
+                    waterSheetMode === 'quick' && waterSelectedMl === amount ? styles.waterOptionChipSelected : null,
+                  ]}
+                  onPress={() => {
+                    setWaterSheetMode('quick');
+                    setWaterSelectedMl(amount);
+                    setWaterSheetError('');
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.waterOptionChipText,
+                      waterSheetMode === 'quick' && waterSelectedMl === amount ? styles.waterOptionChipTextSelected : null,
+                    ]}
+                  >
+                    {amount} ml
+                  </Text>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity
+                testID="water-option-custom"
+                style={[
+                  styles.waterOptionChip,
+                  waterSheetMode === 'custom' ? styles.waterOptionChipSelected : null,
+                ]}
+                onPress={() => {
+                  setWaterSheetMode('custom');
+                  setWaterSelectedMl(null);
+                  setWaterSheetError('');
+                }}
+              >
+                <Text
+                  style={[
+                    styles.waterOptionChipText,
+                    waterSheetMode === 'custom' ? styles.waterOptionChipTextSelected : null,
+                  ]}
+                >
+                  Personalizado
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {waterSheetMode === 'custom' ? (
+              <TextInput
+                testID="water-custom-input"
+                value={waterCustomMl}
+                onChangeText={(text) => {
+                  setWaterCustomMl(text);
+                  setWaterSheetError('');
+                }}
+                placeholder="Quantidade em ml"
+                placeholderTextColor={colors.textMuted}
+                keyboardType="numeric"
+                style={styles.waterCustomInput}
+              />
+            ) : null}
+
+            {waterSheetError ? <Text style={styles.waterSheetError}>{waterSheetError}</Text> : null}
+
+            <View style={styles.waterSheetActions}>
+              <SecondaryButton
+                testID="btn-cancel-water"
+                title="Cancelar"
+                onPress={closeWaterQuickAddSheet}
+                style={styles.waterSheetSecondaryButton}
+              />
+              <PrimaryButton
+                testID="btn-confirm-water"
+                title="Registrar"
+                onPress={handleConfirmWaterQuickAdd}
+                style={styles.waterSheetPrimaryButton}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -869,6 +1044,80 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
     paddingVertical: 4,
+  },
+  waterModalBackdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  waterBottomSheet: {
+    backgroundColor: colors.card,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xl,
+    gap: spacing.sm,
+  },
+  waterSheetTitle: {
+    ...typography.title,
+    fontSize: 20,
+  },
+  waterSheetSubtitle: {
+    ...typography.body,
+    color: colors.textSecondary,
+  },
+  waterOptionsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+  },
+  waterOptionChip: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.surface,
+  },
+  waterOptionChipSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryMuted,
+  },
+  waterOptionChipText: {
+    color: colors.textPrimary,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  waterOptionChipTextSelected: {
+    color: colors.primary,
+  },
+  waterCustomInput: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    color: colors.textPrimary,
+    backgroundColor: colors.surface,
+    marginTop: spacing.xs,
+  },
+  waterSheetError: {
+    color: colors.danger,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  waterSheetActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  waterSheetSecondaryButton: {
+    flex: 1,
+  },
+  waterSheetPrimaryButton: {
+    flex: 1,
   },
 
   // HERO

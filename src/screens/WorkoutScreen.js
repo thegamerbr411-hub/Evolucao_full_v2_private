@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert,
   Animated,
+  Image,
   KeyboardAvoidingView,
   FlatList,
   Platform,
@@ -40,6 +41,10 @@ import { loadWorkout, saveWorkout } from '../services/storage';
 import { loadWorkoutCloud, saveWorkoutCloud } from '../services/cloudWorkoutService';
 import { AppCard, CustomKeypad, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { ExerciseCard } from '../components/workout/ExerciseCard';
+import { ExerciseExecutionCta } from '../components/exercise/ExerciseExecutionCta';
+import { ExerciseMediaFallback } from '../components/exercise/ExerciseMediaFallback';
+import { getExerciseByName } from '../data/exercises.js';
+import { resolveExerciseMedia } from '../utils/exerciseMedia';
 import { colors, spacing, radius } from '../theme';
 import { logEvent } from '../core/logger';
 import {
@@ -139,6 +144,10 @@ export default function WorkoutScreen({ navigation, route }) {
   const baseExercises = useMemo(() => getTodayWorkout(), [getTodayWorkout]);
   const [sessionBaseExercises, setSessionBaseExercises] = useState([]);
   const [customExercises, setCustomExercises] = useState([]);
+  const sessionExerciseKey = useMemo(
+    () => sessionBaseExercises.map((item) => item.name).join('|'),
+    [sessionBaseExercises],
+  );
   const allExercises = useMemo(
     () => [...sessionBaseExercises, ...customExercises]
       .map((item, index) => normalizeWorkoutExercise(item, index, 'workout'))
@@ -745,30 +754,44 @@ export default function WorkoutScreen({ navigation, route }) {
       return;
     }
 
+    const targetKey = safeRoutine.map((item) => item.name).join('|');
+    if (sessionExerciseKey === targetKey) {
+      return;
+    }
+
+    const guidedSetsToday = sanitizeWorkoutLogsForRead(
+      Array.isArray(workoutLogs) ? workoutLogs : []
+    )
+      .filter((item) => item.date === todayKey && (item.mode || 'guided') !== 'free')
+      .length;
+    const shouldPreserveSessionState = guidedSetsToday > 0 && !sessionExerciseKey;
+
     setSessionBaseExercises(safeRoutine);
     setCustomExercises([]);
-    setActiveExerciseIndex(0);
-    setSetCountByExercise(
-      safeRoutine.reduce((acc, item) => {
-        acc[item.name] = Number(item.sets || 3);
-        return acc;
-      }, {})
-    );
-    setDraftSetsByExercise(
-      safeRoutine.reduce((acc, item) => {
-        const totalSets = Math.max(1, Number(item.sets || 3));
-        acc[item.name] = Array.from({ length: totalSets }, () => ({
-          weight: '',
-          reps: '',
-          rpe: '8',
-        }));
-        return acc;
-      }, {})
-    );
+    if (!shouldPreserveSessionState) {
+      setActiveExerciseIndex(0);
+      setSetCountByExercise(
+        safeRoutine.reduce((acc, item) => {
+          acc[item.name] = Number(item.sets || 3);
+          return acc;
+        }, {})
+      );
+      setDraftSetsByExercise(
+        safeRoutine.reduce((acc, item) => {
+          const totalSets = Math.max(1, Number(item.sets || 3));
+          acc[item.name] = Array.from({ length: totalSets }, () => ({
+            weight: '',
+            reps: '',
+            rpe: '8',
+          }));
+          return acc;
+        }, {})
+      );
+    }
     setShowWorkoutSummary(false);
     setShowSubstitutePicker(false);
     setExerciseQuery('');
-  }, [selectedWorkoutId, getUserRoutineById]);
+  }, [selectedWorkoutId, getUserRoutineById, sessionExerciseKey, workoutLogs, todayKey]);
 
   useEffect(() => {
     if (!allExercises.length) {
@@ -2717,6 +2740,7 @@ export default function WorkoutScreen({ navigation, route }) {
                   onCompleteSet={handleCompleteSet}
                   onAddSet={handleAddSet}
                   onRemoveExercise={removeExerciseFromWorkout}
+                  onViewExecution={openExerciseDetail}
                   testIDs={(setItem, index) => ({
                     weight: isActive && index === firstPendingIndex ? 'input-weight' : `input-weight-${exercise.id}-${index}`,
                     reps: isActive && index === firstPendingIndex ? 'input-reps' : `input-reps-${exercise.id}-${index}`,
@@ -2767,6 +2791,40 @@ export default function WorkoutScreen({ navigation, route }) {
                 ) : null}
                 <Text style={styles.exerciseName}>{exercise.name}</Text>
               </View>
+              {isActive ? (() => {
+                const catalogExercise = getExerciseByName(exercise.name);
+                const exerciseMeta = safeGetExerciseMetaByName(exercise.name);
+                const media = resolveExerciseMedia({
+                  ...catalogExercise,
+                  gif: exerciseMeta?.gif,
+                });
+                const fallbackExercise = catalogExercise || { name: exercise.name };
+                return (
+                  <View
+                    style={styles.exerciseMediaBlock}
+                    onStartShouldSetResponder={() => true}
+                  >
+                    {media.hasRealThumbnail ? (
+                      <Image
+                        source={{ uri: media.thumbnailUrl }}
+                        style={styles.exerciseMediaThumbnail}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <ExerciseMediaFallback
+                        exercise={fallbackExercise}
+                        compact
+                        testID="workout-exercise-media-fallback"
+                      />
+                    )}
+                    <ExerciseExecutionCta
+                      media={media}
+                      testID="btn-ver-execucao"
+                      onPress={() => openExerciseDetail(exercise.name)}
+                    />
+                  </View>
+                );
+              })() : null}
               <View style={styles.lastWorkoutSticky}>
                 <Text style={styles.lastWorkoutStickyTitle}>Ultimo treino</Text>
                 <Text style={styles.lastWorkoutStickyValue}>
@@ -3172,7 +3230,7 @@ export default function WorkoutScreen({ navigation, route }) {
                   <Text style={styles.suggestionChipText}>{item}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.suggestionDetailButton} onPress={() => openExerciseDetail(item)}>
-                  <Text style={styles.suggestionDetailButtonText}>Detalhes</Text>
+                  <Text style={styles.suggestionDetailButtonText}>Ver execução</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -3657,6 +3715,17 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: colors.textPrimary,
     marginBottom: 8,
+  },
+  exerciseMediaBlock: {
+    marginBottom: spacing.sm,
+  },
+  exerciseMediaThumbnail: {
+    width: '100%',
+    height: 96,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: spacing.sm,
   },
   lastWorkoutSticky: {
     borderWidth: 1,

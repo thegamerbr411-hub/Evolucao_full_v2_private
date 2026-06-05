@@ -162,6 +162,12 @@ const userFriends = friends
  */
 router.post('/challenges', authMiddleware, (req, res) => {
   try {
+    const role = String(req.user?.role || '').toLowerCase()
+    const isAdmin = role === 'admin' || Boolean(req.user?.isAdmin)
+    if (!isAdmin) {
+      return res.status(403).json({ ok: false, error: 'admin_required' })
+    }
+
     const { title, target = 3, type = 'workouts_count', endDate } = req.body
     if (!title) {
       return res.status(400).json({ error: 'title required' })

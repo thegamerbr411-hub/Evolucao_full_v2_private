@@ -1,5 +1,19 @@
 const assert = require('node:assert/strict');
+const jwt = require('jsonwebtoken');
 const { startServer } = require('../server');
+
+function signAppUserToken(payload = {}) {
+  return jwt.sign(
+    {
+      id: 'user_qa_1',
+      role: 'user',
+      isAdmin: false,
+      ...payload,
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: '1h' }
+  );
+}
 
 function buildUrl(port, route) {
   return `http://127.0.0.1:${port}${route}`;
@@ -371,9 +385,42 @@ async function run() {
       assert.ok(Array.isArray(addFriend.payload.friends));
     }
 
+    const createChallengeDenied = await httpJson(buildUrl(port, '/api/social/challenges'), {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': 'app-key-test',
+      },
+      body: JSON.stringify({
+        userId: 'user_qa_1',
+        title: 'Desafio 3 treinos',
+        target: 3,
+        type: 'workouts_count',
+      }),
+    });
+    assert.equal(createChallengeDenied.response.status, 401);
+
+    const createChallengeForbidden = await httpJson(buildUrl(port, '/api/social/challenges'), {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${signAppUserToken({ id: 'user_qa_1', role: 'user', isAdmin: false })}`,
+        'content-type': 'application/json',
+        'x-api-key': 'app-key-test',
+      },
+      body: JSON.stringify({
+        userId: 'user_qa_1',
+        title: 'Desafio 3 treinos',
+        target: 3,
+        type: 'workouts_count',
+      }),
+    });
+    assert.equal(createChallengeForbidden.response.status, 403);
+    assert.equal(createChallengeForbidden.payload.error, 'admin_required');
+
     const createChallenge = await httpJson(buildUrl(port, '/api/social/challenges'), {
       method: 'POST',
       headers: {
+        authorization: `Bearer ${signAppUserToken({ id: 'user_qa_1', role: 'admin', isAdmin: true })}`,
         'content-type': 'application/json',
         'x-api-key': 'app-key-test',
       },
@@ -391,6 +438,7 @@ async function run() {
     const invalidChallenge = await httpJson(buildUrl(port, '/api/social/challenges'), {
       method: 'POST',
       headers: {
+        authorization: `Bearer ${signAppUserToken({ id: 'user_qa_1', role: 'admin', isAdmin: true })}`,
         'content-type': 'application/json',
         'x-api-key': 'app-key-test',
       },

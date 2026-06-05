@@ -679,3 +679,103 @@ Leitura de historico ja estava correta em `workoutHistoryFlow`, mas a UI nao mos
 | Paywall / ranking / acentos | **Aberto** P2 |
 
 **Treino:** nao reabrir — `TREINO_FINAL_STATUS.md`
+
+---
+
+## BUG_HOME_WATER_QUICK_ADD_NO_AMOUNT — Home registra água sem quantidade (2026-06-04)
+
+**Codigo:** `BUG_HOME_WATER_QUICK_ADD_NO_AMOUNT`  
+**Categoria:** UX / Funcionalidade  
+**Tela:** Home — quick action `+ Beber água` (`btn_add_water`)  
+**Severidade:** **P2**
+
+**Descricao:**  
+Ao tocar em registrar/beber água na Home, o app chama `addWaterIntake(300)` **sem** perguntar quantidade. Sempre soma **300 ml** fixos e mostra feedback `+300ml adicionados`.
+
+**Evidencia (codigo):**
+- `src/screens/HomeScreen.js` — `onPress` → `addWaterIntake?.(300)`
+- `src/context/AppContext-v2.ts` — `addWaterIntake` → `hydration.consumedMl` + `history.waterMl`
+
+**Comportamento esperado:**  
+Modal/sheet com opções 200/300/500/510 ml + personalizado; Cancelar não altera total; Registrar atualiza Home com toast `Água registrada: N ml`.
+
+**Impacto:** Medio — hidratacao imprecisa; usuario pode nao perceber registro errado.
+
+**Correcao aplicada:** [`HOME_WATER_QUICK_ADD_FIX_REPORT.md`](HOME_WATER_QUICK_ADD_FIX_REPORT.md) — `waterQuickAdd.js` + Modal sheet na Home.
+
+**Status:** **CORRIGIDO** (codigo 2026-06-04) — revalidacao visual na Home com Metro ativo (emulator-5554).
+
+**Relacionado:** Rotinas validado emulator — ver `ROUTINE_START_FREQUENCY_FIX_REPORT.md`.
+
+---
+
+## RF-01 — "Criar desafio" visível para não-admin (2026-06-02)
+
+**Codigo:** `RF-01_CHALLENGE_CREATE_VISIBLE_TO_NON_ADMIN`  
+**Categoria:** Permissões / Desafios / Admin  
+**Tela:** Mais → Social e Desafios (`SocialChallengesScreen`)  
+**Severidade:** **P1**
+
+**Descricao:**  
+Usuário comum via card "Criar desafio" e formulário sem restrição de role; API aceitava criação com `userId` + API key.
+
+**Correcao aplicada:** [`CHALLENGE_ADMIN_RBAC_FIX_REPORT.md`](CHALLENGE_ADMIN_RBAC_FIX_REPORT.md) — `isChallengeAdmin`, UI condicional, `admin_required` no serviço, JWT+admin no dashboard, backend social.
+
+**Status:** **CORRIGIDO (codigo)** — QA visual emulator-5554 **pendente**; deploy Render API **pendente** para enforcement servidor em produção.
+
+**PASS global:** NÃO
+
+---
+
+## RF-02 — Mídia exercício placeholder / preview quebrado (2026-06-02)
+
+**Codigo:** `EXERCISE_MEDIA_PLACEHOLDER_BROKEN_PREVIEW`  
+**Categoria:** UX / Mídia / Exercícios  
+**Severidade:** **P2**
+
+**Descricao:** Catálogo usa URLs `cdn.app.com` sem asset real; treino mostrava “Preview indisponivel” e detalhe empurrava busca YouTube genérica.
+
+**Correcao aplicada:** [`EXERCISE_MEDIA_FALLBACK_CTA_FIX_REPORT.md`](EXERCISE_MEDIA_FALLBACK_CTA_FIX_REPORT.md) — fallback local + CTA “Ver execução”.
+
+**Status:** **CORRIGIDO (codigo + QA visual)** — detalhe **4/4 REVALIDADO** (manual) · CTA treino **REVALIDADO** (auto `visual_qa_exercise_workout_cta_auto.ps1`, 43s, nome detalhe PARCIAL).
+
+---
+
+## Full Human Walkthrough — Observações Felipe (2026-06-04)
+
+**Sessão:** [`videos/full_human_walkthrough_20260604_2215/`](videos/full_human_walkthrough_20260604_2215/)  
+**Registro:** [`FELIPE_OBSERVED_BUGS.md`](videos/full_human_walkthrough_20260604_2215/FELIPE_OBSERVED_BUGS.md)  
+**Lote 3:** [`LOTE_3_ANALYSIS_RESPONSE.md`](videos/full_human_walkthrough_20260604_2215/LOTE_3_ANALYSIS_RESPONSE.md)  
+**Status:** 3 lotes analisados — render fix **commitado** `591db27` — **QA v4run 2026-06-05 UIAutomator BLOQUEIO** ([`P1_WORKOUT_SESSION_FIX_REPORT.md`](P1_WORKOUT_SESSION_FIX_REPORT.md))  
+**PASS global:** NÃO  
+
+### Confirmados P1 treino (corrigir)
+
+| ID | Sev. | Status pós-QA emulator |
+|----|------|------------------------|
+| FW-P1-NO_BACK_BUTTON_ON_FLOW_SCREENS | P1 | **SIM (anti-gargalo)** — `extra_back_*` curtos com `back_hits=2` |
+| FW-P1-ROUTINE_SERIES_INPUT_TURNS_INTO_12 | P1 | **ABERTO** — sessão legada **11/15** no smoke; V1 limpo com rotina QA **NÃO** confirmado |
+| FW-P1-WORKOUT_EXCESS_DUPLICATE_SETS | P1 | **ABERTO** — V2 ainda não confirmou fluxo QA limpo |
+| FW-P1-RENDER_INFINITE_UPDATE | P0 | **CORRIGIDO** — commit `591db27`; smoke Home/Hub sem RedBox |
+
+### Suspeitos P1 — status pós-QA (2026-06-05 revalidação)
+
+| ID | Status pós-QA |
+|----|----------------|
+| FW-P1-ADDED_SET_DISAPPEARS | NÃO validado (V3 sem confirmação pós-retorno) |
+| FW-P1-WORKOUT_SCROLL_JUMPS | **CORRIGIDO (estado)** — V4 validado por `workoutExerciseFocusAfterSave.test.mjs` (node_state_test) |
+| FW-P1-HOME_START_CONTINUE | **SIM** (v5 em 0036) |
+| FW-P1-HOME_START_CONTINUE hub | **SIM** — V6 resilient pós-seed (`v6_resilient_state.json`) |
+| FW-P1-FREE_WORKOUT_SET_NOT_SAVED | **CORRIGIDO (estado)** — V7 validado por `freeWorkoutSaveSet.test.mjs`; automação ADB/Detox **PENDENTE_TECNICO** |
+
+### Confirmados fora P1 (registrar)
+
+FW-P1-COACH_BUGGY_GENERIC_NOT_SYNCED · FW-P2-MOTOR_V4_LEGS · FW-P2-LOCAL_EXERCISE_WRONG_MUSCLE · FW-P2-INSIGHTS_NUTRITION_EMPTY · FW-P2-IA_DAY_META_INCOMPLETE · FW-P2-NUTRITION_KEYBOARD · FW-P2-EXERCISE_MEDIA_REAL_ASSETS_MISSING
+
+### Suspeitos (pacote treino)
+
+FW-P1-SIMPLE_MODE · FW-P1-WORKOUT_SCROLL_JUMPS · FW-P1-ADDED_SET_DISAPPEARS · FW-P1-HOME_START_CONTINUE · FW-P1-EXERCISE_SUBSTITUTION · FW-P1-FREE_WORKOUT_SET_NOT_SAVED
+
+**Conclusão:** PACOTE **TREINO / SÉRIES / RETOMADA / NAVEGAÇÃO**
+
+**Relacionados:** BUG_001, BUG_002, BUG_003, RF-02 (UX parcial).

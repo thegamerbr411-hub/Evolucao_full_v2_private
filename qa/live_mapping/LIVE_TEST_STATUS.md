@@ -1,9 +1,12 @@
 ﻿# Status do Mapeamento ao Vivo
 
-**Modo:** CORRECAO P1 ESTADO GLOBAL  
+**Modo:** QA VISUAL POR VÍDEO — primeira instalação + abas  
 **Device:** emulator-5554  
 **Watcher:** PAUSADO  
 **PASS global:** NAO  
+**Sessão vídeo:** [`videos/first_install_tabs_20260603_1346/`](videos/first_install_tabs_20260603_1346/) · status [`VISUAL_FIRST_INSTALL_VIDEO_AUDIT_STATUS.md`](VISUAL_FIRST_INSTALL_VIDEO_AUDIT_STATUS.md)  
+**Resultado sessão 2026-06-03/04:** ChatGPT lotes 1–3 · **05b GUIADO VALIDADO** · **complemento 11–13 MANUAL** · **fix Rotinas VALIDADO emulator-5554** — [`ROUTINE_START_FREQUENCY_FIX_REPORT.md`](ROUTINE_START_FREQUENCY_FIX_REPORT.md) · **fix água Home VALIDADO device** (emulator-5554: sheet + 200 ml + cancelar; testes 13/13 PASS) — [`HOME_WATER_QUICK_ADD_FIX_REPORT.md`](HOME_WATER_QUICK_ADD_FIX_REPORT.md) · próximo: OK Felipe para commit escopo água · antigos 06–10 → `*_INVALIDO_MISMATCH.mp4`  
+**Fix Node:** PAUSADO (não misturar com esta sessão)  
 
 **TREINO — STATUS FINAL:** **PASS VISUAL PARCIAL COM RESSALVAS** (fechado 2026-06-02 — OK Felipe) · ver [`TREINO_FINAL_STATUS.md`](TREINO_FINAL_STATUS.md)
 
@@ -12,6 +15,28 @@
 **Push + workspace (2026-06-02):** 4 commits Home+Treino em `origin/hotfix` (`d4e9b7d`) · [`EVOLUCAO_WORKSPACE_AUDIT.md`](EVOLUCAO_WORKSPACE_AUDIT.md)
 
 **GitHub PR (2026-06-03):** [#2](https://github.com/thegamerbr411-hub/Evolucao_full_v2_private/pull/2) hotfix→main · e-mail **Verified+Primary** · **conflitos SIM** · merge **NÃO** · PASS global **NÃO** · [`GITHUB_PR_PREP_REPORT.md`](GITHUB_PR_PREP_REPORT.md)
+
+**Pós-merge PR #2 (2026-06-03 — OK Felipe):** PR **merged** · merge SHA **`9d5040c`** (`9d5040c0a8fc349eec642398b1f60abd3294fa7e`) · `origin/main` atualizado · hotfix **mantida** (não deletada) · checks: **root-quality SUCCESS**, **dashboard-tests SUCCESS**, **Bugbot neutral** (infra, 0 findings) · HEAD local ainda **`48e20a2`** em `hotfix/...` · ~**268** entradas WT suja preservadas · **checkout `main` não executado** · PASS global **NÃO** · próxima: alinhar `main` local ou QA — só com OK Felipe
+
+**Worktree limpo (2026-06-03):** `F:\projetos\evolucao-main-clean` · branch **`fix/node-test-runner-rn-imports`** @ **`4f6860a`** · workspace oficial `F:\projetos\evolucao app` = **dev ativo** (não misturar pastas)
+
+## Fix Node test — PAUSADO (2026-06-03 — retomar Evolução no oficial)
+
+| Item | Valor |
+|------|--------|
+| **Status** | **PAUSADO** — PR/merge adiados; voltar dev/QA no workspace oficial |
+| **Branch** | `fix/node-test-runner-rn-imports` · remoto **`origin/fix/node-test-runner-rn-imports`** existe |
+| **Commit** | **`4f6860a`** — `test: make node test runner avoid React Native imports` |
+| **Validação no worktree** | gate Home/Treino **11/11** · `audit:release:check` **drift=0** (no commit) |
+| **PR criado?** | **NÃO** |
+| **Merge em `main`?** | **NÃO** |
+| **Worktree preservado?** | **SIM** — não apagar `evolucao-main-clean` |
+| **Cherry-pick / portar guards no oficial?** | **NÃO** sem OK Felipe (`runtimeEnv.js` / `observability` divergem da WT suja) |
+| **Retomar depois** | compare `main...fix/node-test-runner-rn-imports` → PR → CI → merge (OK explícito) |
+
+**Desenvolvimento ativo:** somente `F:\projetos\evolucao app` · branch `hotfix/p0-auth-persistence-reopen-20260511` @ `48e20a2` · ~269 entradas WT suja preservadas.
+
+**Retomada oficial (2026-06-03):** inventário [`OFFICIAL_WT_INVENTORY_20260603.md`](OFFICIAL_WT_INVENTORY_20260603.md) · próxima fase [`OFFICIAL_NEXT_PHASE_20260603.md`](OFFICIAL_NEXT_PHASE_20260603.md) — trilha **recomendada: Auth/P0** (OK Felipe para executar)
 
 ---
 

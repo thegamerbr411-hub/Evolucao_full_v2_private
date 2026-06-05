@@ -230,8 +230,19 @@ function createApp() {
     );
   }
 
+  function requireChallengeAdmin(req, res, next) {
+    const role = String(req.auth?.role || '').toLowerCase();
+    const isAdmin = role === 'admin' || Boolean(req.auth?.isAdmin);
+    if (!isAdmin) {
+      return res.status(403).json({ ok: false, error: 'admin_required' });
+    }
+    return next();
+  }
+
   function resolveRequestUserId(req) {
-    const authUserId = normalizeWorkoutUserId(req.auth?.userId || req.auth?.sub || '');
+    const authUserId = normalizeWorkoutUserId(
+      req.auth?.id || req.auth?.userId || req.auth?.sub || ''
+    );
     const bodyUserId = normalizeWorkoutUserId(req.body?.userId || '');
     const queryUserId = normalizeWorkoutUserId(req.query?.userId || '');
     const requestUserId = bodyUserId || queryUserId;
@@ -602,7 +613,7 @@ function createApp() {
     return res.json(result);
   }));
 
-  app.post('/api/social/challenges', requireAppApiKey, requireUserContext, asyncRoute(async (req, res) => {
+  app.post('/api/social/challenges', requireAppApiKey, auth.validateJWT, requireChallengeAdmin, requireUserContext, asyncRoute(async (req, res) => {
     const userId = req.userId;
     const title = sanitizeText(req.body?.title, { max: 120 });
     const type = sanitizeText(req.body?.type || 'workouts_count', { max: 40, fallback: 'workouts_count' });

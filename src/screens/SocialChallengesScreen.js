@@ -12,8 +12,12 @@ import {
   joinChallengeFromApi,
   updateChallengeProgressFromApi,
 } from '../services/socialApiService';
+import {
+  isChallengeAdmin,
+  CHALLENGE_ADMIN_REQUIRED_MESSAGE,
+} from '../utils/challengePermissions';
 
-export default function SocialChallengesScreen() {
+export default function SocialChallengesScreen({ navigation }) {
   const { user } = useApp();
   const [loading, setLoading] = useState(false);
   const [overview, setOverview] = useState(null);
@@ -25,6 +29,7 @@ export default function SocialChallengesScreen() {
   const [toastMessage, setToastMessage] = useState('');
 
   const myUserId = useMemo(() => String(user?.id || '').trim(), [user?.id]);
+  const canCreateChallenge = useMemo(() => isChallengeAdmin(user), [user]);
 
   const loadOverview = async () => {
     if (!myUserId) {
@@ -77,6 +82,18 @@ export default function SocialChallengesScreen() {
     { key: 'completed', label: 'Concluídos' },
   ]), []);
 
+  const visibleActiveChallenges = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    const rows = Array.isArray(overview?.activeChallenges) ? overview.activeChallenges : [];
+    return rows.filter((challenge) => {
+      if (!challenge || !challenge.id || !challenge.title) {
+        return false;
+      }
+      const endDate = String(challenge.endDate || today);
+      return endDate >= today;
+    });
+  }, [overview?.activeChallenges]);
+
   const mapSocialError = (code) => {
     const key = String(code || '').trim();
     if (key === 'cannot_add_self') return 'Voce nao pode adicionar seu proprio perfil.';
@@ -84,6 +101,7 @@ export default function SocialChallengesScreen() {
     if (key === 'missing_user_id') return 'Conecte um perfil antes de usar recursos sociais.';
     if (key === 'challenge_not_found') return 'Desafio nao encontrado ou encerrado.';
     if (key === 'invalid_progress_payload') return 'Valor de progresso invalido.';
+    if (key === 'admin_required') return CHALLENGE_ADMIN_REQUIRED_MESSAGE;
     return 'Nao foi possivel concluir a acao agora.';
   };
 
@@ -105,6 +123,11 @@ export default function SocialChallengesScreen() {
   };
 
   const onCreateChallenge = async () => {
+    if (!canCreateChallenge) {
+      setToastMessage(CHALLENGE_ADMIN_REQUIRED_MESSAGE);
+      return;
+    }
+
     const title = String(challengeTitle || '').trim();
     const target = Number(challengeTarget || 3);
     if (!title || !Number.isFinite(target) || target <= 0) {
@@ -113,6 +136,7 @@ export default function SocialChallengesScreen() {
     }
 
     const result = await createChallengeFromApi({
+      user,
       userId: myUserId,
       title,
       target,
@@ -163,7 +187,13 @@ export default function SocialChallengesScreen() {
     <ScrollView testID="screen-social" contentContainerStyle={styles.container}>
       <View testID="screen-social-challenges" style={styles.hiddenMarker} />
       <AnimatedToast message={toastMessage} onHide={() => setToastMessage('')} />
-      <ScreenHeader title="Social e Desafios" subtitle="Amigos, ranking e desafios semanais." />
+      <ScreenHeader title="Social e Desafios" subtitle="Amigos, ranking e desafios semanais." onBack={() => navigation.goBack()} />
+
+      {__DEV__ ? (
+        <View style={styles.devFeatureTagWrap}>
+          <Text style={styles.devFeatureTag}>[F-Social] Ranking + desafios + amizades</Text>
+        </View>
+      ) : null}
 
       <AppCard>
         <Text style={styles.title}>Painel social</Text>
@@ -202,25 +232,27 @@ export default function SocialChallengesScreen() {
         ) : null}
       </AppCard>
 
-      <AppCard>
-        <Text style={styles.title}>Criar desafio</Text>
-        <TextInput
-          value={challengeTitle}
-          onChangeText={setChallengeTitle}
-          placeholder="Titulo do desafio"
-          placeholderTextColor={colors.textSecondary}
-          style={styles.input}
-        />
-        <TextInput
-          value={challengeTarget}
-          onChangeText={setChallengeTarget}
-          placeholder="Meta (ex: 3)"
-          keyboardType="numeric"
-          placeholderTextColor={colors.textSecondary}
-          style={styles.input}
-        />
-        <PrimaryButton title="Criar desafio" onPress={onCreateChallenge} />
-      </AppCard>
+      {canCreateChallenge ? (
+        <AppCard testID="card-social-create-challenge">
+          <Text style={styles.title}>Criar desafio</Text>
+          <TextInput
+            value={challengeTitle}
+            onChangeText={setChallengeTitle}
+            placeholder="Titulo do desafio"
+            placeholderTextColor={colors.textSecondary}
+            style={styles.input}
+          />
+          <TextInput
+            value={challengeTarget}
+            onChangeText={setChallengeTarget}
+            placeholder="Meta (ex: 3)"
+            keyboardType="numeric"
+            placeholderTextColor={colors.textSecondary}
+            style={styles.input}
+          />
+          <PrimaryButton testID="btn-social-create-challenge" title="Criar desafio" onPress={onCreateChallenge} />
+        </AppCard>
+      ) : null}
 
       <AppCard>
         <Text style={styles.title}>Ranking entre amigos</Text>
@@ -248,7 +280,7 @@ export default function SocialChallengesScreen() {
       </AppCard>
 
       <AppCard>
-        <Text style={styles.title}>Desafios ativos</Text>
+        <Text style={styles.title}>Desafios ativos: {visibleActiveChallenges.length}</Text>
         <TextInput
           value={progressInput}
           onChangeText={setProgressInput}
@@ -259,8 +291,8 @@ export default function SocialChallengesScreen() {
         />
 
         {loading ? <Text style={styles.meta}>Atualizando desafios...</Text> : null}
-        {!loading && Array.isArray(overview?.activeChallenges) && overview.activeChallenges.length ? (
-          overview.activeChallenges.map((challenge) => (
+        {!loading && visibleActiveChallenges.length ? (
+          visibleActiveChallenges.map((challenge) => (
             <View key={challenge.id} style={styles.challengeCard}>
               <Text style={styles.challengeTitle}>{challenge.title}</Text>
               <Text style={styles.meta}>Meta: {challenge.target} • Seu progresso: {challenge.myProgress}</Text>
@@ -282,7 +314,11 @@ export default function SocialChallengesScreen() {
           <View style={styles.emptyState}>
             <Ionicons name="flag-outline" size={40} color={colors.primary} />
             <Text style={styles.emptyStateTitle}>Nenhum desafio ativo</Text>
-            <Text style={styles.emptyStateText}>Crie um novo desafio semanal para engajar sua rede de amigos em competições.</Text>
+            <Text style={styles.emptyStateText}>
+              {canCreateChallenge
+                ? 'Crie um novo desafio semanal para engajar sua rede de amigos em competicoes.'
+                : 'Participe dos desafios ativos da sua rede. Novos desafios sao publicados por administradores.'}
+            </Text>
           </View>
         ) : null}
       </AppCard>
@@ -339,6 +375,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     marginTop: 2,
+  },
+  devFeatureTagWrap: {
+    borderWidth: 1,
+    borderColor: '#3B82F6',
+    backgroundColor: '#0B1730',
+    borderRadius: 999,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    marginBottom: 8,
+  },
+  devFeatureTag: {
+    color: '#BFDBFE',
+    fontSize: 11,
+    fontWeight: '800',
   },
   metricTabs: {
     flexDirection: 'row',

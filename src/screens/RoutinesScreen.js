@@ -4,7 +4,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { EXERCISE_NAMES_V2 } from '../data/exerciseLibraryV2.js';
 import { getExerciseByName, getExerciseFilters, MUSCLE_GROUP_LABELS, searchExercises } from '../data/exercises.js';
+import { isPlaceholderMediaUrl } from '../utils/exerciseMedia';
 import { fuzzySearchExercises } from '../services/fuzzySearch';
+import {
+  canStartRoutine,
+  formatRoutineWeeklyFrequency,
+  getRoutineStartBlockReason,
+} from '../services/routineDisplay';
 import { AnimatedToast, AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { colors, spacing } from '../theme';
 
@@ -301,9 +307,12 @@ export default function RoutinesScreen({ navigation }) {
   };
 
   const startRoutine = (routine) => {
-    if (!routine?.exercises?.length) return;
+    if (!canStartRoutine(routine)) {
+      setToastMessage(getRoutineStartBlockReason(routine) || 'Adicione exercicios para iniciar');
+      return;
+    }
 
-    navigation.navigate('Workout', { workoutId: routine.id });
+    navigation.navigate('TreinoHoje', { workoutId: routine.id });
   };
 
   const openExerciseDetail = (exercise) => {
@@ -318,7 +327,7 @@ export default function RoutinesScreen({ navigation }) {
     >
     <AnimatedToast message={toastMessage} onHide={() => setToastMessage('')} />
     <ScrollView testID="screen-routines" contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}>
-      <ScreenHeader title="Rotinas" subtitle="Controle total: recomendadas e criadas por voce no mesmo padrao." />
+      <ScreenHeader title="Rotinas" subtitle="Controle total: recomendadas e criadas por voce no mesmo padrao." onBack={() => navigation.goBack()} />
 
       <AppCard testID="card-routine-templates">
         <Text style={styles.cardTitle}>Templates prontos</Text>
@@ -480,23 +489,28 @@ export default function RoutinesScreen({ navigation }) {
       <AppCard>
         <Text style={styles.cardTitle}>Minhas rotinas</Text>
         {safeUserRoutines.length === 0 ? <Text style={styles.empty}>Nenhuma rotina salva ainda.</Text> : null}
-        {safeUserRoutines.map((routine) => (
+        {safeUserRoutines.map((routine) => {
+          const canStart = canStartRoutine(routine);
+          const startBlockReason = getRoutineStartBlockReason(routine);
+          return (
           <View testID={`card-routine-${toTestId(routine.name || routine.id)}`} key={routine.id} style={styles.savedRoutineCard}>
             <Text style={styles.savedRoutineTitle}>{routine.name}</Text>
-            <Text style={styles.recommendationSub}>{routine.frequency}x por semana</Text>
+            <Text style={styles.recommendationSub}>
+              {formatRoutineWeeklyFrequency(routine.frequency, profile?.trainingDaysPerWeek)}
+            </Text>
             {(Array.isArray(routine?.exercises) ? routine.exercises : []).map((item, index) => (
               <View key={`${routine.id}-${String(typeof item === 'string' ? item : item?.name)}-${index}`} style={styles.builderRow}>
                 <Text style={styles.line}>• {typeof item === 'string' ? item : item?.name} ({clampRoutineSets(typeof item === 'object' ? item?.sets : DEFAULT_ROUTINE_SETS)} series)</Text>
                 <View style={styles.actionsRow}>
                   <TouchableOpacity
                     style={styles.smallButton}
-                    onPress={() => reorderUserRoutineExercises({ routineId: routine.id, fromIndex: index, toIndex: index - 1 })}
+                    onPress={() => reorderUserRoutineExercises({ routineId: routine.id, from: index, to: index - 1 })}
                   >
                     <Text style={styles.smallButtonText}>↑</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.smallButton}
-                    onPress={() => reorderUserRoutineExercises({ routineId: routine.id, fromIndex: index, toIndex: index + 1 })}
+                    onPress={() => reorderUserRoutineExercises({ routineId: routine.id, from: index, to: index + 1 })}
                   >
                     <Text style={styles.smallButtonText}>↓</Text>
                   </TouchableOpacity>
@@ -504,8 +518,13 @@ export default function RoutinesScreen({ navigation }) {
               </View>
             ))}
             <View style={styles.actionsRow}>
-              <TouchableOpacity testID={`btn-routine-start-${toTestId(routine.name || routine.id)}`} style={styles.smallButton} onPress={() => startRoutine(routine)}>
-                <Text style={styles.smallButtonText}>Iniciar</Text>
+              <TouchableOpacity
+                testID={`btn-routine-start-${toTestId(routine.name || routine.id)}`}
+                style={[styles.smallButton, styles.smallButtonStart, !canStart ? styles.smallButtonDisabled : null]}
+                disabled={!canStart}
+                onPress={() => startRoutine(routine)}
+              >
+                <Text style={[styles.smallButtonText, !canStart ? styles.smallButtonTextDisabled : null]}>Iniciar</Text>
               </TouchableOpacity>
               <TouchableOpacity testID={`btn-routine-edit-${toTestId(routine.name || routine.id)}`} style={styles.smallButton} onPress={() => loadRoutineToEdit(routine)}>
                 <Text style={styles.smallButtonText}>Editar</Text>
@@ -526,8 +545,12 @@ export default function RoutinesScreen({ navigation }) {
                 <Text style={styles.smallButtonText}>Excluir</Text>
               </TouchableOpacity>
             </View>
+            {!canStart && startBlockReason ? (
+              <Text style={styles.startBlockHint}>{startBlockReason}</Text>
+            ) : null}
           </View>
-        ))}
+          );
+        })}
       </AppCard>
 
       <Modal
@@ -587,7 +610,11 @@ export default function RoutinesScreen({ navigation }) {
                 return (
                   <View key={item.name} style={[styles.catalogCard, selected ? styles.catalogCardSelected : null]}>
                     <View style={styles.catalogInfoRow}>
-                      {item.thumbnail ? <Image source={{ uri: item.thumbnail }} style={styles.catalogThumb} /> : <View style={styles.catalogThumbFallback} />}
+                      {item.thumbnail && !isPlaceholderMediaUrl(item.thumbnail) ? (
+                        <Image source={{ uri: item.thumbnail }} style={styles.catalogThumb} />
+                      ) : (
+                        <View style={styles.catalogThumbFallback} />
+                      )}
                       <View style={styles.catalogTextWrap}>
                         <Text style={styles.catalogName}>{item.name}</Text>
                         <Text style={styles.catalogMeta}>{MUSCLE_GROUP_LABELS[item.muscle] || item.muscle.replace(/_/g, ' ')} · {item.equipment.replace(/_/g, ' ')}</Text>
@@ -927,6 +954,22 @@ const styles = StyleSheet.create({
     backgroundColor: colors.secondary,
     paddingHorizontal: 10,
     paddingVertical: 8,
+  },
+  smallButtonStart: {
+    backgroundColor: colors.primary,
+  },
+  smallButtonDisabled: {
+    backgroundColor: '#2A3344',
+    opacity: 0.55,
+  },
+  smallButtonTextDisabled: {
+    color: colors.textMuted,
+  },
+  startBlockHint: {
+    marginTop: 6,
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: '600',
   },
   smallButtonDanger: {
     backgroundColor: '#7F1D1D',

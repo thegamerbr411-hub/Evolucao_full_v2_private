@@ -24,6 +24,7 @@ import {
 import { buildWorkoutHistorySummary } from '../services/workoutHistoryFlow';
 import { getDropRecoveryCandidate } from '../core/observability';
 import { logEvent } from '../core/logger';
+import { clampRoutineFrequency } from '../services/routineDisplay';
 
 // Import logic modules
 import {
@@ -215,14 +216,18 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       }
 
       if (currentUser) {
+        const currentStoreUser = useUserStore.getState().user;
+        const preserveAdminRole =
+          currentStoreUser?.id === currentUser.uid
+          && String(currentStoreUser?.role || '').toLowerCase() === 'admin';
+
         const resolvedUser = {
           id: currentUser.uid,
           name: currentUser.displayName || currentUser.email?.split('@')?.[0] || 'Usuário',
           email: currentUser.email || null,
-          role: 'user',
+          role: preserveAdminRole ? 'admin' : 'user',
         };
 
-        const currentStoreUser = useUserStore.getState().user;
         if (!currentStoreUser || currentStoreUser.id !== resolvedUser.id) {
           setUserInStore(resolvedUser as any);
         }
@@ -504,8 +509,16 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     const plausibleTodayLogs = sanitizeWorkoutLogsForRead(todayLogs);
     const todayGuidedLogs = plausibleTodayLogs.filter((item) => (item.mode || 'guided') !== 'free');
     const todayWorkout = getTodayWorkout();
-    const plannedSets = todayWorkout.reduce(
-      (acc, item) => acc + Math.max(1, Number(item.sets || 1)),
+    const activeRoutineId = useWorkoutStore.getState().activeRoutineId;
+    const activeRoutine = activeRoutineId
+      ? (Array.isArray(userRoutines) ? userRoutines : []).find((routine) => routine.id === activeRoutineId)
+      : null;
+    const activeRoutineExercises = Array.isArray(activeRoutine?.exercises) ? activeRoutine.exercises : [];
+    const exercisesForPlan = activeRoutineExercises.length > 0 && todayGuidedLogs.length > 0
+      ? activeRoutineExercises
+      : todayWorkout;
+    const plannedSets = exercisesForPlan.reduce(
+      (acc, item) => acc + Math.max(1, Number((typeof item === 'object' ? item?.sets : null) || 1)),
       0
     );
     const uniqueExercises = new Set(plausibleTodayLogs.map((item) => item.exerciseName));
@@ -518,11 +531,12 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       totalExercises: uniqueExercises.size,
       guidedSets,
       plannedSets,
-      plannedExerciseCount: todayWorkout.length,
+      plannedExerciseCount: exercisesForPlan.length,
       completionRate,
       sessionXp,
+      activeRoutineId: activeRoutineId || null,
     };
-  }, [workoutLogs, getTodayWorkout]);
+  }, [workoutLogs, getTodayWorkout, userRoutines]);
 
   const getDailyState = useCallback(() => {
     const today = getTodayKey();
@@ -1093,17 +1107,33 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
       getUserRoutines: () => (Array.isArray(userRoutines) ? userRoutines : []),
       getUserRoutineById: (id) => (Array.isArray(userRoutines) ? userRoutines : []).find((r) => r.id === id),
-      createUserRoutine: ({ name, exercises }) => {
+      createUserRoutine: ({ name, exercises, frequency } = {} as any) => {
         const safeExercises = Array.isArray(exercises) ? exercises : [];
-        const routine = { id: `routine-${Date.now()}`, name, exercises: safeExercises };
+        const routine = {
+          id: `routine-${Date.now()}`,
+          name,
+          exercises: safeExercises,
+          frequency: clampRoutineFrequency(frequency, profile?.trainingDaysPerWeek),
+        };
         appStore.updateUserRoutines((routines) => [routine, ...(Array.isArray(routines) ? routines : [])]);
         return { ok: true, routine };
       },
 
-      updateUserRoutine: ({ routineId, name, exercises }) => {
+      updateUserRoutine: ({ routineId, name, exercises, frequency } = {} as any) => {
         const safeExercises = Array.isArray(exercises) ? exercises : [];
-        appStore.updateUserRoutines((routines) => 
-          (Array.isArray(routines) ? routines : []).map((r) => (r.id === routineId ? { ...r, name, exercises: safeExercises } : r))
+        const nextFrequency = frequency !== undefined && frequency !== null
+          ? clampRoutineFrequency(frequency, profile?.trainingDaysPerWeek)
+          : undefined;
+        appStore.updateUserRoutines((routines) =>
+          (Array.isArray(routines) ? routines : []).map((r) => {
+            if (r.id !== routineId) return r;
+            return {
+              ...r,
+              name,
+              exercises: safeExercises,
+              ...(nextFrequency !== undefined ? { frequency: nextFrequency } : {}),
+            };
+          })
         );
         return { ok: true };
       },
@@ -1140,7 +1170,12 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         if (!template) {
           return { ok: false, message: 'Template nao encontrado.' };
         }
-        const routine = { id: `routine-${Date.now()}`, name: template.name, exercises: template.exercises };
+        const routine = {
+          id: `routine-${Date.now()}`,
+          name: template.name,
+          exercises: template.exercises,
+          frequency: clampRoutineFrequency(frequency, profile?.trainingDaysPerWeek),
+        };
         appStore.updateUserRoutines((routines) => [routine, ...(Array.isArray(routines) ? routines : [])]);
         return { ok: true, routine };
       },
@@ -1153,6 +1188,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
           id: `routine-${Date.now()}`,
           name: String(name || 'Minha Rotina'),
           exercises: todayExercises.map((e: any) => ({ name: e.name, sets: e.sets, reps: e.reps })),
+          frequency: clampRoutineFrequency(frequency, profile?.trainingDaysPerWeek),
         };
         appStore.updateUserRoutines((routines) => [routine, ...(Array.isArray(routines) ? routines : [])]);
         return { ok: true, routine };

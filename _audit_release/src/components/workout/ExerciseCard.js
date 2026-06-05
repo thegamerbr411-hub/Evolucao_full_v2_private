@@ -1,8 +1,11 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { AppCard } from '../ui';
 import { colors, spacing, typography } from '../../theme';
-import { getExerciseGifFallback } from '../../data/exerciseLibraryV2.js';
+import { getExerciseByName } from '../../data/exercises.js';
+import { ExerciseExecutionCta } from '../exercise/ExerciseExecutionCta';
+import { ExerciseMediaFallback } from '../exercise/ExerciseMediaFallback';
+import { resolveExerciseMedia } from '../../utils/exerciseMedia';
 import { buildWorkoutSetRowState } from '../../services/workoutSetRowState.js';
 import { SetRow } from './SetRow';
 
@@ -15,17 +18,28 @@ export const ExerciseCard = React.memo(function ExerciseCard({
   onCompleteSet,
   onAddSet,
   onRemoveExercise,
+  onViewExecution,
   testIDs,
 }) {
-  const [hasGifError, setHasGifError] = React.useState(false);
-  const gifUri = exercise?.gif || getExerciseGifFallback();
+  const [thumbnailFailed, setThumbnailFailed] = React.useState(false);
   const safeExerciseName = String(exercise?.name || '').trim();
-  const safeSets = React.useMemo(
+  const catalogExercise = useMemo(
+    () => (safeExerciseName ? getExerciseByName(safeExerciseName) : null),
+    [safeExerciseName]
+  );
+  const media = useMemo(
+    () => resolveExerciseMedia({ ...catalogExercise, gif: exercise?.gif }),
+    [catalogExercise, exercise?.gif]
+  );
+  const showRemoteThumbnail = media.hasRealThumbnail && !thumbnailFailed;
+  const fallbackExercise = catalogExercise || { name: safeExerciseName };
+
+  const safeSets = useMemo(
     () => (Array.isArray(exercise?.sets) ? exercise.sets.filter(Boolean) : []),
     [exercise?.sets]
   );
 
-  const nextPendingSetIndex = React.useMemo(() => {
+  const nextPendingSetIndex = useMemo(() => {
     const pendingIndex = safeSets.findIndex((setItem) => !setItem?.done);
     return pendingIndex >= 0 ? pendingIndex : safeSets.length;
   }, [safeSets]);
@@ -85,21 +99,29 @@ export const ExerciseCard = React.memo(function ExerciseCard({
 
       {!simpleMode ? (
         <>
-          {!hasGifError ? (
-            <Image source={{ uri: gifUri }} style={styles.gifPreview} resizeMode="cover" onError={() => setHasGifError(true)} />
+          {showRemoteThumbnail ? (
+            <Image
+              source={{ uri: media.thumbnailUrl }}
+              style={styles.gifPreview}
+              resizeMode="cover"
+              onError={() => setThumbnailFailed(true)}
+            />
           ) : (
-            <View style={styles.gifFallback}><Text style={styles.gifFallbackText}>Preview indisponivel</Text></View>
+            <ExerciseMediaFallback exercise={fallbackExercise} compact testID="workout-exercise-media-fallback" />
           )}
+
+          {typeof onViewExecution === 'function' && safeExerciseName ? (
+            <ExerciseExecutionCta
+              media={media}
+              testID="btn-ver-execucao"
+              onPress={() => onViewExecution(safeExerciseName)}
+            />
+          ) : null}
 
           {lastSet ? <Text style={styles.last}>Ultimo: {lastSet}</Text> : null}
         </>
       ) : null}
 
-      {/*
-        P0: evitar FlatList virtualizada dentro de FlatList+ScrollView (WorkoutScreen).
-        Com scrollEnabled=false o ganho de virtualizacao e zero; no Android costuma
-        truncar linhas / altura errada. Map mantem mesma UX com lista pequena (series).
-      */}
       <View>
         {safeSets.map((setItem, index) => renderSetRow(setItem, index))}
       </View>
@@ -134,22 +156,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     marginBottom: spacing.sm,
-  },
-  gifFallback: {
-    width: '100%',
-    height: 96,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: spacing.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#111827',
-  },
-  gifFallbackText: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    fontWeight: '700',
   },
   last: {
     color: colors.textSecondary,
