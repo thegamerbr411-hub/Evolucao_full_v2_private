@@ -10,6 +10,7 @@ import { logEvent } from '../core/logger';
 import { isFeatureVariantEnabled, trackEmptyState, trackScreenAction } from '../core/observability';
 import { listExerciseNames, MUSCLE_GROUP_LABELS, searchExercises } from '../data/exercises.js';
 import { QA_ELEMENTS, QA_SCREENS, qaAliasProps, qaProps } from '../qa/selectorRegistry';
+import { resolveWorkoutContinueParams } from '../services/workoutActiveRoutine';
 
 function WorkoutStatBadge({ label, value, color }) {
   return (
@@ -163,7 +164,10 @@ export function WorkoutsHubView({
       <PrimaryButton
         {...qaAliasProps(QA_ELEMENTS.btnStartWorkout, 'btn-iniciar-treino')}
         title={session.ctaLabel || 'Iniciar treino'}
-        onPress={() => navigation.navigate('TreinoHoje')}
+        onPress={async () => {
+          const params = await resolveWorkoutContinueParams();
+          navigation.navigate('TreinoHoje', params);
+        }}
       />
 
       <SecondaryButton

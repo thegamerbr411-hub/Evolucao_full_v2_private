@@ -30,6 +30,7 @@ import {
   WATER_MAX_SINGLE_ML,
 } from '../services/waterQuickAdd';
 import { PrimaryButton, SecondaryButton } from '../components/ui';
+import { resolveWorkoutContinueParams } from '../services/workoutActiveRoutine';
 
 const XP_PER_LEVEL = 500;
 const WEEK_DAYS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
@@ -481,7 +482,10 @@ export default function HomeScreen({ navigation }) {
         testID: QA_ELEMENTS.btnStartWorkout,
         legacyId: 'home-quick-workout',
         label: 'Retomar treino agora',
-        onPress: () => navigation.navigate('TreinoHoje'),
+        onPress: async () => {
+          const params = await resolveWorkoutContinueParams();
+          navigation.navigate('TreinoHoje', params);
+        },
       },
       water: {
         key: 'water',
@@ -555,7 +559,9 @@ export default function HomeScreen({ navigation }) {
                 source: 'main_cta',
               });
             }
-            navigation.navigate('TreinoHoje');
+            resolveWorkoutContinueParams().then((params) => {
+              navigation.navigate('TreinoHoje', params);
+            });
           }}
           activeOpacity={0.92}
         >

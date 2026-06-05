@@ -509,8 +509,16 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     const plausibleTodayLogs = sanitizeWorkoutLogsForRead(todayLogs);
     const todayGuidedLogs = plausibleTodayLogs.filter((item) => (item.mode || 'guided') !== 'free');
     const todayWorkout = getTodayWorkout();
-    const plannedSets = todayWorkout.reduce(
-      (acc, item) => acc + Math.max(1, Number(item.sets || 1)),
+    const activeRoutineId = useWorkoutStore.getState().activeRoutineId;
+    const activeRoutine = activeRoutineId
+      ? (Array.isArray(userRoutines) ? userRoutines : []).find((routine) => routine.id === activeRoutineId)
+      : null;
+    const activeRoutineExercises = Array.isArray(activeRoutine?.exercises) ? activeRoutine.exercises : [];
+    const exercisesForPlan = activeRoutineExercises.length > 0 && todayGuidedLogs.length > 0
+      ? activeRoutineExercises
+      : todayWorkout;
+    const plannedSets = exercisesForPlan.reduce(
+      (acc, item) => acc + Math.max(1, Number((typeof item === 'object' ? item?.sets : null) || 1)),
       0
     );
     const uniqueExercises = new Set(plausibleTodayLogs.map((item) => item.exerciseName));
@@ -523,11 +531,12 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       totalExercises: uniqueExercises.size,
       guidedSets,
       plannedSets,
-      plannedExerciseCount: todayWorkout.length,
+      plannedExerciseCount: exercisesForPlan.length,
       completionRate,
       sessionXp,
+      activeRoutineId: activeRoutineId || null,
     };
-  }, [workoutLogs, getTodayWorkout]);
+  }, [workoutLogs, getTodayWorkout, userRoutines]);
 
   const getDailyState = useCallback(() => {
     const today = getTodayKey();
