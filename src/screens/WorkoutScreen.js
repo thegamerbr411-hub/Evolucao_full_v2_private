@@ -144,6 +144,10 @@ export default function WorkoutScreen({ navigation, route }) {
   const baseExercises = useMemo(() => getTodayWorkout(), [getTodayWorkout]);
   const [sessionBaseExercises, setSessionBaseExercises] = useState([]);
   const [customExercises, setCustomExercises] = useState([]);
+  const sessionExerciseKey = useMemo(
+    () => sessionBaseExercises.map((item) => item.name).join('|'),
+    [sessionBaseExercises],
+  );
   const allExercises = useMemo(
     () => [...sessionBaseExercises, ...customExercises]
       .map((item, index) => normalizeWorkoutExercise(item, index, 'workout'))
@@ -750,30 +754,44 @@ export default function WorkoutScreen({ navigation, route }) {
       return;
     }
 
+    const targetKey = safeRoutine.map((item) => item.name).join('|');
+    if (sessionExerciseKey === targetKey) {
+      return;
+    }
+
+    const guidedSetsToday = sanitizeWorkoutLogsForRead(
+      Array.isArray(workoutLogs) ? workoutLogs : []
+    )
+      .filter((item) => item.date === todayKey && (item.mode || 'guided') !== 'free')
+      .length;
+    const shouldPreserveSessionState = guidedSetsToday > 0 && !sessionExerciseKey;
+
     setSessionBaseExercises(safeRoutine);
     setCustomExercises([]);
-    setActiveExerciseIndex(0);
-    setSetCountByExercise(
-      safeRoutine.reduce((acc, item) => {
-        acc[item.name] = Number(item.sets || 3);
-        return acc;
-      }, {})
-    );
-    setDraftSetsByExercise(
-      safeRoutine.reduce((acc, item) => {
-        const totalSets = Math.max(1, Number(item.sets || 3));
-        acc[item.name] = Array.from({ length: totalSets }, () => ({
-          weight: '',
-          reps: '',
-          rpe: '8',
-        }));
-        return acc;
-      }, {})
-    );
+    if (!shouldPreserveSessionState) {
+      setActiveExerciseIndex(0);
+      setSetCountByExercise(
+        safeRoutine.reduce((acc, item) => {
+          acc[item.name] = Number(item.sets || 3);
+          return acc;
+        }, {})
+      );
+      setDraftSetsByExercise(
+        safeRoutine.reduce((acc, item) => {
+          const totalSets = Math.max(1, Number(item.sets || 3));
+          acc[item.name] = Array.from({ length: totalSets }, () => ({
+            weight: '',
+            reps: '',
+            rpe: '8',
+          }));
+          return acc;
+        }, {})
+      );
+    }
     setShowWorkoutSummary(false);
     setShowSubstitutePicker(false);
     setExerciseQuery('');
-  }, [selectedWorkoutId, getUserRoutineById]);
+  }, [selectedWorkoutId, getUserRoutineById, sessionExerciseKey, workoutLogs, todayKey]);
 
   useEffect(() => {
     if (!allExercises.length) {
