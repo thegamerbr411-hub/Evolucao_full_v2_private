@@ -724,3 +724,17 @@ Usuário comum via card "Criar desafio" e formulário sem restrição de role; A
 **Status:** **CORRIGIDO (codigo)** — QA visual emulator-5554 **pendente**; deploy Render API **pendente** para enforcement servidor em produção.
 
 **PASS global:** NÃO
+
+---
+
+## RF-02 — Mídia exercício placeholder / preview quebrado (2026-06-02)
+
+**Codigo:** `EXERCISE_MEDIA_PLACEHOLDER_BROKEN_PREVIEW`  
+**Categoria:** UX / Mídia / Exercícios  
+**Severidade:** **P2**
+
+**Descricao:** Catálogo usa URLs `cdn.app.com` sem asset real; treino mostrava “Preview indisponivel” e detalhe empurrava busca YouTube genérica.
+
+**Correcao aplicada:** [`EXERCISE_MEDIA_FALLBACK_CTA_FIX_REPORT.md`](EXERCISE_MEDIA_FALLBACK_CTA_FIX_REPORT.md) — fallback local + CTA “Ver execução”.
+
+**Status:** **CORRIGIDO (codigo + QA visual)** — detalhe **4/4 REVALIDADO** (manual) · CTA treino **REVALIDADO** (auto `visual_qa_exercise_workout_cta_auto.ps1`, 43s, nome detalhe PARCIAL).

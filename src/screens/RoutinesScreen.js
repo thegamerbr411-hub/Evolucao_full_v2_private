@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { EXERCISE_NAMES_V2 } from '../data/exerciseLibraryV2.js';
 import { getExerciseByName, getExerciseFilters, MUSCLE_GROUP_LABELS, searchExercises } from '../data/exercises.js';
+import { isPlaceholderMediaUrl } from '../utils/exerciseMedia';
 import { fuzzySearchExercises } from '../services/fuzzySearch';
 import {
   canStartRoutine,
@@ -609,7 +610,11 @@ export default function RoutinesScreen({ navigation }) {
                 return (
                   <View key={item.name} style={[styles.catalogCard, selected ? styles.catalogCardSelected : null]}>
                     <View style={styles.catalogInfoRow}>
-                      {item.thumbnail ? <Image source={{ uri: item.thumbnail }} style={styles.catalogThumb} /> : <View style={styles.catalogThumbFallback} />}
+                      {item.thumbnail && !isPlaceholderMediaUrl(item.thumbnail) ? (
+                        <Image source={{ uri: item.thumbnail }} style={styles.catalogThumb} />
+                      ) : (
+                        <View style={styles.catalogThumbFallback} />
+                      )}
                       <View style={styles.catalogTextWrap}>
                         <Text style={styles.catalogName}>{item.name}</Text>
                         <Text style={styles.catalogMeta}>{MUSCLE_GROUP_LABELS[item.muscle] || item.muscle.replace(/_/g, ' ')} · {item.equipment.replace(/_/g, ' ')}</Text>
