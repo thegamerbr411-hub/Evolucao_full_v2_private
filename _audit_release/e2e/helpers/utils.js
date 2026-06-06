@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
-const { hasDetoxGlobals } = require('./runtime');
+const { execFileSync } = require('child_process');
+const { hasDetoxGlobals, isAttachedRun } = require('./runtime');
 
 const expoQaClientId = process.env['EXPO_PUBLIC_QA_CLIENT_ID'];
 const DEFAULT_CLIENT_ID = expoQaClientId || process.env.QA_CLIENT_ID || 'default';
@@ -64,6 +65,10 @@ const ID_ALIASES = {
   // Botões de ação
   btn_start_workout: ['btn_start_workout', 'btn-iniciar-treino'],
   'btn-iniciar-treino': ['btn-iniciar-treino', 'btn_start_workout'],
+  btn_open_free_workout: ['btn_open_free_workout', 'btn-open-free-workout'],
+  'btn-open-free-workout': ['btn-open-free-workout', 'btn_open_free_workout'],
+  btn_open_routines: ['btn_open_routines', 'btn-open-routines'],
+  'btn-open-routines': ['btn-open-routines', 'btn_open_routines'],
   btn_logout: ['btn_logout', 'btn-profile-session-logout'],
   'btn-profile-session-logout': ['btn-profile-session-logout', 'btn_logout'],
   btn_google_login: ['btn_google_login', 'btn-profile-google-login'],
@@ -239,17 +244,24 @@ async function dismissBlockingSystemDialogs() {
     return false;
   }
 
+  // Attached runs pre-grant permissions via adb; Espresso dialog taps often hang here.
+  if (isAttachedRun()) {
+    return false;
+  }
+
   const labels = [
+    'Permitir',
+    'Allow',
+    'ALLOW',
+    'Permitir durante o uso do app',
+    'While using the app',
+    'OK',
+    'Ok',
+    'Fechar',
     'Nao permitir',
     'Não permitir',
     "Don't allow",
     'Deny',
-    'Permitir',
-    'Allow',
-    'ALLOW',
-    'OK',
-    'Ok',
-    'Fechar',
   ];
   for (const label of labels) {
     try {
@@ -474,6 +486,8 @@ async function hideKeyboardIfNeeded() {
 }
 
 async function scrollToElement(scrollId, targetId, direction = 'down', amount = 320, attempts = 8) {
+  const scrollCandidates = getIdCandidates(scrollId);
+
   for (let index = 0; index < attempts; index += 1) {
     if (await isVisible(targetId, 500)) {
       return true;
@@ -481,15 +495,24 @@ async function scrollToElement(scrollId, targetId, direction = 'down', amount = 
 
     let scrolled = false;
     for (let retry = 0; retry < 3; retry += 1) {
-      try {
-        await element(by.id(scrollId)).scroll(amount, direction);
-        scrolled = true;
-        break;
-      } catch (error) {
-        if (!isDetoxConcurrencyError(error) || retry >= 2) {
-          throw error;
+      for (const candidate of scrollCandidates) {
+        try {
+          await element(by.id(candidate)).scroll(amount, direction);
+          scrolled = true;
+          break;
+        } catch (error) {
+          if (!isDetoxConcurrencyError(error)) {
+            continue;
+          }
+          if (retry >= 2) {
+            throw error;
+          }
+          await sleep(220);
         }
-        await sleep(220);
+      }
+
+      if (scrolled) {
+        break;
       }
     }
 
@@ -501,17 +524,8 @@ async function scrollToElement(scrollId, targetId, direction = 'down', amount = 
     await sleep(150);
   }
 
-  try {
-    await waitFor(element(by.id(targetId))).toBeVisible().withTimeout(4000);
-    return true;
-  } catch {
-    try {
-      await waitFor(element(by.id(targetId))).toExist().withTimeout(4000);
-      return true;
-    } catch {
-      return false;
-    }
-  }
+  const resolved = await resolveElementWithFallback(targetId, 4000);
+  return Boolean(resolved);
 }
 
 function slugify(value) {

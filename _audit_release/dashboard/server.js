@@ -331,6 +331,7 @@ function createApp() {
   });
 
   app.post('/login', auth.handleLogin);
+  app.post('/auth/login', auth.handleLogin);
   app.post('/token/client', auth.authenticateAdmin, auth.handleClientToken);
 
   app.post('/auth/send-code', asyncRoute(async (req, res) => {
