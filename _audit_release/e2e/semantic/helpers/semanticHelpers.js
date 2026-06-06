@@ -269,6 +269,16 @@ async function waitForRuntimeIdle(timeoutMs = 14000) {
   return ELEMENTS.appRuntimeIdle;
 }
 
+async function waitForRuntimeIdleSoft(timeoutMs = 14000) {
+  try {
+    return await waitForRuntimeIdle(timeoutMs);
+  } catch (error) {
+    const busy = await getRuntimeBusyReasons();
+    console.warn(`[smoke][runtime_idle_soft_fail] busy=${busy.isBusy} err=${String(error?.message || error)}`);
+    return null;
+  }
+}
+
 async function assertRuntimeIdle() {
   await expect(element(bySemanticId(ELEMENTS.appRuntimeIdle))).toExist();
   await expect(element(bySemanticId(ELEMENTS.appAsyncIdle))).toExist();
@@ -320,6 +330,7 @@ module.exports = {
   getPendingRequests,
   getFailedRequests,
   waitForRuntimeIdle,
+  waitForRuntimeIdleSoft,
   assertRuntimeIdle,
   getRuntimeBusyReasons,
   waitForNoPendingRequests,
