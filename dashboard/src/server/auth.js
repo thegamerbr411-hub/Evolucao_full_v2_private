@@ -241,7 +241,23 @@ function createAuth(config = {}) {
     }
 
     const token = issueAdminToken();
-    return res.json({ ok: true, token });
+    const userId = username === adminUser ? 'admin-local' : `qa-${username || 'user'}`;
+    const userEmail = username.includes('@') ? username : `${username || 'qa'}@evolucao.local`;
+
+    return res.json({
+      ok: true,
+      token,
+      accessToken: token,
+      refreshToken: 'qa-refresh-token',
+      user: {
+        id: userId,
+        uid: userId,
+        email: userEmail,
+        name: username === adminUser ? 'Administrador' : 'QA User',
+        role: username === adminUser ? 'admin' : 'user',
+        isAdmin: username === adminUser,
+      },
+    });
   }
 
   function handleClientToken(req, res) {

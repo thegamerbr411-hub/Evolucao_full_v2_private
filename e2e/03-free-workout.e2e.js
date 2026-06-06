@@ -1,5 +1,5 @@
 const { getPersona } = require('./helpers/personas');
-const { ensureOnboarded, launchApp, runFreeWorkoutHappyPath } = require('./helpers/flows');
+const { ensureMainTabsReady, ensureOnboarded, launchApp, runFreeWorkoutHappyPath } = require('./helpers/flows');
 
 describe('03 - free workout', () => {
   const persona = getPersona();
@@ -7,6 +7,7 @@ describe('03 - free workout', () => {
   beforeAll(async () => {
     await launchApp();
     await ensureOnboarded(persona);
+    await ensureMainTabsReady(persona);
   });
 
   it('cria treino livre, adiciona exercicios e salva como rotina', async () => {

@@ -22,6 +22,37 @@ const {
 
 const ANDROID_APP_ID = 'com.tipolt.evolucaofullv2';
 
+const BOOTSTRAP_ONLY_IDS = new Set([
+  'app_bootstrap_ready',
+  'app-bootstrap-ready',
+  'app_root',
+  'app-root',
+]);
+
+const ROOT_TAB_MARKERS = [
+  'tab-home',
+  'tab-treino',
+  'tab-nutricao',
+  'tab-conversa',
+  'tab-social',
+  'tab-perfil',
+];
+
+const AUTH_SCREEN_MARKERS = [
+  'screen_login',
+  'screen_register',
+  'screen-login',
+  'screen-register',
+  'input_email',
+  'input-email',
+  'btn_login',
+  'btn-login',
+];
+
+function isBootstrapOnlyLanding(landingId) {
+  return BOOTSTRAP_ONLY_IDS.has(String(landingId || '').trim());
+}
+
 function resolveAdbPath() {
   const directCandidates = [
     process.env.ADB,
@@ -88,6 +119,69 @@ function clearAttachedAndroidAppData() {
   }
   adbArgs.push('shell', 'pm', 'clear', ANDROID_APP_ID);
   execFileSync(resolveAdbPath(), adbArgs, { stdio: 'pipe' });
+}
+
+function grantAttachedAndroidPermissionsViaAdb() {
+  if (device.getPlatform() !== 'android') {
+    return;
+  }
+
+  let adbName = String(process.env.DETOX_ADB_NAME || '').trim();
+  if (!adbName) {
+    try {
+      const output = execFileSync(resolveAdbPath(), ['devices'], {
+        encoding: 'utf-8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      });
+      const devices = String(output || '')
+        .split(/\r?\n/)
+        .slice(1)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line) => line.split(/\s+/))
+        .filter((parts) => parts[1] === 'device')
+        .map((parts) => parts[0]);
+      if (devices.length > 0) {
+        const physical = devices.find((serial) => !String(serial).startsWith('emulator-'));
+        adbName = physical || devices[0];
+      }
+    } catch {
+      // best effort
+    }
+  }
+
+  const adbBase = [];
+  if (adbName) {
+    adbBase.push('-s', adbName);
+  }
+
+  const permissions = [
+    'android.permission.POST_NOTIFICATIONS',
+    'android.permission.CAMERA',
+    'android.permission.READ_MEDIA_IMAGES',
+    'android.permission.READ_EXTERNAL_STORAGE',
+    'android.permission.RECORD_AUDIO',
+  ];
+
+  for (const permission of permissions) {
+    try {
+      execFileSync(resolveAdbPath(), [...adbBase, 'shell', 'pm', 'grant', ANDROID_APP_ID, permission], {
+        stdio: 'pipe',
+      });
+    } catch {
+      // permission may be unsupported on device/sdk
+    }
+  }
+
+  for (const appOp of ['POST_NOTIFICATION', 'CAMERA']) {
+    try {
+      execFileSync(resolveAdbPath(), [...adbBase, 'shell', 'appops', 'set', ANDROID_APP_ID, appOp, 'allow'], {
+        stdio: 'pipe',
+      });
+    } catch {
+      // best effort
+    }
+  }
 }
 
 async function waitForLandingByText(timeout = 12000) {
@@ -226,6 +320,8 @@ async function launchApp({ deleteApp = false } = {}) {
       if (attachedRun) {
         const mustRelaunchFromScratch = shouldForceTerminateAttached || attempt > 1;
 
+        grantAttachedAndroidPermissionsViaAdb();
+
         // Segunda tentativa sempre força relaunch completo para reduzir travas de bootstrap no attached.
         if (mustRelaunchFromScratch) {
           try {
@@ -240,7 +336,16 @@ async function launchApp({ deleteApp = false } = {}) {
           launchArgs: {
             detoxEnableSynchronization: 0,
           },
+          permissions: {
+            notifications: 'YES',
+          },
         });
+
+        try {
+          await device.disableSynchronization();
+        } catch {
+          // best effort
+        }
       } else {
         try {
           await device.terminateApp();
@@ -475,6 +580,86 @@ async function completeOnboarding(persona = getPersona()) {
   }
 }
 
+async function tapTreinoTab(timeout = 12000) {
+  if (await isVisible('tab-treino', 1200)) {
+    await tapElement('tab-treino', timeout);
+    return 'tab-treino';
+  }
+
+  if (await isVisible('tab_treinos', 1200)) {
+    await tapElement('tab_treinos', timeout);
+    return 'tab_treinos';
+  }
+
+  try {
+    await waitFor(element(by.text('Treino'))).toBeVisible().withTimeout(1800);
+    await element(by.text('Treino')).tap();
+    return 'text:Treino';
+  } catch {
+    return null;
+  }
+}
+
+async function isAuthScreenVisible() {
+  for (const marker of AUTH_SCREEN_MARKERS) {
+    if (await isVisible(marker, 900)) {
+      return marker;
+    }
+  }
+  return null;
+}
+
+async function ensureMainTabsReady(persona = getPersona(), options = {}) {
+  const timeoutMs = Number(options.timeoutMs || (isAttachedRun() ? 22000 : 15000));
+  const rootMarkers = [
+    ...ROOT_TAB_MARKERS,
+    'screen-home',
+    'screen_home',
+    'screen-treinos',
+    'screen_treinos',
+  ];
+
+  const initial = await waitForAny(rootMarkers, Math.min(timeoutMs, 8000)).catch(() => null);
+  if (initial) {
+    return initial;
+  }
+
+  const authMarker = await isAuthScreenVisible();
+  if (authMarker) {
+    throw new Error(
+      `main_tabs_unavailable: app na tela de auth (${authMarker}). tab_treinos/tab-treino so existem apos login em MainTabs.`
+    );
+  }
+
+  logStep('ensureMainTabsReady:recovery-start');
+  try {
+    await ensureOnboarded(persona);
+  } catch (error) {
+    logStep(`ensureMainTabsReady:ensureOnboarded-skip=${String(error?.message || error)}`);
+  }
+
+  try {
+    await goHome();
+  } catch (error) {
+    logStep(`ensureMainTabsReady:goHome-skip=${String(error?.message || error)}`);
+  }
+
+  const recovered = await waitForAny(rootMarkers, timeoutMs).catch(() => null);
+  if (recovered) {
+    logStep(`ensureMainTabsReady:ok=${recovered}`);
+    return recovered;
+  }
+
+  const authAfterRecovery = await isAuthScreenVisible();
+  if (authAfterRecovery) {
+    throw new Error(
+      `main_tabs_unavailable: auth ainda visivel (${authAfterRecovery}) apos recovery.`
+    );
+  }
+
+  throw new Error('main_tabs_unavailable: tab-treino/tab-home nao visivel apos recovery.');
+}
+
 async function ensureOnboarded(persona = getPersona()) {
   try {
     await device.launchApp({ newInstance: false });
@@ -567,6 +752,10 @@ async function ensureOnboarded(persona = getPersona()) {
         active = textLanding;
       }
     }
+  }
+
+  if (isBootstrapOnlyLanding(active)) {
+    active = null;
   }
 
   if (active === 'questionnaire-screen' || await isVisible('questionnaire-screen', 1000)) {
@@ -840,8 +1029,8 @@ async function goToTreinos() {
 
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     try {
-      if (await isVisible('tab-treino', 1200)) {
-        await tapElement('tab-treino', 12000);
+      const treinoTab = await tapTreinoTab(12000);
+      if (treinoTab) {
         await waitForAny(['screen-treinos', 'screen-routines', 'btn-iniciar-treino', 'btn-open-free-workout', 'btn-open-routines'], 12000);
         if (await isVisible('screen-routines', 1000)) {
           try {
@@ -1022,6 +1211,24 @@ async function saveGuidedWorkoutPartial() {
   }
 }
 
+async function openFreeWorkout() {
+  if (await isVisible('btn-open-free-workout', 1500)) {
+    await tapElement('btn-open-free-workout');
+    await waitFor(element(by.id('screen-free-workout'))).toBeVisible().withTimeout(15000);
+    return;
+  }
+
+  try {
+    await waitFor(element(by.text('Treino Livre'))).toBeVisible().withTimeout(2500);
+    await element(by.text('Treino Livre')).tap();
+  } catch {
+    await scrollToElement('screen_treinos', 'btn-open-free-workout', 'down', 360, 10);
+    await tapElement('btn-open-free-workout');
+  }
+
+  await waitFor(element(by.id('screen-free-workout'))).toBeVisible().withTimeout(15000);
+}
+
 async function runFreeWorkoutHappyPath(persona = getPersona()) {
   const firstExercise = 'Supino Reto';
   const secondExercise = 'Remada Curvada';
@@ -1046,8 +1253,7 @@ async function runFreeWorkoutHappyPath(persona = getPersona()) {
   };
 
   await goToTreinos();
-  await tapElement('btn-open-free-workout');
-  await waitFor(element(by.id('screen-free-workout'))).toBeVisible().withTimeout(15000);
+  await openFreeWorkout();
 
   await replaceInput('input-free-exercise-name', firstExercise);
   await addExercise();
@@ -1621,13 +1827,16 @@ async function collectHeatmap(clientId) {
 module.exports = {
   collectHeatmap,
   completeOnboarding,
+  ensureMainTabsReady,
   ensureOnboarded,
   goHome,
+  tapTreinoTab,
   goToCoach,
   goToSocial,
   goToNutrition,
   goToTreinos,
   launchApp,
+  openFreeWorkout,
   runCoachHappyPath,
   runFreeWorkoutHappyPath,
   runCreatedRoutineWorkoutHappyPath,
