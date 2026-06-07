@@ -1,5 +1,10 @@
 {
-  "generatedAt": "2026-06-07T22:30:53.535Z",
-  "totalDrift": 0,
-  "drift": []
+  "generatedAt": "2026-06-07T23:07:38.528Z",
+  "totalDrift": 1,
+  "drift": [
+    {
+      "type": "missing_in_audit",
+      "file": "e2e/99-coach-diag-once.e2e.js"
+    }
+  ]
 }
