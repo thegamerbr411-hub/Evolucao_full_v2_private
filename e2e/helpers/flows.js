@@ -342,6 +342,9 @@ async function launchApp({ deleteApp = false } = {}) {
           },
         });
 
+        await dismissBlockingSystemDialogs();
+        await sleep(400);
+
         try {
           await device.disableSynchronization();
         } catch {
@@ -610,6 +613,107 @@ async function isAuthScreenVisible() {
   return null;
 }
 
+async function assertOnboardedOrFail(persona = getPersona()) {
+  const authMarker = await isAuthScreenVisible();
+  if (authMarker) {
+    throw new Error(`onboarding_blocked: auth_required (${authMarker})`);
+  }
+
+  const mainTabMarker = await waitForAny([
+    ...ROOT_TAB_MARKERS,
+    'screen-home',
+    'screen_home',
+    'screen-treinos',
+    'screen_treinos',
+    'screen-workout',
+    'screen-free-workout',
+  ], 4000).catch(() => null);
+
+  if (!mainTabMarker) {
+    throw new Error('onboarding_blocked: main_tabs_not_visible apos ensureOnboarded');
+  }
+
+  return mainTabMarker;
+}
+
+async function captureAuthEvidence(evidencePrefix = 'v7_guided_auth_fail') {
+  try {
+    await device.takeScreenshot(evidencePrefix);
+  } catch {
+    // best effort
+  }
+
+  try {
+    const adbPath = resolveAdbPath();
+    const serial = process.env.DETOX_ADB_NAME || '';
+    const remote = '/sdcard/v7_auth_fail.xml';
+    const localDir = path.resolve(__dirname, '..', '..', 'qa', 'live_mapping');
+    if (!fs.existsSync(localDir)) {
+      fs.mkdirSync(localDir, { recursive: true });
+    }
+    const local = path.join(localDir, `${evidencePrefix}.xml`);
+    const adbArgs = serial
+      ? ['-s', serial, 'shell', 'uiautomator', 'dump', remote]
+      : ['shell', 'uiautomator', 'dump', remote];
+    execFileSync(adbPath, adbArgs, { stdio: 'pipe' });
+    const pullArgs = serial
+      ? ['-s', serial, 'pull', remote, local]
+      : ['pull', remote, local];
+    execFileSync(adbPath, pullArgs, { stdio: 'pipe' });
+    logStep(`auth-evidence-dump-ok:${evidencePrefix}`);
+  } catch (error) {
+    logStep(`auth-evidence-dump-fail:${evidencePrefix}=${String(error?.message || error)}`);
+  }
+}
+
+async function assertMainTabsReadyOrFail(persona = getPersona(), options = {}) {
+  const evidencePrefix = String(options.evidencePrefix || 'v7_guided_auth_fail');
+  try {
+    const marker = await ensureMainTabsReady(persona, options);
+    logStep(`assertMainTabsReady:ok=${marker}`);
+    return marker;
+  } catch (error) {
+    const message = String(error?.message || error);
+    const isAuth = /auth|onboarding_blocked/i.test(message);
+    if (isAuth && options.captureEvidence !== false) {
+      await captureAuthEvidence(evidencePrefix);
+    }
+    if (isAuth) {
+      throw new Error(`auth_required: ${message}`);
+    }
+    throw error;
+  }
+}
+
+async function resetWorkoutStateViaQaDeepLink(persona = getPersona()) {
+  try {
+    await device.openURL({ url: 'evolucao://qa/workout-reset' });
+    await sleep(2000);
+    logStep('workout-reset:deep-link-ok');
+  } catch (error) {
+    logStep(`workout-reset:deep-link-fail=${String(error?.message || error)}`);
+    throw error;
+  }
+
+  try {
+    await device.terminateApp();
+  } catch {
+    // best effort
+  }
+  await sleep(1000);
+
+  await device.launchApp({
+    newInstance: true,
+    launchArgs: {
+      detoxEnableSynchronization: 0,
+    },
+  });
+  await sleep(15000);
+
+  await ensureOnboarded(persona);
+  logStep('workout-reset:relaunch-onboard-ok');
+}
+
 async function ensureMainTabsReady(persona = getPersona(), options = {}) {
   const timeoutMs = Number(options.timeoutMs || (isAttachedRun() ? 22000 : 15000));
   const rootMarkers = [
@@ -696,6 +800,7 @@ async function ensureOnboarded(persona = getPersona()) {
 
   if (await isVisible('questionnaire-screen', 2000)) {
     await completeOnboarding(persona);
+    await assertOnboardedOrFail(persona);
     return;
   }
 
@@ -761,6 +866,7 @@ async function ensureOnboarded(persona = getPersona()) {
 
   if (active === 'questionnaire-screen' || await isVisible('questionnaire-screen', 1000)) {
     await completeOnboarding(persona);
+    await assertOnboardedOrFail(persona);
     return;
   }
 
@@ -801,6 +907,8 @@ async function ensureOnboarded(persona = getPersona()) {
       // permanece na tela atual quando aba não estiver acionável
     }
   }
+
+  await assertOnboardedOrFail(persona);
 }
 
 async function navigateToTab(tabId, expectedScreenId) {
@@ -1098,27 +1206,67 @@ async function goToSocial() {
   await navigateToTab('tab-social', 'screen-social');
 }
 
-async function runGuidedWorkoutHappyPath(persona = getPersona()) {
-  const ensureGuidedInputReady = async (fieldId) => {
+async function ensureWorkoutScreenOpen() {
+  await dismissBlockingSystemDialogs();
+
+  if (await isVisible('screen-workout', 2000)) {
+    return;
+  }
+
+  logStep('ensureWorkoutScreenOpen:reopen');
+  await goToTreinos();
+
+  if (await isVisible('btn-iniciar-treino', 3000)) {
+    await tapElement('btn-iniciar-treino');
+    await waitForAny(['screen-workout'], 20000);
+    logStep('ensureWorkoutScreenOpen:ok');
+    return;
+  }
+
+  throw new Error('ensureWorkoutScreenOpen: btn-iniciar-treino indisponivel');
+}
+
+async function ensureGuidedInputReady(fieldId) {
+  await dismissBlockingSystemDialogs();
+  await ensureWorkoutScreenOpen();
+  try {
+    await waitFor(element(by.id(fieldId))).toBeVisible().withTimeout(5000);
+    logStep(`ensureGuidedInputReady:ok=${fieldId}`);
+    return;
+  } catch {
     try {
-      await waitFor(element(by.id(fieldId))).toBeVisible().withTimeout(5000);
-      return;
-    } catch {
-      try {
-        if (!(await isVisible('btn-add-set', 1200))) {
-          await scrollToElement('screen-workout', 'btn-add-set', 'down', 360, 6);
-        }
+      if (await isVisible('screen-workout', 1200) && !(await isVisible('btn-add-set', 1200))) {
+        await scrollToElement('screen-workout', 'btn-add-set', 'down', 360, 6);
+      }
+      if (await isVisible('btn-add-set', 1200)) {
         await tapElement('btn-add-set', 5000);
         await sleep(280);
-      } catch {
-        // segue com fallback de scroll/tap
       }
-      await scrollToElement('screen-workout', fieldId, 'down', 360, 8);
-      await tapElement(fieldId, 6000);
-      await waitFor(element(by.id(fieldId))).toBeVisible().withTimeout(5000);
+    } catch {
+      // segue com fallback de scroll/tap
     }
-  };
+    await scrollToElement('screen-workout', fieldId, 'down', 360, 10);
+    if (await isVisible(fieldId, 3000)) {
+      logStep(`ensureGuidedInputReady:scroll-recovered=${fieldId}`);
+      return;
+    }
+    await scrollToElement('screen-workout', fieldId, 'up', 320, 8);
+    if (await isVisible(fieldId, 3000)) {
+      logStep(`ensureGuidedInputReady:scroll-up-recovered=${fieldId}`);
+      return;
+    }
+    await tapElement(fieldId, 6000);
+    await waitFor(element(by.id(fieldId))).toBeVisible().withTimeout(5000);
+    logStep(`ensureGuidedInputReady:recovered=${fieldId}`);
+  }
+}
 
+async function runGuidedWorkoutHappyPath(persona = getPersona()) {
+  try {
+    await ensureMainTabsReady(persona);
+  } catch (error) {
+    logStep(`guided:main-tabs-recover=${String(error?.message || error)}`);
+  }
   await goToTreinos();
   await humanDelay(persona, 'open-guided-workout');
 
@@ -1828,11 +1976,16 @@ async function collectHeatmap(clientId) {
 }
 
 module.exports = {
+  assertMainTabsReadyOrFail,
   collectHeatmap,
   completeOnboarding,
+  ensureGuidedInputReady,
   ensureMainTabsReady,
+  ensureWorkoutScreenOpen,
   ensureOnboarded,
   goHome,
+  isAuthScreenVisible,
+  resetWorkoutStateViaQaDeepLink,
   tapTreinoTab,
   goToCoach,
   goToSocial,

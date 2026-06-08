@@ -1,18 +1,5 @@
 {
-  "generatedAt": "2026-06-08T01:22:38.563Z",
-  "totalDrift": 3,
-  "drift": [
-    {
-      "type": "missing_in_audit",
-      "file": "e2e/99-coach-diag-once.e2e.js"
-    },
-    {
-      "type": "missing_in_audit",
-      "file": "e2e/99-v7-free-weight-reps.e2e.js"
-    },
-    {
-      "type": "missing_in_audit",
-      "file": "e2e/99-v7-guided-weight-reps.e2e.js"
-    }
-  ]
+  "generatedAt": "2026-06-08T21:58:27.502Z",
+  "totalDrift": 0,
+  "drift": []
 }

@@ -70,14 +70,17 @@ export default function CustomKeypad({
       <View style={styles.headerRow}>
         <Text style={styles.title}>{title}</Text>
         <View style={styles.headerActions}>
-          <TouchableOpacity testID="keypad-close" accessibilityLabel="keypad-close" accessible onPress={onClose} style={styles.headerBtn}><Text style={styles.headerBtnText}>Fechar</Text></TouchableOpacity>
-          <TouchableOpacity testID="keypad-confirm" accessibilityLabel="keypad-confirm" accessible onPress={onConfirm} style={[styles.headerBtn, styles.confirmBtn]}><Text style={[styles.headerBtnText, styles.confirmBtnText]}>OK</Text></TouchableOpacity>
+          <TouchableOpacity testID="keypad-close" accessibilityLabel="keypad-close" accessible collapsable={false} onPress={onClose} style={styles.headerBtn}><Text style={styles.headerBtnText}>Fechar</Text></TouchableOpacity>
+          <TouchableOpacity testID="keypad-confirm" accessibilityLabel="keypad-confirm" accessible collapsable={false} onPress={onConfirm} style={[styles.headerBtn, styles.confirmBtn]}><Text style={[styles.headerBtnText, styles.confirmBtnText]}>OK</Text></TouchableOpacity>
         </View>
       </View>
       <Text testID="keypad-value" style={styles.valueText}>{String(value || '0')}</Text>
       {visible ? (
         <TextInput
           testID="keypad-hidden-input"
+          accessibilityLabel="keypad-hidden-input"
+          accessible
+          importantForAccessibility="yes"
           value={String(value || '')}
           onChangeText={onChange}
           keyboardType="numeric"
@@ -157,6 +160,8 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 5,
+    minWidth: 44,
+    minHeight: 32,
     backgroundColor: '#162131',
   },
   headerBtnText: {
