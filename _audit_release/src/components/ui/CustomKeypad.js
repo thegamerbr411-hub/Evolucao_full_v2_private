@@ -1,5 +1,5 @@
 import React from 'react';
-import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors, spacing } from '../../theme';
 
 const KEYS = [
@@ -58,26 +58,52 @@ export default function CustomKeypad({
     onChange(`${current}${key}`);
   };
 
+  const keyTestId = (key) => {
+    if (key === '⌫') return 'keypad-backspace';
+    if (key === '.') return 'keypad-digit-dot';
+    return `keypad-digit-${key}`;
+  };
+
   return (
     <Animated.View style={[styles.wrap, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+      <View testID="keypad-modal" collapsable={false} style={styles.keypadInner}>
       <View style={styles.headerRow}>
         <Text style={styles.title}>{title}</Text>
         <View style={styles.headerActions}>
-          <TouchableOpacity onPress={onClose} style={styles.headerBtn}><Text style={styles.headerBtnText}>Fechar</Text></TouchableOpacity>
-          <TouchableOpacity onPress={onConfirm} style={[styles.headerBtn, styles.confirmBtn]}><Text style={[styles.headerBtnText, styles.confirmBtnText]}>OK</Text></TouchableOpacity>
+          <TouchableOpacity testID="keypad-close" accessibilityLabel="keypad-close" accessible onPress={onClose} style={styles.headerBtn}><Text style={styles.headerBtnText}>Fechar</Text></TouchableOpacity>
+          <TouchableOpacity testID="keypad-confirm" accessibilityLabel="keypad-confirm" accessible onPress={onConfirm} style={[styles.headerBtn, styles.confirmBtn]}><Text style={[styles.headerBtnText, styles.confirmBtnText]}>OK</Text></TouchableOpacity>
         </View>
       </View>
-      <Text style={styles.valueText}>{String(value || '0')}</Text>
+      <Text testID="keypad-value" style={styles.valueText}>{String(value || '0')}</Text>
+      {visible ? (
+        <TextInput
+          testID="keypad-hidden-input"
+          value={String(value || '')}
+          onChangeText={onChange}
+          keyboardType="numeric"
+          importantForAutofill="no"
+          autoComplete="off"
+          style={styles.hiddenDetoxInput}
+        />
+      ) : null}
       <View style={styles.grid}>
         {KEYS.map((row, rowIndex) => (
           <View key={`row-${rowIndex}`} style={styles.row}>
             {row.map((key) => (
-              <TouchableOpacity key={key} onPress={() => appendKey(key)} style={styles.keyBtn}>
+              <TouchableOpacity
+                key={key}
+                testID={keyTestId(key)}
+                accessibilityLabel={keyTestId(key)}
+                accessible
+                onPress={() => appendKey(key)}
+                style={styles.keyBtn}
+              >
                 <Text style={styles.keyText}>{key}</Text>
               </TouchableOpacity>
             ))}
           </View>
         ))}
+      </View>
       </View>
     </Animated.View>
   );
@@ -96,6 +122,18 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
     paddingBottom: spacing.lg,
     zIndex: 90,
+  },
+  keypadInner: {
+    width: '100%',
+  },
+  hiddenDetoxInput: {
+    position: 'absolute',
+    opacity: 0.01,
+    height: 44,
+    width: 120,
+    left: 8,
+    top: 36,
+    zIndex: 100,
   },
   headerRow: {
     flexDirection: 'row',

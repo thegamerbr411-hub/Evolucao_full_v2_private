@@ -11,6 +11,7 @@ const {
   isVisible,
   logStep,
   dismissBlockingSystemDialogs,
+  fillWorkoutKeypadField,
   replaceInput,
   scrollToElement,
   sleep,
@@ -1153,16 +1154,18 @@ async function runGuidedWorkoutHappyPath(persona = getPersona()) {
   }
 
   await ensureGuidedInputReady('input-weight');
-  await replaceInput('input-weight', persona.guidedWeight);
+  await fillWorkoutKeypadField('input-weight', persona.guidedWeight);
   await ensureGuidedInputReady('input-reps');
-  await replaceInput('input-reps', persona.guidedReps);
+  await fillWorkoutKeypadField('input-reps', persona.guidedReps);
   await hideKeyboardIfNeeded();
-  await humanDelay(persona, 'save-guided-set');
-  try {
-    await tapElement('btn-save-set');
-  } catch {
-    await waitFor(element(by.id('btn-save-set'))).toBeVisible().withTimeout(3000);
-    await tapElement('btn-save-set');
+  if (await isVisible('btn-save-set', 1500)) {
+    await humanDelay(persona, 'save-guided-set');
+    try {
+      await tapElement('btn-save-set');
+    } catch {
+      await waitFor(element(by.id('btn-save-set'))).toBeVisible().withTimeout(3000);
+      await tapElement('btn-save-set');
+    }
   }
   try {
     await waitForAny(['btn-editar-serie', 'btn-remover-serie', 'serie-salva-indicator'], 6000);
@@ -1672,8 +1675,8 @@ async function runCreatedRoutineWorkoutHappyPath(persona = getPersona()) {
     throw new Error('Nao abriu tela de treino apos iniciar rotina criada.');
   }
 
-  await replaceInput('input-weight', persona.guidedWeight);
-  await replaceInput('input-reps', persona.guidedReps);
+  await fillWorkoutKeypadField('input-weight', persona.guidedWeight);
+  await fillWorkoutKeypadField('input-reps', persona.guidedReps);
   await hideKeyboardIfNeeded();
   try {
     await tapElement('btn-save-set');

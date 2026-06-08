@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { execFileSync } = require('child_process');
+const { execFileSync, execSync } = require('child_process');
 const { hasDetoxGlobals, isAttachedRun } = require('./runtime');
 
 const expoQaClientId = process.env['EXPO_PUBLIC_QA_CLIENT_ID'];
@@ -603,6 +603,227 @@ async function waitForCountIncrease(reader, previousCount, timeout = 10000) {
   throw new Error(`contador nao aumentou em ${timeout}ms`);
 }
 
+async function fillWorkoutKeypadField(fieldId, value, timeout = 12000) {
+  if (!(await isVisible(fieldId, 3000))) {
+    await tryScrollToTarget(fieldId);
+  }
+
+  await tapElement(fieldId, timeout);
+  await sleep(900);
+
+  try {
+    await waitFor(element(by.id('keypad-hidden-input'))).toExist().withTimeout(6000);
+    await replaceInput('keypad-hidden-input', String(value || ''));
+    await confirmKeypad();
+    await sleep(320);
+    return;
+  } catch {
+    logStep(`keypad-hidden-input-unavailable:${fieldId}`);
+  }
+
+  let keypadReady = false;
+  for (const probeId of ['keypad-confirm', 'keypad-modal', 'keypad-value']) {
+    if (await isVisible(probeId, 1800)) {
+      keypadReady = true;
+      break;
+    }
+  }
+
+  if (!keypadReady) {
+    try {
+      await waitFor(element(by.text('OK'))).toExist().withTimeout(4000);
+      keypadReady = true;
+    } catch {
+      logStep(`keypad-not-open-after-${fieldId}`);
+      throw new Error(`keypad nao abriu apos tocar ${fieldId}`);
+    }
+  }
+
+  const KEY_GRID = {
+    1: [0, 0], 2: [0, 1], 3: [0, 2],
+    4: [1, 0], 5: [1, 1], 6: [1, 2],
+    7: [2, 0], 8: [2, 1], 9: [2, 2],
+    '.': [3, 0], 0: [3, 1],
+  };
+
+  const getAndroidScreenSize = () => {
+    const serial = process.env.DETOX_ADB_NAME || '';
+    const adbArgs = serial ? ['-s', serial, 'shell', 'wm', 'size'] : ['shell', 'wm', 'size'];
+    try {
+      const output = execSync(`adb ${adbArgs.join(' ')}`, { encoding: 'utf8' });
+      const match = String(output || '').match(/(\d+)x(\d+)/);
+      if (match) {
+        return { width: Number(match[1]), height: Number(match[2]) };
+      }
+    } catch {
+      // fallback abaixo
+    }
+    return { width: 1080, height: 2340 };
+  };
+
+  const adbTap = (x, y) => {
+    const serial = process.env.DETOX_ADB_NAME || '';
+    const prefix = serial ? `adb -s ${serial}` : 'adb';
+    execSync(`${prefix} shell input tap ${Math.round(x)} ${Math.round(y)}`, { stdio: 'pipe' });
+  };
+
+  const parseBoundsCenter = (boundsText) => {
+    const match = String(boundsText || '').match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
+    if (!match) {
+      return null;
+    }
+    const x1 = Number(match[1]);
+    const y1 = Number(match[2]);
+    const x2 = Number(match[3]);
+    const y2 = Number(match[4]);
+    return {
+      x: Math.round((x1 + x2) / 2),
+      y: Math.round((y1 + y2) / 2),
+    };
+  };
+
+  const tapKeyFromUiDump = (char) => {
+    try {
+      const serial = process.env.DETOX_ADB_NAME || '';
+      const prefix = serial ? `adb -s ${serial}` : 'adb';
+      const remote = '/sdcard/v7_keypad_dump.xml';
+      const local = path.join(ARTIFACTS_DIR, 'v7_keypad_dump.xml');
+      ensureArtifactsDir();
+      execSync(`${prefix} shell uiautomator dump ${remote}`, { stdio: 'pipe' });
+      execSync(`${prefix} pull ${remote} "${local}"`, { stdio: 'pipe' });
+      const xml = fs.readFileSync(local, 'utf8');
+      const label = char === '.' ? '.' : String(char);
+      const pattern = new RegExp(`text="${label.replace('.', '\\.')}"[^>]*bounds="\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]"`, 'gi');
+      let best = null;
+      let match = pattern.exec(xml);
+      while (match) {
+        const y2 = Number(match[4]);
+        const center = parseBoundsCenter(`[${match[1]},${match[2]}][${match[3]},${match[4]}]`);
+        if (center && (!best || y2 > best.y2)) {
+          best = { ...center, y2 };
+        }
+        match = pattern.exec(xml);
+      }
+      if (!best) {
+        return false;
+      }
+      logStep(`keypad-dump:${char}@${best.x},${best.y}`);
+      adbTap(best.x, best.y);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const tapKeyByCoords = async (char) => {
+    if (tapKeyFromUiDump(char)) {
+      return;
+    }
+    const pos = KEY_GRID[char];
+    if (!pos) {
+      throw new Error(`tecla ${char} nao suportada no keypad`);
+    }
+    const [row, col] = pos;
+
+    try {
+      const frame = await element(by.id('keypad-modal')).getAttributes();
+      const width = Number(frame?.width || 0);
+      const height = Number(frame?.height || 0);
+      const originX = Number(frame?.screenX ?? frame?.x ?? 0);
+      const originY = Number(frame?.screenY ?? frame?.y ?? 0);
+      if (width && height) {
+        const headerOffset = Math.min(96, height * 0.22);
+        const gridHeight = height - headerOffset;
+        const cellW = width / 3;
+        const cellH = gridHeight / 4;
+        const x = originX + cellW * (col + 0.5);
+        const y = originY + headerOffset + cellH * (row + 0.5);
+        await adbTap(x, y);
+        return;
+      }
+    } catch {
+      // fallback por tamanho da tela
+    }
+
+    const { width, height } = getAndroidScreenSize();
+    const keypadTop = height * 0.58;
+    const gridHeight = height * 0.36;
+    const cellW = width / 3;
+    const cellH = gridHeight / 4;
+    const x = cellW * (col + 0.5);
+    const y = keypadTop + cellH * (row + 0.5);
+    logStep(`keypad-coord:${char}@${Math.round(x)},${Math.round(y)}`);
+    adbTap(x, y);
+  };
+
+  const confirmKeypad = async () => {
+    try {
+      const serial = process.env.DETOX_ADB_NAME || '';
+      const prefix = serial ? `adb -s ${serial}` : 'adb';
+      const remote = '/sdcard/v7_keypad_ok.xml';
+      const local = path.join(ARTIFACTS_DIR, 'v7_keypad_ok.xml');
+      ensureArtifactsDir();
+      execSync(`${prefix} shell uiautomator dump ${remote}`, { stdio: 'pipe' });
+      execSync(`${prefix} pull ${remote} "${local}"`, { stdio: 'pipe' });
+      const xml = fs.readFileSync(local, 'utf8');
+      const okPatterns = [
+        /content-desc="keypad-confirm"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/i,
+        /text="OK"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/gi,
+      ];
+      let okBest = null;
+      const confirmById = xml.match(okPatterns[0]);
+      if (confirmById) {
+        okBest = parseBoundsCenter(`[${confirmById[1]},${confirmById[2]}][${confirmById[3]},${confirmById[4]}]`);
+      } else {
+        let okMatch = okPatterns[1].exec(xml);
+        while (okMatch) {
+          const center = parseBoundsCenter(`[${okMatch[1]},${okMatch[2]}][${okMatch[3]},${okMatch[4]}]`);
+          if (center && center.y > (okBest?.y || 0)) {
+            okBest = center;
+          }
+          okMatch = okPatterns[1].exec(xml);
+        }
+      }
+      if (okBest && okBest.x > 0 && okBest.y > 0) {
+        logStep(`keypad-confirm-dump@${okBest.x},${okBest.y}`);
+        adbTap(okBest.x, okBest.y);
+        return;
+      }
+    } catch {
+      // fallback abaixo
+    }
+    try {
+      await element(by.id('keypad-confirm')).tap();
+      return;
+    } catch {
+      // fallback
+    }
+    try {
+      await element(by.text('OK')).atIndex(0).tap();
+      return;
+    } catch {
+      // fallback
+    }
+    const { width, height } = getAndroidScreenSize();
+    adbTap(width * 0.84, height * 0.56);
+  };
+
+  const tapKey = async (char) => {
+    await tapKeyByCoords(char);
+  };
+
+  const fillKeypadViaCoords = async (rawValue) => {
+    for (const char of String(rawValue || '').split('')) {
+      await tapKey(char);
+      await sleep(150);
+    }
+    await confirmKeypad();
+    await sleep(320);
+  };
+
+  await fillKeypadViaCoords(value);
+}
+
 async function fetchHeatmap(clientId = DEFAULT_CLIENT_ID) {
   const response = await fetch('http://127.0.0.1:3000/api/heatmap', {
     headers: {
@@ -626,6 +847,7 @@ module.exports = {
   countEventEntries,
   dismissBlockingSystemDialogs,
   fetchHeatmap,
+  fillWorkoutKeypadField,
   hideKeyboardIfNeeded,
   humanDelay,
   isVisible,
