@@ -110,6 +110,9 @@ stabilization_phase_2/VIDEO_VALIDATION/
 recovery_audit/**/video/
 qa/**/interactions/
 
+# Local QA APK extraction artifacts
+qa/live_mapping/_apk_extract/
+
 # capturas e dumps locais
 evol_v2_*.jpg
 evol_v3_*.jpg
