@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -421,7 +421,14 @@ export default function CoachChatScreen({ navigation }) {
   const buildDailyCoachStateSafe = typeof buildDailyCoachState === 'function' ? buildDailyCoachState : () => ({ done: {}, missing: {} });
   const buildCoachMessageSafe = typeof buildCoachMessage === 'function' ? buildCoachMessage : () => ({});
   const addWaterIntakeSafe = typeof addWaterIntake === 'function' ? addWaterIntake : () => ({ ok: false });
+  const chatListRef = useRef(null);
   const [input, setInput] = useState('');
+
+  const scrollChatToEnd = useCallback(() => {
+    requestAnimationFrame(() => {
+      chatListRef.current?.scrollToEnd?.({ animated: true });
+    });
+  }, []);
   const [coachCard, setCoachCard] = useState({
     doneText: '',
     missingText: '',
@@ -729,6 +736,7 @@ export default function CoachChatScreen({ navigation }) {
     }
 
     setMessages((prev) => [...prev, userMessage, coachMessage]);
+    scrollChatToEnd();
     await sendRealtimeMessage(String(user?.id || 'global'), trimmed, 'user');
     await sendRealtimeMessage(String(user?.id || 'global'), coachMessage.text, 'coach');
     setMemory({
@@ -821,18 +829,14 @@ export default function CoachChatScreen({ navigation }) {
       },
     ]);
     refreshCoachCard();
+    scrollChatToEnd();
   };
 
-  return (
-    <SafeAreaView testID="screen-coach" style={styles.container} edges={['top', 'bottom']}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.flex}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
-      >
+  const renderCoachHeader = useCallback(() => (
+    <>
       <ScreenHeader title="Coach Diario" subtitle="Conversa orientada pelo seu treino, agua e macros do dia." />
 
-      <AppCard style={[styles.coachCard, { borderColor: urgencyUI.borderColor, backgroundColor: urgencyUI.backgroundColor }]}> 
+      <AppCard style={[styles.coachCard, { borderColor: urgencyUI.borderColor, backgroundColor: urgencyUI.backgroundColor }]}>
         <Text style={styles.urgencyBadge}>{urgencyUI.badge}</Text>
         <Text style={styles.coachTitle}>Ja foi feito</Text>
         <Text style={styles.coachLine}>{coachCard.doneText}</Text>
@@ -887,71 +891,95 @@ export default function CoachChatScreen({ navigation }) {
           </View>
         ) : null}
       </AppCard>
+    </>
+  ), [
+    actionFeedback,
+    coachCard,
+    showCoachDetails,
+    showWaterPicker,
+    customWaterInput,
+    smartInsight,
+    urgencyUI,
+  ]);
 
-      <FlatList
-        style={styles.chatBox}
-        contentContainerStyle={styles.chatContent}
-        data={messages}
-        keyExtractor={(item, index) => String(item?.id || index)}
-        renderItem={({ item: message }) => {
-          const actionSuggestions = message.role === 'coach' ? extractCoachAction(message.text) : null;
-          
-          return (
-            <View testID={message.role === 'user' ? 'message-user' : 'message-coach'} style={[styles.bubble, message.role === 'user' ? styles.userBubble : styles.coachBubble]}>
-              <Text style={[styles.bubbleText, message.role === 'user' ? styles.userText : styles.coachText]}>{message.role === 'coach' ? toCoachShortText(message.text) : message.text}</Text>
-              
-              {/* BLOCO 7: Coach Evoluído - Botões de ação rápida */}
-              {actionSuggestions && actionSuggestions.length > 0 ? (
-                <View style={styles.coachActionButtons}>
-                  {actionSuggestions.map((action, idx) => (
-                    <TouchableOpacity key={idx} style={styles.coachActionButton} onPress={() => {
-                      if (action.intent === 'training') openWorkout();
-                      else if (action.intent === 'nutrition') openNutrition();
-                      else if (action.intent === 'water') addWaterQuick();
-                      else if (action.intent === 'routine') openRoutines();
-                    }}>
-                      <Text style={styles.coachActionButtonText}>{action.label}</Text>
-                    </TouchableOpacity>
-                  ))}
+  return (
+    <SafeAreaView testID="screen-coach" style={styles.container} edges={['top', 'bottom']}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.flex}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
+      >
+        <View style={styles.body}>
+          <FlatList
+            ref={chatListRef}
+            style={styles.chatBox}
+            contentContainerStyle={styles.chatContent}
+            data={messages}
+            keyExtractor={(item, index) => String(item?.id || index)}
+            ListHeaderComponent={renderCoachHeader}
+            keyboardShouldPersistTaps="handled"
+            onContentSizeChange={scrollChatToEnd}
+            renderItem={({ item: message }) => {
+              const actionSuggestions = message.role === 'coach' ? extractCoachAction(message.text) : null;
+
+              return (
+                <View testID={message.role === 'user' ? 'message-user' : 'message-coach'} style={[styles.bubble, message.role === 'user' ? styles.userBubble : styles.coachBubble]}>
+                  <Text style={[styles.bubbleText, message.role === 'user' ? styles.userText : styles.coachText]}>{message.role === 'coach' ? toCoachShortText(message.text) : message.text}</Text>
+
+                  {actionSuggestions && actionSuggestions.length > 0 ? (
+                    <View style={styles.coachActionButtons}>
+                      {actionSuggestions.map((action, idx) => (
+                        <TouchableOpacity key={idx} style={styles.coachActionButton} onPress={() => {
+                          if (action.intent === 'training') openWorkout();
+                          else if (action.intent === 'nutrition') openNutrition();
+                          else if (action.intent === 'water') addWaterQuick();
+                          else if (action.intent === 'routine') openRoutines();
+                        }}>
+                          <Text style={styles.coachActionButtonText}>{action.label}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  ) : null}
                 </View>
-              ) : null}
-            </View>
-          );
-        }}
-      />
+              );
+            }}
+          />
+        </View>
 
-      <View style={styles.suggestionChips}>
-        {[
-          { label: '💪 Meu treino hoje', text: 'como esta meu treino hoje' },
-          { label: '🍗 Falta proteína?', text: 'quanto falta de proteina hoje' },
-          { label: '💧 Registrar água', text: 'quero registrar agua' },
-          { label: '📊 Progresso', text: 'como esta meu progresso' },
-        ].map((chip) => (
-          <TouchableOpacity
-            key={chip.label}
-            style={styles.suggestionChip}
-            onPress={() => { setInput(chip.text); }}
-          >
-            <Text style={styles.suggestionChipText}>{chip.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-      <View style={styles.inputRow}>
-        <TextInput
-          testID="chat-input"
-          value={input}
-          onChangeText={setInput}
-          onSubmitEditing={sendMessage}
-          returnKeyType="send"
-          blurOnSubmit={false}
-          placeholder="Pergunte ao seu coach..."
-          placeholderTextColor={colors.textMuted}
-          style={styles.input}
-        />
-        <TouchableOpacity testID="btn-chat-send" style={styles.sendButton} onPress={sendMessage}>
-          <Text style={styles.sendText}>Enviar</Text>
-        </TouchableOpacity>
-      </View>
+        <View style={styles.chatFooter}>
+          <View style={styles.suggestionChips}>
+            {[
+              { label: '💪 Meu treino hoje', text: 'como esta meu treino hoje' },
+              { label: '🍗 Falta proteína?', text: 'quanto falta de proteina hoje' },
+              { label: '💧 Registrar água', text: 'quero registrar agua' },
+              { label: '📊 Progresso', text: 'como esta meu progresso' },
+            ].map((chip) => (
+              <TouchableOpacity
+                key={chip.label}
+                style={styles.suggestionChip}
+                onPress={() => { setInput(chip.text); }}
+              >
+                <Text style={styles.suggestionChipText}>{chip.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <View style={styles.inputRow}>
+            <TextInput
+              testID="chat-input"
+              value={input}
+              onChangeText={setInput}
+              onSubmitEditing={sendMessage}
+              returnKeyType="send"
+              blurOnSubmit={false}
+              placeholder="Pergunte ao seu coach..."
+              placeholderTextColor={colors.textMuted}
+              style={styles.input}
+            />
+            <TouchableOpacity testID="btn-chat-send" style={styles.sendButton} onPress={sendMessage}>
+              <Text style={styles.sendText}>Enviar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -967,16 +995,23 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
+  body: {
+    flex: 1,
+    minHeight: 0,
+  },
+  chatFooter: {
+    flexShrink: 0,
+  },
   chatBox: {
     flex: 1,
+    minHeight: 0,
     backgroundColor: colors.cardElevated,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.border,
-    marginBottom: 10,
   },
   coachCard: {
-    marginBottom: 10,
+    marginBottom: 8,
     borderWidth: 1,
   },
   urgencyBadge: {
@@ -1067,6 +1102,7 @@ const styles = StyleSheet.create({
   chatContent: {
     padding: spacing.md,
     gap: spacing.sm,
+    paddingBottom: spacing.sm,
   },
   bubble: {
     borderRadius: 14,
@@ -1118,7 +1154,7 @@ const styles = StyleSheet.create({
   inputRow: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 16,
+    marginBottom: 0,
   },
   suggestionChips: {
     flexDirection: 'row',
