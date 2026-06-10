@@ -297,8 +297,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   statusInvalid: {
-    borderColor: '#B45309',
-    backgroundColor: '#3A2510',
+    borderColor: colors.warning,
+    backgroundColor: colors.warningMuted,
   },
   statusText: {
     color: colors.textSecondary,
@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#1A2435',
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: 8,
@@ -334,10 +334,10 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   helperText: {
-    color: '#FCA5A5',
+    color: colors.danger,
     fontSize: 11,
     fontWeight: '700',
-    marginTop: 4,
+    marginTop: spacing.xxs,
     marginLeft: 28,
   },
   keypadWrap: {

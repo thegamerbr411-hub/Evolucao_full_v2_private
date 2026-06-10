@@ -3030,7 +3030,7 @@ export default function WorkoutScreen({ navigation, route }) {
                                   top: segment.top,
                                   width: segment.width,
                                   transform: [{ rotate: `${segment.angle}deg` }],
-                                  backgroundColor: segment.rising ? '#4ADE80' : '#93C5FD',
+                                  backgroundColor: segment.rising ? '#4ADE80' : 'colors.secondary',
                                 },
                               ]}
                             />
@@ -3043,7 +3043,7 @@ export default function WorkoutScreen({ navigation, route }) {
                                 {
                                   left: point.x - 3,
                                   top: point.y - 3,
-                                  backgroundColor: index === sparklinePoints.length - 1 ? '#FCD34D' : '#93C5FD',
+                                  backgroundColor: index === sparklinePoints.length - 1 ? '#FCD34D' : 'colors.secondary',
                                 },
                               ]}
                             />
@@ -3520,7 +3520,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   uxSpeedWarn: {
-    color: '#FCA5A5',
+    color: 'colors.danger',
     fontSize: 11,
     fontWeight: '800',
     marginTop: 2,
@@ -3554,12 +3554,12 @@ const styles = StyleSheet.create({
   progressFill: {
     height: '100%',
     borderRadius: 999,
-    backgroundColor: '#66C7A3',
+    backgroundColor: 'colors.primary',
   },
   actionToast: {
     borderWidth: 1,
-    borderColor: '#2F7A5B',
-    backgroundColor: '#123429',
+    borderColor: 'colors.primaryDim',
+    backgroundColor: 'colors.successMuted',
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -3576,15 +3576,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   restBanner: {
-    backgroundColor: '#123429',
+    backgroundColor: 'colors.successMuted',
     borderWidth: 1,
-    borderColor: '#2F7A5B',
+    borderColor: 'colors.primaryDim',
     borderRadius: 12,
     padding: 14,
     marginBottom: 10,
   },
   restBannerLabel: {
-    color: '#9DE2C2',
+    color: 'colors.primary',
     fontSize: 13,
     fontWeight: '700',
   },
@@ -3735,7 +3735,7 @@ const styles = StyleSheet.create({
   },
   presetBtnActive: {
     backgroundColor: '#DBEAFE',
-    borderColor: '#93C5FD',
+    borderColor: 'colors.secondary',
     opacity: 1,
     transform: [{ scale: 1.06 }],
   },
@@ -3847,7 +3847,7 @@ const styles = StyleSheet.create({
   },
   controlHint: {
     marginBottom: 8,
-    color: '#9CC4F7',
+    color: 'colors.textSecondary',
     fontSize: 11,
     fontWeight: '700',
   },
@@ -3989,14 +3989,14 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   setRowSavedPulse: {
-    backgroundColor: '#123429',
+    backgroundColor: 'colors.successMuted',
     borderRadius: 8,
     paddingHorizontal: 6,
     paddingVertical: 4,
   },
   setLabel: {
     width: 26,
-    color: '#D5E6FF',
+    color: 'colors.textSecondary',
     fontWeight: '800',
     paddingTop: 12,
   },
@@ -4032,7 +4032,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   setRowHelperText: {
-    color: '#FCA5A5',
+    color: 'colors.danger',
     fontSize: 11,
     fontWeight: '700',
     marginTop: 4,
@@ -4054,15 +4054,15 @@ const styles = StyleSheet.create({
   },
   rpeWrap: {
     borderWidth: 1,
-    borderColor: '#36506E',
+    borderColor: 'colors.outlineStrong',
     borderRadius: 10,
     paddingHorizontal: 6,
     paddingVertical: 6,
-    backgroundColor: '#111C2B',
+    backgroundColor: 'colors.surface',
     minWidth: 132,
   },
   rpeLabel: {
-    color: '#9CC4F7',
+    color: 'colors.textSecondary',
     fontSize: 10,
     fontWeight: '800',
     textAlign: 'center',
@@ -4078,20 +4078,20 @@ const styles = StyleSheet.create({
     minWidth: 48,
     minHeight: 48,
     borderWidth: 1,
-    borderColor: '#4B6C96',
+    borderColor: 'colors.secondaryDim',
     borderRadius: 999,
-    backgroundColor: '#1B2B44',
+    backgroundColor: 'colors.surfaceElevated',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 6,
     paddingHorizontal: 8,
   },
   rpeChipActive: {
-    borderColor: '#93C5FD',
-    backgroundColor: '#254974',
+    borderColor: 'colors.secondary',
+    backgroundColor: 'colors.secondaryMuted',
   },
   rpeChipText: {
-    color: '#E2E8F0',
+    color: 'colors.textPrimary',
     fontSize: 13,
     fontWeight: '800',
   },
@@ -4146,7 +4146,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 8,
     paddingVertical: 6,
-    backgroundColor: '#1B2840',
+    backgroundColor: 'colors.surfaceAlt',
   },
   suggestButtonText: {
     color: colors.textPrimary,
@@ -4155,14 +4155,14 @@ const styles = StyleSheet.create({
   },
   progressionButton: {
     borderWidth: 1,
-    borderColor: '#1F7A57',
+    borderColor: 'colors.primaryDim',
     borderRadius: 999,
     paddingHorizontal: 8,
     paddingVertical: 6,
-    backgroundColor: '#123429',
+    backgroundColor: 'colors.successMuted',
   },
   progressionButtonText: {
-    color: '#A7F3D0',
+    color: 'colors.primary',
     fontSize: 11,
     fontWeight: '800',
   },
@@ -4190,13 +4190,13 @@ const styles = StyleSheet.create({
   },
   editSetBtn: {
     borderRadius: 8,
-    backgroundColor: '#1F4D7A',
+    backgroundColor: 'colors.secondaryDim',
     paddingHorizontal: 10,
     paddingVertical: 7,
   },
   removeSetBtn: {
     borderRadius: 8,
-    backgroundColor: '#7F1D1D',
+    backgroundColor: 'colors.dangerMuted',
     paddingHorizontal: 10,
     paddingVertical: 7,
   },
@@ -4303,7 +4303,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   sparklineLabel: {
-    color: '#9CC4F7',
+    color: 'colors.textSecondary',
     fontSize: 10,
     fontWeight: '700',
   },
@@ -4320,16 +4320,16 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 6,
     borderRadius: 999,
-    backgroundColor: '#223047',
+    backgroundColor: 'colors.borderSubtle',
     overflow: 'hidden',
   },
   historyBarFill: {
     height: '100%',
     borderRadius: 999,
-    backgroundColor: '#66C7A3',
+    backgroundColor: 'colors.primary',
   },
   historyBarFail: {
-    backgroundColor: '#FCA5A5',
+    backgroundColor: 'colors.danger',
   },
   setActionsRow: {
     marginTop: 4,
@@ -4623,18 +4623,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: colors.textPrimary,
     marginBottom: spacing.lg,
-  },
-  summaryLine: {
-    color: colors.textPrimary,
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  summaryPositive: {
-    color: colors.success,
-    fontSize: 13,
-    fontWeight: '800',
-    marginBottom: 8,
   },
   summaryLine: {
     color: colors.textPrimary,

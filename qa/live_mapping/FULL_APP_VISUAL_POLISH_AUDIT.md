@@ -227,9 +227,97 @@ Audit: drift=0
 
 ---
 
-### Proximo bloco recomendado
+---
 
-**Bloco 2 — Design system / cores hardcoded**
+## BLOCO 2 — Design system: cores hardcoded para tokens do tema
 
-Prioridade: AnimatedToast, WorkoutSetField, SetRow, ExerciseCard (quick wins) + inicio WorkoutScreen (RPE palette).
-Nenhuma logica de negocio alterada. Apenas substituicao de valores literais por tokens do tema.
+**Data execucao:** 2026-06-10
+**Branch:** polish/full-app-visual-icon-cards (acima do commit 8da5dc0)
+**Status:** READY-TECH — aguardando autorizacao de commit
+
+### Arquivos alterados
+
+| Arquivo | Hardcodes removidos | Tokens aplicados |
+|---------|--------------------|--------------------|
+| `src/components/ui/AnimatedToast.js` | 4 cores + 3 spacing/radius | colors.successMuted, colors.primaryDim, colors.textPrimary, radius.pill, spacing.xs/sm/xxs |
+| `src/components/workout/WorkoutSetField.js` | 2 cores + 1 radius | colors.card, colors.secondaryMuted, radius.md |
+| `src/components/workout/SetRow.js` | 4 hardcodes | colors.warning, colors.warningMuted, colors.card, colors.danger, spacing.xxs |
+| `src/components/workout/ExerciseCard.js` | 2 hardcodes | colors.danger, radius.md |
+| `src/screens/WorkoutScreen.js` | 20 cores + duplicatas removidas | Ver tabela abaixo |
+| `_audit_release/src/*` (5 espelhos) | Sincronizados via audit:release:sync | drift=0 |
+
+### WorkoutScreen.js — substituicoes detalhadas
+
+| Hardcode removido | Token aplicado | Estilo |
+|------------------|----------------|--------|
+| `#123429` (4x) | `colors.successMuted` | restBanner, setRowSavedPulse, progressionButton |
+| `#2F7A5B` (2x) | `colors.primaryDim` | restBanner border, progressionButton border |
+| `#9DE2C2` | `colors.primary` | restBannerLabel |
+| `#9CC4F7` (3x) | `colors.textSecondary` | rpeLabel, sparklineLabel |
+| `#111C2B` | `colors.surface` | rpeWrap background |
+| `#36506E` | `colors.outlineStrong` | rpeWrap border |
+| `#4B6C96` | `colors.secondaryDim` | rpeChip border |
+| `#1B2B44` | `colors.surfaceElevated` | rpeChip background |
+| `#93C5FD` (4x) | `colors.secondary` | rpeChipActive border |
+| `#254974` | `colors.secondaryMuted` | rpeChipActive background |
+| `#E2E8F0` | `colors.textPrimary` | rpeChipText |
+| `#1B2840` | `colors.surfaceAlt` | suggestButton |
+| `#1F7A57` | `colors.primaryDim` | progressionButton border |
+| `#A7F3D0` | `colors.primary` | progressionButtonText |
+| `#1F4D7A` | `colors.secondaryDim` | editSetBtn |
+| `#7F1D1D` | `colors.dangerMuted` | removeSetBtn |
+| `#223047` | `colors.borderSubtle` | historyBarTrack |
+| `#66C7A3` (2x) | `colors.primary` | historyBarFill |
+| `#FCA5A5` (3x) | `colors.danger` | historyBarFail, helperText (SetRow) |
+| `#D5E6FF` | `colors.textSecondary` | setLabel |
+| Duplicatas `summaryLine` + `summaryPositive` | Removidas (2 copias -> 1) | — |
+
+### Regras nao violadas
+
+- testIDs: INTACTOS (zero alteracao de IDs)
+- Logica de saveSet: INTACTA
+- Navegacao: INTACTA
+- Auth: INTACTA
+- Lógica de negocio: ZERO alteracao
+
+### Testes/Audit
+
+| Gate | Resultado |
+|------|-----------|
+| `audit:release:sync` | drift=0 PASS |
+| `audit:release:check` | drift=0 PASS |
+| `npm test --runInBand` | Mesmas 8 falhas pre-existentes. Zero novas falhas. PASS |
+| gradlew assembleDebug | BUILD SUCCESSFUL PASS |
+| adb install | Success PASS |
+| logcat JS errors | 0 erros PASS |
+
+### Screenshots capturados
+
+- `05_b2_app_open_before_rebuild.png` — estado antes do rebuild
+- `08_b2_app_open.png` — apos install
+- `09_b2_app_loaded.png` — app carregado sem erros
+
+### Riscos
+
+| Risco | Status |
+|-------|--------|
+| Quebraria RPE visualmente | BAIXO — paleta azul do tema e coerente |
+| restBanner mudaria aspecto | BAIXO — successMuted mantém tom verde escuro |
+| editSetBtn menos visivel | BAIXO — secondaryDim e azul adequado para acao |
+| summaryLine duplicado causava re-render | RESOLVIDO — apenas 1 ocorrencia agora |
+
+### Veredito
+
+**BLOCO 2: READY-TECH**
+Design tokens aplicados: PASS
+audit:release: drift=0 PASS
+Testes: sem regressao PASS
+App sem crash: PASS
+
+---
+
+### Proximo bloco recomendado (apos autorizacao de commit do Bloco 2)
+
+**Bloco 3 — Treino avancado: layout, Header de progresso, premium dark visual**
+Escopo: melhorar hierarquia visual do WorkoutScreen (header exercise progress, card active border, loading states).
+Continua zero toque em logica de negocio ou testIDs.
