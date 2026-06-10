@@ -165,7 +165,7 @@ export function WorkoutsHubView({
         {...qaAliasProps(QA_ELEMENTS.btnStartWorkout, 'btn-iniciar-treino')}
         title={session.ctaLabel || 'Iniciar treino'}
         onPress={async () => {
-          const params = await resolveWorkoutContinueParams();
+          const params = await resolveWorkoutContinueParams({ isContinue: session.isContinue });
           navigation.navigate('TreinoHoje', params);
         }}
       />

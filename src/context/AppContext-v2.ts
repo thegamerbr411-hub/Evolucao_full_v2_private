@@ -500,7 +500,13 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       return [];
     }
 
-    return Array.isArray(adaptive?.exercises) ? adaptive.exercises : [];
+    const exercises = Array.isArray(adaptive?.exercises) ? adaptive.exercises : [];
+    if (exercises.length >= 2) {
+      return exercises;
+    }
+
+    const splitExercises = getWorkoutBySplit(plan?.trainingSplit) || [];
+    return splitExercises.length >= 2 ? splitExercises : exercises;
   }, [plan?.trainingSplit, profile?.trainingDaysPerWeek, profile?.currentPain, profile?.pain, workoutLogs]);
 
   const getTodayWorkoutSummary = useCallback(() => {
