@@ -427,3 +427,156 @@ Commit sugerido:
 `
 polish(workout): fix quoted token bugs and refine advanced workout visual
 `
+
+---
+
+## BLOCO 4 -- Home + cards principais + CTAs premium dark fitness
+
+**Data execucao:** 2026-06-10
+**Branch:** polish/full-app-visual-icon-cards (acima do commit 184d4d7)
+**Status:** READY-USER/VISUAL PASS -- aguardando autorizacao de commit
+
+### Estado inicial confirmado
+
+- branch: polish/full-app-visual-icon-cards OK
+- commits: 184d4d7 / cdcfb6b / 8da5dc0 presentes OK
+- working tree: limpa antes do Bloco 4 OK
+- audit:release:check: drift=0 OK
+
+### Home before - evidencia real
+
+IDs confirmados no before XML (emulador, app instalado sem QA flags):
+- screen_home OK
+- home_screen_anchor OK
+- home_ready OK
+- btn_home_main_cta OK
+- btn_home_insights OK
+- btn_home_nutrition OK
+
+Textos visiveis: "Boa noite", "Sem sequencia ativa", "+0 XP hoje"
+
+### Problemas encontrados
+
+| # | Problema | Arquivo | Linha |
+|---|---------|---------|-------|
+| 1 | Hardcoded #2e1f06 em recoveryPrimaryText | HomeScreen.js | 881 |
+| 2 | Hardcoded #052e20 em mainMissionCtaText | HomeScreen.js | 897 |
+| 3 | Hardcoded #134e3a em mainMissionCtaSub | HomeScreen.js | 903 |
+| 4 | paddingHorizontal: 20 / gap: 20 sem tokens | HomeScreen.js | 795-798 |
+| 5 | borderRadius: 14 hardcoded em 5 cards | HomeScreen.js | varios |
+| 6 | padding: 20 hardcoded em 3 cards | HomeScreen.js | varios |
+| 7 | mainMissionCta sem sombra, minHeight: 88 | HomeScreen.js | 888 |
+| 8 | mainCta sem sombra premium | HomeScreen.js | 1232 |
+| 9 | quickDailyButton borderRadius: 12 (deve ser radius.md=14) | HomeScreen.js | 1022 |
+| 10 | quickDailyButtonFeatured sem shadow | HomeScreen.js | 1029 |
+| 11 | greeting fontSize: 24 (muito grande) | HomeScreen.js | 1133 |
+| 12 | quickTitle/progressTitle marginBottom hardcoded | HomeScreen.js | varios |
+| 13 | xpCard/macroCard sem sombra | HomeScreen.js | 1162/1292 |
+| 14 | missionCard sem sombra | HomeScreen.js | 1249 |
+| 15 | streakBadge backgroundColor card (nao elevado) | HomeScreen.js | 1141 |
+
+### Melhorias aplicadas (29)
+
+| Estilo | Antes | Depois |
+|--------|-------|--------|
+| container | paddingH:20, gap:20 | spacing.lg, spacing.lg |
+| dailyTopCard | padding:20, radius:14, gap:6 | spacing.lg, radius.md, spacing.xs |
+| dailyTopTitle | fontSize:18 | fontSize:17 + letterSpacing:-0.2 |
+| dailyTopXp | colors.success | colors.primary + letterSpacing |
+| missionMainCard | padding:20, radius:14, gap:8 | spacing.lg, radius.md, spacing.xs |
+| recoveryCard | padding:16, radius:14, gap:8 | spacing.md, radius.md, spacing.xs |
+| recoveryPrimaryText | #2e1f06 | colors.textInverse |
+| mainMissionCta | radius:14, bg:success, minH:88, sem shadow | radius.md, primary, minH:96, shadow elevation:4 |
+| mainMissionCtaText | #052e20 | colors.textInverse |
+| mainMissionCtaSub | #134e3a | rgba(11,11,15,0.65) |
+| progressCard | padding:20, radius:14, gap:6 | spacing.lg, radius.md, spacing.xxs |
+| progressTitle | fontSize:12, marginBottom:4 | fontSize:11, letterSpacing:1, spacing.xxs |
+| progressLine | fontSize:16 | fontSize:15, letterSpacing:-0.2 |
+| coachCard | padding:18, radius:14, gap:6 | spacing.md, radius.md, spacing.xxs |
+| quickCard | padding:20, radius:14 | spacing.lg, radius.md |
+| quickTitle | fontSize:12, marginBottom:12 | fontSize:11, letterSpacing:1, spacing.sm |
+| quickDailyButton | radius:12, paddingV:14 | radius.md, spacing.sm |
+| quickDailyButtonFeatured | sem shadow | shadow elevation:2 |
+| quickDailyButtonText | fontSize:15 | fontSize:14 |
+| greeting | fontSize:24 | fontSize:22, letterSpacing:-0.5 |
+| streakBadge | bg:card, minWidth:56 | cardElevated, minWidth:60 |
+| xpCard | sem shadow | shadow elevation:1 |
+| workoutCardTitle | fontWeight:700 | fontWeight:800, letterSpacing:-0.1 |
+| mainCta | paddingV:spacing.lg, sem shadow | spacing.md, shadow elevation:3 |
+| mainCtaText | fontWeight:800 | fontWeight:900 |
+| missionCard | sem shadow | shadow elevation:2 |
+| missionTitle | fontSize:20 | fontSize:19, letterSpacing:-0.3 |
+| macroCard | sem shadow | shadow elevation:1 |
+| shortcutLabel | fontWeight:600 | fontWeight:700 |
+
+### Regras nao violadas
+
+- testIDs: INTACTOS -- screen_home, home_ready, btn_home_main_cta, btn_home_insights, btn_home_nutrition, home_screen_anchor
+- logica de negocio: INTACTA
+- auth: INTACTA
+- saveSet: INTACTO
+- navegacao: INTACTA
+
+### Home after - evidencia real
+
+IDs confirmados no after XML:
+- screen_home OK
+- home_screen_anchor OK
+- home_ready OK
+- btn_home_main_cta OK [bounds: [63,685][1017,937] -- altura 252px]
+- btn_home_insights OK
+- btn_home_nutrition OK
+
+CTA area de toque: 954 x 252 pixels (aumento de minHeight 88->96)
+
+### Testes/Audit
+
+| Gate | Resultado |
+|------|-----------|
+| audit:release:sync | drift=0 PASS |
+| audit:release:check | drift=0 PASS |
+| npm test --runInBand | 0 novas falhas PASS (8 pre-existentes) |
+| gradlew assembleDebug | BUILD SUCCESSFUL PASS |
+| adb install -r | Success PASS |
+| logcat ReactNativeJS | errors_count: 0 PASS |
+
+### Arquivos alterados
+
+| Arquivo | Tipo |
+|---------|------|
+| src/screens/HomeScreen.js | 29 melhorias visuais |
+| _audit_release/src/screens/HomeScreen.js | espelho |
+| qa/audit-release-sync-report.json | drift=0 |
+| qa/live_mapping/FULL_APP_VISUAL_POLISH_AUDIT.md | este relatorio |
+
+### Riscos
+
+| Risco | Avaliacao |
+|-------|-----------|
+| mainMissionCtaSub rgba hardcoded | BAIXO -- tom neutro escuro padrao |
+| mainCta minHeight 88->96 | POSITIVO -- area de toque maior |
+| shadows/elevation | BAIXO -- apenas iOS/Android natural shadow |
+| greeting fontSize 24->22 | POSITIVO -- hierarquia mais limpa |
+
+### Veredito
+
+BLOCO 4: READY-USER/VISUAL PASS
+
+Hardcodes eliminados: 3 (#2e1f06, #052e20, #134e3a) PASS
+Tokens aplicados: 26 melhorias de spacing/radius PASS
+Shadows premium: 5 componentes PASS
+audit:release:check: drift=0 PASS
+npm test: 0 novas falhas PASS
+testIDs Home: TODOS PRESENTES PASS
+JS errors: 0 PASS
+
+---
+
+### Proxima acao unica
+
+Aguardando autorizacao de Felipe para commitar o Bloco 4.
+
+Commit sugerido:
+`
+polish(home): refine Home screen premium dark fitness visual
+`
