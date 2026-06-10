@@ -316,8 +316,114 @@ App sem crash: PASS
 
 ---
 
-### Proximo bloco recomendado (apos autorizacao de commit do Bloco 2)
+---
 
-**Bloco 3 — Treino avancado: layout, Header de progresso, premium dark visual**
-Escopo: melhorar hierarquia visual do WorkoutScreen (header exercise progress, card active border, loading states).
-Continua zero toque em logica de negocio ou testIDs.
+## BLOCO 3 -- Treino avancado visual premium
+
+**Data execucao:** 2026-06-10
+**Branch:** polish/full-app-visual-icon-cards (acima do commit cdcfb6b)
+**Status:** READY-USER/VISUAL PASS -- aguardando autorizacao de commit
+
+### Problema visual (before) - evidencia real
+
+Screenshot/XML capturado no emulador com QA fixture ativo (qaWorkoutFixture+androidNavAudit=true).
+Tela: Exercicio 2 de 3 (Agachamento Livre), modo avancado.
+
+IDs confirmados no before XML:
+- workout-advanced-header OK
+- workout-exercise-index-1 OK
+- workout-exercise-progress OK
+- workout-mode-bar OK
+- input-weight-base-1-Agachamento Livre-0 OK
+- input-reps-base-1-Agachamento Livre-0 OK
+
+Bugs criticos encontrados antes das correcoes:
+1. 32 tokens com aspas erradas: 'colors.TOKEN' (string literal em vez de referencia JS)
+2. Sparklines: #4ADE80, #FCD34D hardcoded
+3. exerciseCardFallback: #7C2D12, #2A140F, #FDBA74, #FED7AA
+4. presetBtnActive: #DBEAFE e 'colors.secondary' com aspas
+5. controlHint: 'colors.textSecondary' string literal
+6. Duplicata de progressTrack/progressFill (BLOCO 4 section)
+7. uxSpeedWrap/Label/Good: #2F4766, #101826, #D3E3FA, #86EFAC
+8. progressHeaderText: #CFE4FF hardcoded
+9. progressTrack: #1A283C, #2F4766 hardcoded
+10. actionToastText: #D1FAE5 hardcoded
+
+### Correcoes aplicadas (21 melhorias + 32 bug-fixes)
+
+| Categoria | Correcao |
+|-----------|----------|
+| 32 quoted tokens | 'colors.TOKEN' -> colors.TOKEN (re.sub) |
+| Sparklines | #4ADE80->colors.primary, #FCD34D->colors.warning |
+| exerciseCardFallback | tokens danger/surface/warning/textSecondary |
+| presetBtnActive | #DBEAFE->colors.secondaryMuted |
+| uxSpeedWrap/Label/Good | tokens outlineStrong/surface/textSecondary/primary |
+| progressHeaderText | textSecondary + uppercase + letterSpacing |
+| progressTrack | borderSubtle, height 10->8, sem border extra |
+| actionToastText | textPrimary |
+| duplicata progressTrack | removida |
+| topRow | + alignItems center |
+| metaText | textMuted + fontSize 11 |
+| modeToggleRow | marginBottom 6->10 + paddingVertical 4 |
+| modeToggleAction | primary/primaryMuted pill premium |
+| modeToggleActionText | primary + fontWeight 800 |
+| modeToggleLabel | textPrimary (mais visivel) |
+| exerciseProgressWrap | padding 14->16, radius 12->14 |
+| exerciseProgressWrapAdvanced | + shadow elevation 2 |
+| exerciseProgressText | fontSize 16->17, fontWeight 900 |
+| exerciseProgressSub | cor primary (destaque do nome) |
+| exerciseCardActive | removido scale 1.015, elevation 4 |
+| exerciseCardMuted | opacity 0.6->0.72, borderSubtle |
+
+### Validacao do fluxo ex2
+
+| Passo | Resultado |
+|-------|-----------|
+| Navegar para treino avancado | OK |
+| workout-exercise-index-1 presente | PASS |
+| Preencher peso=80, reps=10 | PASS |
+| Salvar serie ex2 | PASS |
+| Continua no ex2 (nao voltou ex1) | PASS -- workout-exercise-index-0 ABSENT |
+| JS errors logcat | errors_count: 0 PASS |
+
+### Testes/Audit
+
+| Gate | Resultado |
+|------|-----------|
+| audit:release:check | drift=0 PASS |
+| npm test --runInBand | 0 novas falhas PASS |
+| gradlew assembleDebug | BUILD SUCCESSFUL PASS |
+| adb install -r | Success PASS |
+| logcat ReactNativeJS | errors_count: 0 PASS |
+
+### Arquivos alterados
+
+| Arquivo | Tipo |
+|---------|------|
+| src/screens/WorkoutScreen.js | 53 substituicoes (21+32) |
+| _audit_release/src/screens/WorkoutScreen.js | espelho |
+| app.json | QA flags ativadas (debug only) |
+| _audit_release/app.json | espelho |
+| qa/audit-release-sync-report.json | drift=0 |
+
+### Veredito
+
+BLOCO 3: READY-USER/VISUAL PASS
+
+Bug-fixes quoted tokens: 32 corrigidos PASS
+Melhorias visuais: 21 aplicadas PASS
+audit:release:check: drift=0 PASS
+npm test: 0 novas falhas PASS
+saveSet ex2: validado, nao voltou ex1 PASS
+JS errors: 0 PASS
+
+---
+
+### Proxima acao unica
+
+Aguardando autorizacao de Felipe para commitar o Bloco 3.
+
+Commit sugerido:
+`
+polish(workout): fix quoted token bugs and refine advanced workout visual
+`
