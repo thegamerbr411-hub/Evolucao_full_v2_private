@@ -58,6 +58,7 @@ import { logError as logQaError } from '../utils/errorLogger';
 import { saveCompletedWorkoutToApi, syncPendingWorkouts } from '../services/workoutApiService';
 import { onWorkoutCompleted, getEngagementMessage } from '../services/socialEngagementService';
 import { useWorkoutStore } from '../stores/useWorkoutStore';
+import { getWorkoutBySplit, WORKOUT_LIBRARY } from '../context/modules/workout.js';
 import { workoutDevLog } from '../utils/workoutDevLog';
 import {
   RPE_CHIPS,
@@ -135,13 +136,41 @@ export default function WorkoutScreen({ navigation, route }) {
     getTodayWorkoutSummary,
     getWorkoutGamification,
     getWorkoutDelta,
+    getSmartWorkoutRecommendation,
     workoutLogs,
   } = workoutApi;
   const { getNutritionFeedback } = useNutrition();
   const { hasFeatureAccess } = useNotifications();
 
   const todayKey = useMemo(() => getTodayKeyLocal(), []);
-  const baseExercises = useMemo(() => getTodayWorkout(), [getTodayWorkout]);
+  const baseExercises = useMemo(() => {
+    const fromToday = Array.isArray(getTodayWorkout?.()) ? getTodayWorkout() : [];
+    const recommendation = typeof getSmartWorkoutRecommendation === 'function'
+      ? getSmartWorkoutRecommendation()
+      : null;
+    const fromRecommended = Array.isArray(recommendation?.exercises) ? recommendation.exercises : [];
+
+    let best = fromToday.length >= fromRecommended.length ? fromToday : fromRecommended;
+    if (best.length >= 2) {
+      return best;
+    }
+
+    const fromSplit = getWorkoutBySplit(plan?.trainingSplit) || [];
+    if (fromSplit.length >= 2) {
+      return fromSplit;
+    }
+
+    const pushFallback = WORKOUT_LIBRARY.push || [];
+    if (pushFallback.length >= 2) {
+      return pushFallback;
+    }
+    // Fallback definitivo: garante pelo menos 2 exercicios para evitar "ex2-not-added"
+    const definitiveFallback = WORKOUT_LIBRARY.fullBody || [];
+    if (definitiveFallback.length >= 2) {
+      return definitiveFallback;
+    }
+    return best.length > 0 ? best : definitiveFallback;
+  }, [getTodayWorkout, getSmartWorkoutRecommendation, plan?.trainingSplit]);
   const [sessionBaseExercises, setSessionBaseExercises] = useState([]);
   const [customExercises, setCustomExercises] = useState([]);
   const sessionExerciseKey = useMemo(
@@ -594,20 +623,41 @@ export default function WorkoutScreen({ navigation, route }) {
   }, [workoutVariant, canFinishWorkoutNow, computedGuidedSets, computedPlannedSets, computedCompletionRate]);
 
   useEffect(() => {
-    if (selectedWorkoutId) {
+    if (selectedWorkoutId || customExercises.length > 0) {
       return;
     }
 
-    if (sessionBaseExercises.length > 0 || customExercises.length > 0) {
+    const normalized = (Array.isArray(baseExercises) ? baseExercises : [])
+      .map((item, index) => normalizeWorkoutExercise(item, index, 'base'))
+      .filter(Boolean);
+
+    if (!normalized.length) {
       return;
     }
 
-    setSessionBaseExercises(
-      (Array.isArray(baseExercises) ? baseExercises : [])
-        .map((item, index) => normalizeWorkoutExercise(item, index, 'base'))
-        .filter(Boolean)
+    if (!sessionBaseExercises.length) {
+      setSessionBaseExercises(normalized);
+      return;
+    }
+
+    if (sessionBaseExercises.length >= normalized.length) {
+      return;
+    }
+
+    const sessionKey = sessionBaseExercises.map((item) => item.name).join('|');
+    const targetKey = normalized.map((item) => item.name).join('|');
+    if (sessionKey === targetKey) {
+      return;
+    }
+
+    setSessionBaseExercises(normalized);
+    setSetCountByExercise(
+      normalized.reduce((acc, item) => {
+        acc[item.name] = Math.max(3, Number(item.sets || 3));
+        return acc;
+      }, {})
     );
-  }, [baseExercises, selectedWorkoutId, sessionBaseExercises.length, customExercises.length]);
+  }, [baseExercises, selectedWorkoutId, sessionBaseExercises, customExercises.length]);
 
   const qaMultiWorkoutEnabled = __DEV__
     && String(process.env.EXPO_PUBLIC_QA_MULTI_WORKOUT || '').trim() === '1';
@@ -632,12 +682,12 @@ export default function WorkoutScreen({ navigation, route }) {
       .length;
 
     if (guidedSetsToday > 0 && sessionBaseExercises.length >= 1) {
-      if (sessionBaseExercises.length === 1 && normalized.length >= 2) {
+      if (sessionBaseExercises.length < normalized.length) {
         const sessionName = String(sessionBaseExercises[0]?.name || '').trim().toLowerCase();
         const sessionInTarget = normalized.some(
           (item) => String(item?.name || '').trim().toLowerCase() === sessionName,
         );
-        if (sessionInTarget && normalized.length > sessionBaseExercises.length) {
+        if (sessionInTarget) {
           const existingNames = new Set(
             sessionBaseExercises.map((item) => String(item?.name || '').trim().toLowerCase()),
           );
@@ -655,10 +705,14 @@ export default function WorkoutScreen({ navigation, route }) {
               });
               return next;
             });
+          } else if (sessionBaseExercises.length < normalized.length) {
+            setSessionBaseExercises(normalized);
           }
         }
       }
-      return;
+      if (sessionBaseExercises.length >= normalized.length) {
+        return;
+      }
     }
 
     if (sessionBaseExercises.length >= normalized.length) {
@@ -766,6 +820,44 @@ export default function WorkoutScreen({ navigation, route }) {
       .length;
     const shouldPreserveSessionState = guidedSetsToday > 0 && !sessionExerciseKey;
 
+    const normalizedBase = (Array.isArray(baseExercises) ? baseExercises : [])
+      .map((item, index) => normalizeWorkoutExercise(item, index, 'base'))
+      .filter(Boolean);
+
+    if (safeRoutine.length < 2 && normalizedBase.length >= 2) {
+      const baseTargetKey = normalizedBase.map((item) => item.name).join('|');
+      if (sessionExerciseKey === baseTargetKey) {
+        return;
+      }
+
+      setSessionBaseExercises(normalizedBase);
+      setCustomExercises([]);
+      if (!shouldPreserveSessionState) {
+        setActiveExerciseIndex(0);
+        setSetCountByExercise(
+          normalizedBase.reduce((acc, item) => {
+            acc[item.name] = Number(item.sets || 3);
+            return acc;
+          }, {})
+        );
+        setDraftSetsByExercise(
+          normalizedBase.reduce((acc, item) => {
+            const totalSets = Math.max(1, Number(item.sets || 3));
+            acc[item.name] = Array.from({ length: totalSets }, () => ({
+              weight: '',
+              reps: '',
+              rpe: '8',
+            }));
+            return acc;
+          }, {})
+        );
+      }
+      setShowWorkoutSummary(false);
+      setShowSubstitutePicker(false);
+      setExerciseQuery('');
+      return;
+    }
+
     setSessionBaseExercises(safeRoutine);
     setCustomExercises([]);
     if (!shouldPreserveSessionState) {
@@ -791,7 +883,7 @@ export default function WorkoutScreen({ navigation, route }) {
     setShowWorkoutSummary(false);
     setShowSubstitutePicker(false);
     setExerciseQuery('');
-  }, [selectedWorkoutId, getUserRoutineById, sessionExerciseKey, workoutLogs, todayKey]);
+  }, [selectedWorkoutId, getUserRoutineById, sessionExerciseKey, workoutLogs, todayKey, baseExercises]);
 
   useEffect(() => {
     if (!allExercises.length) {

@@ -483,7 +483,7 @@ export default function HomeScreen({ navigation }) {
         legacyId: 'home-quick-workout',
         label: 'Retomar treino agora',
         onPress: async () => {
-          const params = await resolveWorkoutContinueParams();
+          const params = await resolveWorkoutContinueParams({ isContinue: true });
           navigation.navigate('TreinoHoje', params);
         },
       },
@@ -559,7 +559,7 @@ export default function HomeScreen({ navigation }) {
                 source: 'main_cta',
               });
             }
-            resolveWorkoutContinueParams().then((params) => {
+            resolveWorkoutContinueParams({ isContinue: isContinueWorkout }).then((params) => {
               navigation.navigate('TreinoHoje', params);
             });
           }}

@@ -25,7 +25,19 @@ export async function clearActiveRoutineId() {
   await AsyncStorage.removeItem(WORKOUT_ACTIVE_ROUTINE_STORAGE_KEY);
 }
 
-export async function resolveWorkoutContinueParams() {
-  const workoutId = await readActiveRoutineId();
+export function resolveWorkoutNavigationParams({ isContinue = false, activeRoutineId = null } = {}) {
+  if (!isContinue) {
+    return undefined;
+  }
+  const workoutId = String(activeRoutineId || '').trim();
   return workoutId ? { workoutId } : undefined;
+}
+
+export async function resolveWorkoutContinueParams({ isContinue = false } = {}) {
+  if (!isContinue) {
+    await clearActiveRoutineId();
+    return undefined;
+  }
+  const activeRoutineId = await readActiveRoutineId();
+  return resolveWorkoutNavigationParams({ isContinue: true, activeRoutineId });
 }
