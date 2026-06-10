@@ -3,6 +3,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { isLogoutInProgress } from '../services/sessionCleanupService';
 import { getUserIdentity } from '../services/appIdentityService';
 import { secureGetItemAsync } from '../services/secureStorage';
+import { isQaWorkoutFixtureEnabled, QA_USER_ID_PREFIX } from '../qa/qaWorkoutFixture';
 
 import { useUserStore } from '../stores/useUserStore';
 import { useWorkoutStore } from '../stores/useWorkoutStore';
@@ -217,6 +218,22 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
       if (currentUser) {
         const currentStoreUser = useUserStore.getState().user;
+
+        // Guard: if a QA fixture user is active, do not let Firebase (including anonymous
+        // users restored from persistence) overwrite it. Only active in __DEV__ + fixture enabled.
+        if (
+          typeof __DEV__ !== 'undefined' && __DEV__
+          && isQaWorkoutFixtureEnabled()
+          && currentStoreUser?.id
+          && String(currentStoreUser.id).startsWith(QA_USER_ID_PREFIX)
+        ) {
+          console.log('[QA WORKOUT FIXTURE] replacing anonymous user with qa user — skipping Firebase onAuthStateChanged override for QA fixture user');
+          if (!useUserStore.getState().isHydrated) {
+            setUserHydrated(true);
+          }
+          return;
+        }
+
         const preserveAdminRole =
           currentStoreUser?.id === currentUser.uid
           && String(currentStoreUser?.role || '').toLowerCase() === 'admin';

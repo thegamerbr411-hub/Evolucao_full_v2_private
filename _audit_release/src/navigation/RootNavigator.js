@@ -2,6 +2,7 @@
 import React from 'react';
 import { ActivityIndicator, Platform, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import Constants from 'expo-constants';
 import { auth } from '../services/firebase';
 import { useAppStore } from '../stores/useAppStore';
 import { useUserStore } from '../stores/useUserStore';
@@ -39,6 +40,7 @@ import {
   setQaRuntimeState,
   startQaMetric,
 } from '../qa/qaAutomationState';
+import { seedQaWorkoutReadyState, isQaWorkoutFixtureEnabled, QA_USER_ID_PREFIX } from '../qa/qaWorkoutFixture';
 
 const Stack = createNativeStackNavigator();
 
@@ -49,11 +51,15 @@ const WEB_NAV_AUDIT =
 
 /**
  * Android/iOS QA: same bypass as web when building a local audit APK (EAS/Gradle + env).
- * Does nothing unless EXPO_PUBLIC_ANDROID_NAV_AUDIT=1 at bundle time.
+ * Reads from env var (EXPO_PUBLIC_ANDROID_NAV_AUDIT=1) OR from app.json extra.androidNavAudit.
  */
-const ANDROID_NAV_AUDIT =
-  Platform.OS !== 'web' &&
-  String(process.env.EXPO_PUBLIC_ANDROID_NAV_AUDIT || '').trim() === '1';
+const ANDROID_NAV_AUDIT = (() => {
+  if (Platform.OS === 'web') return false;
+  const fromEnv = String(process.env.EXPO_PUBLIC_ANDROID_NAV_AUDIT || '').trim() === '1';
+  const fromExtra = String(Constants.expoConfig?.extra?.androidNavAudit || '').trim().toLowerCase();
+  const fromExtraBool = fromExtra === '1' || fromExtra === 'true' || Constants.expoConfig?.extra?.androidNavAudit === true;
+  return fromEnv || fromExtraBool;
+})();
 
 const NAV_AUDIT = WEB_NAV_AUDIT || ANDROID_NAV_AUDIT;
 
@@ -92,6 +98,33 @@ export default function RootNavigator(){
       setHasCompletedQuestionnaire(true);
     }
     setNavAuditReady(true);
+  }, [isHydrated, setHasCompletedQuestionnaire]);
+
+  // QA Workout Fixture: Seed pre-onboarded workout state when enabled
+  React.useEffect(() => {
+    if (!isQaWorkoutFixtureEnabled() || !isHydrated) {
+      return;
+    }
+    console.log('[QA WORKOUT FIXTURE] nav audit bypass active — seeding QA user and workout state');
+    // Always set QA fixture user (overrides any existing user, including anonymous Firebase users)
+    const u = useUserStore.getState();
+    u.setUser({
+      id: `${QA_USER_ID_PREFIX}workout-fixture`,
+      role: 'user',
+      name: 'QA Workout Fixture',
+      email: 'qa+workoutfixture@fixture.local',
+    });
+    u.setProfile({
+      goal: 'hipertrofia',
+      level: 'intermediario',
+      currentWeight: 80,
+      targetWeight: 78,
+      height: 175,
+      trainingDaysPerWeek: 3,
+    });
+    setHasCompletedQuestionnaire(true);
+    seedQaWorkoutReadyState();
+    console.log('[QA WORKOUT FIXTURE] navigation unlocked — hasCompletedQuestionnaire=true, QA user set');
   }, [isHydrated, setHasCompletedQuestionnaire]);
 
   React.useEffect(() => {
