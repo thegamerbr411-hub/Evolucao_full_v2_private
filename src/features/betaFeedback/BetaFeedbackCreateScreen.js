@@ -26,6 +26,8 @@ import {
   mapImagePickerError,
   validatePickedAsset,
 } from './mediaPicker.js';
+import { isUploadEnabled } from './uploadService.js';
+import { isSubmitEnabled } from './feedbackSubmitService.js';
 
 export default function BetaFeedbackCreateScreen() {
   const [type, setType] = useState(null);
@@ -39,6 +41,12 @@ export default function BetaFeedbackCreateScreen() {
   const [attachments, setAttachments] = useState([]);
   const [errors, setErrors] = useState([]);
   const [isValidated, setIsValidated] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+
+  // Check if entry is enabled
+  const isEntryEnabled = process.env.EXPO_PUBLIC_ENABLE_BETA_FEEDBACK_ENTRY === '1';
 
   const handleValidate = () => {
     const draft = {
@@ -122,6 +130,24 @@ export default function BetaFeedbackCreateScreen() {
 
   const handleRemoveAttachment = (id) => {
     setAttachments(attachments.filter(a => a.id !== id));
+  };
+
+  const handleUploadAttachments = async () => {
+    if (!isUploadEnabled()) {
+      Alert.alert('Upload desabilitado', 'Upload está desabilitado nesta fase.');
+      return;
+    }
+
+    Alert.alert('Upload desabilitado', 'Upload ainda não está implementado na UI.');
+  };
+
+  const handleSubmitFeedback = async () => {
+    if (!isSubmitEnabled()) {
+      Alert.alert('Envio desabilitado', 'Envio está desabilitado nesta fase.');
+      return;
+    }
+
+    Alert.alert('Envio desabilitado', 'Envio ainda não está implementado na UI.');
   };
 
   const renderTypeSelector = () => (
@@ -328,9 +354,33 @@ export default function BetaFeedbackCreateScreen() {
 
       {renderAttachmentsPlaceholder()}
 
+      {isUploadEnabled() && attachments.length > 0 && (
+        <TouchableOpacity
+          style={[styles.button, isUploading && styles.buttonDisabled]}
+          onPress={handleUploadAttachments}
+          disabled={isUploading}
+        >
+          <Text style={styles.buttonText}>
+            {isUploading ? `Fazendo upload... ${Math.round(uploadProgress)}%` : 'Fazer upload dos anexos'}
+          </Text>
+        </TouchableOpacity>
+      )}
+
       <TouchableOpacity style={styles.button} onPress={handleValidate}>
         <Text style={styles.buttonText}>Validar feedback</Text>
       </TouchableOpacity>
+
+      {isSubmitEnabled() && isValidated && (
+        <TouchableOpacity
+          style={[styles.button, styles.submitButton, isSubmitting && styles.buttonDisabled]}
+          onPress={handleSubmitFeedback}
+          disabled={isSubmitting}
+        >
+          <Text style={styles.buttonText}>
+            {isSubmitting ? 'Enviando...' : 'Enviar feedback'}
+          </Text>
+        </TouchableOpacity>
+      )}
 
       {isValidated && (
         <View style={styles.successMessage}>
@@ -433,6 +483,12 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     alignItems: 'center',
     marginTop: spacing.lg,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  submitButton: {
+    backgroundColor: colors.success,
   },
   buttonText: {
     ...typography.body,
