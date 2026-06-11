@@ -1019,3 +1019,105 @@ Aguardando autorizacao de Felipe para commitar o Bloco 6.
 
 Commit sugerido:
 polish(workout): refine workout hub, routines, complete screen visual premium dark fitness
+
+---
+
+## Próxima feature separada — Beta Feedback com mídia + Admin separado
+
+**Data:** 2026-06-11
+**Status:** PLANEJADO (não implementado nesta branch)
+**Branch futura sugerida:** feature/beta-feedback-media-admin-separation
+
+### Objetivo
+
+Criar uma área de Beta separada do Admin para testadores enviarem:
+
+- bug visual
+- bug funcional
+- bug de design
+- sugestão
+- melhoria
+- outro
+
+### Cada feedback precisa aceitar
+
+- descrição escrita
+- tela/fluxo onde aconteceu
+- passos para reproduzir
+- resultado esperado
+- resultado obtido
+- severidade
+- imagem anexada
+- vídeo anexado
+- dados automáticos do app/dispositivo quando seguro:
+  - versão do app
+  - build
+  - plataforma
+  - modelo do device
+  - tela/rota atual
+  - data/hora
+  - userId beta, se logado
+
+### Separação de painéis
+
+**Painel Beta:**
+- Usuário/testador beta
+- Pode enviar feedback
+- Pode anexar foto/vídeo
+- Pode ver status dos próprios feedbacks
+- Não acessa lista global
+- Não acessa ferramentas administrativas
+- Não acessa logs internos sensíveis
+
+**Painel Admin:**
+- Owner/equipe interna
+- Pode ver todos feedbacks
+- Pode filtrar por tipo/severidade/status
+- Pode abrir anexos
+- Pode mudar status
+- Pode responder/comentar internamente
+- Pode marcar resolvido/duplicado/não reproduzido
+- Pode ver métricas agregadas
+- Não fica misturado com a jornada beta comum
+
+### Upload de foto/vídeo
+
+Mapear necessidade de storage real:
+
+- Firebase Storage ou outro storage existente
+- Permissões por usuário
+- Limite de tamanho por arquivo
+- Compressão de imagem/vídeo se necessário
+- Upload com progresso
+- Retry se falhar
+- Preview de imagem/vídeo antes do enviar
+- Remover anexo antes do envio
+- Aviso de privacidade
+
+**Sugestão de limites iniciais:**
+- Imagem: até 10 MB
+- Vídeo: até 50 MB
+- Formatos imagem: jpg, jpeg, png, webp
+- Formatos vídeo: mp4, mov, webm se suportado
+- Máximo inicial: 5 anexos por feedback
+
+### Segurança
+
+Regras obrigatórias:
+
+- Beta só lê os próprios feedbacks
+- Admin lê todos
+- Usuário não pode editar feedback de outro
+- Anexos ficam em path por uid/reportId
+- Não salvar token no app
+- Não expor URL pública permanente sem necessidade
+- Não permitir upload executável
+- Validar mime type e tamanho
+
+### Branch futura sugerida
+
+Esta feature deve ser feita em branch separada, depois do polish:
+
+feature/beta-feedback-media-admin-separation
+
+Não implementar nesta branch polish/full-app-visual-icon-cards sem Felipe autorizar.
