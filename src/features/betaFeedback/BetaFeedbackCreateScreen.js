@@ -19,7 +19,13 @@ import {
 import {
   validateFeedbackDraft,
   validateAttachmentCandidate,
-} from './validation';
+} from './validation.js';
+import {
+  isMediaPickerEnabled,
+  pickBetaFeedbackMedia,
+  mapImagePickerError,
+  validatePickedAsset,
+} from './mediaPicker.js';
 
 export default function BetaFeedbackCreateScreen() {
   const [type, setType] = useState(null);
@@ -64,6 +70,58 @@ export default function BetaFeedbackCreateScreen() {
         validationErrors.map(e => e.message).join('\n'),
       );
     }
+  };
+
+  const handleAddAttachment = async () => {
+    if (!isMediaPickerEnabled()) {
+      Alert.alert(
+        'Anexos desabilitados',
+        'Seleção de mídia está desabilitada nesta fase.',
+      );
+      return;
+    }
+
+    if (attachments.length >= BETA_FEEDBACK_LIMITS.MAX_ATTACHMENTS_PER_REPORT) {
+      Alert.alert(
+        'Limite atingido',
+        `Máximo de ${BETA_FEEDBACK_LIMITS.MAX_ATTACHMENTS_PER_REPORT} anexos por feedback.`,
+      );
+      return;
+    }
+
+    try {
+      const pickedAssets = await pickBetaFeedbackMedia({ maxCount: 1 });
+      
+      if (pickedAssets && pickedAssets.length > 0) {
+        const asset = pickedAssets[0];
+        const validation = validatePickedAsset(asset);
+        
+        if (!validation.valid) {
+          Alert.alert('Arquivo inválido', validation.error);
+          return;
+        }
+
+        const newAttachment = {
+          id: `local-${Date.now()}`,
+          type: asset.type,
+          fileName: asset.fileName,
+          mimeType: asset.mimeType,
+          sizeBytes: asset.sizeBytes,
+          localUri: asset.localUri,
+        };
+
+        setAttachments([...attachments, newAttachment]);
+      }
+    } catch (error) {
+      const message = mapImagePickerError(error);
+      if (!message.includes('cancelada')) {
+        Alert.alert('Erro ao selecionar mídia', message);
+      }
+    }
+  };
+
+  const handleRemoveAttachment = (id) => {
+    setAttachments(attachments.filter(a => a.id !== id));
   };
 
   const renderTypeSelector = () => (
@@ -120,25 +178,69 @@ export default function BetaFeedbackCreateScreen() {
     </View>
   );
 
-  const renderAttachmentsPlaceholder = () => (
-    <View style={styles.section}>
-      <Text style={styles.label}>Anexos</Text>
-      <View style={styles.attachmentsPlaceholder}>
-        <Text style={styles.placeholderText}>
-          Anexos de imagem/vídeo serão habilitados na próxima fase.
+  const renderAttachmentsPlaceholder = () => {
+    const isEnabled = isMediaPickerEnabled();
+    const canAddMore = attachments.length < BETA_FEEDBACK_LIMITS.MAX_ATTACHMENTS_PER_REPORT;
+
+    return (
+      <View style={styles.section}>
+        <Text style={styles.label}>
+          Anexos ({attachments.length}/{BETA_FEEDBACK_LIMITS.MAX_ATTACHMENTS_PER_REPORT})
         </Text>
-        <Text style={styles.placeholderSubtext}>
-          Até {BETA_FEEDBACK_LIMITS.MAX_ATTACHMENTS_PER_REPORT} anexos
-        </Text>
-        <Text style={styles.placeholderSubtext}>
-          Imagem até {BETA_FEEDBACK_LIMITS.MAX_IMAGE_SIZE_BYTES / (1024 * 1024)} MB
-        </Text>
-        <Text style={styles.placeholderSubtext}>
-          Vídeo até {BETA_FEEDBACK_LIMITS.MAX_VIDEO_SIZE_BYTES / (1024 * 1024)} MB
-        </Text>
+
+        {!isEnabled && (
+          <View style={styles.attachmentsPlaceholder}>
+            <Text style={styles.placeholderText}>
+              Anexos de imagem/vídeo estão desabilitados nesta fase.
+            </Text>
+            <Text style={styles.placeholderSubtext}>
+              Até {BETA_FEEDBACK_LIMITS.MAX_ATTACHMENTS_PER_REPORT} anexos
+            </Text>
+            <Text style={styles.placeholderSubtext}>
+              Imagem até {BETA_FEEDBACK_LIMITS.MAX_IMAGE_SIZE_BYTES / (1024 * 1024)} MB
+            </Text>
+            <Text style={styles.placeholderSubtext}>
+              Vídeo até {BETA_FEEDBACK_LIMITS.MAX_VIDEO_SIZE_BYTES / (1024 * 1024)} MB
+            </Text>
+          </View>
+        )}
+
+        {isEnabled && canAddMore && (
+          <TouchableOpacity
+            style={styles.addAttachmentButton}
+            onPress={handleAddAttachment}
+          >
+            <Text style={styles.addAttachmentButtonText}>
+              + Adicionar anexo
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {attachments.length > 0 && (
+          <View style={styles.attachmentsList}>
+            {attachments.map((attachment) => (
+              <View key={attachment.id} style={styles.attachmentItem}>
+                <View style={styles.attachmentInfo}>
+                  <Text style={styles.attachmentFileName}>
+                    {attachment.fileName}
+                  </Text>
+                  <Text style={styles.attachmentDetails}>
+                    {attachment.type === 'image' ? '📷' : '🎥'} • {(attachment.sizeBytes / (1024 * 1024)).toFixed(2)} MB
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.removeAttachmentButton}
+                  onPress={() => handleRemoveAttachment(attachment.id)}
+                >
+                  <Text style={styles.removeAttachmentButtonText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
       </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -352,5 +454,55 @@ const styles = StyleSheet.create({
   successSubtext: {
     ...typography.bodySmall,
     color: colors.textPrimary,
+  },
+  addAttachmentButton: {
+    backgroundColor: colors.card,
+    borderRadius: radius.md,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginTop: spacing.sm,
+  },
+  addAttachmentButtonText: {
+    ...typography.body,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  attachmentsList: {
+    marginTop: spacing.md,
+  },
+  attachmentItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  attachmentInfo: {
+    flex: 1,
+  },
+  attachmentFileName: {
+    ...typography.body,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
+  },
+  attachmentDetails: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+  },
+  removeAttachmentButton: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  removeAttachmentButtonText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    fontSize: 16,
   },
 });
