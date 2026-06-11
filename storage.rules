@@ -1,0 +1,21 @@
+// storage.rules
+
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Beta feedback storage rules
+    match /beta-feedback/{userId}/{feedbackId}/{allPaths=**} {
+      // Allow read if user is the owner
+      allow read: if request.auth != null && request.auth.uid == userId;
+      
+      // Allow create if user is the owner
+      allow create: if request.auth != null && request.auth.uid == userId;
+      
+      // Allow delete if user is the owner or admin
+      allow delete: if request.auth != null && 
+        (request.auth.uid == userId || 
+         request.auth.token.admin == true);
+    }
+  }
+}
