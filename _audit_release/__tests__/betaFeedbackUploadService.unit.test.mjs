@@ -3,7 +3,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-// Testes unitários para upload service mocked (sem Firebase Storage real)
+// Mock fetch for Node.js test environment
+global.fetch = async (url) => {
+  return {
+    blob: async () => new Blob(['test']),
+  };
+};
+
+// Testes unitários para upload service com Firebase Storage real (mas desligado por padrão)
 import {
   createUploadService,
   isUploadEnabled,
@@ -46,6 +53,25 @@ test('createUploadService lança disabled por padrão mesmo com storage fornecid
   );
 });
 
+test('createUploadService com flag true e storage null lança not configured', async () => {
+  const originalEnv = process.env.EXPO_PUBLIC_ENABLE_BETA_FEEDBACK_UPLOAD;
+  process.env.EXPO_PUBLIC_ENABLE_BETA_FEEDBACK_UPLOAD = '1';
+
+  try {
+    const service = createUploadService({ storage: null });
+    await assert.rejects(
+      async () => service.uploadAttachment({
+        userId: 'user-123',
+        feedbackId: 'feedback-456',
+        attachment: { localUri: 'file:///tmp/test.jpg' },
+      }),
+      /not configured/i,
+    );
+  } finally {
+    process.env.EXPO_PUBLIC_ENABLE_BETA_FEEDBACK_UPLOAD = originalEnv;
+  }
+});
+
 test('createUploadService deleteAttachment lança disabled por padrão', async () => {
   const service = createUploadService();
   await assert.rejects(
@@ -68,10 +94,10 @@ test('mapUploadError mapeia disabled', () => {
   assert.ok(message.includes('desabilitado'));
 });
 
-test('mapUploadError mapeia not implemented', () => {
-  const error = new Error('not implemented');
+test('mapUploadError mapeia not configured', () => {
+  const error = new Error('Firebase Storage not configured.');
   const message = mapUploadError(error);
-  assert.ok(message.includes('não está implementado'));
+  assert.ok(message.includes('Erro ao fazer upload'));
 });
 
 test('mapUploadError mapeia erro genérico', () => {
