@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity } from 'react-native';
-import { colors } from '../../theme';
+import { colors, radius } from '../../theme';
 import { buildWorkoutSetInputDisplay, formatDisplayText } from '../../services/workoutSetDisplayValue';
 
 export function WorkoutSetField({
@@ -55,17 +55,17 @@ const styles = StyleSheet.create({
     minWidth: 110,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 12,
+    borderRadius: radius.md,
     paddingHorizontal: 14,
     paddingVertical: 16,
-    backgroundColor: '#141922',
+    backgroundColor: colors.card,
     color: colors.textPrimary,
     fontSize: 22,
     fontWeight: '800',
   },
   setFieldActive: {
     borderColor: colors.primary,
-    backgroundColor: '#0f2239',
+    backgroundColor: colors.secondaryMuted,
   },
   setFieldText: {
     color: colors.textPrimary,

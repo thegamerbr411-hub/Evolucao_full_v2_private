@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
+import { colors, radius, spacing } from '../../theme';
 
 export function AnimatedToast({ message, onHide, duration = 1700 }) {
   const translateY = useRef(new Animated.Value(-20)).current;
@@ -67,23 +68,23 @@ export function AnimatedToast({ message, onHide, duration = 1700 }) {
 const styles = StyleSheet.create({
   wrap: {
     position: 'absolute',
-    top: 10,
+    top: spacing.xs,
     left: 0,
     right: 0,
     alignItems: 'center',
     zIndex: 40,
   },
   toast: {
-    backgroundColor: '#123429',
+    backgroundColor: colors.successMuted,
     borderWidth: 1,
-    borderColor: '#2F7A5B',
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    borderColor: colors.primaryDim,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xxs,
     maxWidth: '86%',
   },
   text: {
-    color: '#D1FAE5',
+    color: colors.textPrimary,
     fontWeight: '800',
     fontSize: 12,
     textAlign: 'center',

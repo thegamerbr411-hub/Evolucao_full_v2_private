@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { AppCard } from '../ui';
-import { colors, spacing, typography } from '../../theme';
+import { colors, radius, spacing, typography } from '../../theme';
 import { getExerciseByName } from '../../data/exercises.js';
 import { ExerciseExecutionCta } from '../exercise/ExerciseExecutionCta';
 import { ExerciseMediaFallback } from '../exercise/ExerciseMediaFallback';
@@ -145,14 +145,14 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   removeExerciseText: {
-    color: '#FCA5A5',
+    color: colors.danger,
     fontSize: 12,
     fontWeight: '800',
   },
   gifPreview: {
     width: '100%',
     height: 96,
-    borderRadius: 10,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
     marginBottom: spacing.sm,

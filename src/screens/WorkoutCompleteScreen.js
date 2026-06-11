@@ -232,10 +232,10 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   conquestTitle: {
-    fontSize: 30,
-    fontWeight: '800',
+    fontSize: 28,
+    fontWeight: '900',
     color: colors.textPrimary,
-    letterSpacing: -0.5,
+    letterSpacing: -0.8,
     textAlign: 'center',
     marginBottom: spacing.xs,
   },
@@ -249,16 +249,16 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     borderRadius: radius.pill,
     paddingHorizontal: spacing.md,
-    paddingVertical: 6,
+    paddingVertical: spacing.xxs,
     backgroundColor: colors.successMuted,
     borderWidth: 1,
     borderColor: colors.success,
   },
   xpVictoryText: {
-    color: colors.success,
-    fontSize: 16,
+    color: colors.primary,
+    fontSize: 15,
     fontWeight: '900',
-    letterSpacing: 0.2,
+    letterSpacing: 0.3,
   },
 
   // RESUMO
@@ -269,6 +269,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     padding: spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.10,
+    shadowRadius: 6,
+    elevation: 2,
   },
   summaryLabel: {
     fontSize: 11,
@@ -287,7 +292,7 @@ const styles = StyleSheet.create({
   statItem: {
     flex: 1,
     alignItems: 'center',
-    gap: 4,
+    gap: spacing.xxs,
   },
   statDivider: {
     width: 1,
@@ -296,9 +301,9 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontSize: 24,
-    fontWeight: '800',
+    fontWeight: '900',
     color: colors.textPrimary,
-    letterSpacing: -0.5,
+    letterSpacing: -0.8,
   },
   statName: {
     fontSize: 11,
@@ -376,7 +381,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: spacing.xxs,
   },
   evolutionLabel: {
     fontSize: 13,
@@ -418,7 +423,7 @@ const styles = StyleSheet.create({
   },
   btn: {
     borderRadius: radius.md,
-    paddingVertical: 14,
+    paddingVertical: spacing.md,
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'center',
@@ -433,21 +438,22 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   btnPrimaryText: {
-    color: '#fff',
-    fontWeight: '700',
+    color: colors.textInverse,
+    fontWeight: '800',
     fontSize: 15,
   },
   btnSecondaryText: {
     color: colors.primary,
-    fontWeight: '700',
+    fontWeight: '800',
     fontSize: 15,
   },
 
   motivational: {
     fontSize: 13,
-    color: colors.textMuted,
+    color: colors.textSecondary,
     textAlign: 'center',
-    fontStyle: 'italic',
+    fontWeight: '600',
+    letterSpacing: 0.2,
     marginTop: spacing.xs,
   },
 });

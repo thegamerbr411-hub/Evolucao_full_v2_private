@@ -108,10 +108,10 @@ export function WorkoutsHubView({
         <AppCard accent variant="empty">
           <View style={styles.emptyHeader}>
             <Ionicons name="alert-circle-outline" size={18} color={colors.warning} />
-            <Text style={styles.emptyTitle}>Nenhum exercicio encontrado. Quer ver sugestoes?</Text>
+            <Text style={styles.emptyTitle}>Nenhum exercício encontrado. Quer ver sugestões?</Text>
           </View>
           <Text style={styles.emptyDescription}>
-            Selecionamos opcoes rapidas para manter o treino ativo hoje.
+            Aqui estão opções rápidas para manter o treino ativo hoje.
           </Text>
           <View style={styles.emptySuggestionsWrap}>
             {smartSuggestions.map((exercise) => (
@@ -136,7 +136,7 @@ export function WorkoutsHubView({
       <AppCard accent variant="secondary">
         <View style={styles.recommendedHeader}>
           <Ionicons name="flash" size={18} color={colors.primary} />
-          <Text style={styles.recommendedTitle}>Motor V4 — Recomendado</Text>
+          <Text style={styles.recommendedTitle}>Treino sugerido</Text>
           {confidence > 0 && (
             <View style={styles.confidenceBadge}>
               <Text style={styles.confidenceText}>{confidence}%</Text>
@@ -202,7 +202,7 @@ export function WorkoutsHubView({
           onPress={() => navigation.navigate('ImportWorkout')}
         >
           <Ionicons name="sparkles-outline" size={22} color={colors.warning} />
-          <Text style={styles.actionLabel}>Import IA</Text>
+          <Text style={styles.actionLabel}>Importar Treino</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -436,8 +436,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
   },
   emptySuggestionName: {
     fontSize: 14,
@@ -475,8 +475,8 @@ const styles = StyleSheet.create({
   confidenceBadge: {
     backgroundColor: colors.primaryMuted,
     borderRadius: radius.pill,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xxs,
   },
   confidenceText: {
     fontSize: 11,
@@ -485,9 +485,9 @@ const styles = StyleSheet.create({
   },
   recommendedWorkout: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '800',
     color: colors.textPrimary,
-    marginBottom: 4,
+    marginBottom: spacing.xxs,
     letterSpacing: -0.3,
   },
   recommendedSource: {
@@ -498,13 +498,13 @@ const styles = StyleSheet.create({
   reasonLine: {
     color: colors.textSecondary,
     fontSize: 13,
-    marginTop: 2,
+    marginTop: spacing.xxs,
   },
   replacementLine: {
     color: colors.warning,
     fontSize: 12,
-    marginTop: 4,
-    fontWeight: '600',
+    marginTop: spacing.xxs,
+    fontWeight: '700',
   },
 
   // Actions grid
@@ -522,13 +522,15 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     padding: spacing.sm,
     alignItems: 'center',
-    gap: 6,
+    gap: spacing.xxs,
   },
   actionLabel: {
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '700',
     color: colors.textSecondary,
     textAlign: 'center',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
 
   adminBtn: {
