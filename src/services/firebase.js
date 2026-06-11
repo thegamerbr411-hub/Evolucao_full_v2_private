@@ -3,6 +3,7 @@ import * as FirebaseAuth from 'firebase/auth';
 import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 import { getFirestore } from 'firebase/firestore';
 import { getFunctions } from 'firebase/functions';
+import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
   apiKey: process?.env?.EXPO_PUBLIC_FIREBASE_API_KEY || 'SUA_KEY',
@@ -63,5 +64,6 @@ function createAuthInstance() {
 export const auth = createAuthInstance();
 export const db = app ? getFirestore(app) : null;
 export const functions = app ? getFunctions(app) : null;
+export const storage = app ? getStorage(app) : null;
 
 export default app;
