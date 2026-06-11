@@ -12,7 +12,7 @@ import {
   getRoutineStartBlockReason,
 } from '../services/routineDisplay';
 import { AnimatedToast, AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
-import { colors, spacing } from '../theme';
+import { colors, spacing, radius } from '../theme';
 
 const QUICK_EXERCISES = [
   'Leg Press 45',
@@ -179,7 +179,7 @@ export default function RoutinesScreen({ navigation }) {
       });
       return next;
     });
-    setToastMessage(`${selectedCatalogExercises.length} exercicio(s) adicionados na rotina.`);
+    setToastMessage(`${selectedCatalogExercises.length} exercício(s) adicionados na rotina.`);
     setSelectedCatalogExercises([]);
   };
 
@@ -327,7 +327,7 @@ export default function RoutinesScreen({ navigation }) {
     >
     <AnimatedToast message={toastMessage} onHide={() => setToastMessage('')} />
     <ScrollView testID="screen-routines" contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}>
-      <ScreenHeader title="Rotinas" subtitle="Controle total: recomendadas e criadas por voce no mesmo padrao." onBack={() => navigation.goBack()} />
+      <ScreenHeader title="Rotinas" subtitle="Controle total: recomendadas e criadas por você no mesmo padrao." onBack={() => navigation.goBack()} />
 
       <AppCard testID="card-routine-templates">
         <Text style={styles.cardTitle}>Templates prontos</Text>
@@ -356,7 +356,7 @@ export default function RoutinesScreen({ navigation }) {
       <AppCard testID="card-routine-builder">
         <Text style={styles.cardTitle}>Recomendada hoje</Text>
         <Text style={styles.recommendationMain}>🔥 Hoje e {smart.title}. Foco nisso.</Text>
-        <Text style={styles.recommendationSub}>Confianca: {getConfidenceVisual(smart.confidence)} · Semana: {smart.trainedThisWeek}/{smart.weeklyTarget}</Text>
+        <Text style={styles.recommendationSub}>Confiança: {getConfidenceVisual(smart.confidence)} · Semana: {smart.trainedThisWeek}/{smart.weeklyTarget}</Text>
         <Text style={styles.recommendationSub}>{smart.urgencyMessage}</Text>
         {safeTodayRoutine.map((item) => (
           <Text key={item.id} style={styles.line}>• {item.name} ({item.sets}x{item.reps})</Text>
@@ -585,7 +585,7 @@ export default function RoutinesScreen({ navigation }) {
               style={styles.input}
             />
 
-            <Text style={styles.helperText}>Filtrar por musculo:</Text>
+            <Text style={styles.helperText}>Filtrar por músculo:</Text>
             <View style={styles.chipsWrap}>
               <TouchableOpacity
                 style={[styles.filterChip, muscleFilter === 'all' ? styles.filterChipActive : null]}
@@ -684,22 +684,24 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xl,
   },
   cardTitle: {
-    color: colors.textPrimary,
-    fontSize: 14,
+    color: colors.textMuted,
+    fontSize: 11,
     fontWeight: '800',
-    marginBottom: 8,
+    marginBottom: spacing.xs,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
   recommendationMain: {
     color: colors.success,
     fontSize: 14,
     fontWeight: '900',
-    marginBottom: 6,
+    marginBottom: spacing.xxs,
   },
   recommendationSub: {
     color: colors.textSecondary,
     fontSize: 12,
     fontWeight: '600',
-    marginBottom: 6,
+    marginBottom: spacing.xxs,
   },
   stepLabel: {
     color: colors.textPrimary,
@@ -712,7 +714,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 12,
     fontWeight: '600',
-    marginBottom: 8,
+    marginBottom: spacing.xs,
   },
   line: {
     color: colors.textPrimary,
@@ -721,34 +723,34 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   primaryButton: {
-    marginTop: 8,
+    marginTop: spacing.xs,
   },
   secondaryButton: {
-    marginTop: 8,
+    marginTop: spacing.xs,
   },
   input: {
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 10,
-    backgroundColor: '#141922',
+    backgroundColor: colors.surface,
     color: colors.textPrimary,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    marginBottom: 8,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.xs,
   },
   chipsWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
-    marginBottom: 8,
+    gap: spacing.xxs,
+    marginBottom: spacing.xs,
   },
   chip: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    backgroundColor: '#141922',
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xxs,
+    backgroundColor: colors.surface,
   },
   chipText: {
     color: colors.textPrimary,
@@ -757,15 +759,15 @@ const styles = StyleSheet.create({
   },
   filterChip: {
     borderWidth: 1,
-    borderColor: '#2A3448',
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    backgroundColor: '#111722',
+    borderColor: colors.border,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xxs,
+    backgroundColor: colors.cardElevated,
   },
   filterChipActive: {
-    borderColor: '#3D8BFF',
-    backgroundColor: '#11243F',
+    borderColor: colors.secondary,
+    backgroundColor: colors.secondaryMuted,
   },
   filterChipText: {
     color: colors.textSecondary,
@@ -774,44 +776,44 @@ const styles = StyleSheet.create({
     textTransform: 'capitalize',
   },
   filterChipTextActive: {
-    color: '#D7E8FF',
+    color: colors.textPrimary,
   },
   catalogList: {
-    gap: 8,
-    marginBottom: 8,
+    gap: spacing.xs,
+    marginBottom: spacing.xs,
   },
   catalogCard: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 10,
-    backgroundColor: '#101722',
-    padding: 10,
-    gap: 8,
+    borderRadius: radius.sm,
+    backgroundColor: colors.card,
+    padding: spacing.sm,
+    gap: spacing.xs,
   },
   catalogCardSelected: {
     borderColor: colors.primary,
-    backgroundColor: '#11243F',
+    backgroundColor: colors.primaryMuted,
   },
   catalogInfoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: spacing.sm,
   },
   catalogThumb: {
     width: 46,
     height: 46,
-    borderRadius: 8,
+    borderRadius: radius.xs,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: '#0c1118',
+    backgroundColor: colors.background,
   },
   catalogThumbFallback: {
     width: 46,
     height: 46,
-    borderRadius: 8,
+    borderRadius: radius.xs,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: '#0c1118',
+    backgroundColor: colors.background,
   },
   catalogTextWrap: {
     flex: 1,
@@ -830,31 +832,31 @@ const styles = StyleSheet.create({
   },
   catalogActions: {
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing.xs,
   },
   catalogAddButton: {
     flex: 1,
-    borderRadius: 8,
-    backgroundColor: '#225FA8',
-    paddingVertical: 8,
+    borderRadius: radius.xs,
+    backgroundColor: colors.secondary,
+    paddingVertical: spacing.xs,
     alignItems: 'center',
   },
   catalogAddButtonSelected: {
-    backgroundColor: '#1B7C47',
+    backgroundColor: colors.primary,
   },
   catalogAddButtonText: {
-    color: '#E7F2FF',
+    color: colors.textInverse,
     fontWeight: '800',
     fontSize: 12,
   },
   catalogDetailButton: {
     flex: 1,
-    borderRadius: 8,
+    borderRadius: radius.xs,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingVertical: 8,
+    paddingVertical: spacing.xs,
     alignItems: 'center',
-    backgroundColor: '#162131',
+    backgroundColor: colors.cardElevated,
   },
   catalogDetailButtonText: {
     color: colors.textSecondary,
@@ -863,18 +865,18 @@ const styles = StyleSheet.create({
   },
   quickChip: {
     borderWidth: 1,
-    borderColor: '#3D8BFF',
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    backgroundColor: '#11243F',
+    borderColor: colors.secondary,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xxs,
+    backgroundColor: colors.secondaryMuted,
   },
   quickChipSelected: {
-    backgroundColor: '#1B7C47',
-    borderColor: '#2EDB8F',
+    backgroundColor: colors.primaryDim,
+    borderColor: colors.primary,
   },
   quickChipText: {
-    color: '#D7E8FF',
+    color: colors.textPrimary,
     fontSize: 12,
     fontWeight: '800',
   },
@@ -883,7 +885,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     fontWeight: '800',
     fontSize: 11,
-    marginBottom: 6,
+    marginBottom: spacing.xxs,
   },
   empty: {
     color: colors.textSecondary,
@@ -898,13 +900,13 @@ const styles = StyleSheet.create({
   },
   builderRowMain: {
     flex: 1,
-    marginRight: 8,
+    marginRight: spacing.xs,
   },
   builderSetsWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginTop: 6,
+    gap: spacing.xxs,
+    marginTop: spacing.xxs,
   },
   builderSetsLabel: {
     color: colors.textSecondary,
@@ -913,66 +915,66 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   builderSetsInput: {
-    minWidth: 56,
+    minWidth: 60,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,
-    backgroundColor: '#141922',
+    backgroundColor: colors.surface,
     color: colors.textPrimary,
-    paddingHorizontal: 8,
+    paddingHorizontal: spacing.xs,
     paddingVertical: 6,
     textAlign: 'center',
     fontWeight: '800',
   },
   removeText: {
-    color: '#FCA5A5',
+    color: colors.danger,
     fontSize: 12,
     fontWeight: '800',
   },
   savedRoutineCard: {
-    marginTop: 8,
+    marginTop: spacing.xs,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 10,
-    padding: 10,
-    backgroundColor: '#141922',
+    borderRadius: radius.sm,
+    padding: spacing.sm,
+    backgroundColor: colors.card,
   },
   savedRoutineTitle: {
     color: colors.textPrimary,
     fontSize: 14,
     fontWeight: '800',
-    marginBottom: 4,
+    marginBottom: spacing.xxs,
   },
   actionsRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing.xs,
     flexWrap: 'wrap',
   },
   smallButton: {
-    marginTop: 8,
-    borderRadius: 8,
+    marginTop: spacing.xs,
+    borderRadius: radius.xs,
     backgroundColor: colors.secondary,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
   },
   smallButtonStart: {
     backgroundColor: colors.primary,
   },
   smallButtonDisabled: {
-    backgroundColor: '#2A3344',
+    backgroundColor: colors.cardElevated,
     opacity: 0.55,
   },
   smallButtonTextDisabled: {
     color: colors.textMuted,
   },
   startBlockHint: {
-    marginTop: 6,
+    marginTop: spacing.xxs,
     color: colors.textMuted,
     fontSize: 12,
     fontWeight: '600',
   },
   smallButtonDanger: {
-    backgroundColor: '#7F1D1D',
+    backgroundColor: colors.dangerMuted,
   },
   smallButtonText: {
     color: colors.textPrimary,
@@ -982,10 +984,10 @@ const styles = StyleSheet.create({
   builderSelectionWrap: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 10,
-    backgroundColor: '#111722',
-    padding: 10,
-    marginBottom: 8,
+    borderRadius: radius.sm,
+    backgroundColor: colors.cardElevated,
+    padding: spacing.sm,
+    marginBottom: spacing.xs,
   },
   modalBackdrop: {
     flex: 1,
@@ -994,22 +996,22 @@ const styles = StyleSheet.create({
   },
   bottomSheet: {
     maxHeight: '86%',
-    backgroundColor: '#0f1622',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    backgroundColor: colors.background,
+    borderTopLeftRadius: radius.md,
+    borderTopRightRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingHorizontal: 12,
-    paddingTop: 12,
-    paddingBottom: 16,
+    paddingHorizontal: spacing.sm,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.lg,
   },
   modalCatalogScroll: {
     maxHeight: 360,
   },
   bottomSheetActions: {
     flexDirection: 'row',
-    gap: 8,
-    marginTop: 8,
+    gap: spacing.xs,
+    marginTop: spacing.xs,
   },
   batchFab: {
     position: 'absolute',
@@ -1018,14 +1020,14 @@ const styles = StyleSheet.create({
     bottom: 18,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#2ea36f',
-    backgroundColor: '#1f7a57',
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryDim,
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: spacing.sm,
     zIndex: 40,
   },
   batchFabText: {
-    color: '#e8fff3',
+    color: colors.textInverse,
     fontSize: 13,
     fontWeight: '900',
   },
