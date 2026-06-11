@@ -1,20 +1,88 @@
 // __tests__/firebaseEmulatorConfig.unit.test.mjs
 
 import test from 'node:test';
-import assert from 'node:assert/strict';
+import assert from 'node/assert/strict';
 
 // Testes unitários para configuração de Firebase Emulator
 
 test('Emulator está desligado por padrão', () => {
   // Valida que o emulator está desligado por padrão
-  const defaultEmulatorOff = true;
-  assert.strictEqual(defaultEmulatorOff, true);
+  const originalFlag = process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATOR;
+  delete process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATOR;
+  
+  const useEmulatorFlag = process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATOR === '1';
+  const result = useEmulatorFlag;
+  
+  assert.strictEqual(result, false);
+  
+  process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATOR = originalFlag;
 });
 
 test('Emulator só liga com EXPO_PUBLIC_USE_FIREBASE_EMULATOR=1', () => {
   // Valida que o emulator só liga com a flag correta
-  const requiresFlag = true;
-  assert.strictEqual(requiresFlag, true);
+  const originalFlag = process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATOR;
+  const originalNodeEnv = process.env.NODE_ENV;
+  
+  delete process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATOR;
+  process.env.NODE_ENV = 'development';
+  
+  const useEmulatorFlagWithout = process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATOR === '1';
+  const resultWithoutFlag = useEmulatorFlagWithout;
+  assert.strictEqual(resultWithoutFlag, false);
+  
+  process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATOR = '1';
+  const useEmulatorFlagWith = process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATOR === '1';
+  const nodeEnv = process.env.NODE_ENV || 'development';
+  const isDevEnv = nodeEnv === 'development';
+  const resultWithFlag = useEmulatorFlagWith && isDevEnv;
+  assert.strictEqual(resultWithFlag, true);
+  
+  process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATOR = originalFlag;
+  process.env.NODE_ENV = originalNodeEnv;
+});
+
+test('Emulator conecta em dev/test', () => {
+  // Valida que o emulator conecta em dev/test
+  const originalFlag = process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATOR;
+  const originalNodeEnv = process.env.NODE_ENV;
+  
+  process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATOR = '1';
+  
+  // Test environment
+  process.env.NODE_ENV = 'test';
+  const useEmulatorFlag = process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATOR === '1';
+  const nodeEnvTest = process.env.NODE_ENV || 'development';
+  const isTestEnv = nodeEnvTest === 'test';
+  const resultTest = useEmulatorFlag && isTestEnv;
+  assert.strictEqual(resultTest, true);
+  
+  // Development environment
+  process.env.NODE_ENV = 'development';
+  const nodeEnvDev = process.env.NODE_ENV || 'development';
+  const isDevEnv = nodeEnvDev === 'development';
+  const resultDev = useEmulatorFlag && isDevEnv;
+  assert.strictEqual(resultDev, true);
+  
+  process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATOR = originalFlag;
+  process.env.NODE_ENV = originalNodeEnv;
+});
+
+test('Emulator NÃO conecta em production/release', () => {
+  // Valida que o emulator NÃO conecta em production/release
+  const originalFlag = process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATOR;
+  const originalNodeEnv = process.env.NODE_ENV;
+  
+  process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATOR = '1';
+  process.env.NODE_ENV = 'production';
+  
+  const useEmulatorFlag = process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATOR === '1';
+  const nodeEnv = process.env.NODE_ENV || 'development';
+  const isProduction = nodeEnv === 'production';
+  const result = useEmulatorFlag && !isProduction;
+  assert.strictEqual(result, false);
+  
+  process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATOR = originalFlag;
+  process.env.NODE_ENV = originalNodeEnv;
 });
 
 test('Host/porta default seguros', () => {

@@ -63,11 +63,41 @@ function createAuthInstance() {
 
 export const auth = createAuthInstance();
 
-// Initialize Firestore with emulator support if flag is set
+// Guard function to prevent emulator connection in production/release builds
+export function isFirebaseEmulatorAllowed() {
+  const useEmulatorFlag = process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATOR === '1';
+  
+  if (!useEmulatorFlag) {
+    return false;
+  }
+
+  // Check if we're in a dev/test environment
+  const isDev = typeof __DEV__ !== 'undefined' ? __DEV__ : false;
+  const nodeEnv = process.env.NODE_ENV || 'development';
+  const isTestEnv = nodeEnv === 'test';
+  const isDevEnv = nodeEnv === 'development';
+  const isProduction = nodeEnv === 'production';
+
+  // Allow emulator in dev/test environments
+  if (isDev || isTestEnv || isDevEnv) {
+    return true;
+  }
+
+  // Block emulator in production/release builds
+  if (isProduction) {
+    console.warn('Firebase emulator connection blocked in production/release build. Using production Firebase instead.');
+    return false;
+  }
+
+  // Default to safe: block in unknown environments
+  return false;
+}
+
+// Initialize Firestore with emulator support if flag is set and allowed
 let _db = null;
 if (app) {
   _db = getFirestore(app);
-  const useEmulator = process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATOR === '1';
+  const useEmulator = isFirebaseEmulatorAllowed();
   if (useEmulator) {
     const host = process.env.EXPO_PUBLIC_FIRESTORE_EMULATOR_HOST || '127.0.0.1';
     const port = process.env.EXPO_PUBLIC_FIRESTORE_EMULATOR_PORT || '8080';
@@ -80,11 +110,11 @@ if (app) {
   }
 }
 
-// Initialize Storage with emulator support if flag is set
+// Initialize Storage with emulator support if flag is set and allowed
 let _storage = null;
 if (app) {
   _storage = getStorage(app);
-  const useEmulator = process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATOR === '1';
+  const useEmulator = isFirebaseEmulatorAllowed();
   if (useEmulator) {
     const host = process.env.EXPO_PUBLIC_STORAGE_EMULATOR_HOST || '127.0.0.1';
     const port = process.env.EXPO_PUBLIC_STORAGE_EMULATOR_PORT || '9199';
