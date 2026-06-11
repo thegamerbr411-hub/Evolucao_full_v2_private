@@ -26,8 +26,9 @@ import {
   mapImagePickerError,
   validatePickedAsset,
 } from './mediaPicker.js';
-import { isUploadEnabled } from './uploadService.js';
-import { isSubmitEnabled } from './feedbackSubmitService.js';
+import { isUploadEnabled, createUploadService } from './uploadService.js';
+import { isSubmitEnabled, createSubmitService } from './feedbackSubmitService.js';
+import { db } from '../../services/firebase.js';
 
 export default function BetaFeedbackCreateScreen() {
   const [type, setType] = useState(null);
@@ -138,7 +139,47 @@ export default function BetaFeedbackCreateScreen() {
       return;
     }
 
-    Alert.alert('Upload desabilitado', 'Upload ainda não está implementado na UI.');
+    if (attachments.length === 0) {
+      Alert.alert('Sem anexos', 'Adicione anexos antes de fazer upload.');
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    try {
+      const uploadService = createUploadService({ storage: null });
+      const userId = 'local-beta-user';
+      const feedbackId = `feedback-${userId}-${Date.now()}`;
+
+      const uploadedAttachments = [];
+      for (let i = 0; i < attachments.length; i++) {
+        const attachment = attachments[i];
+        const progress = ((i + 1) / attachments.length) * 100;
+        setUploadProgress(progress);
+
+        try {
+          const result = await uploadService.uploadAttachment({
+            userId,
+            feedbackId,
+            attachment,
+          });
+          uploadedAttachments.push(result);
+        } catch (error) {
+          Alert.alert('Erro no upload', `Falha ao fazer upload de ${attachment.fileName}`);
+          setIsUploading(false);
+          return;
+        }
+      }
+
+      setAttachments(uploadedAttachments);
+      Alert.alert('Upload concluído', 'Todos os anexos foram enviados com sucesso.');
+    } catch (error) {
+      Alert.alert('Erro no upload', 'Erro ao fazer upload dos anexos.');
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
   };
 
   const handleSubmitFeedback = async () => {
@@ -147,7 +188,58 @@ export default function BetaFeedbackCreateScreen() {
       return;
     }
 
-    Alert.alert('Envio desabilitado', 'Envio ainda não está implementado na UI.');
+    const draft = {
+      userId: 'local-beta-user',
+      type,
+      severity,
+      title,
+      description,
+      screenName,
+      stepsToReproduce,
+      expectedResult,
+      actualResult,
+      attachments,
+    };
+
+    const validationErrors = validateFeedbackDraft(draft);
+    if (validationErrors.length > 0) {
+      setErrors(validationErrors);
+      Alert.alert('Erros de validação', validationErrors.map(e => e.message).join('\n'));
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const submitService = createSubmitService({ db, auth: null });
+      const result = await submitService.submitFeedback({
+        userId: 'local-beta-user',
+        draft,
+        attachments,
+      });
+
+      Alert.alert(
+        'Feedback enviado',
+        `Feedback ${result.feedbackId} enviado com sucesso.`,
+      );
+
+      // Reset form
+      setType(null);
+      setSeverity(null);
+      setTitle('');
+      setDescription('');
+      setScreenName('');
+      setStepsToReproduce('');
+      setExpectedResult('');
+      setActualResult('');
+      setAttachments([]);
+      setErrors([]);
+      setIsValidated(false);
+    } catch (error) {
+      Alert.alert('Erro ao enviar', 'Erro ao enviar feedback.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const renderTypeSelector = () => (
