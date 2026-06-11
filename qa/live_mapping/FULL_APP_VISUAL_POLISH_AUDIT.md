@@ -1121,3 +1121,80 @@ Esta feature deve ser feita em branch separada, depois do polish:
 feature/beta-feedback-media-admin-separation
 
 Não implementar nesta branch polish/full-app-visual-icon-cards sem Felipe autorizar.
+
+---
+
+## Validação em device físico — RQ8T209ZTAF
+
+**Data:** 2026-06-11
+**Device:** RQ8T209ZTAF (Xiaomi/Redmi)
+**Build:** HEAD (fb437cf - polish branch)
+**Metro:** Ativo via reverse tcp:8081
+
+### Telas validadas
+
+| Tela | Status | Evidência |
+|------|--------|-----------|
+| Home/Splash | PASS | 50_physical_home.png + XML |
+| WorkoutsHub | PASS | 51_physical_workouts_hub.png + XML, texto "Treino sugerido" ✅, "Importar Treino" ✅ |
+| Routines | PASS | 52_physical_routines.png + XML, screen-routines ✅ |
+| Guided Workout | PASS | 53_physical_guided_workout.png + XML, btn-save-set ✅ |
+| Free Workout | PASS | 54_physical_free_workout.png + XML, screen-free-workout ✅ |
+| WorkoutComplete | BLOCKED | Não consegui concluir fluxo real (3 séries salvas, fixture com muitas séries planejadas) |
+
+### Evidências locais
+
+Screenshots e XML salvos em:
+- qa/live_mapping/screenshots/full_visual_polish/device_physical/
+
+Arquivos:
+- 50_physical_home.png + .xml
+- 51_physical_workouts_hub.png + .xml
+- 52_physical_routines.png + .xml
+- 53_physical_guided_workout.png + .xml
+- 54_physical_free_workout.png + .xml
+- 56_physical_logcat_after.txt
+
+### Logcat
+
+Análise de 06-11 04: (período de validação física):
+- 0 TypeError
+- 0 ReferenceError
+- 0 SyntaxError
+- 0 Unable to resolve
+- 0 Invariant Violation
+- 0 FATAL EXCEPTION
+- 0 RedBox
+- 0 crash
+
+Avisos não críticos:
+- Expo AV deprecation warning (SDK 54) — não relacionado ao polish
+- JSONTokener syntaxError em DcScpmEncryptManager — erro de sistema Android, não JS
+
+### Veredito
+
+**DEVICE FÍSICO: PASS PARCIAL**
+
+Todas as telas principais do polish foram validadas no device físico:
+- Home ✅
+- WorkoutsHub ✅ (texto "Treino sugerido" e "Importar Treino" confirmados)
+- Routines ✅
+- Guided Workout ✅
+- Free Workout ✅
+
+WorkoutCompleteScreen: BLOCKED por limitação de fluxo (fixture com muitas séries), não por erro JS.
+
+### Recomendação push/PR
+
+**RECOMENDADO: PUSH + ABRIR PR**
+
+Motivos:
+- 5 telas principais validadas em device físico sem erros JS
+- Zero erros críticos em logcat físico
+- QA flags false
+- audit:release:check drift=0
+- npm test 0 novas falhas
+- WorkoutCompleteScreen bloqueado por fixture, não por bug do código
+- 9 commits acumulados representam mudança visual significativa e coesa
+
+WorkoutCompleteScreen pode ser validado em device físico em uma sessão futura com treino real mais curto, mas isso não deve bloquear o push/PR do polish visual atual.
