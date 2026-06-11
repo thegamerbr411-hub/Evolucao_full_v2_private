@@ -580,3 +580,171 @@ Commit sugerido:
 `
 polish(home): refine Home screen premium dark fitness visual
 `
+
+---
+
+## BLOCO 5 -- Treino Guiado + Treino Livre visual premium
+
+**Data execucao:** 2026-06-10
+**Branch:** polish/full-app-visual-icon-cards (acima do commit 4f291d0)
+**Status:** READY-USER/VISUAL PASS -- aguardando autorizacao de commit
+
+### Estado inicial confirmado
+
+- Bloco 4 commitado: 4f291d0 OK
+- working tree limpa antes do Bloco 5 OK
+- audit:release:check: drift=0 OK
+
+### Before treino guiado - evidencia real
+
+IDs confirmados no before XML (QA fixture ativo, emulador):
+- workout-advanced-header OK
+- workout-exercise-index-1 (ex2 de 3) OK
+- workout-exercise-progress OK
+- workout-mode-bar OK
+- input-weight-base-1-Agachamento Livre-0 OK
+- input-reps-base-1-Agachamento Livre-0 OK
+
+### Before treino livre - evidencia real
+
+IDs confirmados no before XML:
+- screen-free-workout OK
+- btn-free-add-exercise OK
+- input-free-exercise-name OK
+- btn-free-save-routine OK
+- input-free-catalog-search OK
+- btn-free-rest-toggle OK
+
+### Problemas encontrados no FreeWorkoutScreen
+
+| # | Problema | Tipo |
+|---|---------|------|
+| 1 | #1F7A47, #2D9B61 em saveRoutineButton | Cor hardcoded |
+| 2 | #E7FFF1 em saveRoutineButtonText | Cor hardcoded |
+| 3 | #FFFFFF em addButtonText, successText, failText | Cor hardcoded |
+| 4 | borderRadius: 10 em input, addButton, successButton, failButton, restButton | Radius hardcoded |
+| 5 | paddingHorizontal: 12 / paddingVertical: 10 em input | Spacing hardcoded |
+| 6 | gap: 8 / marginTop: 10 em chipsWrap | Spacing hardcoded |
+| 7 | marginBottom: 10 / gap: 8 em row | Spacing hardcoded |
+| 8 | marginTop: 8 em addButton e timerAction | Spacing hardcoded |
+| 9 | exerciseCard borderRadius: 14, padding: 12, marginBottom: 10 | Radius/spacing hardcoded |
+| 10 | cardTitle generico, sem hierarquia visual | Visual |
+| 11 | failButton fundo danger solido (dificil ver texto) | Visual |
+| 12 | progressText com colors.secondary (azul) | Visual inconsistente |
+
+### Melhorias aplicadas (20)
+
+| Estilo | Antes | Depois |
+|--------|-------|--------|
+| input | radius:10, paddingH:12, paddingV:10 | radius.sm, spacing.sm + fontSize 15 |
+| addButton | radius:10, paddingV:10, marginTop:8 | radius.sm, spacing.sm, spacing.xs |
+| addButtonText | #FFFFFF | colors.text + fontSize 14 |
+| saveRoutineButton | #1F7A47, #2D9B61, radius:10 | colors.primaryDim, colors.primary, radius.sm |
+| saveRoutineButtonText | #E7FFF1 | colors.textInverse |
+| chipsWrap | gap:8, marginTop:10 | spacing.xs, spacing.xs |
+| exerciseCard | radius:14, padding:12, marginBottom:10 | radius.md, spacing.md, spacing.xs + shadow |
+| exerciseName | fontSize:20, fontWeight:800, marginBottom:2 | fontSize:18, fontWeight:900, spacing.xxs, letterSpacing |
+| progressText | colors.secondary | colors.primary + uppercase + letterSpacing |
+| row | gap:8, marginTop:8 | spacing.xs, spacing.xs |
+| successButton | radius:10, paddingV:12, bg:success | radius.sm, spacing.sm, colors.primary + shadow |
+| failButton | radius:10, paddingV:12, bg:danger solido | radius.sm, spacing.sm, dangerMuted + border |
+| restButton | radius:10, paddingV:12 | radius.sm, spacing.sm |
+| successText | #FFFFFF, lowercase | colors.textInverse, fontSize 13 |
+| failText | #FFFFFF, lowercase | colors.danger, fontSize 13 (legivel em dangerMuted) |
+| timerAction | marginTop:8 | spacing.xs |
+| cardTitle | fontSize:13, color:textPrimary | fontSize:11, textMuted, uppercase, letterSpacing (eyebrow) |
+| cardTitleGreen | fontSize:13, color:success | fontSize:11, primary, uppercase, letterSpacing (eyebrow) |
+| kpiValue | fontWeight:800 | fontWeight:900, letterSpacing:-0.3 |
+| timerValue | sem letterSpacing | letterSpacing:-1 |
+
+### Regras nao violadas
+
+- testIDs FreeWorkout: INTACTOS (screen-free-workout, btn-free-add-exercise, input-free-exercise-name, btn-free-save-routine, card-free-exercise-*, input-free-weight-*, btn-free-save-set-*)
+- saveSet logic: INTACTA
+- addExercise: INTACTO
+- submitSet: INTACTO
+- testIDs WorkoutScreen guiado: INTACTOS
+
+### Fluxo guiado ex2 validado
+
+| Passo | Resultado |
+|-------|-----------|
+| workout-exercise-index-1 presente | PASS |
+| Preencher peso=80, reps=10 | PASS |
+| Salvar serie ex2 | PASS -- "80kg x 10 @RPE 8" confirmado |
+| Continua no ex2 (nao voltou ex1) | PASS -- workout-exercise-index-0 ABSENT |
+| JS errors logcat | errors_count: 0 PASS |
+
+### Fluxo livre validado
+
+| Passo | Resultado |
+|-------|-----------|
+| screen-free-workout presente | PASS |
+| 2+ exercicios adicionados | PASS -- Agachamento Livre + Supino Inclinado Barra |
+| btn-free-save-set-supino-inclinado-barra presente | PASS |
+| Salvar serie no supino | PASS |
+| Agachamento Livre nao afetado pelo save do supino | PASS -- card separado |
+| JS errors logcat | errors_count: 0 PASS |
+
+### Testes/Audit
+
+| Gate | Resultado |
+|------|-----------|
+| audit:release:sync | drift=0 PASS |
+| audit:release:check | drift=0 PASS |
+| npm test --runInBand | 0 novas falhas PASS (8 pre-existentes) |
+| gradlew assembleDebug | BUILD SUCCESSFUL PASS |
+| adb install -r | Success PASS |
+| logcat ReactNativeJS | errors_count: 0 PASS |
+
+### Arquivos alterados
+
+| Arquivo | Tipo |
+|---------|------|
+| src/screens/FreeWorkoutScreen.js | 20 melhorias visuais |
+| _audit_release/src/screens/FreeWorkoutScreen.js | espelho |
+| qa/audit-release-sync-report.json | drift=0 |
+| qa/live_mapping/FULL_APP_VISUAL_POLISH_AUDIT.md | este relatorio |
+
+### Nota WorkoutScreen (treino guiado)
+
+O WorkoutScreen foi refinado no Bloco 3 (SHA: 184d4d7). Nenhuma alteracao adicional
+foi necessaria no Bloco 5 -- os estilos do guiado ja estao com tokens e shadow correta.
+
+### QA flags
+
+Ativadas apenas para captura local before/after. Revertidas para false antes de qualquer commit.
+app.json: enableQaTransport/qaWorkoutFixture/androidNavAudit = false (confirmado).
+
+### Riscos
+
+| Risco | Avaliacao |
+|-------|-----------|
+| failButton muda de bg:danger para dangerMuted | POSITIVO -- mais legivel no tema escuro |
+| successButton muda de success para primary | SEM RISCO -- ambos sao #22C55E |
+| failText muda de #FFF para colors.danger | POSITIVO -- contraste em bg muted |
+| cardTitle se torna eyebrow (uppercase) | POSITIVO -- hierarquia visual mais clara |
+
+### Veredito
+
+BLOCO 5: READY-USER/VISUAL PASS
+
+Hardcodes eliminados: 6 cores hardcoded PASS
+Tokens aplicados: 20 melhorias PASS
+audit:release:check: drift=0 PASS
+npm test: 0 novas falhas PASS
+testIDs Free e Guided: INTACTOS PASS
+saveSet guiado ex2: PASS
+treino livre 2 exercicios: PASS
+JS errors: 0 PASS
+
+---
+
+### Proxima acao unica
+
+Aguardando autorizacao de Felipe para commitar o Bloco 5.
+
+Commit sugerido:
+`
+polish(free-workout): refine Free Workout screen visual premium dark fitness
+`
