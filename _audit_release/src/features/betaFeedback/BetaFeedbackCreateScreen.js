@@ -1,0 +1,356 @@
+// src/features/betaFeedback/BetaFeedbackCreateScreen.js
+
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  StyleSheet,
+  Alert,
+} from 'react-native';
+import { colors, spacing, radius, typography } from '../../theme';
+import {
+  BETA_FEEDBACK_TYPE_LABELS,
+  BETA_FEEDBACK_SEVERITY_LABELS,
+  BETA_FEEDBACK_LIMITS,
+} from './constants';
+import {
+  validateFeedbackDraft,
+  validateAttachmentCandidate,
+} from './validation';
+
+export default function BetaFeedbackCreateScreen() {
+  const [type, setType] = useState(null);
+  const [severity, setSeverity] = useState(null);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [screenName, setScreenName] = useState('');
+  const [stepsToReproduce, setStepsToReproduce] = useState('');
+  const [expectedResult, setExpectedResult] = useState('');
+  const [actualResult, setActualResult] = useState('');
+  const [attachments, setAttachments] = useState([]);
+  const [errors, setErrors] = useState([]);
+  const [isValidated, setIsValidated] = useState(false);
+
+  const handleValidate = () => {
+    const draft = {
+      userId: 'local-beta-user', // Placeholder para validação local
+      type,
+      severity,
+      title,
+      description,
+      screenName,
+      stepsToReproduce,
+      expectedResult,
+      actualResult,
+      attachments,
+    };
+
+    const validationErrors = validateFeedbackDraft(draft);
+    setErrors(validationErrors);
+
+    if (validationErrors.length === 0) {
+      setIsValidated(true);
+      Alert.alert(
+        'Feedback validado localmente',
+        'Envio real será habilitado em uma próxima fase.',
+      );
+    } else {
+      setIsValidated(false);
+      Alert.alert(
+        'Erros de validação',
+        validationErrors.map(e => e.message).join('\n'),
+      );
+    }
+  };
+
+  const renderTypeSelector = () => (
+    <View style={styles.section}>
+      <Text style={styles.label}>Tipo de feedback</Text>
+      <View style={styles.optionsContainer}>
+        {Object.entries(BETA_FEEDBACK_TYPE_LABELS).map(([key, label]) => (
+          <TouchableOpacity
+            key={key}
+            style={[
+              styles.option,
+              type === key && styles.optionSelected,
+            ]}
+            onPress={() => setType(key)}
+          >
+            <Text
+              style={[
+                styles.optionText,
+                type === key && styles.optionTextSelected,
+              ]}
+            >
+              {label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+
+  const renderSeveritySelector = () => (
+    <View style={styles.section}>
+      <Text style={styles.label}>Severidade</Text>
+      <View style={styles.optionsContainer}>
+        {Object.entries(BETA_FEEDBACK_SEVERITY_LABELS).map(([key, label]) => (
+          <TouchableOpacity
+            key={key}
+            style={[
+              styles.option,
+              severity === key && styles.optionSelected,
+            ]}
+            onPress={() => setSeverity(key)}
+          >
+            <Text
+              style={[
+                styles.optionText,
+                severity === key && styles.optionTextSelected,
+              ]}
+            >
+              {label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+
+  const renderAttachmentsPlaceholder = () => (
+    <View style={styles.section}>
+      <Text style={styles.label}>Anexos</Text>
+      <View style={styles.attachmentsPlaceholder}>
+        <Text style={styles.placeholderText}>
+          Anexos de imagem/vídeo serão habilitados na próxima fase.
+        </Text>
+        <Text style={styles.placeholderSubtext}>
+          Até {BETA_FEEDBACK_LIMITS.MAX_ATTACHMENTS_PER_REPORT} anexos
+        </Text>
+        <Text style={styles.placeholderSubtext}>
+          Imagem até {BETA_FEEDBACK_LIMITS.MAX_IMAGE_SIZE_BYTES / (1024 * 1024)} MB
+        </Text>
+        <Text style={styles.placeholderSubtext}>
+          Vídeo até {BETA_FEEDBACK_LIMITS.MAX_VIDEO_SIZE_BYTES / (1024 * 1024)} MB
+        </Text>
+      </View>
+    </View>
+  );
+
+  return (
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <Text style={styles.title}>Feedback Beta</Text>
+      <Text style={styles.subtitle}>
+        Reporte bugs, sugestões ou melhorias para ajudar a evoluir o app
+      </Text>
+
+      {renderTypeSelector()}
+      {renderSeveritySelector()}
+
+      <View style={styles.section}>
+        <Text style={styles.label}>Título *</Text>
+        <TextInput
+          style={styles.input}
+          value={title}
+          onChangeText={setTitle}
+          placeholder="Descreva o problema em uma frase"
+          placeholderTextColor={colors.textSecondary}
+        />
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.label}>Descrição *</Text>
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          value={description}
+          onChangeText={setDescription}
+          placeholder="Explique o problema em detalhes"
+          placeholderTextColor={colors.textSecondary}
+          multiline
+          numberOfLines={4}
+        />
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.label}>Tela/fluxo onde aconteceu</Text>
+        <TextInput
+          style={styles.input}
+          value={screenName}
+          onChangeText={setScreenName}
+          placeholder="Ex: Tela de treino, Perfil, etc."
+          placeholderTextColor={colors.textSecondary}
+        />
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.label}>Passos para reproduzir</Text>
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          value={stepsToReproduce}
+          onChangeText={setStepsToReproduce}
+          placeholder="Liste os passos para reproduzir o problema"
+          placeholderTextColor={colors.textSecondary}
+          multiline
+          numberOfLines={3}
+        />
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.label}>Resultado esperado</Text>
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          value={expectedResult}
+          onChangeText={setExpectedResult}
+          placeholder="O que você esperava que acontecesse"
+          placeholderTextColor={colors.textSecondary}
+          multiline
+          numberOfLines={2}
+        />
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.label}>Resultado obtido</Text>
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          value={actualResult}
+          onChangeText={setActualResult}
+          placeholder="O que realmente aconteceu"
+          placeholderTextColor={colors.textSecondary}
+          multiline
+          numberOfLines={2}
+        />
+      </View>
+
+      {renderAttachmentsPlaceholder()}
+
+      <TouchableOpacity style={styles.button} onPress={handleValidate}>
+        <Text style={styles.buttonText}>Validar feedback</Text>
+      </TouchableOpacity>
+
+      {isValidated && (
+        <View style={styles.successMessage}>
+          <Text style={styles.successText}>
+            ✓ Feedback validado localmente
+          </Text>
+          <Text style={styles.successSubtext}>
+            Envio real será habilitado em uma próxima fase
+          </Text>
+        </View>
+      )}
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  content: {
+    padding: spacing.lg,
+  },
+  title: {
+    ...typography.h2,
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
+  },
+  subtitle: {
+    ...typography.body,
+    color: colors.textSecondary,
+    marginBottom: spacing.xl,
+  },
+  section: {
+    marginBottom: spacing.lg,
+  },
+  label: {
+    ...typography.body,
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
+    fontWeight: '600',
+  },
+  optionsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  option: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  optionSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  optionText: {
+    ...typography.bodySmall,
+    color: colors.textPrimary,
+  },
+  optionTextSelected: {
+    color: colors.textPrimary,
+  },
+  input: {
+    backgroundColor: colors.card,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    color: colors.textPrimary,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  textArea: {
+    height: 100,
+    textAlignVertical: 'top',
+  },
+  attachmentsPlaceholder: {
+    backgroundColor: colors.card,
+    borderRadius: radius.md,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  placeholderText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
+  },
+  placeholderSubtext: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+  },
+  button: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    marginTop: spacing.lg,
+  },
+  buttonText: {
+    ...typography.body,
+    color: colors.textPrimary,
+    fontWeight: '600',
+  },
+  successMessage: {
+    backgroundColor: colors.success,
+    borderRadius: radius.md,
+    padding: spacing.lg,
+    marginTop: spacing.lg,
+  },
+  successText: {
+    ...typography.body,
+    color: colors.textPrimary,
+    fontWeight: '600',
+    marginBottom: spacing.sm,
+  },
+  successSubtext: {
+    ...typography.bodySmall,
+    color: colors.textPrimary,
+  },
+});
