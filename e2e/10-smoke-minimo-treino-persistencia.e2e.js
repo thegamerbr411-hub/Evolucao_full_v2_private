@@ -70,7 +70,7 @@ describe('100 - smoke minimo treino persistencia', () => {
       await scrollToElement('screen-workout', 'input-weight', 'down', 360, 8);
     }
     await fillWorkoutKeypadField('input-weight', '40');
-    await sleep(400);
+    await sleep(2000); // Aguardar keypad fechar completamente
 
     // Preencher reps
     const inputRepsVisible = await isVisible('input-reps', 5000);
@@ -78,16 +78,17 @@ describe('100 - smoke minimo treino persistencia', () => {
       await scrollToElement('screen-workout', 'input-reps', 'down', 360, 8);
     }
     await fillWorkoutKeypadField('input-reps', '12');
-    await sleep(400);
+    await sleep(2000); // Aguardar keypad fechar completamente
 
     // Salvar série
+    await sleep(1000); // Aguardar estado estabilizar após reps
     const saved = await tapSaveSetIfVisible();
     if (!saved) {
       logStep('smoke:btn-save-set-not-visible - tentando auto-save');
     }
 
     // Confirmar série salva (verificar se status mudou)
-    await sleep(1000);
+    await sleep(2000);
     const setSavedVisible = await isVisible('set-saved-indicator', 3000);
     logStep(`smoke:set-saved=${setSavedVisible}`);
 
