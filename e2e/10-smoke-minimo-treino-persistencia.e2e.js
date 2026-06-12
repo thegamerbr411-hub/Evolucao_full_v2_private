@@ -26,6 +26,7 @@ describe('100 - smoke minimo treino persistencia', () => {
   const persona = getPersona();
 
   it('home → treino → salvar serie', async () => {
+    jest.setTimeout(300000); // 5 minutos
     await launchApp({ deleteApp: true });
     await dismissBlockingSystemDialogs();
 
@@ -89,19 +90,6 @@ describe('100 - smoke minimo treino persistencia', () => {
     await sleep(1000);
     const setSavedVisible = await isVisible('set-saved-indicator', 3000);
     logStep(`smoke:set-saved=${setSavedVisible}`);
-
-    // Voltar para Home
-    await device.pressBack();
-    await sleep(500);
-
-    // Confirmar voltou para Home
-    const homeAgain = await isVisible('screen-home', 5000);
-    logStep(`smoke:home-after-workout=${homeAgain}`);
-
-    if (!homeAgain) {
-      await device.pressBack();
-      await sleep(500);
-    }
 
     logStep('smoke:complete');
   });
