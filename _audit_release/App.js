@@ -499,10 +499,14 @@ export default function App() {
                   });
                 });
 
+                const CRITICAL_SCREENS = ['screen-workout', 'WorkoutScreen', 'screen-treino', 'TreinoScreen'];
+                const isCriticalScreen = CRITICAL_SCREENS.some(s => closeSummary?.screen?.includes(s));
+
                 const shouldAskFeedback =
                   Boolean(closeSummary?.screen) &&
                   Number(closeSummary?.durationMs || 0) >= 10000 &&
                   !feedbackPromptVisibleRef.current &&
+                  !isCriticalScreen &&
                   shouldShowInAppFeedbackPrompt();
 
                 if (shouldAskFeedback) {
