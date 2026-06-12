@@ -26,13 +26,18 @@ describe('100 - smoke minimo treino persistencia', () => {
   const persona = getPersona();
 
   it('home → treino → salvar serie', async () => {
-    await launchApp({ deleteApp: false });
+    await launchApp({ deleteApp: true });
     await dismissBlockingSystemDialogs();
 
-    // Aguardar app estar estável
-    await sleep(3000);
+    // Completar onboarding (usando fixture/persona)
+    await ensureOnboarded(persona);
+    logStep('smoke:onboarding-completed');
 
-    // Ir para Treino direto (não depende de Home/onboarding)
+    // Chegar na Home via main tabs
+    await ensureMainTabsReady(persona);
+    logStep('smoke:main-tabs-ready');
+
+    // Ir para Treino
     await goToTreinos();
 
     // Iniciar treino
