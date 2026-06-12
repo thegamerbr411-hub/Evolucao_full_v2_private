@@ -29,15 +29,27 @@ describe('100 - smoke minimo treino persistencia', () => {
     await launchApp({ deleteApp: false });
     await dismissBlockingSystemDialogs();
 
+    // Tenta chegar na Home via onboarding se necessário
+    try {
+      await ensureOnboarded(persona);
+    } catch {
+      logStep('smoke:onboarding-recover - continuando mesmo sem onboarding');
+    }
+
+    // Tenta chegar na Home via main tabs se disponível
     try {
       await ensureMainTabsReady(persona);
     } catch {
       logStep('smoke:main-tabs-recover - continuando mesmo sem main tabs');
     }
 
-    // Confirmar Home
-    const homeVisible = await isVisible('screen-home', 5000);
+    // Confirmar Home ou tentar direto Treino
+    const homeVisible = await isVisible('screen-home', 3000);
     logStep(`smoke:home-visible=${homeVisible}`);
+
+    if (!homeVisible) {
+      logStep('smoke:home-not-visible - tentando goToTreinos direto');
+    }
 
     // Ir para Treino
     await goToTreinos();
