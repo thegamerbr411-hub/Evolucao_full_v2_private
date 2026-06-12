@@ -23,10 +23,10 @@ const {
 } = require('./helpers/utils');
 
 describe('100 - smoke minimo treino persistencia', () => {
+  jest.setTimeout(300000); // 5 minutos
   const persona = getPersona();
 
   it('home → treino → salvar serie', async () => {
-    jest.setTimeout(300000); // 5 minutos
     await launchApp({ deleteApp: true });
     await dismissBlockingSystemDialogs();
 
