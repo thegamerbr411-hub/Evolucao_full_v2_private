@@ -315,8 +315,11 @@ export default function RoutinesScreen({ navigation }) {
     navigation.navigate('TreinoHoje', { workoutId: routine.id });
   };
 
-  const openExerciseDetail = (exercise) => {
-    navigation.navigate('ExerciseDetail', { exercise });
+  const openExerciseDetail = (item) => {
+    setShowCatalogModal(false);
+    navigation.navigate('ExerciseDetail', {
+      exercise: { name: item.name, ...getExerciseByName(item.name) },
+    });
   };
 
   return (
@@ -628,7 +631,12 @@ export default function RoutinesScreen({ navigation }) {
                       >
                         <Text style={styles.catalogAddButtonText}>{selected ? 'Selecionado' : 'Selecionar'}</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity style={styles.catalogDetailButton} onPress={() => openExerciseDetail(item)}>
+                      <TouchableOpacity
+                        testID={`btn-routine-detail-${toTestId(item.name)}`}
+                        accessibilityLabel="Detalhes"
+                        style={styles.catalogDetailButton}
+                        onPress={() => openExerciseDetail(item)}
+                      >
                         <Text style={styles.catalogDetailButtonText}>Detalhes</Text>
                       </TouchableOpacity>
                     </View>
