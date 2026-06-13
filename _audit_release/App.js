@@ -1,6 +1,8 @@
+import 'react-native-gesture-handler';
 import React from 'react';
 import { Alert, AppState, InteractionManager, LogBox, View, Text } from 'react-native';
 import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NutritionProvider } from './src/context/NutritionContext';
 import RootNavigator from './src/navigation/RootNavigator';
@@ -389,6 +391,7 @@ export default function App() {
   }, [qaHealthSnapshot?.async?.pendingAsyncTasks, qaHealthSnapshot?.async?.activeTimers, qaHealthSnapshot?.async?.backgroundTasks]);
 
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <ErrorBoundary>
       <NutritionProvider>
         <RootProvider>
@@ -583,5 +586,6 @@ export default function App() {
       </RootProvider>
     </NutritionProvider>
     </ErrorBoundary>
+    </GestureHandlerRootView>
   );
 }
