@@ -134,6 +134,71 @@ _Nenhum._
 
 Nenhuma alteração de código do app nesta execução — auditoria documental conforme escopo. Problemas visuais P1/P2 registrados para PR de polish dedicado.
 
+## 11b. Polish P1/P2 aplicado
+
+**Branch:** `fix/visual-polish-p1p2-a44b828` (a partir desta auditoria @ `9fec2c6`)
+
+### P1 corrigidos
+
+| # | Achado | Correção | Arquivo |
+|---|--------|----------|---------|
+| V1 | Modal Feedback rápido no fluxo de treino | Bloqueio ao entrar/sair de rotas reais (`TreinoHoje`, `TreinoLivre`, etc.) | `App.js` |
+| V2 | Copy duplicada de retomada na Home | CTA único; recovery oculto quando `isContinue`; quick action sem duplicar; prioridade em PT | `src/screens/HomeScreen.js` |
+
+### P2 corrigidos
+
+| # | Achado | Correção | Arquivo |
+|---|--------|----------|---------|
+| V3 | Copy técnica treino | `Treino guiado` / `Visao completa`; subtitle premium; `Exercicio atual · N de M` | `workoutModeCopy.js`, `WorkoutScreen.js`, `workoutProgressCopy.js` |
+| V4 | CTAs abaixo da dobra | Primary CTA + grid Livre/Rotinas antes do card motor | `WorkoutsHubScreen.js` |
+| V5 | Empty states básicos | Copy humanizada em histórico local e ranking social | `workoutHistoryPresentation.js`, `HistoryScreen.js`, `SocialChallengesScreen.js` |
+| V6 | Fixture QA no Perfil | Email fixture mascarado (`Usuario Evolucao` / `Conta de teste (QA)` em dev) | `profileDisplay.js`, `ProfileScreen.js` |
+| V7 | Coach/Social overlap | `paddingBottom` com `useBottomTabBarHeight()` | `CoachChatScreen.js`, `SocialChallengesScreen.js` |
+
+### Antes / depois (resumo)
+
+| Tela | Antes | Depois |
+|------|-------|--------|
+| Home | CTA + recovery + “Retomar treino agora” + `Prioridade: workout` | CTA único; prioridade em PT; sem mensagem duplicada |
+| Workout | “Fluxo rapido / Modo simples” | “Registre sua carga…” / “Treino guiado” |
+| Perfil | `qa+workoutfixture@fixture.local` | Label amigável |
+| Treino hub | Livre/Rotinas após scroll | Grid visível logo após CTA principal |
+
+Evidências locais (não commitadas): `.qa_runtime/visual_polish_p1p2_a44b828/{screens_before,screens_after,dumps}/`
+
+### Testes pós-polish
+
+| Teste | Resultado |
+|-------|-----------|
+| `npm run audit:release:check` | PASS (exit 0; drift 14 esperado — alterações só em source, sem sync `_audit_release`) |
+| `freeWorkoutSaveSet.test.mjs` | PASS 4/4 |
+| `workoutActiveIndex.test.mjs` | PASS 4/4 |
+| `workoutHistorySetValues.test.mjs` | PASS 5/5 |
+| `workoutModeCard.test.mjs` | PASS 10/10 |
+| `workoutProgressCopy.test.mjs` | PASS 10/10 |
+| Detox smoke treino | PASS (~277s, `android.attached.debug`, device `RQ8T209ZTAF`) |
+
+### Nota premium estimada
+
+| Métrica | Valor |
+|---------|-------|
+| Nota antes | **7,2 / 10** |
+| Nota pós-polish (estimada) | **8,1 / 10** |
+
+### Risco residual
+
+- Modal feedback em rotas não mapeadas: **baixo**
+- Coach/Social ainda genéricos em conteúdo social API: **médio** (P3)
+- Empty states sem ilustração dedicada: **baixo**
+- Release readiness: **ainda NÃO** — requer validação visual pós-rebuild + Release Readiness dedicado
+
+### Telas ainda pendentes (P3)
+
+- Ilustrações em empty states
+- Separação visual Coach vs Social (cores/headers)
+- Polimento catálogo de exercícios
+- Tipografia unificada entre abas
+
 ## 12. Testes de regressão (Fase 16)
 
 | Teste | Resultado |

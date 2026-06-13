@@ -2,29 +2,29 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildWorkoutModePresentation } from '../src/services/workoutModeCopy.js';
 
-test('1: simpleMode true -> Modo simples', () => {
+test('1: simpleMode true -> Treino guiado', () => {
   const presentation = buildWorkoutModePresentation({ simpleMode: true });
-  assert.equal(presentation.modeLabel, 'Modo simples');
+  assert.equal(presentation.modeLabel, 'Treino guiado');
 });
 
-test('2: simpleMode false -> Modo avancado', () => {
+test('2: simpleMode false -> Visao completa', () => {
   const presentation = buildWorkoutModePresentation({ simpleMode: false });
-  assert.equal(presentation.modeLabel, 'Modo avancado');
+  assert.equal(presentation.modeLabel, 'Visao completa');
 });
 
-test('3: toggleLabel is always Alternar', () => {
-  assert.equal(buildWorkoutModePresentation({ simpleMode: true }).toggleLabel, 'Alternar');
-  assert.equal(buildWorkoutModePresentation({ simpleMode: false }).toggleLabel, 'Alternar');
+test('3: toggleLabel is always Trocar', () => {
+  assert.equal(buildWorkoutModePresentation({ simpleMode: true }).toggleLabel, 'Trocar');
+  assert.equal(buildWorkoutModePresentation({ simpleMode: false }).toggleLabel, 'Trocar');
 });
 
-test('4: compactLabel contains mode and Alternar', () => {
+test('4: compactLabel contains mode and Trocar', () => {
   const simple = buildWorkoutModePresentation({ simpleMode: true });
   const advanced = buildWorkoutModePresentation({ simpleMode: false });
 
-  assert.match(simple.compactLabel, /Modo simples/);
-  assert.match(simple.compactLabel, /Alternar/);
-  assert.match(advanced.compactLabel, /Modo avancado/);
-  assert.match(advanced.compactLabel, /Alternar/);
+  assert.match(simple.compactLabel, /Treino guiado/);
+  assert.match(simple.compactLabel, /Trocar/);
+  assert.match(advanced.compactLabel, /Visao completa/);
+  assert.match(advanced.compactLabel, /Trocar/);
 });
 
 test('5: showHelper false in simple mode', () => {
@@ -42,13 +42,13 @@ test('7: helper text differs between modes', () => {
   const advanced = buildWorkoutModePresentation({ simpleMode: false });
 
   assert.notEqual(simple.helperText, advanced.helperText);
-  assert.match(simple.helperText, /series rapido/i);
+  assert.match(simple.helperText, /Registre sua carga/i);
   assert.match(advanced.helperText, /detalhes extras/i);
 });
 
 test('8: undefined input defaults to simple mode', () => {
   const presentation = buildWorkoutModePresentation();
-  assert.equal(presentation.modeLabel, 'Modo simples');
+  assert.equal(presentation.modeLabel, 'Treino guiado');
   assert.equal(presentation.showHelper, false);
 });
 

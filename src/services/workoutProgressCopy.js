@@ -34,7 +34,7 @@ export function buildWorkoutProgressCopy({
     : 0;
 
   const headerLabel = safeTotalExercises > 0
-    ? `Exercicio ${exerciseNumber} de ${safeTotalExercises}`
+    ? `Exercicio atual · ${exerciseNumber} de ${safeTotalExercises}`
     : '';
 
   const workoutProgressLabel = `Treino: ${completed}/${planned} series concluidas · ${completionPercent}%`;

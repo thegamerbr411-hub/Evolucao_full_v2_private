@@ -22,6 +22,7 @@ import { getOrCreateUserIdentity, saveUserIdentity } from '../services/appIdenti
 import { performFullSessionLogout } from '../services/sessionCleanupService';
 import { getLocal } from '../storage/mmkv';
 import { setQaRuntimeAuth } from '../utils/qaTransport';
+import { getProfileDisplayEmail } from '../utils/profileDisplay';
 import { QA_ELEMENTS, QA_SCREENS, qaAliasProps, qaProps } from '../qa/selectorRegistry';
 
 const ADMIN_EMAILS = ['thegamerbr411@gmail.com'];
@@ -113,6 +114,7 @@ export default function ProfileScreen({ navigation }) {
   const gamification = getWorkoutGamification();
   const macroTargets = getDailyMacroTargets();
   const authSourceLabel = getBetaAuthSourceLabel();
+  const profileDisplayEmail = getProfileDisplayEmail(user?.email);
 
   const bmi = useMemo(() => {
     const w = Number(profile?.currentWeight || currentWeight || 0);
@@ -454,7 +456,7 @@ export default function ProfileScreen({ navigation }) {
           <Text style={styles.avatarEmoji}>👤</Text>
         </View>
         <Text style={styles.heroName}>{user?.name || 'Meu Perfil'}</Text>
-        {user?.email ? <Text style={styles.heroEmail}>{user.email}</Text> : null}
+        {profileDisplayEmail ? <Text style={styles.heroEmail}>{profileDisplayEmail}</Text> : null}
         <View style={styles.heroStatsRow}>
           <View style={styles.heroStat}>
             <Text style={styles.heroStatValue}>{gamification.level ?? 1}</Text>

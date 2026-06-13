@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { AnimatedToast, AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
@@ -18,6 +19,9 @@ import {
 } from '../utils/challengePermissions';
 
 export default function SocialChallengesScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
+  const scrollBottomPadding = spacing.xl + tabBarHeight + Math.max(insets.bottom, 0);
   const { user } = useApp();
   const [loading, setLoading] = useState(false);
   const [overview, setOverview] = useState(null);
@@ -183,8 +187,8 @@ export default function SocialChallengesScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.background }}>
-    <ScrollView testID="screen-social" contentContainerStyle={styles.container}>
+    <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: colors.background }}>
+    <ScrollView testID="screen-social" contentContainerStyle={[styles.container, { paddingBottom: scrollBottomPadding }]}>
       <View testID="screen-social-challenges" style={styles.hiddenMarker} />
       <AnimatedToast message={toastMessage} onHide={() => setToastMessage('')} />
       <ScreenHeader title="Social e Desafios" subtitle="Amigos, ranking e desafios semanais." onBack={() => navigation.goBack()} />
@@ -275,7 +279,11 @@ export default function SocialChallengesScreen({ navigation }) {
             </Text>
           ))
         ) : (
-          <Text style={styles.meta}>Sem ranking social ainda. Adicione amigos e conclua treinos para ativar.</Text>
+          <View style={styles.emptyState}>
+            <Ionicons name="podium-outline" size={40} color={colors.primary} />
+            <Text style={styles.emptyStateTitle}>Seu ranking aparece aqui</Text>
+            <Text style={styles.meta}>Adicione amigos e conclua treinos para comparar XP, volume e consistencia.</Text>
+          </View>
         )}
       </AppCard>
 
