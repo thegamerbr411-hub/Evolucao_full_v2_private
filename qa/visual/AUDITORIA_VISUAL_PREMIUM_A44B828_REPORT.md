@@ -192,6 +192,60 @@ Evidências locais (não commitadas): `.qa_runtime/visual_polish_p1p2_a44b828/{s
 | `workoutProgressCopy.test.mjs` | PASS 10/10 |
 | Detox smoke treino (final gate) | PASS (~227s, `android.attached.debug`, device `RQ8T209ZTAF`) |
 
+## 12b. Validação pós-rebuild no device físico
+
+### Metadados
+
+| Campo | Valor |
+|-------|-------|
+| Device | `RQ8T209ZTAF` (Samsung SM-G990E, Android 14) |
+| Package | `com.tipolt.evolucaofullv2` |
+| Rebuild | `npm run android` (Expo run:android) — debug build |
+| Commit no APK | `efa6edd` (`fix(ui): address premium visual audit navigation findings`) |
+| Branch | `qa/auditoria-visual-premium-a44b828` |
+| Data | 2026-06-13 |
+
+### Resultado BUG #2 — App abre na Home após relaunch
+
+| Ciclo | Resultado | Screen | Bottom nav |
+|-------|-----------|--------|------------|
+| 1 | ✅ PASS | `screen_home` | 6 abas |
+| 2 | ✅ PASS | `screen_home` | 6 abas |
+| 3 | ✅ PASS (repetido) | `screen_home` | 6 abas |
+| 4 | ✅ PASS | `screen_home` | 6 abas |
+| 5 | ✅ PASS | `screen_home` | 6 abas |
+
+**Conclusão:** 5/5 relaunches abriram na Home. Nenhum ciclo abriu diretamente em `TreinoHoje` ou `screen-workout`.
+
+### Resultado BUG #3 — Bottom nav responde após relaunch
+
+| Aba | Resultado |
+|-----|-----------|
+| Home (tap em tab-home) | ✅ Navega para Home |
+| Treino (tap em tab-treino) | ✅ Navega para Treino (`screen_treinos`) |
+| Nutrição (tap em tab-nutricao) | ✅ Navega para Nutrição (`screen-nutricao`) |
+| Coach (tap em tab-conversa) | ✅ Navega para Coach (`screen-coach`) |
+| Social (tap em tab-social) | ✅ Navega para Social (`screen-social`) |
+| Perfil (tap em tab-perfil) | ✅ Navega para Perfil (`screen_profile`) |
+
+**Conclusão:** Bottom nav funcional em todas as 6 abas após relaunch.
+
+### Resultado BUG #1 — Botão voltar no Workout
+
+| Tentativa | Ação | Resultado |
+|-----------|------|-----------|
+| 1 | Tap em ícone voltar (bounds ~[60,360][132,434]) | ✅ Abriu diálogo "Treino em andamento" com opções "SAIR E SALVAR PROGRESSO" / "CONTINUAR TREINO" |
+| 2 | Tap em ícone voltar | ✅ Abriu mesmo diálogo de confirmação |
+| 3 | Tap em ícone voltar | ✅ Abriu mesmo diálogo de confirmação |
+
+**Conclusão:** 3/3 taps no ícone voltar responderam corretamente. O `hitSlop` aumentado (12px) e `activeOpacity` garantem feedback visual e área de toque confiável.
+
+### Evidências locais
+
+`.qa_runtime/auditoria_visual_premium_a44b828/post_fix_validation/`
+
+**Veredito validação:** ✅ PASS — todos os 3 bugs validados como corrigidos no device físico pós-rebuild.
+
 **Commits no PR #25:** `1f31dee` (polish P1/P2) · `941b0e1` (navegação BUG #1/#2/#3) · `08f680b` (sync `_audit_release`)
 
 **Veredito merge:** GO COM RISCO BAIXO — audit drift 0 confirmado; Release Readiness dedicado após merge.
