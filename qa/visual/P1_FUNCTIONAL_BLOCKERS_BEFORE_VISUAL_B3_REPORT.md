@@ -32,6 +32,21 @@ Artefatos: `.qa_runtime/p1_functional_blockers/p1_diagnosis_results_v2.json`, `s
 
 ---
 
+## Final gate PR #28 (2026-06-13)
+
+| Gate | Antes | Depois | Resultado |
+|------|-------|--------|-----------|
+| `audit:release:check` | **DRIFT 4** (`index.js`, `App.js`, `WorkoutScreen.js`, `SetRow.js`) | **DRIFT 0** após `npm run audit:release:sync` | **PASS** — commit `530fa15` |
+| Unitários (5 suites) | — | 33/33 | **PASS** |
+| RedBox retest | — | `redbox_retest.cjs` pós-reload | **PASS** |
+| Logcat final gate | — | `.qa_runtime/p1_pr28_final_gate_logcat.txt` | **Sem** `FATAL EXCEPTION` / PanGestureHandler |
+| Detox smoke | — | `10-smoke-minimo` (dev client) | **FAIL infra** — não bloqueia merge |
+| Detalhes exercício ×5 | — | `exercise_details_5_run.cjs` | **FAIL automação** — builder step 2 (`Proximo`/catálogo) não completado via ADB; hub Treino visível em `FAIL_proximo.png`; rota `ExerciseDetail` no código; **sem bug de produto comprovado** |
+
+**Veredito final gate:** merge PR #28 aprovado. Bloco 3 **GO controlado** pós-merge. Release Readiness **NO-GO**.
+
+---
+
 ## P1 #1 — RedBox PanGestureHandler (modo avançado)
 
 | Campo | Detalhe |
@@ -63,7 +78,8 @@ Artefatos: `.qa_runtime/p1_functional_blockers/p1_diagnosis_results_v2.json`, `s
 | Rota | `RoutinesScreen` → catálogo → `navigation.navigate('ExerciseDetail')` |
 | ADB v1 | **FAIL** — botão Detalhes não encontrado (step builder não alcançado) |
 | ADB v2 | **FAIL automação** — `openRoutineCatalogModal` não abriu (5 exercícios não testados) |
-| Conclusão | Pendente recaptura manual/Detox; rota `ExerciseDetail` registrada no stack — **sem bug de produto comprovado** |
+| Final gate ×5 | **FAIL automação** — `exercise_details_5_run.cjs`: Rotinas abre parcialmente; step builder `Proximo`→catálogo não confirmado no XML |
+| Conclusão | Pendente recaptura manual/scrcpy/Detox; rota `ExerciseDetail` registrada no stack — **sem bug de produto comprovado** |
 | Correção código | Nenhuma neste PR |
 
 ---
@@ -125,7 +141,7 @@ Artefatos: `.qa_runtime/p1_functional_blockers/p1_diagnosis_results_v2.json`, `s
 
 | Gate | Resultado |
 |------|-----------|
-| `npm run audit:release:check` | **DRIFT 4** (esperado: `_audit_release` não sincronizado; fora do escopo hotfix) |
+| `npm run audit:release:check` | **PASS drift 0** (sync `530fa15`) |
 | Unitários (5 suites) | **PASS** (33 tests) |
 | Detox `10-smoke-minimo` | **FAIL infra** — `onboarding_blocked: main_tabs_not_visible` / Detox não conectou ao app de teste (dev client ativo) |
 
@@ -137,7 +153,7 @@ Artefatos: `.qa_runtime/p1_functional_blockers/p1_diagnosis_results_v2.json`, `s
 2. Recaptura Bloco 2 pós-fix (17 avançado, 19–25)
 3. Histórico vazio sem fixture
 4. Detox smoke com build detox (não dev client concorrente)
-5. `audit:release:sync` quando fechar release (não neste hotfix)
+5. Detox smoke com build detox (não dev client concorrente)
 
 ---
 
@@ -159,4 +175,5 @@ Artefatos: `.qa_runtime/p1_functional_blockers/p1_diagnosis_results_v2.json`, `s
 - `.qa_runtime/p1_functional_blockers/keypad_retest_quick.cjs`
 - `.qa_runtime/p1_functional_blockers/screens/` (`v2_*`, `advanced_*`)
 - `.qa_runtime/p1_functional_blockers/dumps/` (`advanced_retest.xml`, `v2_keypad_retest.xml`)
-- `.qa_runtime/p1_functional_blockers/PLANO_DIAGNOSTICO_P1.md`
+- `.qa_runtime/p1_functional_blockers/exercise_details_5/` (final gate ×5)
+- `.qa_runtime/p1_pr28_final_gate_logcat.txt`
