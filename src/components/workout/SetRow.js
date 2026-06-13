@@ -249,6 +249,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+    flexWrap: 'wrap',
   },
   index: {
     width: 24,
@@ -283,6 +284,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderWidth: 1,
+    flexShrink: 1,
+    maxWidth: 88,
   },
   statusPending: {
     borderColor: colors.border,
@@ -315,11 +318,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: 8,
+    flexShrink: 0,
   },
   buttonReady: {
     backgroundColor: colors.success,
     borderColor: colors.success,
-    minWidth: 88,
+    minWidth: 76,
+    maxWidth: 96,
   },
   buttonSaved: {
     backgroundColor: colors.primary,
