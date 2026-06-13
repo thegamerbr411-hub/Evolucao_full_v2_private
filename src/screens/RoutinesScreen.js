@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Image, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image, InteractionManager, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { EXERCISE_NAMES_V2 } from '../data/exerciseLibraryV2.js';
@@ -316,9 +316,12 @@ export default function RoutinesScreen({ navigation }) {
   };
 
   const openExerciseDetail = (item) => {
-    setShowCatalogModal(false);
-    navigation.navigate('ExerciseDetail', {
+    const payload = {
       exercise: { name: item.name, ...getExerciseByName(item.name) },
+    };
+    setShowCatalogModal(false);
+    InteractionManager.runAfterInteractions(() => {
+      navigation.navigate('ExerciseDetail', payload);
     });
   };
 
