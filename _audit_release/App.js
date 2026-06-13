@@ -396,6 +396,10 @@ export default function App() {
             <View testID={QA_ELEMENTS.appRoot} accessibilityLabel={QA_ELEMENTS.appRoot} nativeID={QA_ELEMENTS.appRoot} style={{ flex: 1 }}>
               <NavigationContainer
               ref={navigationRef}
+              linking={{
+                prefixes: [],
+                getInitialState: () => undefined,
+              }}
               onReady={() => {
                 const currentRoute = navigationRef.getCurrentRoute()?.name || '';
                 routeNameRef.current = currentRoute;
@@ -499,14 +503,28 @@ export default function App() {
                   });
                 });
 
-                const CRITICAL_SCREENS = ['screen-workout', 'WorkoutScreen', 'screen-treino', 'TreinoScreen'];
-                const isCriticalScreen = CRITICAL_SCREENS.some(s => closeSummary?.screen?.includes(s));
+                const WORKOUT_FLOW_ROUTES = [
+                  'TreinoHoje',
+                  'TreinoLivre',
+                  'WorkoutCompleteScreen',
+                  'ImportWorkout',
+                  'screen-workout',
+                  'WorkoutScreen',
+                  'screen-treino',
+                  'TreinoScreen',
+                  'FreeWorkout',
+                  'screen-free-workout',
+                  'workout-execution',
+                ];
+                const isWorkoutFlowScreen = (name) =>
+                  WORKOUT_FLOW_ROUTES.some((token) => String(name || '').includes(token));
 
                 const shouldAskFeedback =
                   Boolean(closeSummary?.screen) &&
                   Number(closeSummary?.durationMs || 0) >= 10000 &&
                   !feedbackPromptVisibleRef.current &&
-                  !isCriticalScreen &&
+                  !isWorkoutFlowScreen(closeSummary?.screen) &&
+                  !isWorkoutFlowScreen(currentRoute) &&
                   shouldShowInAppFeedbackPrompt();
 
                 if (shouldAskFeedback) {
