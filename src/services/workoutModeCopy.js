@@ -2,11 +2,11 @@ export function buildWorkoutModePresentation({ simpleMode = true } = {}) {
   const isSimple = Boolean(simpleMode);
 
   return {
-    modeLabel: isSimple ? 'Modo simples' : 'Modo avancado',
-    toggleLabel: 'Alternar',
-    compactLabel: isSimple ? 'Modo simples · Alternar' : 'Modo avancado · Alternar',
+    modeLabel: isSimple ? 'Treino guiado' : 'Visao completa',
+    toggleLabel: 'Trocar',
+    compactLabel: isSimple ? 'Treino guiado · Trocar' : 'Visao completa · Trocar',
     helperText: isSimple
-      ? 'Foco em registrar series rapido.'
+      ? 'Registre sua carga e avance no treino.'
       : 'Mostra detalhes extras do treino.',
     showHelper: !isSimple,
   };

@@ -35,6 +35,14 @@ import { resolveWorkoutContinueParams } from '../services/workoutActiveRoutine';
 const XP_PER_LEVEL = 500;
 const WEEK_DAYS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
 
+const HOME_FEATURE_LABELS = {
+  workout: 'Treino',
+  nutrition: 'Nutrição',
+  coach: 'Coach',
+  social: 'Social',
+  general: 'Geral',
+};
+
 function getGreeting() {
   const hour = new Date().getHours();
   if (hour < 12) return 'Bom dia';
@@ -439,6 +447,7 @@ export default function HomeScreen({ navigation }) {
   const coachMessage = adaptiveConfig?.coach || null;
   const recovery = workoutDone ? null : (adaptiveConfig?.recovery || null);
   const highlightedFeature = String(adaptiveConfig?.highlightedFeature || 'workout');
+  const highlightedFeatureLabel = HOME_FEATURE_LABELS[highlightedFeature] || HOME_FEATURE_LABELS.workout;
   const isLightweightMode = Boolean(adaptiveConfig?.lightweightMode);
 
   const isContinueWorkout = Boolean(workoutSession?.isContinue);
@@ -481,9 +490,9 @@ export default function HomeScreen({ navigation }) {
         key: 'workout',
         testID: QA_ELEMENTS.btnStartWorkout,
         legacyId: 'home-quick-workout',
-        label: 'Retomar treino agora',
+        label: 'Explorar treinos',
         onPress: async () => {
-          const params = await resolveWorkoutContinueParams({ isContinue: true });
+          const params = await resolveWorkoutContinueParams({ isContinue: isContinueWorkout });
           navigation.navigate('TreinoHoje', params);
         },
       },
@@ -501,9 +510,10 @@ export default function HomeScreen({ navigation }) {
       },
     };
 
-    const requested = Array.isArray(adaptiveConfig?.quickActionOrder)
+    const requested = (Array.isArray(adaptiveConfig?.quickActionOrder)
       ? adaptiveConfig.quickActionOrder
-      : ['workout', 'nutrition', 'insights'];
+      : ['workout', 'nutrition', 'insights'])
+      .filter((key) => !(isContinueWorkout && key === 'workout'));
 
     const hydrated = requested
       .map((key) => actionByKey[key])
@@ -512,7 +522,7 @@ export default function HomeScreen({ navigation }) {
 
     hydrated.push(actionByKey.water);
     return hydrated;
-  }, [adaptiveConfig, navigation, openWaterQuickAddSheet]);
+  }, [adaptiveConfig, isContinueWorkout, navigation, openWaterQuickAddSheet]);
 
   const secondaryActions = orderedActions.filter((action) => action.key !== 'workout');
 
@@ -590,8 +600,8 @@ export default function HomeScreen({ navigation }) {
             ratio={waterTargetMl > 0 ? waterTodayMl / waterTargetMl : 0}
             barColor={colors.secondary}
           />
-          <Text style={styles.progressFeature}>Prioridade atual: {highlightedFeature}</Text>
-          {recovery ? <Text style={styles.progressMode}>{recovery.message}</Text> : null}
+          <Text style={styles.progressFeature}>Prioridade atual: {highlightedFeatureLabel}</Text>
+          {recovery && !isContinueWorkout ? <Text style={styles.progressMode}>{recovery.message}</Text> : null}
           {isLightweightMode ? (
             <Text style={styles.progressMode}>Modo leve ativo para reduzir telas lentas.</Text>
           ) : null}

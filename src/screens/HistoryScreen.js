@@ -132,7 +132,7 @@ export default function HistoryScreen({ navigation }) {
             );
           })
         ) : (
-          <Text style={styles.empty}>Nenhuma analise salva ainda. Gere uma analise do dia primeiro.</Text>
+          <Text style={styles.empty}>Seu historico semanal aparece aqui. Registre treinos e refeicoes para acompanhar sua evolucao.</Text>
         )}
       </AppCard>
 
