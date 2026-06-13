@@ -179,17 +179,22 @@ Investigação pós-auditoria visual identificou causas raiz e aplicou correçõ
 
 Evidências locais (não commitadas): `.qa_runtime/visual_polish_p1p2_a44b828/{screens_before,screens_after,dumps}/`
 
-### Testes pós-polish
+### Testes pós-polish (final gate PR #25)
 
 | Teste | Resultado |
 |-------|-----------|
-| `npm run audit:release:check` | PASS (exit 0; drift 14 esperado — alterações só em source, sem sync `_audit_release`) |
+| `npm run audit:release:check` (pré-sync) | **FAIL** exit 1 — drift 16 (source alterado, `_audit_release` desatualizado) |
+| `npm run audit:release:sync` + `check` | **PASS** exit 0 — drift 0 (commit `08f680b`) |
 | `freeWorkoutSaveSet.test.mjs` | PASS 4/4 |
 | `workoutActiveIndex.test.mjs` | PASS 4/4 |
 | `workoutHistorySetValues.test.mjs` | PASS 5/5 |
 | `workoutModeCard.test.mjs` | PASS 10/10 |
 | `workoutProgressCopy.test.mjs` | PASS 10/10 |
-| Detox smoke treino | PASS (~277s, `android.attached.debug`, device `RQ8T209ZTAF`) |
+| Detox smoke treino (final gate) | PASS (~227s, `android.attached.debug`, device `RQ8T209ZTAF`) |
+
+**Commits no PR #25:** `1f31dee` (polish P1/P2) · `941b0e1` (navegação BUG #1/#2/#3) · `08f680b` (sync `_audit_release`)
+
+**Veredito merge:** GO COM RISCO BAIXO — audit drift 0 confirmado; Release Readiness dedicado após merge.
 
 ### Nota premium estimada
 
