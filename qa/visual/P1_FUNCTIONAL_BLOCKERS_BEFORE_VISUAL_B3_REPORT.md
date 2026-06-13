@@ -3,16 +3,32 @@
 **Branch:** `fix/p1-functional-blockers-before-visual-b3`  
 **Base:** `origin/main` @ `12a24c5` (PR #26 mergeado, inclui PR #25)  
 **Device:** `RQ8T209ZTAF`  
-**Data:** 2026-06-13  
+**Data:** 2026-06-13 (v2 retest pós-reload, Metro 8081 sem restart)  
 **Contexto ChatGPT Bloco 2:** `.qa_runtime/chatgpt_bridge/evolucao_visual_review_bloco2_16_25_response.txt` — NO-GO Bloco 3 / NO-GO Release Readiness por P1 funcionais e automação ADB.
 
 ---
 
 ## Resumo executivo
 
-Correção **confirmada** do P1 crítico **RedBox PanGestureHandler** no modo avançado (Visão completa). Tabs **Nutrição** e **Coach** navegam corretamente via ADB após fix + Metro reload. Demais fluxos (detalhe exercício catálogo, keypad reps em sequência longa) permanecem **parcialmente cobertos por ADB** — não bug de produto comprovado nos tabs; retest manual/Detox recomendado antes de Bloco 3 visual.
+Correção **confirmada** do P1 crítico **RedBox PanGestureHandler** no modo avançado (Visão completa) — retest **A** pós-reload **PASS** sem reiniciar Metro. Tabs **Coach** OK; **Nutrição** bloqueada por dialog *Feedback rápido* no script v2 (v1 PASS — automação). **Treino Livre add** **PASS** v2. **Keypad reps** **PASS** em retest isolado (toggle modo guiado + scroll). **Detalhes exercício (5)** ainda **não cobertos** — fluxo Rotinas→builder step 2→catálogo falhou no ADB (automacao).
 
 **Veredito:** GO controlado para **retomar auditoria visual Bloco 3** após merge deste hotfix. **Release Readiness continua NO-GO** (histórico vazio, cobertura visual incompleta, Detox smoke infra fail).
+
+---
+
+## Diagnóstico v2 (2026-06-13, Metro PID ativo, sem `--clear`)
+
+| Teste | Script | Resultado | Notas |
+|-------|--------|-----------|-------|
+| **A** RedBox / modo avançado | `redbox_retest.cjs` | **PASS** | Sem RedBox; `Visao completa` / `workout-exercise-list-advanced` |
+| **B** Tab Nutrição | `p1_diagnosis_continue.cjs` | **FAIL automação** | Dialog *Feedback rápido* cobriu tela (`v2_tab_nutricao.xml`); v1 = PASS |
+| **B** Tab Coach | `p1_diagnosis_continue.cjs` | **PASS** | `screen-coach`, `chat-input` |
+| **C** Detalhes ×5 | `p1_diagnosis_continue.cjs` | **FAIL automação** | Catálogo rotinas não abriu (scroll/hub Treino→Rotinas) |
+| **D** Keypad reps | `p1_diagnosis_continue.cjs` | **FAIL automação** | Workout abriu em modo avançado; `input-reps` fora do viewport |
+| **D** Keypad reps (retest) | `keypad_retest_quick.cjs` | **PASS** | Toggle modo guiado + scroll → keypad (`Limpar`/`OK`) |
+| **E** Treino Livre add | `p1_diagnosis_continue.cjs` | **PASS** | `Supino Reto` confirmado no XML pós `btn-free-add-exercise` |
+
+Artefatos: `.qa_runtime/p1_functional_blockers/p1_diagnosis_results_v2.json`, `screens/v2_*`, `dumps/v2_keypad_retest.xml`
 
 ---
 
@@ -24,8 +40,8 @@ Correção **confirmada** do P1 crítico **RedBox PanGestureHandler** no modo av
 | Evidência antes | `TELA_17_STUCK.xml` — Render Error PanGestureHandler |
 | Causa raiz | `Swipeable` (RNGH) em `WorkoutScreen.js` L3154 sem `GestureHandlerRootView` no app |
 | Correção | `index.js`: import side-effect RNGH; `App.js`: `GestureHandlerRootView` outermost; `WorkoutScreen.js`: wrapper local |
-| Evidência depois | `redbox_retest.cjs` → **PASS advanced mode OK** (sem RedBox, `Visao completa` / advanced list) |
-| Testes | Unitários workout mode PASS; retest device PASS |
+| Evidência depois | `redbox_retest.cjs` v1 + **v2 pós-reload** → **PASS advanced mode OK** (Metro 8081 não reiniciado) |
+| Testes | Unitários workout mode PASS; retest device PASS (v1 e v2) |
 
 ---
 
@@ -34,8 +50,8 @@ Correção **confirmada** do P1 crítico **RedBox PanGestureHandler** no modo av
 | Campo | Detalhe |
 |-------|---------|
 | Reprodução Bloco 2 | TELA_24 ficou na Home (treino ativo + app_runtime_busy) |
-| Diagnóstico pós-fix | `p1_diagnosis_run.cjs`: **PASS** tab-nutricao (`screen-nutricao`); **PASS** tab-coach (`screen-coach`, `chat-input`) |
-| Conclusão | **Bug real não reproduzido** após fix RedBox + coldStart; falha Bloco 2 = cascata RedBox + ADB |
+| Diagnóstico pós-fix | v1 `p1_diagnosis_run.cjs`: **PASS** ambos; v2 `p1_diagnosis_continue.cjs`: Coach **PASS**, Nutrição **FAIL automação** (dialog feedback) |
+| Conclusão | **Bug real não reproduzido**; falhas = cascata RedBox (Bloco 2) ou dialog feedback / timing ADB (v2 Nutrição) |
 | Correção código | Nenhuma em MainTabs |
 
 ---
@@ -45,8 +61,9 @@ Correção **confirmada** do P1 crítico **RedBox PanGestureHandler** no modo av
 | Campo | Detalhe |
 |-------|---------|
 | Rota | `RoutinesScreen` → catálogo → `navigation.navigate('ExerciseDetail')` |
-| ADB run | **FAIL** — botão Detalhes não encontrado (modal/step ADB impreciso) |
-| Conclusão | Pendente recaptura manual/Detox; rota registrada no stack |
+| ADB v1 | **FAIL** — botão Detalhes não encontrado (step builder não alcançado) |
+| ADB v2 | **FAIL automação** — `openRoutineCatalogModal` não abriu (5 exercícios não testados) |
+| Conclusão | Pendente recaptura manual/Detox; rota `ExerciseDetail` registrada no stack — **sem bug de produto comprovado** |
 | Correção código | Nenhuma neste PR |
 
 ---
@@ -55,8 +72,8 @@ Correção **confirmada** do P1 crítico **RedBox PanGestureHandler** no modo av
 
 | Campo | Detalhe |
 |-------|---------|
-| ADB run | **FAIL** — WorkoutScreen não abriu na sequência (após rotinas) |
-| Retest isolado | Não executado neste ciclo (prioridade RedBox) |
+| ADB v2 (sequência longa) | **FAIL automação** — `screen-workout` OK em modo avançado; `input-reps` abaixo do fold |
+| Retest isolado | `keypad_retest_quick.cjs` → **PASS** (toggle modo guiado + scroll + tap `input-reps`) |
 | Unitários | `workoutHistorySetValues.test.mjs` PASS (lógica save/reps) |
 | Correção código | Nenhuma |
 
@@ -66,7 +83,8 @@ Correção **confirmada** do P1 crítico **RedBox PanGestureHandler** no modo av
 
 | Campo | Detalhe |
 |-------|---------|
-| ADB run | **PARTIAL** — tap add ok, seleção não confirmada no XML |
+| ADB v1 | **PARTIAL** — tap add ok, seleção não confirmada no XML |
+| ADB v2 | **PASS** — `Supino Reto` + card confirmados após `input-free-exercise-name` + add |
 | Bloco 2 | Tela 18 OK pos-polish |
 | Unitários | `freeWorkoutSaveSet.test.mjs` PASS |
 | Correção código | Nenhuma |
@@ -129,13 +147,16 @@ Correção **confirmada** do P1 crítico **RedBox PanGestureHandler** no modo av
 |----------|----------|
 | **Bloco 3 liberado?** | **GO controlado** após merge — retomar captura visual 26–34 com Metro reload obrigatório após hotfix |
 | **Release Readiness liberado?** | **NO-GO** — cobertura visual e smoke formal incompletos |
-| **P1 funcional crítico restante?** | RedBox **resolvido**; tabs **OK**; demais = automação/recaptura, não blocker de merge |
+| **P1 funcional crítico restante?** | RedBox **resolvido**; tabs **OK** (v1 + Coach v2); Treino Livre add **OK** v2; keypad **OK** retest isolado; detalhes ×5 = automação/recaptura |
 
 ---
 
 ## Evidências locais (não commitadas)
 
-- `.qa_runtime/p1_functional_blockers/p1_diagnosis_results.json`
-- `.qa_runtime/p1_functional_blockers/screens/`
-- `.qa_runtime/p1_functional_blockers/dumps/advanced_retest.xml`
+- `.qa_runtime/p1_functional_blockers/p1_diagnosis_results.json` (v1)
+- `.qa_runtime/p1_functional_blockers/p1_diagnosis_results_v2.json` (v2)
+- `.qa_runtime/p1_functional_blockers/p1_diagnosis_continue.cjs`
+- `.qa_runtime/p1_functional_blockers/keypad_retest_quick.cjs`
+- `.qa_runtime/p1_functional_blockers/screens/` (`v2_*`, `advanced_*`)
+- `.qa_runtime/p1_functional_blockers/dumps/` (`advanced_retest.xml`, `v2_keypad_retest.xml`)
 - `.qa_runtime/p1_functional_blockers/PLANO_DIAGNOSTICO_P1.md`
