@@ -132,34 +132,6 @@ export function WorkoutsHubView({
         </AppCard>
       ) : null}
 
-      {/* Motor inteligente */}
-      <AppCard accent variant="secondary">
-        <View style={styles.recommendedHeader}>
-          <Ionicons name="flash" size={18} color={colors.primary} />
-          <Text style={styles.recommendedTitle}>Treino sugerido</Text>
-          {confidence > 0 && (
-            <View style={styles.confidenceBadge}>
-              <Text style={styles.confidenceText}>{confidence}%</Text>
-            </View>
-          )}
-        </View>
-        <Text style={styles.recommendedWorkout}>{safeRecommended.title}</Text>
-        {safeReasons.map((reason) => {
-          return (
-          <Text key={reason} style={styles.reasonLine}>• {reason}</Text>
-          );
-        })}
-        {safeReplacements.map((change, index) => {
-          const from = String(change.from || 'Exercicio atual');
-          const to = String(change.to || 'Alternativa segura');
-          return (
-          <Text key={`${from}-${index}`} style={styles.replacementLine}>
-            ↕ {from} → {to}
-          </Text>
-          );
-        })}
-      </AppCard>
-
       {/* CTAs principais */}
       <PrimaryButton
         {...qaAliasProps(QA_ELEMENTS.btnStartWorkout, 'btn-iniciar-treino')}
@@ -170,13 +142,7 @@ export function WorkoutsHubView({
         }}
       />
 
-      <SecondaryButton
-        {...qaProps('btn_open_history')}
-        title="Ver histórico de treinos"
-        onPress={() => navigation.navigate('Historico')}
-      />
-
-      {/* Ações secundárias */}
+      {/* Ações secundárias — visíveis sem scroll excessivo */}
       <View style={styles.actionsGrid}>
         <TouchableOpacity
           {...qaProps('btn_open_free_workout')}
@@ -223,6 +189,40 @@ export function WorkoutsHubView({
           <Text style={styles.actionLabel}>Ranking</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Motor inteligente */}
+      <AppCard accent variant="secondary">
+        <View style={styles.recommendedHeader}>
+          <Ionicons name="flash" size={18} color={colors.primary} />
+          <Text style={styles.recommendedTitle}>Treino sugerido</Text>
+          {confidence > 0 && (
+            <View style={styles.confidenceBadge}>
+              <Text style={styles.confidenceText}>{confidence}%</Text>
+            </View>
+          )}
+        </View>
+        <Text style={styles.recommendedWorkout}>{safeRecommended.title}</Text>
+        {safeReasons.map((reason) => {
+          return (
+          <Text key={reason} style={styles.reasonLine}>• {reason}</Text>
+          );
+        })}
+        {safeReplacements.map((change, index) => {
+          const from = String(change.from || 'Exercicio atual');
+          const to = String(change.to || 'Alternativa segura');
+          return (
+          <Text key={`${from}-${index}`} style={styles.replacementLine}>
+            ↕ {from} → {to}
+          </Text>
+          );
+        })}
+      </AppCard>
+
+      <SecondaryButton
+        {...qaProps('btn_open_history')}
+        title="Ver histórico de treinos"
+        onPress={() => navigation.navigate('Historico')}
+      />
 
       {/* Admin — somente para role admin */}
       {isAdmin && (

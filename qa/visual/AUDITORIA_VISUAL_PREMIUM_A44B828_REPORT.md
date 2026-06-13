@@ -246,6 +246,7 @@ Evidências locais (não commitadas): `.qa_runtime/visual_polish_p1p2_a44b828/{s
 
 **Veredito validação:** ✅ PASS — todos os 3 bugs validados como corrigidos no device físico pós-rebuild.
 
+
 **Commits no PR #25:** `1f31dee` (polish P1/P2) · `941b0e1` (navegação BUG #1/#2/#3) · `08f680b` (sync `_audit_release`)
 
 **Veredito merge:** GO COM RISCO BAIXO — audit drift 0 confirmado; Release Readiness dedicado após merge.

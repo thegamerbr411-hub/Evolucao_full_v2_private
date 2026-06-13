@@ -60,7 +60,7 @@ test('4: plannedSets 0 does not return fake 100%', () => {
   assert.match(copy.workoutProgressLabel, /0%/);
 });
 
-test('5: header shows Exercicio 1 de 5', () => {
+test('5: header shows Exercicio atual · 1 de 5', () => {
   const copy = buildWorkoutProgressCopy({
     completedSets: 1,
     plannedSets: 17,
@@ -68,7 +68,7 @@ test('5: header shows Exercicio 1 de 5', () => {
     totalExercises: 5,
   });
 
-  assert.equal(copy.headerLabel, 'Exercicio 1 de 5');
+  assert.equal(copy.headerLabel, 'Exercicio atual · 1 de 5');
 });
 
 test('6: incomplete footer guides user to continue', () => {

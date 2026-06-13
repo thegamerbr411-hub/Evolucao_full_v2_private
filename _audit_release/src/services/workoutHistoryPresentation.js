@@ -67,7 +67,7 @@ export function buildWorkoutHistoryPresentation({
   return {
     summary,
     isEmpty,
-    emptyCopy: 'Sem historico valido para este exercicio',
+    emptyCopy: 'Comece seu primeiro registro. Seu progresso aparece aqui depois do treino.',
     ignoredHint: buildIgnoredHint(summary.ignoredCount),
     recentEntries,
     hasInvalidIgnored: Boolean(summary.hasInvalidIgnored),
@@ -89,7 +89,7 @@ export function buildLocalWorkoutLogsPresentation(workoutLogs = [], { limit = 10
   return {
     entries,
     isEmpty: entries.length === 0,
-    emptyCopy: 'Nenhuma serie registrada localmente ainda.',
+    emptyCopy: 'Comece seu primeiro registro. Seu progresso aparece aqui depois do treino.',
     ignoredHint: buildIgnoredHint(ignoredCount),
     ignoredCount,
     totalValid: sorted.length,

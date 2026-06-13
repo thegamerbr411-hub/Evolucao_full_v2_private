@@ -2578,7 +2578,7 @@ export default function WorkoutScreen({ navigation, route }) {
         nestedScrollEnabled
       >
 
-        <ScreenHeader title="Treino de hoje" subtitle="Fluxo rapido: preencher e salvar serie." onBack={handleWorkoutBack} />
+        <ScreenHeader title="Treino de hoje" subtitle="Registre sua carga e avance no treino." onBack={handleWorkoutBack} />
 
         {/* Registro rápido de exercício (UX 1 clique) */}
         {!__DEV__ ? null : !simpleMode && activeExercise ? (

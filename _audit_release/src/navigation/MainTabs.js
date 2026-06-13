@@ -58,6 +58,8 @@ export default function MainTabs() {
           accessibilityLabel={qaId}
           nativeID={qaId}
           accessibilityHint={`legacy:${testID}`}
+          activeOpacity={0.7}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         />
       );
     };
@@ -77,6 +79,7 @@ export default function MainTabs() {
 
   return (
     <Tab.Navigator
+      initialRouteName="Home"
       screenOptions={{
         headerShown: false,
         sceneStyle: {
