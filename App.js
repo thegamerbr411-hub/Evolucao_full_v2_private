@@ -396,6 +396,10 @@ export default function App() {
             <View testID={QA_ELEMENTS.appRoot} accessibilityLabel={QA_ELEMENTS.appRoot} nativeID={QA_ELEMENTS.appRoot} style={{ flex: 1 }}>
               <NavigationContainer
               ref={navigationRef}
+              linking={{
+                prefixes: [],
+                getInitialState: () => undefined,
+              }}
               onReady={() => {
                 const currentRoute = navigationRef.getCurrentRoute()?.name || '';
                 routeNameRef.current = currentRoute;
