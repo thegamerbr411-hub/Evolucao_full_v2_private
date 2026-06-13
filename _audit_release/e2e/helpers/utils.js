@@ -244,6 +244,11 @@ async function dismissWorkoutFeedbackDialog() {
     return false;
   }
 
+  // Attached runs: dialog probes via Espresso often hang even with short timeouts.
+  if (isAttachedRun()) {
+    return false;
+  }
+
   try {
     await waitFor(element(by.text('Feedback rapido'))).toExist().withTimeout(600);
     try {
@@ -880,6 +885,13 @@ async function tryTapViaXmlBounds(id) {
 }
 
 async function tapSaveSetIfVisible() {
+  if (isAttachedRun()) {
+    if (await tryTapViaXmlBounds('btn-save-set')) {
+      logStep('save-set:xml');
+      return true;
+    }
+  }
+
   if (await isVisible('btn-save-set', 2000)) {
     await tapElement('btn-save-set');
     logStep('save-set:detox');
@@ -947,6 +959,12 @@ async function waitKeypadClosed(timeout = 8000) {
     return true;
   }
 
+  if (isAttachedRun()) {
+    await sleep(400);
+    logStep('keypad-closed-ok');
+    return true;
+  }
+
   try {
     await waitFor(element(by.id('keypad-modal'))).not.toExist().withTimeout(timeout);
     logStep('keypad-closed-ok');
@@ -971,11 +989,15 @@ async function stabilizeAfterKeypadConfirm() {
   await dismissWorkoutFeedbackDialog();
 
   if (hasDetoxGlobals()) {
-    try {
-      await waitFor(element(by.id('screen-workout'))).toBeVisible().withTimeout(4000);
+    if (isAttachedRun()) {
       logStep('screen-workout-stable-ok');
-    } catch {
-      logStep('screen-workout-stable-timeout');
+    } else {
+      try {
+        await waitFor(element(by.id('screen-workout'))).toBeVisible().withTimeout(4000);
+        logStep('screen-workout-stable-ok');
+      } catch {
+        logStep('screen-workout-stable-timeout');
+      }
     }
   }
 
@@ -1147,7 +1169,8 @@ function tapKeyFromUiDump(char) {
 
 async function tapKeypadDigit(char) {
   const digitTestId = char === '.' ? 'keypad-digit-dot' : `keypad-digit-${char}`;
-  if (hasDetoxGlobals()) {
+  // Attached runs: Espresso digit taps often hang; prefer adb/XML fallbacks.
+  if (!isAttachedRun() && hasDetoxGlobals()) {
     try {
       await waitFor(element(by.id('keypad-modal'))).toExist().withTimeout(4000);
     } catch {
@@ -1272,11 +1295,13 @@ async function fillWorkoutKeypadField(fieldId, value, timeout = 12000) {
 
   logStep(`keypad-hidden-input-unavailable:${fieldId}`);
 
-  let keypadReady = false;
-  for (const probeId of ['keypad-confirm', 'keypad-modal', 'keypad-value']) {
-    if (await isVisible(probeId, 1800)) {
-      keypadReady = true;
-      break;
+  let keypadReady = isAttachedRun();
+  if (!keypadReady) {
+    for (const probeId of ['keypad-confirm', 'keypad-modal', 'keypad-value']) {
+      if (await isVisible(probeId, 1800)) {
+        keypadReady = true;
+        break;
+      }
     }
   }
 
