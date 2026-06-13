@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
@@ -388,6 +389,7 @@ function getUrgencyStyles(level) {
 }
 
 export default function CoachChatScreen({ navigation }) {
+  const tabBarHeight = useBottomTabBarHeight();
   const {
     profile,
     history,
@@ -913,7 +915,7 @@ export default function CoachChatScreen({ navigation }) {
           <FlatList
             ref={chatListRef}
             style={styles.chatBox}
-            contentContainerStyle={styles.chatContent}
+            contentContainerStyle={[styles.chatContent, { paddingBottom: spacing.sm + tabBarHeight }]}
             data={messages}
             keyExtractor={(item, index) => String(item?.id || index)}
             ListHeaderComponent={renderCoachHeader}
@@ -946,7 +948,7 @@ export default function CoachChatScreen({ navigation }) {
           />
         </View>
 
-        <View style={styles.chatFooter}>
+        <View style={[styles.chatFooter, { paddingBottom: Math.max(spacing.sm, tabBarHeight > 0 ? 4 : 0) }]}>
           <View style={styles.suggestionChips}>
             {[
               { label: '💪 Meu treino hoje', text: 'como esta meu treino hoje' },
