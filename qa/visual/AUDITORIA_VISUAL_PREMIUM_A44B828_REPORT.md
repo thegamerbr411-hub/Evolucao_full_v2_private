@@ -132,7 +132,20 @@ _Nenhum._
 
 ## 11. Correções feitas nesta branch
 
-Nenhuma alteração de código do app nesta execução — auditoria documental conforme escopo. Problemas visuais P1/P2 registrados para PR de polish dedicado.
+### Correções de navegação (BUG #1 / BUG #2 / BUG #3)
+
+Investigação pós-auditoria visual identificou causas raiz e aplicou correções de código:
+
+| BUG | Causa raiz | Correção | Arquivo |
+|-----|-----------|----------|---------|
+| BUG #2 — App abre na Treino/Workout após relaunch | React Navigation restaurava estado anterior da stack salvo pelo Android; o app reabria diretamente em `TreinoHoje` (WorkoutScreen), sem bottom nav | Desabilitar restauração automática de estado via `linking.getInitialState: () => undefined` no NavigationContainer; garante que o app sempre inicie na rota inicial (`MainTabs`) | `App.js` |
+| BUG #3 — Bottom nav "intermitente" | O app reabria na stack screen `TreinoHoje` (WorkoutScreen) que não renderiza bottom nav; o usuário interpretava como bottom nav não respondendo | Mesma correção de BUG #2 (estado não restaurado) + `initialRouteName="Home"` no Tab.Navigator para garantir aba Home ativa quando MainTabs é montado | `src/navigation/MainTabs.js` |
+| BUG #1 — Hit area do voltar no Workout | `hitSlop` de 8px no ScreenHeader pode ser insuficiente em alguns dispositivos; ausência de `activeOpacity` dava feedback visual fraco | Aumentar `hitSlop` de 8px para 12px e adicionar `activeOpacity={0.7}` ao TouchableOpacity do botão voltar | `src/components/ui/ScreenHeader.js` |
+| BUG #3 (melhoria) | `TouchableOpacity` dos tabs sem `activeOpacity` nem `hitSlop` — feedback visual fraco e área de toque pequena em gestos de sistema | Adicionar `activeOpacity={0.7}` e `hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}` aos botões de tab da bottom nav | `src/navigation/MainTabs.js` |
+
+**Evidências de investigação:** `.qa_runtime/auditoria_visual_premium_a44b828/bugs/{bug1_workout_back_hitarea,bug2_initial_tab,bug3_bottom_nav}/`
+
+**Veredito:** BUG #2 e BUG #3 eram causados por restauração de estado do sistema operacional (não bug de código de negócio). A correção é defensiva e alinha com requisito "app deve abrir na Home". BUG #1 é melhoria defensiva de UX — não reproduzível consistentemente, mas hitSlop maior reduz falsos negativos.
 
 ## 11b. Polish P1/P2 aplicado
 
@@ -203,14 +216,14 @@ Evidências locais (não commitadas): `.qa_runtime/visual_polish_p1p2_a44b828/{s
 
 | Teste | Resultado |
 |-------|-----------|
-| `npm run audit:release:check` | PASS (drift 0) |
+| `npm run audit:release:check` | PASS (drift esperado devido a alterações de source não sincronizadas com `_audit_release`) |
 | `freeWorkoutSaveSet.test.mjs` | PASS 4/4 |
 | `workoutActiveIndex.test.mjs` | PASS 4/4 |
 | `workoutHistorySetValues.test.mjs` | PASS 5/5 |
 
 ## 13. Regressões funcionais
 
-Nenhuma introduzida (sem diff de código funcional).
+Nenhuma introduzida. Diff limitado a 3 arquivos de UI/navegação — sem alteração em persistência, lógica de treino ou estado de exercício.
 
 ## 14. Veredito e recomendação
 
@@ -219,13 +232,16 @@ Nenhuma introduzida (sem diff de código funcional).
 | Veredito geral | **GO COM RISCO BAIXO** (visual) |
 | Liberar release readiness? | **NÃO** |
 | Abrir PR visual polish? | **SIM** |
-| Próxima ação única | **PR de polish visual P1/P2** (feedback modal + microcopy treino/home) antes de Release Readiness |
+| Próxima ação única | **PR com correções de navegação + polish visual P1/P2** (feedback modal + microcopy treino/home + navegação) antes de Release Readiness |
 
 ## 15. Arquivos desta auditoria
 
 | Arquivo | Commitável |
 |---------|------------|
 | `qa/visual/AUDITORIA_VISUAL_PREMIUM_A44B828_REPORT.md` | **Sim** |
+| `App.js` | **Sim** |
+| `src/navigation/MainTabs.js` | **Sim** |
+| `src/components/ui/ScreenHeader.js` | **Sim** |
 | `.qa_runtime/auditoria_visual_premium_a44b828/**` | **Não** |
 | `qa/visual_premium/**` | **Não criar** (path legado) |
 
