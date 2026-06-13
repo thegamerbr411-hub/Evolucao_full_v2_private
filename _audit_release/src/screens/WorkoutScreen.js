@@ -14,7 +14,7 @@ import {
   Vibration,
   View,
 } from 'react-native';
-import { Swipeable } from 'react-native-gesture-handler';
+import { Swipeable, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -2507,6 +2507,7 @@ export default function WorkoutScreen({ navigation, route }) {
 
   // Streak visual no topo
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={{ flex: 1, backgroundColor: colors.background }}
@@ -3463,6 +3464,7 @@ export default function WorkoutScreen({ navigation, route }) {
         onConfirm={confirmKeypad}
       />
     </KeyboardAvoidingView>
+    </GestureHandlerRootView>
   );
 }
 
