@@ -41,5 +41,16 @@ Evidência MMKV (pré-fix): `{"weight":0,"reps":1,"exerciseName":"Agachamento Li
 - Run com `keypad-dump` + fix final: MMKV/histórico **`50kg x 10`** (fallback coord ADB impreciso no device; dígitos 4/0/1/2 nem sempre mapeiam para 40/12).
 - Run anterior ao fix: **`06/12 Agachamento Livre · 0kg x 1`**.
 
+## Final gate (pós-merge main, 2026-06-13)
+- Commit merge: `c088881` (`chore: resolve PR 24 merge conflicts`)
+- Conflito resolvido: `qa/audit-release-sync-report.json` (regenerado via `audit:release:sync`, drift 0)
+- `npm run audit:release:check`: **PASS** (drift 0)
+- `freeWorkoutSaveSet.test.mjs`: **PASS 4/4**
+- `workoutActiveIndex.test.mjs`: **PASS 4/4**
+- `workoutHistorySetValues.test.mjs`: **PASS 5/5**
+- Detox smoke `RQ8T209ZTAF`: **PASS** (218.568s)
+- Keypad ADB fallback: peso `40` + reps `12` (coord dump); `smoke:set-saved=false` (indicador opcional)
+- Histórico/persistência: fix `da66665` mantido pós-merge; não retorna `0kg x 1` quando valor real é salvo
+
 ## Veredito
-**GO COM RISCO** — bug `0kg x 1` corrigido; persistência local confirmada; smoke PASS mantido. Risco residual: keypad ADB coord fallback no attached pode gravar valores diferentes de 40×12 (problema e2e/device, não de persistência).
+**GO COM RISCO BAIXO** — bug `0kg x 1` corrigido; persistência local confirmada; final gate PASS pós-merge. Risco residual: keypad ADB coord fallback no attached pode gravar valores diferentes de 40×12 (problema e2e/device, não de persistência).
