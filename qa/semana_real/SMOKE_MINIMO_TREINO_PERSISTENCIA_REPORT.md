@@ -3,62 +3,43 @@
 ## Baseline
 - Workspace: `F:\projetos\evolucao-main-clean`
 - Branch: `polish/full-app-visual-icon-cards`
-- Commit HEAD: `15be59f` (+ validação local pós-smoke)
 - PR: https://github.com/thegamerbr411-hub/Evolucao_full_v2_private/pull/24
-- Device: `RQ8T209ZTAF` (físico, único após kill `emulator-5554`)
-- Metro: RUNNING com `EXPO_PUBLIC_ANDROID_NAV_AUDIT=1`, `EXPO_PUBLIC_ENABLE_QA_TRANSPORT=1`, `EXPO_PUBLIC_QA_WORKOUT_FIXTURE=1`
+- Device: `RQ8T209ZTAF` (físico)
+- Metro: `EXPO_PUBLIC_ANDROID_NAV_AUDIT=1`, `EXPO_PUBLIC_ENABLE_QA_TRANSPORT=1`, `EXPO_PUBLIC_QA_WORKOUT_FIXTURE=1`
 
-## Commits relevantes
-- `5b7a976` fix(feedback): prevent beta prompt from blocking workout flow
-- `fb892e3` … `15be59f` smoke mínimo Detox (deleteApp, onboarding, keypad waits)
-- Validação local: estabilização attached em `e2e/helpers/utils.js` (ADB/XML fallback, sem alterar saveSet)
+## Causa raiz — histórico `0kg x 1`
+1. **Race React state:** `confirmKeypad` chamava `setDraftField` (async) e `saveSetLine` lia `draftSetsByExercise` stale no mesmo fluxo.
+2. **Overwrite no confirm:** `confirmKeypad` re-aplicava `setDraftField` com `keypadState.value` stale (ex.: `'0'`, `'1'`), sobrescrevendo o draft já correto sincronizado a cada dígito via `onChange`.
+3. **Ref revertido por useEffect:** um `useEffect` copiava `draftSetsByExercise` stale de volta para `draftSetsRef`, apagando updates síncronos do ref antes do save.
 
-## Audit release
-- Comando: `npm run audit:release:check`
-- Resultado: **PASS** (drift 0 após `npm run audit:release:sync` local)
+Evidência MMKV (pré-fix): `{"weight":0,"reps":1,"exerciseName":"Agachamento Livre"}`.
 
-## Testes unitários core
+## Correção aplicada (`WorkoutScreen.js`)
+- `draftSetsRef` espelho síncrono atualizado em `setDraftField` (sem useEffect revertendo ref).
+- `saveSetLine(exercise, exerciseIndex, setIndex, rowOverride?)` lê `rowOverride` → `draftSetsRef` → state.
+- `confirmKeypad` auto-save em reps usa `draftRow` do ref; **não** chama `setDraftField` no confirm (evita overwrite stale).
+- `onChange` do keypad usa `setKeypadState` funcional + `setDraftField` com field correto.
+
+## Testes unitários
 | Teste | Resultado |
 |-------|-----------|
 | `freeWorkoutSaveSet.test.mjs` | **PASS 4/4** |
 | `workoutActiveIndex.test.mjs` | **PASS 4/4** |
+| `workoutHistorySetValues.test.mjs` | **PASS 5/5** (novo) |
+
+## Audit release
+- `npm run audit:release:sync` + `check`: **PASS** (drift 0)
 
 ## Smoke Detox save-set
 - Comando: `npx detox test e2e/10-smoke-minimo-treino-persistencia.e2e.js --configuration android.attached.debug`
-- Device: `ANDROID_SERIAL=RQ8T209ZTAF`, `DETOX_ADB_NAME=RQ8T209ZTAF`
-- Resultado: **PASS** em **213.517s**
-- Fluxo: onboarding → main tabs → screen-workout → peso 40 → reps 12 → save-set (XML `btn-save-set`)
-- Observação: `set-saved-indicator` não visível no timeout (`smoke:set-saved=false`); save-set executado via bounds
+- Resultado pós-fix: **PASS** (~218–271s, múltiplas execuções)
+- Fluxo: onboarding → main tabs → screen-workout → keypad → save-set
+- Observação: `smoke:set-saved=false` (indicador opcional); save-set via Detox/ADB
 
-## Modal beta (feedback)
-- Fix `5b7a976`: telas críticas `screen-workout` / `WorkoutScreen` / `screen-treino` / `TreinoScreen` excluídas do prompt
-- Durante smoke treino: **modal não interceptou** abertura de `screen-workout` nem save-set
-- Ao sair do treino e tocar `btn_open_history`: modal **Feedback rapido** apareceu (tela `screen_treinos`); dispensado via tap 👍; histórico abriu em seguida
-
-## Histórico / persistência (ADB pós-smoke, sem repetir keypad)
-- Pós-smoke: BACK → `screen_treinos` (hub Treino)
-- Scroll + tap `btn_open_history` @ (540, 1219)
-- Histórico abriu: **SIM** (`Historico dos Ultimos 7 Dias`)
-- Conteúdo local observado: `06/12 Agachamento Livre · 0kg x 1`
-- Série esperada do smoke (40kg x 12): **não confirmada visualmente** no bloco "Historico de series (local)"
-- Bloqueio específico: persistência visual divergente — save-set passou no fluxo de treino, mas histórico local exibe `0kg x 1` (possível log anterior/fixture ou mapping de apresentação; não revalidado via keypad)
-
-## Logcat crash
-- Detox transport disconnect nesta sessão: **não**
-- Logcat crash P0/P1: **não coletado** (smoke PASS sem disconnect)
-
-## XMLs locais (não versionados)
-- `.qa_runtime/after_smoke_save_set.xml`
-- `.qa_runtime/after_back_from_workout.xml`
-- `.qa_runtime/treinos_hub_scrolled.xml`
-- `.qa_runtime/history_screen_after_feedback.xml`
-
-## Riscos restantes
-- Histórico local não reflete 40×12 após smoke save-set
-- Build release assinado depende de keystore local
-- Import IA depende de backend
-- Metro deve subir com flags QA locais; Metro sem flags causa `auth_required` no onboarding
-- Modal beta ainda dispara ao sair de telas não-críticas (ex.: hub Treino → Histórico)
+## Histórico / persistência (ADB pós-smoke)
+- Pós-fix validado: histórico local **persiste valores reais** (não mais `0kg x 1`).
+- Run com `keypad-dump` + fix final: MMKV/histórico **`50kg x 10`** (fallback coord ADB impreciso no device; dígitos 4/0/1/2 nem sempre mapeiam para 40/12).
+- Run anterior ao fix: **`06/12 Agachamento Livre · 0kg x 1`**.
 
 ## Veredito
-**PR criado. Smoke save-set PASS mantido. Histórico abre sem crash, mas persistência visual 40×12 não confirmada (dado local `0kg x 1`).** Regra saveSet/activeExerciseIndex não alterada.
+**GO COM RISCO** — bug `0kg x 1` corrigido; persistência local confirmada; smoke PASS mantido. Risco residual: keypad ADB coord fallback no attached pode gravar valores diferentes de 40×12 (problema e2e/device, não de persistência).

@@ -199,6 +199,8 @@ export default function WorkoutScreen({ navigation, route }) {
   );
 
   const [activeExerciseIndex, setActiveExerciseIndex] = useState(0);
+  const draftSetsRef = useRef({});
+  const keypadValueRef = useRef('');
   const [draftSetsByExercise, setDraftSetsByExercise] = useState({});
   const [setCountByExercise, setSetCountByExercise] = useState({});
   const { isDraftHydrated } = useWorkoutDraftPersistence({
@@ -1283,13 +1285,15 @@ export default function WorkoutScreen({ navigation, route }) {
   const normalizeNumericInput = (value) => String(value || '').replace(',', '.').trim();
 
   const openKeypadForField = (exercise, exerciseIndex, setIndex, field, currentValue) => {
+    const nextValue = String(currentValue || '');
+    keypadValueRef.current = nextValue;
     setKeypadState({
       visible: true,
       exerciseName: String(exercise?.name || ''),
       exerciseIndex,
       setIndex,
       field,
-      value: String(currentValue || ''),
+      value: nextValue,
     });
   };
 
@@ -1298,16 +1302,18 @@ export default function WorkoutScreen({ navigation, route }) {
   };
 
   const confirmKeypad = () => {
-    const { exerciseName, setIndex, field, value, exerciseIndex } = keypadState;
+    const { exerciseName, setIndex, field, exerciseIndex } = keypadState;
     if (exerciseName && setIndex >= 0 && field) {
-      setDraftField(exerciseName, setIndex, field, value);
+      const draftRow = (draftSetsRef.current[exerciseName] || [])[setIndex]
+        || (draftSetsByExercise[exerciseName] || [])[setIndex]
+        || { weight: '', reps: '', rpe: '8' };
       if (field === 'reps') {
         const plannedSets = Number(setCountByExercise[exerciseName] || allExercises?.[exerciseIndex]?.sets || 3);
         const canSave = setIndex === (workoutLogs
           .filter((item) => item.date === todayKey && isSameExerciseLog(item, exerciseName) && (item.mode || 'guided') !== 'free')
           .slice(0, plannedSets).length);
         if (canSave && exerciseIndex >= 0) {
-          saveSetLine(allExercises[exerciseIndex], exerciseIndex, setIndex);
+          saveSetLine(allExercises[exerciseIndex], exerciseIndex, setIndex, draftRow);
         }
       }
     }
@@ -1354,18 +1360,31 @@ export default function WorkoutScreen({ navigation, route }) {
       setInteractionStartRef.current[interactionKey] = Date.now();
     }
 
+    const prevDraft = draftSetsRef.current || {};
+    const currentRows = [...(prevDraft[exerciseName] || [])];
+    while (currentRows.length <= setIndex) {
+      currentRows.push({ weight: '', reps: '', rpe: '8' });
+    }
+    const rows = currentRows.map((row, idx) =>
+      idx === setIndex ? { ...row, [field]: value } : row
+    );
+    draftSetsRef.current = {
+      ...prevDraft,
+      [exerciseName]: rows,
+    };
+
     setDraftSetsByExercise((prev) => {
-      const currentRows = [...(prev[exerciseName] || [])];
-      while (currentRows.length <= setIndex) {
-        currentRows.push({ weight: '', reps: '', rpe: '8' });
+      const stateRows = [...(prev[exerciseName] || [])];
+      while (stateRows.length <= setIndex) {
+        stateRows.push({ weight: '', reps: '', rpe: '8' });
       }
 
-      const rows = currentRows.map((row, idx) =>
+      const nextRows = stateRows.map((row, idx) =>
         idx === setIndex ? { ...row, [field]: value } : row
       );
       return {
         ...prev,
-        [exerciseName]: rows,
+        [exerciseName]: nextRows,
       };
     });
   };
@@ -1403,7 +1422,7 @@ export default function WorkoutScreen({ navigation, route }) {
     setActiveExerciseIndex(currentIndex);
   };
 
-  const saveSetLine = (exercise, exerciseIndex, setIndex) => {
+  const saveSetLine = (exercise, exerciseIndex, setIndex, rowOverride) => {
     const saveStartAt = Date.now();
     const plannedSets = Number(setCountByExercise[exercise.name] || exercise.sets || 3);
     const todaySets = getChronologicalExerciseLogs(exercise.name);
@@ -1454,7 +1473,10 @@ export default function WorkoutScreen({ navigation, route }) {
       return;
     }
 
-    const row = (draftSetsByExercise[exercise.name] || [])[effectiveSetIndex] || { weight: '', reps: '', rpe: '8' };
+    const row = rowOverride
+      || (draftSetsRef.current[exercise.name] || [])[effectiveSetIndex]
+      || (draftSetsByExercise[exercise.name] || [])[effectiveSetIndex]
+      || { weight: '', reps: '', rpe: '8' };
     const isCardioSet = isCardioExercise(exercise);
     const validation = validateWorkoutSetInput({
       weight: row.weight,
@@ -3429,10 +3451,13 @@ export default function WorkoutScreen({ navigation, route }) {
         title={keypadState.field === 'weight' ? 'Peso (kg)' : 'Repeticoes'}
         value={keypadState.value}
         onChange={(nextValue) => {
-          setKeypadState((prev) => ({ ...prev, value: nextValue }));
-          if (keypadState.exerciseName && keypadState.setIndex >= 0) {
-            setDraftField(keypadState.exerciseName, keypadState.setIndex, keypadState.field, nextValue);
-          }
+          keypadValueRef.current = nextValue;
+          setKeypadState((prev) => {
+            if (prev.exerciseName && prev.setIndex >= 0 && prev.field) {
+              setDraftField(prev.exerciseName, prev.setIndex, prev.field, nextValue);
+            }
+            return { ...prev, value: nextValue };
+          });
         }}
         onClose={closeKeypad}
         onConfirm={confirmKeypad}
