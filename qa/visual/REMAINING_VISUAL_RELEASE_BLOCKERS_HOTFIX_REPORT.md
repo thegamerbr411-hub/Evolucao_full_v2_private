@@ -246,4 +246,68 @@ Tratar os **5 blockers visuais/release** documentados no fechamento do Bloco 3 (
 
 ---
 
-_Relatório atualizado no final gate PR #30 — 2026-06-14. Sem Release Readiness. Sem commit de `.qa_runtime/**`._
+## 18. Validação manual ExerciseDetail ×5 (scrcpy + ADB pós-tela)
+
+| Item | Valor |
+|------|-------|
+| Método | **Manual/scrcpy** + navegação assistida passo-a-passo + **captura ADB somente após tela aberta** |
+| Script bulk rejeitado | **Não** usado `exercise_details_5_run.cjs` / `exercise_details_after.cjs` como evidência |
+| Helper local | `.qa_runtime/remaining_blockers/exercise_details_manual/manual_details_gate.cjs` |
+| Manifest | `.qa_runtime/remaining_blockers/exercise_details_manual/results_manual.json` |
+| Device | `RQ8T209ZTAF` · package **`com.tipolt.evolucaofullv2`** (1ª rodada capturou NEXA por engano — descartada) |
+| scrcpy | Aberto (`scrcpy -s RQ8T209ZTAF`) |
+| Data | 2026-06-14 |
+
+### Resultado por exercício
+
+| Exercício | Status | Abriu | Evidência local |
+|-----------|--------|-------|-----------------|
+| Cadeira Extensora | **FAIL** | — | Catálogo/Detalhes não completou após 3 tentativas (busca + filtro músculo) |
+| Supino Inclinado | **FAIL** | — | Idem (Barra/Halter) |
+| Puxada Alta | **PASS** | ExerciseDetail | `exercise_details_manual/screens/DETALHE_PUXADA_ALTA.png` + `dumps/DETALHE_PUXADA_ALTA.xml` (`screen_exercise_detail`, Puxada Frontal Polia) |
+| Agachamento Hack | **PASS** | ExerciseDetail | `exercise_details_manual/screens/DETALHE_AGACHAMENTO_HACK.png` + `dumps/DETALHE_AGACHAMENTO_HACK.xml` (Hack Machine) |
+| Tríceps na Polia | **FAIL** | — | Catálogo/Detalhes não completou após 3 tentativas |
+
+**Resumo:** **2/5 PASS** · 0 PARTIAL · **3 FAIL** · veredito manifest: **`BLOCKED`** · merge: **NO-GO**
+
+### Blocker 4 — veredito pós-manual
+
+- **PASS real** em 2 exercícios com tela `ExerciseDetail` confirmada no XML (package Evolução, instruções/mídia placeholder).
+- **FAIL real** em 3 exercícios — rotina/catálogo não abriu de forma confiável na sessão (não é crash RedBox; é fluxo produto/ADB instável).
+- **PR #30 squash merge:** **NO-GO** (critério ≥4/5 PASS não atingido).
+- **Próxima ação:** revalidar manualmente Cadeira / Supino / Tríceps com sessão limpa (sem NEXA em foreground) ou hotfix de rota catálogo.
+
+### Gates pós-manual
+
+| Gate | Resultado |
+|------|-----------|
+| Audit | drift **0** |
+| Unit hotfix scope | **15/15 PASS** |
+| Logcat | `exercise_details_manual/logs/manual_details_logcat.txt` |
+
+---
+
+## 19. Entrega Felipe — checklist 16 itens (manual gate)
+
+| # | Item | Resposta |
+|---|------|----------|
+| 1 | PR #30 | OPEN @ `ed609ce` — https://github.com/thegamerbr411-hub/Evolucao_full_v2_private/pull/30 |
+| 2 | Manual/scrcpy usado | Sim — scrcpy + captura ADB pós-tela |
+| 3 | Cadeira Extensora | **FAIL** |
+| 4 | Supino Inclinado | **FAIL** |
+| 5 | Puxada Alta | **PASS** (ExerciseDetail) |
+| 6 | Agachamento Hack | **PASS** (ExerciseDetail) |
+| 7 | Tríceps na Polia | **FAIL** |
+| 8 | Resultado Detalhes ×5 | **2/5 PASS** — BLOCKED |
+| 9 | Audit | drift **0** |
+| 10 | Unitários | **15/15 PASS** (scope hotfix) |
+| 11 | Relatório | Este arquivo §18–19 |
+| 12 | PR comentário | Final gate manual update (NO-GO merge) |
+| 13 | Merge | **NO-GO** — não executado |
+| 14 | Main pós-merge | N/A (sem merge) |
+| 15 | Release Readiness | **NO-GO** |
+| 16 | Próxima ação real | Revalidar 3 FAIL manualmente ou corrigir fluxo catálogo; só então merge PR #30 |
+
+---
+
+_Relatório atualizado — validação manual ExerciseDetail ×5 — 2026-06-14. Sem merge PR #30. Sem commit de `.qa_runtime/**`._
