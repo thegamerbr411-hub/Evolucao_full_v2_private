@@ -2,7 +2,7 @@
 
 > **Branch:** `fix/premium-release-cleanup-v1`  
 > **Base:** `origin/main` @ `c016a16`  
-> **PR:** (preencher após `gh pr create`)  
+> **PR:** https://github.com/thegamerbr411-hub/Evolucao_full_v2_private/pull/31  
 > **Data:** 2026-06-14  
 > **Release Readiness:** **NÃO INICIADO**
 
