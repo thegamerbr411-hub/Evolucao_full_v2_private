@@ -88,6 +88,7 @@ function createExercise(config) {
     tips:             config.tips         || [],
     commonMistakes:   config.commonMistakes || [],
     tags:             config.tags         || [],
+    aliases:          config.aliases      || [],
     // ── Retrocompatibilidade (leitores legados de musclePrimary/muscleSecondary)
     musclePrimary:    pm ? [pm] : [],
     muscleSecondary:  sm,
@@ -198,6 +199,7 @@ export const EXERCISES = [
     tips: ['Pause no pico da contracao', 'Nao jogue o peso'],
     commonMistakes: ['Quadril saindo do banco', 'Velocidade excessiva'],
     tags: ['quadriceps', 'maquina', 'pernas', 'isolado'],
+    aliases: ['Extensora', 'Cadeira Extensora Maquina'],
   }),
 
   // ─── GLÚTEOS (glutes) ─────────────────────────────────────────────────────
@@ -314,6 +316,7 @@ export const EXERCISES = [
       'Suba controlando a fase excentrica.',
     ],
     tags: ['cabo', 'costas'],
+    aliases: ['Puxada Alta', 'Puxada Frontal'],
   }),
 
   // ─── OMBROS (shoulders) ───────────────────────────────────────────────────
@@ -405,6 +408,7 @@ export const EXERCISES = [
       'Retorne sem perder controle.',
     ],
     tags: ['triceps', 'cabo'],
+    aliases: ['Triceps na Polia', 'Tríceps na Polia', 'Tríceps Polia', 'Triceps Polia'],
   }),
 
   // ─── PANTURRILHA (calves) ─────────────────────────────────────────────────
@@ -604,6 +608,7 @@ export const EXERCISES = [
     tips: ['Pes posicionados mais alto foca mais no gluteo', 'Joelhos nao devem colapsar'],
     commonMistakes: ['Arredondar lombar', 'Joelhos colapsando para dentro'],
     tags: ['quadriceps', 'pernas', 'maquina', 'hack squat'],
+    aliases: ['Agachamento Hack', 'Hack'],
   }),
 
   // ─── CARDIO — expansão solicitada ───────────────────────────────────────
@@ -697,7 +702,7 @@ export const EXERCISES = [
   // PEITO (chest)
   createExercise({ name: 'Supino Reto Barra', primaryMuscle: MUSCLE_GROUPS.CHEST, secondaryMuscles: [MUSCLE_GROUPS.SHOULDERS, MUSCLE_GROUPS.TRICEPS], equipment: 'barra', category: 'compound', movementPattern: 'horizontal_push', tags: ['supino', 'peito', 'barra'] }),
   createExercise({ name: 'Supino Reto Halter', primaryMuscle: MUSCLE_GROUPS.CHEST, secondaryMuscles: [MUSCLE_GROUPS.SHOULDERS, MUSCLE_GROUPS.TRICEPS], equipment: 'halter', category: 'compound', movementPattern: 'horizontal_push', tags: ['supino', 'peito', 'halter'] }),
-  createExercise({ name: 'Supino Inclinado Barra', primaryMuscle: MUSCLE_GROUPS.CHEST, secondaryMuscles: [MUSCLE_GROUPS.SHOULDERS, MUSCLE_GROUPS.TRICEPS], equipment: 'barra', category: 'compound', movementPattern: 'incline_press', tags: ['supino', 'inclinado', 'barra'] }),
+  createExercise({ name: 'Supino Inclinado Barra', primaryMuscle: MUSCLE_GROUPS.CHEST, secondaryMuscles: [MUSCLE_GROUPS.SHOULDERS, MUSCLE_GROUPS.TRICEPS], equipment: 'barra', category: 'compound', movementPattern: 'incline_press', tags: ['supino', 'inclinado', 'barra'], aliases: ['Supino Inclinado', 'Supino Inclinado com Barra'] }),
   createExercise({ name: 'Crossover Polia Alta', primaryMuscle: MUSCLE_GROUPS.CHEST, secondaryMuscles: [MUSCLE_GROUPS.SHOULDERS], equipment: 'cabo', category: 'isolation', movementPattern: 'horizontal_adduction', tags: ['crossover', 'polia', 'peito'] }),
   createExercise({ name: 'Crossover Polia Baixa', primaryMuscle: MUSCLE_GROUPS.CHEST, secondaryMuscles: [MUSCLE_GROUPS.SHOULDERS], equipment: 'cabo', category: 'isolation', movementPattern: 'horizontal_adduction', tags: ['crossover', 'polia', 'peito'] }),
   createExercise({ name: 'Voador (Peck Deck)', primaryMuscle: MUSCLE_GROUPS.CHEST, secondaryMuscles: [MUSCLE_GROUPS.SHOULDERS], equipment: 'maquina', category: 'isolation', movementPattern: 'horizontal_adduction', tags: ['voador', 'peck deck', 'peito'] }),
@@ -761,6 +766,46 @@ export function getExerciseById(id = '') {
 export function getExerciseByName(name = '') {
   const target = slugify(name);
   return EXERCISES.find((item) => slugify(item.name) === target) || null;
+}
+
+export function normalizeExerciseName(value = '') {
+  return slugify(value);
+}
+
+const AUDIT_DETAIL_ALIAS_IDS = {
+  'supino-inclinado': 'supino_inclinado_barra',
+  'triceps-na-polia': 'triceps_corda_polia',
+  'puxada-alta': 'puxada_frontal_polia',
+  'agachamento-hack': 'hack_machine',
+};
+
+export function resolveExerciseForDetail(nameOrAlias = '') {
+  const target = slugify(nameOrAlias);
+  if (!target) {
+    return null;
+  }
+
+  const byName = getExerciseByName(nameOrAlias);
+  if (byName) {
+    return byName;
+  }
+
+  const auditId = AUDIT_DETAIL_ALIAS_IDS[target];
+  if (auditId) {
+    const byAudit = getExerciseById(auditId);
+    if (byAudit) {
+      return byAudit;
+    }
+  }
+
+  const byId = getExerciseById(nameOrAlias);
+  if (byId) {
+    return byId;
+  }
+
+  return EXERCISES.find((item) =>
+    (item.aliases || []).some((alias) => slugify(alias) === target)
+  ) || null;
 }
 
 export function listExerciseNames() {
@@ -828,6 +873,7 @@ export function searchExercises({ query = '', muscle = 'all', equipment = 'all',
       exercise.primaryMuscle,
       ...(exercise.secondaryMuscles || []),
       ...(exercise.tags || []),
+      ...(exercise.aliases || []),
     ]
       .map(slugify)
       .join(' ');
@@ -845,7 +891,7 @@ export function searchExercises({ query = '', muscle = 'all', equipment = 'all',
   // Fallback 1: ignora filtro de equipamento se sem resultados
   if (!result.length && equipmentKey !== 'all') {
     result = EXERCISES.filter((exercise) => {
-      const textBlob = [exercise.name, exercise.primaryMuscle, ...(exercise.tags || [])]
+      const textBlob = [exercise.name, exercise.primaryMuscle, ...(exercise.tags || []), ...(exercise.aliases || [])]
         .map(slugify)
         .join(' ');
       const queryOk     = !q || textBlob.includes(q);

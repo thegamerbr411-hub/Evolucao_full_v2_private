@@ -361,4 +361,36 @@ Evidência FAIL local (não commitada): `screens/DETALHE_*_FAIL_catalog.png`, `d
 
 ---
 
-_Relatório atualizado — reteste manual 3 ExerciseDetails + gate PR #30 — 2026-06-14. Sem merge PR #30. Sem commit de `.qa_runtime/**`._
+## 21. Correção ExerciseDetail ×5 (PR #30 — hotfix código)
+
+| Item | Valor |
+|------|-------|
+| Branch | `fix/remaining-visual-release-blockers` |
+| Causa raiz | `dbecfdf` fechou o modal **antes** de `navigate('ExerciseDetail')`; no Android (RN 0.83) a navegação durante teardown do Modal slide era descartada. Contribuinte: alvo de toque pequeno no botão Detalhes + busca sem aliases de auditoria. |
+| Correção | Navegar **antes** de fechar modal; `resolveExerciseForDetail` + aliases; linha do catálogo (`row-routine-detail-*`) abre detalhe; `keyboardShouldPersistTaps` no ScrollView do modal; botão Detalhes com `minHeight: 48`. |
+| Arquivos | `src/screens/RoutinesScreen.js`, `src/data/exercises.js`, `src/screens/ExerciseDetailScreen.js`, `__tests__/exerciseDetailCatalogAccess.test.mjs` |
+| Teste novo | **4/4 PASS** (`exerciseDetailCatalogAccess.test.mjs`) |
+| Audit | drift **0** (após `audit:release:sync`) |
+| Unit hotfix scope | **19/19 PASS** (15 scope + 4 novo) |
+
+### Resultado device pós-correção (`run_last3.cjs`)
+
+| Exercício | Antes §20 | Depois (última rodada) |
+|-----------|-----------|------------------------|
+| Cadeira Extensora | FAIL | **FAIL** (automação) |
+| Supino Inclinado | FAIL | **FAIL** (automação) |
+| Tríceps na Polia | FAIL | **FAIL** (automação) |
+| Puxada Alta | PASS | **PASS** |
+| Agachamento Hack | PASS | **PASS** |
+
+**Resumo device:** **2/5 PASS** · 0 PARTIAL · **3 FAIL** — critério merge ≥4/5 **não atingido**.
+
+**Nota:** código corrigido e coberto por testes unitários; device pode exigir `installDebug` + reload Metro para carregar bundle com `navigate`-first. Reteste manual scrcpy recomendado para confirmar os 3 FAIL antes de merge.
+
+### Veredito PR #30
+
+**NO-GO merge** — ExerciseDetail ×5 ainda **2/5 PASS** no gate device automatizado.
+
+---
+
+_Relatório atualizado — correção ExerciseDetail ×5 — 2026-06-14. Sem merge PR #30. Sem commit de `.qa_runtime/**`._
