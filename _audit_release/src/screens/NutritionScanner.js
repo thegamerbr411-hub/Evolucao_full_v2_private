@@ -958,12 +958,6 @@ export default function NutritionScanner({ navigation, route }) {
       <ScrollView ref={scrollRef} testID="screen-nutricao" contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
       <ScreenHeader title="Nutrição" subtitle="Macros e refeições num só lugar." />
 
-      {__DEV__ ? (
-        <View style={styles.devFeatureTagWrap}>
-          <Text style={styles.devFeatureTag}>[F-Nutrition] Scanner, parser e feedback de macros</Text>
-        </View>
-      ) : null}
-
       <Text style={styles.sectionSeparator}>O que você comeu?</Text>
       <AppCard style={styles.card}>
         <Text style={styles.cardTitle}>Registro rápido</Text>

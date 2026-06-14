@@ -85,11 +85,11 @@ export default function HistoryScreen({ navigation }) {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <ScreenHeader title="Historico dos Ultimos 7 Dias" subtitle="Consistencia diaria e resumo semanal." onBack={handleHistoryBack} />
+      <ScreenHeader title="Histórico dos últimos 7 dias" subtitle="Consistência diária e resumo semanal." onBack={handleHistoryBack} />
 
       <AppCard>
         <Text style={styles.summaryTitle}>Resumo semanal</Text>
-        <Text style={styles.summaryLine}>Media de calorias: {summary.avgCals || 0} kcal</Text>
+        <Text style={styles.summaryLine}>Média de calorias: {summary.avgCals || 0} kcal</Text>
         <Text style={styles.summaryLine}>Dias treinados: {summary.trainedDays || 0}</Text>
         <Text style={styles.summaryLine}>Dias fora da meta: {outOfTargetDays}</Text>
 
@@ -97,7 +97,7 @@ export default function HistoryScreen({ navigation }) {
       </AppCard>
 
       <AppCard testID="history-local-logs-panel">
-        <Text style={styles.summaryTitle}>Historico de series (local)</Text>
+        <Text style={styles.summaryTitle}>Séries registradas</Text>
         {localLogsPresentation.isEmpty ? (
           <Text style={styles.empty}>{localLogsPresentation.emptyCopy}</Text>
         ) : (
@@ -137,7 +137,7 @@ export default function HistoryScreen({ navigation }) {
       </AppCard>
 
       <AppCard>
-        <Text style={styles.summaryTitle}>Historico real (backend)</Text>
+        <Text style={styles.summaryTitle}>Treinos sincronizados</Text>
         {remoteLoading ? <Text style={styles.summaryLine}>Carregando treinos salvos...</Text> : null}
         {!remoteLoading && !remoteWorkouts.length ? (
           <Text style={styles.empty}>Nenhum treino sincronizado ainda. Finalize um treino para enviar ao servidor.</Text>

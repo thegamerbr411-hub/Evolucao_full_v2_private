@@ -24,6 +24,7 @@ import { getLocal } from '../storage/mmkv';
 import { setQaRuntimeAuth } from '../utils/qaTransport';
 import { getProfileDisplayEmail } from '../utils/profileDisplay';
 import { QA_ELEMENTS, QA_SCREENS, qaAliasProps, qaProps } from '../qa/selectorRegistry';
+import { shouldShowQaDiagnostics } from '../utils/qaDiagnosticsVisibility';
 
 const ADMIN_EMAILS = ['thegamerbr411@gmail.com'];
 const BETA_CODE = 'BETA2026';
@@ -733,7 +734,9 @@ export default function ProfileScreen({ navigation }) {
         />
       </AppCard>
 
-      <Text style={styles.sectionHeading}>🧪 Beta e Diagnóstico</Text>
+      {shouldShowQaDiagnostics() ? (
+      <>
+      <Text style={styles.sectionHeading}>Ferramentas QA</Text>
 
       <AppCard>
         <Text style={styles.cardLabel}>Status Beta</Text>
@@ -824,6 +827,8 @@ export default function ProfileScreen({ navigation }) {
           style={styles.primaryButtonTop}
         />
       </AppCard>
+      </>
+      ) : null}
 
       <Text style={styles.sectionHeading}>Coach IA</Text>
 

@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import { AppCard, ScreenHeader } from '../components/ui';
 import { colors, spacing, radius } from '../theme';
-import { getExerciseByName } from '../data/exercises.js';
+import { getExerciseById, getExerciseByName, resolveExerciseForDetail } from '../data/exercises.js';
 import { ExerciseMediaFallback } from '../components/exercise/ExerciseMediaFallback';
 import {
   EXERCISE_INSTRUCTIONS_COMING_SOON,
@@ -127,11 +127,17 @@ function ExerciseDetailContent({ route, navigation }) {
   const input = route?.params?.exercise || null;
 
   const exercise = useMemo(() => {
+    if (input?.id && !input?.primaryMuscle) {
+      const byId = getExerciseById(input.id);
+      if (byId) {
+        return byId;
+      }
+    }
     if (input?.name) {
-      return getExerciseByName(input.name) || input;
+      return resolveExerciseForDetail(input.name) || getExerciseByName(input.name) || input;
     }
     if (typeof input === 'string') {
-      return getExerciseByName(input);
+      return resolveExerciseForDetail(input) || getExerciseByName(input);
     }
     return null;
   }, [input]);

@@ -3,7 +3,7 @@ import { Image, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, T
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { EXERCISE_NAMES_V2 } from '../data/exerciseLibraryV2.js';
-import { getExerciseByName, getExerciseFilters, MUSCLE_GROUP_LABELS, searchExercises } from '../data/exercises.js';
+import { getExerciseByName, getExerciseFilters, MUSCLE_GROUP_LABELS, resolveExerciseForDetail, searchExercises } from '../data/exercises.js';
 import { isPlaceholderMediaUrl } from '../utils/exerciseMedia';
 import { fuzzySearchExercises } from '../services/fuzzySearch';
 import {
@@ -315,8 +315,13 @@ export default function RoutinesScreen({ navigation }) {
     navigation.navigate('TreinoHoje', { workoutId: routine.id });
   };
 
-  const openExerciseDetail = (exercise) => {
-    navigation.navigate('ExerciseDetail', { exercise });
+  const openExerciseDetail = (item) => {
+    const resolved = resolveExerciseForDetail(item.name) || { name: item.name };
+    const payload = {
+      exercise: { name: resolved.name || item.name, ...resolved },
+    };
+    navigation.navigate('ExerciseDetail', payload);
+    setShowCatalogModal(false);
   };
 
   return (
@@ -604,12 +609,18 @@ export default function RoutinesScreen({ navigation }) {
               ))}
             </View>
 
-            <ScrollView style={styles.modalCatalogScroll} contentContainerStyle={styles.catalogList}>
+            <ScrollView style={styles.modalCatalogScroll} contentContainerStyle={styles.catalogList} keyboardShouldPersistTaps="handled">
               {filteredCatalog.map((item) => {
                 const selected = selectedCatalogExercises.includes(item.name);
                 return (
                   <View key={item.name} style={[styles.catalogCard, selected ? styles.catalogCardSelected : null]}>
-                    <View style={styles.catalogInfoRow}>
+                    <TouchableOpacity
+                      style={styles.catalogInfoRow}
+                      onPress={() => openExerciseDetail(item)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Detalhes ${item.name}`}
+                      testID={`row-routine-detail-${toTestId(item.name)}`}
+                    >
                       {item.thumbnail && !isPlaceholderMediaUrl(item.thumbnail) ? (
                         <Image source={{ uri: item.thumbnail }} style={styles.catalogThumb} />
                       ) : (
@@ -619,7 +630,7 @@ export default function RoutinesScreen({ navigation }) {
                         <Text style={styles.catalogName}>{item.name}</Text>
                         <Text style={styles.catalogMeta}>{MUSCLE_GROUP_LABELS[item.muscle] || item.muscle.replace(/_/g, ' ')} · {item.equipment.replace(/_/g, ' ')}</Text>
                       </View>
-                    </View>
+                    </TouchableOpacity>
                     <View style={styles.catalogActions}>
                       <TouchableOpacity
                         testID={`chip-routine-catalog-${toTestId(item.name)}`}
@@ -628,7 +639,12 @@ export default function RoutinesScreen({ navigation }) {
                       >
                         <Text style={styles.catalogAddButtonText}>{selected ? 'Selecionado' : 'Selecionar'}</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity style={styles.catalogDetailButton} onPress={() => openExerciseDetail(item)}>
+                      <TouchableOpacity
+                        testID={`btn-routine-detail-${toTestId(item.name)}`}
+                        accessibilityLabel="Detalhes"
+                        style={styles.catalogDetailButton}
+                        onPress={() => openExerciseDetail(item)}
+                      >
                         <Text style={styles.catalogDetailButtonText}>Detalhes</Text>
                       </TouchableOpacity>
                     </View>
@@ -854,8 +870,10 @@ const styles = StyleSheet.create({
     borderRadius: radius.xs,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingVertical: spacing.xs,
+    paddingVertical: spacing.sm,
+    minHeight: 48,
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: colors.cardElevated,
   },
   catalogDetailButtonText: {

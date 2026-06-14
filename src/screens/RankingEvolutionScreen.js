@@ -12,6 +12,13 @@ function getMetricValue(row, metric) {
   return Number(row?.xpScore || 0);
 }
 
+const METRIC_LABELS = {
+  xp: 'XP',
+  consistency: 'Consistência',
+  volume: 'Volume',
+  completed: 'Concluídos',
+};
+
 export default function RankingEvolutionScreen({ navigation }) {
   const { user, getWorkoutGamification } = useApp();
   const [metric, setMetric] = useState('xp');
@@ -99,7 +106,7 @@ export default function RankingEvolutionScreen({ navigation }) {
               style={[styles.tab, metric === item ? styles.tabActive : null]}
               onPress={() => setMetric(item)}
             >
-              <Text style={[styles.tabText, metric === item ? styles.tabTextActive : null]}>{item}</Text>
+              <Text style={[styles.tabText, metric === item ? styles.tabTextActive : null]}>{METRIC_LABELS[item] || item}</Text>
             </TouchableOpacity>
           ))}
         </View>
