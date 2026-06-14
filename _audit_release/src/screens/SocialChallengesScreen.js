@@ -195,7 +195,7 @@ export default function SocialChallengesScreen({ navigation }) {
 
       {__DEV__ ? (
         <View style={styles.devFeatureTagWrap}>
-          <Text style={styles.devFeatureTag}>[F-Social] Ranking + desafios + amizades</Text>
+          <Text style={styles.devFeatureTag}>Social · ranking, desafios e amizades (dev)</Text>
         </View>
       ) : null}
 
@@ -221,7 +221,7 @@ export default function SocialChallengesScreen({ navigation }) {
           testID="input-social-friend-userid"
           value={friendInput}
           onChangeText={setFriendInput}
-          placeholder="user id do amigo"
+          placeholder="Nome ou @usuario"
           placeholderTextColor={colors.textSecondary}
           style={styles.input}
         />
@@ -231,7 +231,7 @@ export default function SocialChallengesScreen({ navigation }) {
           <View style={styles.emptyState}>
             <Ionicons name="people-outline" size={40} color={colors.primary} />
             <Text style={styles.emptyStateTitle}>Nenhum amigo adicionado ainda</Text>
-            <Text style={styles.emptyStateText}>Convide amigos para competir, comparar XP e criar desafios juntos.</Text>
+            <Text style={styles.emptyStateText}>Convide amigos para acompanhar desafios.</Text>
           </View>
         ) : null}
       </AppCard>
@@ -281,8 +281,8 @@ export default function SocialChallengesScreen({ navigation }) {
         ) : (
           <View style={styles.emptyState}>
             <Ionicons name="podium-outline" size={40} color={colors.primary} />
-            <Text style={styles.emptyStateTitle}>Seu ranking aparece aqui</Text>
-            <Text style={styles.meta}>Adicione amigos e conclua treinos para comparar XP, volume e consistencia.</Text>
+            <Text style={styles.emptyStateTitle}>Seu ranking aparece quando houver participantes</Text>
+            <Text style={styles.meta}>Convide amigos para acompanhar desafios e comparar XP, volume e consistência.</Text>
           </View>
         )}
       </AppCard>

@@ -59,3 +59,8 @@ test('CTA can promise video when real URL exists', () => {
 test('EXERCISE_VIDEO_COMING_SOON mentions video preparation', () => {
   assert.match(EXERCISE_VIDEO_COMING_SOON, /vídeo|video|preparação|preparacao/i);
 });
+
+test('formatExerciseName decodes encoded exercise names', async () => {
+  const { formatExerciseName } = await import('../src/utils/displayText.js');
+  assert.equal(formatExerciseName('Cadeira%20Extensora'), 'Cadeira Extensora');
+});

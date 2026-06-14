@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing } from '../../theme';
 import { formatMuscleLabel, getExerciseMuscleKey } from '../../utils/exerciseMedia';
+import { formatExerciseName } from '../../utils/displayText';
 
 const MUSCLE_ACCENT = {
   chest: ['#1e3a5f', '#2563eb'],
@@ -41,9 +42,10 @@ export function ExerciseMediaFallback({
   const muscleKey = useMemo(() => getExerciseMuscleKey(exercise), [exercise]);
   const accent = MUSCLE_ACCENT[muscleKey] || MUSCLE_ACCENT.default;
   const iconName = MUSCLE_ICON[muscleKey] || MUSCLE_ICON.default;
-  const name = String(exercise?.name || 'Exercicio').trim();
+  const name = formatExerciseName(exercise?.name);
   const equipment = String(exercise?.equipment || '').trim();
   const muscleLabel = formatMuscleLabel(muscleKey);
+  const focusLabel = muscleLabel && muscleLabel !== 'Geral' ? `Foco: ${muscleLabel}` : '';
 
   return (
     <View
@@ -61,12 +63,21 @@ export function ExerciseMediaFallback({
         <Text style={[styles.name, compact ? styles.nameCompact : null]} numberOfLines={2}>
           {name}
         </Text>
-        <Text style={styles.meta} numberOfLines={1}>
-          {muscleLabel}
-          {equipment ? ` · ${equipment.replace(/_/g, ' ')}` : ''}
-        </Text>
+        {focusLabel ? (
+          <Text style={styles.focusLabel} numberOfLines={1}>
+            {focusLabel}
+          </Text>
+        ) : null}
+        {equipment ? (
+          <Text style={styles.meta} numberOfLines={1}>
+            {equipment.replace(/_/g, ' ')}
+          </Text>
+        ) : null}
         {showComingSoon ? (
-          <Text style={styles.comingSoon}>Demonstração visual em preparação</Text>
+          <>
+            <Text style={styles.comingSoon}>Demonstração em breve</Text>
+            <Text style={styles.comingSoonHint}>Enquanto isso, siga as instruções de execução abaixo.</Text>
+          </>
         ) : null}
       </View>
     </View>
@@ -108,6 +119,12 @@ const styles = StyleSheet.create({
   nameCompact: {
     fontSize: 14,
   },
+  focusLabel: {
+    color: colors.textPrimary,
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 2,
+  },
   meta: {
     color: colors.textSecondary,
     fontSize: 12,
@@ -119,5 +136,11 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     marginTop: 6,
+  },
+  comingSoonHint: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 2,
   },
 });

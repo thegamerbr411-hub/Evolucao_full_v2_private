@@ -18,7 +18,7 @@ import {
 import { trackAppError } from '../utils/analytics';
 import { logTaggedError, logTaggedEvent } from '../utils/runtimeLogger';
 import { QA_ELEMENTS, QA_SCREENS, qaAliasProps, qaProps } from '../qa/selectorRegistry';
-import { setQaPlayerState } from '../qa/qaAutomationState';
+import { formatExerciseName } from '../utils/displayText';
 
 const TABS = [
   { key: 'resumo', label: 'Resumo' },
@@ -138,7 +138,7 @@ function ExerciseDetailContent({ route, navigation }) {
 
   const safeExercise = exercise && typeof exercise === 'object' ? exercise : {};
 
-  const name = safeExercise?.name || 'Exercicio indisponivel';
+  const name = formatExerciseName(safeExercise?.name || 'Exercício indisponível');
   const musclePrimary = toSafeList(
     safeExercise?.primaryMuscle
       ? [safeExercise.primaryMuscle]

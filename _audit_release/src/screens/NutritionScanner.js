@@ -960,7 +960,7 @@ export default function NutritionScanner({ navigation, route }) {
 
       {__DEV__ ? (
         <View style={styles.devFeatureTagWrap}>
-          <Text style={styles.devFeatureTag}>[F-Nutrition] Scanner, parser e feedback de macros</Text>
+          <Text style={styles.devFeatureTag}>Nutrição · scanner e macros (dev)</Text>
         </View>
       ) : null}
 

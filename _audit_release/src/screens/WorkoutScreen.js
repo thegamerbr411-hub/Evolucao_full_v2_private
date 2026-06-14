@@ -18,6 +18,7 @@ import { Swipeable, GestureHandlerRootView } from 'react-native-gesture-handler'
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNotifications, useNutrition, useWorkout } from '../hooks';
 import { updateStreak } from '../utils/streak';
@@ -2515,7 +2516,8 @@ export default function WorkoutScreen({ navigation, route }) {
       <StreakBar streak={Number(gamification.streakDays || 0)} />
       {saveSuccessVisible ? (
         <View testID="serie-salva-indicator" style={styles.savedFixedIndicator}>
-          <Text style={styles.savedBannerText}>Serie salva</Text>
+          <Ionicons name="checkmark-circle" size={18} color={colors.textPrimary} />
+          <Text style={styles.savedBannerText}>Série salva</Text>
         </View>
       ) : null}
 
@@ -2659,7 +2661,7 @@ export default function WorkoutScreen({ navigation, route }) {
 
         {__DEV__ && activeExercise && isCardioExercise(activeExercise) ? (
           <View style={styles.devFeatureTagWrap}>
-            <Text style={styles.devFeatureTag}>[F-Cardio] Entrada em Tempo (min) e Distancia (km)</Text>
+            <Text style={styles.devFeatureTag}>Cardio · tempo e distância (dev)</Text>
           </View>
         ) : null}
 
@@ -3181,7 +3183,7 @@ export default function WorkoutScreen({ navigation, route }) {
                                   : `${saved.weight}kg x ${saved.reps}`}
                                 {saved.rpe ? ` @RPE ${saved.rpe}` : ''}
                               </Text>
-                              <Text style={styles.savedSetHint}>Serie salva • arraste para editar/remover</Text>
+                              <Text style={styles.savedSetHint}>Série salva • arraste para editar/remover</Text>
                             </View>
                           </View>
                         </Swipeable>
@@ -4450,8 +4452,10 @@ const styles = StyleSheet.create({
     right: 20,
     zIndex: 30,
     minHeight: 56,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderRadius: 14,

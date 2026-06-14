@@ -140,7 +140,7 @@ export default function HistoryScreen({ navigation }) {
         <Text style={styles.summaryTitle}>Historico real (backend)</Text>
         {remoteLoading ? <Text style={styles.summaryLine}>Carregando treinos salvos...</Text> : null}
         {!remoteLoading && !remoteWorkouts.length ? (
-          <Text style={styles.empty}>Nenhum treino sincronizado ainda. Finalize um treino para enviar ao servidor.</Text>
+          <Text style={styles.empty}>Seu histórico aparece aqui. Finalize um treino para ver suas séries, cargas e evolução.</Text>
         ) : null}
         {!remoteLoading && remoteWorkouts.length ? (
           remoteWorkouts.map((item) => (
