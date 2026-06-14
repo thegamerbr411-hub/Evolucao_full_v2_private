@@ -310,4 +310,55 @@ Tratar os **5 blockers visuais/release** documentados no fechamento do Bloco 3 (
 
 ---
 
-_Relatório atualizado — validação manual ExerciseDetail ×5 — 2026-06-14. Sem merge PR #30. Sem commit de `.qa_runtime/**`._
+## 20. Reteste manual — 3 ExerciseDetails restantes (PR #30 gate)
+
+| Item | Valor |
+|------|-------|
+| Sessão | Reteste focado nos 3 FAIL de §18 (Cadeira, Supino, Tríceps) |
+| Método | **scrcpy + navegação manual**; ADB **somente** `screencap` + `uiautomator dump/pull` após tela aberta |
+| Scripts bulk | **Não** usados `manual_details_gate.cjs`, `exercise_details_after.cjs`, `exercise_details_5_run.cjs` como evidência |
+| Helpers locais (não commitados) | `capture_only.cjs`, `open_one_detail.cjs`, `run_last3.cjs` |
+| Device | `RQ8T209ZTAF` · package verificado **`com.tipolt.evolucaofullv2`** (NEXA force-stop antes da sessão) |
+| Branch | `fix/remaining-visual-release-blockers` @ `356fef3` |
+| Manifest | `.qa_runtime/remaining_blockers/exercise_details_manual/results_manual.json` |
+| Data | 2026-06-14 |
+
+### Resultado dos 3 retestados
+
+| Exercício | ID | Status | Observação |
+|-----------|-----|--------|------------|
+| Cadeira Extensora | `DETALHE_CADEIRA_EXTENSORA` | **FAIL** | Catálogo abriu (`SELECIONAR EXERCICIOS`); botão **Detalhes** visível; `screen_exercise_detail` **não** apareceu após tap |
+| Supino Inclinado | `DETALHE_SUPINO_INCLINADO` | **FAIL** | Idem — linha `Supino Inclinado Barra/Halter` + `btn-routine-detail-*` no XML; permaneceu no modal de catálogo |
+| Tríceps na Polia | `DETALHE_TRICEPS_POLIA` | **FAIL** | Idem — busca/filtro Tríceps; sem transição para ExerciseDetail |
+
+Evidência FAIL local (não commitada): `screens/DETALHE_*_FAIL_catalog.png`, `dumps/wait_final.xml` (catálogo, não detail).
+
+### Combinado ×5 (2 PASS anteriores + 3 reteste)
+
+| Exercício | Status | Evidência PASS |
+|-----------|--------|----------------|
+| Puxada Alta | **PASS** | `screens/DETALHE_PUXADA_ALTA.png` + `dumps/DETALHE_PUXADA_ALTA.xml` (`screen_exercise_detail`, Puxada Frontal Polia) |
+| Agachamento Hack | **PASS** | `screens/DETALHE_AGACHAMENTO_HACK.png` + `dumps/DETALHE_AGACHAMENTO_HACK.xml` |
+| Cadeira Extensora | **FAIL** | — |
+| Supino Inclinado | **FAIL** | — |
+| Tríceps na Polia | **FAIL** | — |
+
+**Resumo:** **2/5 PASS** · 0 PARTIAL · **3 FAIL** · manifest: **`BLOCKED`** · merge: **NO-GO**
+
+### P1 blocker (produto)
+
+- **Sintoma:** tap em **Detalhes** no catálogo de rotina (Etapa 2/4) não navega para `ExerciseDetail` de forma confiável para Cadeira / Supino / Tríceps, enquanto Puxada Alta e Agachamento Hack abrem normalmente na mesma sessão.
+- **Não é** RedBox nem package NEXA; é **rota catálogo → detail** instável ou quebrada para subset do catálogo.
+- **Ação:** hotfix em `RoutinesScreen` / fluxo `openExerciseDetail` ou reteste manual com sessão limpa antes de reabrir merge gate PR #30.
+
+### Gates pós-reteste §20
+
+| Gate | Resultado |
+|------|-----------|
+| Audit | drift **0** |
+| Unit hotfix scope | **15/15 PASS** |
+| Squash merge PR #30 | **NO-GO** — critério ≥4/5 PASS não atingido |
+
+---
+
+_Relatório atualizado — reteste manual 3 ExerciseDetails + gate PR #30 — 2026-06-14. Sem merge PR #30. Sem commit de `.qa_runtime/**`._
