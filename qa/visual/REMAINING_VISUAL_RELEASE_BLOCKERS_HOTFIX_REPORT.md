@@ -181,31 +181,69 @@ Tratar os **5 blockers visuais/release** documentados no fechamento do Bloco 3 (
 
 ---
 
-## 15. Entrega Felipe — checklist 20 itens
+## 16. Final gate PR #30 (device `RQ8T209ZTAF`, 2026-06-14)
 
-| # | Item | Status |
-|---|------|--------|
-| 1 | PR #29 merged @ `c016a16` | OK |
-| 2 | Branch `fix/remaining-visual-release-blockers` | OK |
-| 3 | Blocker 1 Perfil Beta gated | OK código · PASS device (scroll) |
-| 4 | Blocker 2 `[F-Nutrition]` removido | OK código · PASS spot-check |
-| 5 | Blocker 3 Histórico copy | OK código · PNG capturado |
-| 6 | Blocker 4 ExerciseDetail modal close | OK código · device ×5 pendente |
-| 7 | Blocker 5 Social RedBox | OK código · PASS spot-check |
-| 8 | Ranking chips PT-BR | OK |
-| 9 | `qaDiagnosticsVisibility.js` + teste | OK |
-| 10 | Audit drift 0 pós-sync | OK |
-| 11 | Unit 35/35 | OK |
-| 12 | Metro restart (RedBox / CI reload) | OK documentado |
-| 13 | `.qa_runtime/remaining_blockers/screens_after/` | OK parcial |
-| 14 | `.qa_runtime/remaining_blockers/social_retest_log.txt` | OK (1ª rodada stale) |
-| 15 | `spot_check.cjs` nutrition/social | PASS pós-reload |
-| 16 | ChatGPT ponte + resposta | Ver `evolucao_remaining_blockers_response.txt` |
-| 17 | Relatório commitável | **Este arquivo** |
-| 18 | PR hotfix aberto | Ver PR URL pós-push |
-| 19 | Release Readiness | **NO-GO** (fora de escopo) |
-| 20 | Produção | **NO-GO** |
+| Item | Valor |
+|------|-------|
+| Branch | `fix/remaining-visual-release-blockers` @ **`8a69a6e`** (+ `InteractionManager` em `openExerciseDetail`) |
+| Metro | `8081` — **não reiniciado** (`packager-status:running`); reload HTTP 200 apenas |
+| Device | `RQ8T209ZTAF` · package `com.tipolt.evolucaofullv2` |
+| Histórico Evolução | **PASS** — `capture_historico_evolucao.cjs`: copy humana, `history-local-logs-panel`, sem NEXA |
+| Blockers 1–3–5 (final) | **PASS** — `capture_after_blockers.cjs` @ `2026-06-14T00:00:57Z` |
+| Detalhes ×5 | **FAIL automação** (0/5 última rodada) · **1/5 PASS device** mid-session (Tríceps Corda Polia → `screen_exercise_detail`) após `8a69a6e` |
+| Audit | `npm run audit:release:check` → **drift 0** |
+| Unit (hotfix scope) | `freeWorkoutSaveSet` + `workoutActiveIndex` + `workoutHistorySetValues` + `qaDiagnosticsVisibility` → **15/15 PASS** |
+| Logcat | `.qa_runtime/remaining_blockers/logs/pr30_final_gate_logcat.txt` — sem `FATAL`/`bottom tab bar height` no retest Social |
+| Squash merge PR #30 | **NO-GO** — blocker 4 não atingiu 4/5 device (automação ADB/catalogo instável após sessão longa) |
+
+### Blocker status (final gate)
+
+| # | Blocker | Device | Evidência |
+|---|---------|--------|-----------|
+| 1 | Config Beta | **PASS** | `screens_after/PERFIL_SEM_BETA.png` · sem copy Beta na viewport |
+| 2 | Nutrição | **PASS** | `NUTRICAO_SEM_F_TAG.png` · `hasFNutrition: false` |
+| 3 | Histórico | **PASS** | `HISTORICO_EVOLUCAO.png` + `dumps/HISTORICO_EVOLUCAO.xml` (Evolução, copy PT-BR) |
+| 4 | ExerciseDetail | **PARCIAL** | Código `InteractionManager` · 1 navegação confirmada (Tríceps); automação ×5 falhou (`uiautomator` 137 / catálogo) |
+| 5 | Social RedBox | **PASS** | 3× `SOCIAL_RETEST_*` + `RANKING_RETEST_*` · `social_retest_log.txt` · `redbox: false` |
+
+### Vereditos finais (gate)
+
+| Gate | Veredito |
+|------|----------|
+| Beta fechado | **GO COM RISCO** — blockers 1–3–5 OK; revalidar Detalhes ×5 manual pós-merge |
+| Release Readiness | **NO-GO** (gate dedicado não iniciado) |
+| Produção / Play Store | **NO-GO** |
+| Merge PR #30 | **NO-GO** (critério Detalhes ≥4/5 não atingido) |
 
 ---
 
-_Relatório gerado pós-hotfix remaining blockers — 2026-06-13. Sem Release Readiness. Sem commit de `.qa_runtime/**`._
+## 17. Entrega Felipe — checklist 22 itens (final gate)
+
+| # | Item | Status / path |
+|---|------|----------------|
+| 1 | PR #30 URL | https://github.com/thegamerbr411-hub/Evolucao_full_v2_private/pull/30 |
+| 2 | Branch | `fix/remaining-visual-release-blockers` @ `8a69a6e` |
+| 3 | Base main | `c016a16` |
+| 4 | Metro final | 8081 running, sem restart |
+| 5 | Device | `RQ8T209ZTAF` |
+| 6 | APP_HOME | `.qa_runtime/remaining_blockers/screens_after/APP_HOME_PR30.png` |
+| 7 | Histórico Evolução | **PASS** — `HISTORICO_EVOLUCAO.png` + `dumps/HISTORICO_EVOLUCAO.xml` |
+| 8 | Blocker 1 Perfil | **PASS** — `PERFIL_SEM_BETA.png` |
+| 9 | Blocker 2 Nutrição | **PASS** — `NUTRICAO_SEM_F_TAG.png` |
+| 10 | Blocker 5 Social ×3 | **PASS** — `SOCIAL_RETEST_1..3.png`, `social_retest_log.txt` |
+| 11 | Blocker 4 Detalhes ×5 | **PARCIAL** — `exercise_details/screens/` · automação 0/5 final; 1 PASS mid-session |
+| 12 | `capture_results.json` | `.qa_runtime/remaining_blockers/capture_results.json` |
+| 13 | Logcat gate | `.qa_runtime/remaining_blockers/logs/pr30_final_gate_logcat.txt` |
+| 14 | Audit drift | **0** — `qa/audit-release-sync-report.json` |
+| 15 | Unit hotfix | **15/15 PASS** (4 arquivos scope PR #30) |
+| 16 | Commit extra gate | `8a69a6e` InteractionManager catalog→detail |
+| 17 | ChatGPT ponte final | **Não acionado** (Detalhes inconclusivo por infra ADB, não ambiguidade visual) |
+| 18 | Squash merge | **NO-GO** (Detalhes <4/5) |
+| 19 | Beta fechado | **GO COM RISCO** |
+| 20 | Release Readiness | **NO-GO** |
+| 21 | Produção | **NO-GO** |
+| 22 | Relatório commitável | **Este arquivo** §16–17 |
+
+---
+
+_Relatório atualizado no final gate PR #30 — 2026-06-14. Sem Release Readiness. Sem commit de `.qa_runtime/**`._
