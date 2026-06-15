@@ -103,7 +103,30 @@ Implementação autorizada por Felipe (**“pode implementar lote 1”**). Apena
 
 ---
 
-## 8. Lote 2 recomendado
+## 8. ChatGPT ponte — PR #31 (BRIDGE_CLOSED)
+
+| Campo | Valor |
+|-------|-------|
+| Status | **BRIDGE_CLOSED** |
+| Chat esperado | EVOLUÇÃO — Diretor Técnico Premium — OFICIAL |
+| Chat usado | Análise app Evolução — FALLBACK_OFICIAL_TEMPORARIO |
+| URL | `https://chatgpt.com/c/6a2f065d-0094-83e9-b07b-80af901f40dc` |
+| Tentativa anterior | Falhou: `page.screenshot timeout 30000ms` (resposta não salva) |
+| Resposta fallback (sem marcador) | `.qa_runtime/chatgpt_bridge/evolucao_premium_release_cleanup_v1_response_FALLBACK_NON_OFFICIAL.txt` |
+| Resposta oficial | `.qa_runtime/chatgpt_bridge/evolucao_premium_release_cleanup_v1_response.txt` |
+| Marcador | `EVOLUCAO_RELEASE_CLEANUP_V1_REVIEW_DONE` — **encontrado** |
+| Veredito ChatGPT | **APPROVE WITH NOTES** |
+| Escopo Lote 1 | **SIM** |
+| P0 | Nenhum identificado |
+| P1 | Recaptura 01–16; confirmar ícone/splash; validar UI sem termos proibidos |
+| P2 | Keypad, empty states, nutrição visual, histórico premium, social @usuario, cores catálogo |
+| Merge recomendado | **NÃO agora** — **SIM** após recaptura 01–16 pós-build |
+| Release Readiness | **Separado** — continua gate próprio pós-merge |
+| Próxima ação | Build no device + recaptura 01–16 + evidência no PR #31 |
+
+---
+
+## 9. Lote 2 recomendado
 
 Após merge: `premium-ux-polish-v2` — cores catálogo, keypad, detalhe exercício, nutrição feedback visual.
 
@@ -125,8 +148,9 @@ Após merge: `premium-ux-polish-v2` — cores catálogo, keypad, detalhe exercí
 - Metro/Detox: não executados nesta sessão
 
 ### IA/review
-- Gemini Web: usado na fase anterior (pacote LIMPO)
-- ChatGPT ponte: packet Lote 1 (pós-PR)
+- Gemini Web: **NÃO** usado nesta tarefa (pacote LIMPO da fase anterior)
+- ChatGPT ponte PR #31: **SIM** — CDP Edge :9222, DOM poll 10 min, marcador salvo
+- Chat usado: Análise app Evolução — FALLBACK_OFICIAL_TEMPORARIO
 
 ### GitHub
 - gh CLI — PR create

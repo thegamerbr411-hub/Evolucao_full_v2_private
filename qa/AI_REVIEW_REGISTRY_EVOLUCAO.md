@@ -1,8 +1,8 @@
 # AI Review Registry — Evolução (OFICIAL)
 
-> **Última atualização:** 2026-06-14  
+> **Última atualização:** 2026-06-15  
 > **Branch:** `fix/premium-release-cleanup-v1`  
-> **Status pipeline:** **LIMPO** — Lote 1 implementado em PR
+> **Status pipeline:** **LIMPO** — Lote 1 em PR #31 · ponte ChatGPT **BRIDGE_CLOSED**
 
 ---
 
@@ -22,13 +22,21 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Nome do chat** | **EVOLUÇÃO — Diretor Técnico Premium — OFICIAL** |
+| **Nome esperado** | **EVOLUÇÃO — Diretor Técnico Premium — OFICIAL** |
+| **Chat usado (PR #31)** | **Análise app Evolução — FALLBACK_OFICIAL_TEMPORARIO** |
+| **URL chat usado** | `https://chatgpt.com/c/6a2f065d-0094-83e9-b07b-80af901f40dc` |
+| **Motivo fallback** | Chat oficial não encontrado na sidebar Edge; única aba ChatGPT disponível |
 | Projeto ChatGPT | Dever de casa |
-| Uso | Master final pós-Gemini; consolida tops, lotes, decisões Felipe |
-| Último pacote | `.qa_runtime/chatgpt_bridge/evolucao_premium_gemini_master_packet.txt` |
-| Última resposta | `.qa_runtime/chatgpt_bridge/evolucao_premium_gemini_master_response.txt` |
-| Bridge | `.devin/chatgpt_bridge/chatgpt_bridge.cjs` (CDP Edge 9222) |
-| **Status** | **APPROVO master com slot 07 corrigido** — PR sugerido: `premium-release-cleanup-v1` |
+| Uso | Master pós-Gemini + review Lote 1 PR #31 |
+| Pacote master | `.qa_runtime/chatgpt_bridge/evolucao_premium_gemini_master_packet.txt` |
+| Resposta master | `.qa_runtime/chatgpt_bridge/evolucao_premium_gemini_master_response.txt` |
+| Pacote Lote 1 | `.qa_runtime/chatgpt_bridge/evolucao_premium_release_cleanup_v1_packet.txt` |
+| Resposta Lote 1 | `.qa_runtime/chatgpt_bridge/evolucao_premium_release_cleanup_v1_response.txt` |
+| Evidência fallback (sem marcador) | `.qa_runtime/chatgpt_bridge/evolucao_premium_release_cleanup_v1_response_FALLBACK_NON_OFFICIAL.txt` |
+| Marcador | `EVOLUCAO_RELEASE_CLEANUP_V1_REVIEW_DONE` — **encontrado** |
+| Bridge status | `.qa_runtime/chatgpt_bridge/evolucao_premium_release_cleanup_v1_bridge_status.json` → **BRIDGE_CLOSED** |
+| Bridge script | `.devin/chatgpt_bridge/chatgpt_bridge.cjs` (CDP Edge 9222, DOM poll) |
+| **Veredito Lote 1** | **APPROVE WITH NOTES** — merge **NÃO agora**; **SIM** após recaptura 01–16 |
 
 ---
 
@@ -54,8 +62,8 @@
 | Campo | Valor |
 |-------|-------|
 | Documento | [`qa/visual/PREMIUM_IMPLEMENTATION_FINAL_PLAN.md`](visual/PREMIUM_IMPLEMENTATION_FINAL_PLAN.md) |
-| Implementação | **AINDA NÃO INICIADA** |
-| Gate Felipe | Responder **“pode implementar lote 1”** |
+| Implementação | **Lote 1 em PR #31** — aguardar merge + recaptura visual |
+| Gate Felipe | Merge após recaptura 01–16 (ChatGPT: NÃO agora, SIM depois) |
 
 ---
 
@@ -76,7 +84,8 @@
 
 | Data | Incidente | Ação |
 |------|-----------|------|
-| 2026-06-14 | Lote 1 premium-release-cleanup-v1 | PR `fix/premium-release-cleanup-v1`; relatório `PREMIUM_RELEASE_CLEANUP_V1_REPORT.md` |
+| 2026-06-15 | Ponte ChatGPT PR #31 incompleta (screenshot timeout) | Recuperada via DOM poll; resposta salva com marcador; **BRIDGE_CLOSED** |
+| 2026-06-14 | Lote 1 premium-release-cleanup-v1 | PR #31; relatório `PREMIUM_RELEASE_CLEANUP_V1_REPORT.md` |
 | 2026-06-14 | PNG 07 capturado com app NEXA (`com.nexa.finance`) | Recapture Evolução; original `INVALID_NEXA_CONTAMINATED` |
 | 2026-06-14 | CONTEXT MIX — agente rodou QA NEXA com workspace Evolução | Separado; NEXA parado; lock + guard criados |
 | 2026-06-12 | Plano final premium consolidado | `PREMIUM_IMPLEMENTATION_FINAL_PLAN.md` + tools inventory |
