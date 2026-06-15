@@ -68,12 +68,19 @@ Implementação autorizada por Felipe (**“pode implementar lote 1”**). Apena
 
 ---
 
-## 5. Prints after (locais, não commitados)
+## 5. Post-build recapture (2026-06-15)
 
-| Slot | Path |
-|------|------|
-| Device atual | `.qa_runtime/premium_release_cleanup_v1/screens_after/00_device_current.png` |
-| 01–16 pós-build | Pendente recaptura automatizada após instalar build com branch no device |
+**Estado:** `POST_BUILD_RECAPTURE_BLOCKED` — ver relatório completo em [`PREMIUM_RELEASE_CLEANUP_V1_POST_BUILD_RECAPTURE.md`](PREMIUM_RELEASE_CLEANUP_V1_POST_BUILD_RECAPTURE.md).
+
+| Resumo | Valor |
+|--------|-------|
+| Device | `RQ8T209ZTAF` |
+| HEAD | `d523629` |
+| Slots PASS | 14/16 |
+| FAIL_P1 | 07 (catálogo), 08 (detalhe exercício) |
+| P0 | nenhum |
+| MERGE_READY | **NÃO** (P1 + CI `root-quality` FAILURE) |
+| Evidência local | `.qa_runtime/premium_release_cleanup_v1/post_build_recapture/` (não commitada) |
 
 ---
 
@@ -140,12 +147,11 @@ Após merge: `premium-ux-polish-v2` — cores catálogo, keypad, detalhe exercí
 - Regras: `.cursor/rules/evolucao-context.mdc`
 
 ### Terminal
-- PowerShell — git, npm test, audit sync, adb screencap
+- PowerShell — git, gh pr comment, node bridge scripts
 
 ### Mobile/device
-- Device: `RQ8T209ZTAF`
-- ADB 1.0.41 — screencap parcial
-- Metro/Detox: não executados nesta sessão
+- ADB: force-stop NEXA apenas (guard)
+- scrcpy/Metro/Detox: **NÃO** nesta tarefa
 
 ### IA/review
 - Gemini Web: **NÃO** usado nesta tarefa (pacote LIMPO da fase anterior)
@@ -153,8 +159,16 @@ Após merge: `premium-ux-polish-v2` — cores catálogo, keypad, detalhe exercí
 - Chat usado: Análise app Evolução — FALLBACK_OFICIAL_TEMPORARIO
 
 ### GitHub
-- gh CLI — PR create
+- gh CLI — PR #31 comment
 - Merge: **NÃO**
+
+### Ferramentas adicionais (ponte)
+- Edge CDP: **SIM** (:9222)
+- Playwright: **SIM** (via chatgpt_bridge.cjs)
+- ChatGPT bridge: **SIM**
+- ADB/scrcpy/Metro/Detox nesta tarefa: **NÃO**
+- Gemini nesta tarefa: **NÃO**
+- Extensão instalada: **NÃO**
 
 ### APIs
 - Nenhuma API paga usada nesta sessão
