@@ -110,6 +110,9 @@ export default function ProfileScreen({ navigation }) {
   const googleReady = googleConfigured && typeof promptAsync === 'function';
   const isAdmin = String(user?.role || '').toLowerCase() === 'admin' || ADMIN_EMAILS.includes(String(user?.email || '').toLowerCase().trim());
   const isBetaTester = isAdmin || betaEnabled;
+  const showQaDiagnostics = __DEV__ && (
+    process.env.EXPO_PUBLIC_SHOW_QA_DIAGNOSTICS === '1' || isAdmin
+  );
 
   const gamification = getWorkoutGamification();
   const macroTargets = getDailyMacroTargets();
@@ -686,7 +689,7 @@ export default function ProfileScreen({ navigation }) {
       {isAdmin ? (
         <AppCard>
           <Text style={styles.cardLabel}>Admin</Text>
-          {__DEV__ ? <Text style={styles.devFeatureTag}>[F-Admin] Acesso privilegiado habilitado</Text> : null}
+          {showQaDiagnostics ? <Text style={styles.devFeatureTag}>Admin · acesso privilegiado (dev)</Text> : null}
           <PrimaryButton title="Abrir configuracoes Admin" onPress={() => navigation.navigate('Admin')} />
         </AppCard>
       ) : null}
@@ -733,6 +736,8 @@ export default function ProfileScreen({ navigation }) {
         />
       </AppCard>
 
+      {showQaDiagnostics ? (
+        <>
       <Text style={styles.sectionHeading}>🧪 Beta e Diagnóstico</Text>
 
       <AppCard>
@@ -824,6 +829,8 @@ export default function ProfileScreen({ navigation }) {
           style={styles.primaryButtonTop}
         />
       </AppCard>
+        </>
+      ) : null}
 
       <Text style={styles.sectionHeading}>Coach IA</Text>
 

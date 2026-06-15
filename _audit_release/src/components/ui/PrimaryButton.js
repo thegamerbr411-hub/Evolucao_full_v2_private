@@ -4,7 +4,7 @@ import { colors, radius, spacing, typography } from '../../theme';
 import { getAnalyticsContext, trackEvent } from '../../utils/analytics';
 import { trackButtonClick } from '../../core/observability';
 
-export function PrimaryButton({ title, onPress, style, testID }) {
+export function PrimaryButton({ title, onPress, style, testID, disabled = false }) {
   const scaleAnim = React.useRef(new Animated.Value(1)).current;
 
   const handlePressIn = React.useCallback(() => {
@@ -26,6 +26,10 @@ export function PrimaryButton({ title, onPress, style, testID }) {
   }, [scaleAnim]);
 
   const handlePress = React.useCallback(() => {
+    if (disabled) {
+      return;
+    }
+
     const analyticsContext = getAnalyticsContext();
     const buttonId = String(testID || title || 'primary-button');
     const screen = String(analyticsContext?.screen || 'unknown');
@@ -51,11 +55,18 @@ export function PrimaryButton({ title, onPress, style, testID }) {
     if (typeof onPress === 'function') {
       onPress();
     }
-  }, [onPress, testID, title]);
+  }, [disabled, onPress, testID, title]);
 
   return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-      <TouchableOpacity testID={testID} onPress={handlePress} onPressIn={handlePressIn} onPressOut={handlePressOut} style={[styles.button, style]}>
+    <Animated.View style={{ transform: [{ scale: scaleAnim }], opacity: disabled ? 0.45 : 1 }}>
+      <TouchableOpacity
+        testID={testID}
+        onPress={handlePress}
+        onPressIn={disabled ? undefined : handlePressIn}
+        onPressOut={disabled ? undefined : handlePressOut}
+        disabled={disabled}
+        style={[styles.button, disabled ? styles.buttonDisabled : null, style]}
+      >
         <Text style={styles.text}>{title}</Text>
       </TouchableOpacity>
     </Animated.View>
@@ -80,5 +91,11 @@ const styles = StyleSheet.create({
   },
   text: {
     ...typography.cta,
+  },
+  buttonDisabled: {
+    backgroundColor: colors.border,
+    borderColor: colors.border,
+    shadowOpacity: 0,
+    elevation: 0,
   },
 });

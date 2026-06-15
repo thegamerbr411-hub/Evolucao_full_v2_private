@@ -1,10 +1,14 @@
 import React, { useMemo, useState } from 'react';
 import { Image, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { EXERCISE_NAMES_V2 } from '../data/exerciseLibraryV2.js';
 import { getExerciseByName, getExerciseFilters, MUSCLE_GROUP_LABELS, searchExercises } from '../data/exercises.js';
 import { isPlaceholderMediaUrl } from '../utils/exerciseMedia';
+import { formatCatalogAddLabel, isCatalogAddEnabled } from '../utils/catalogSelectionCopy';
+import { formatExerciseName } from '../utils/displayText';
+import { ExerciseMediaFallback } from '../components/exercise/ExerciseMediaFallback';
 import { fuzzySearchExercises } from '../services/fuzzySearch';
 import {
   canStartRoutine,
@@ -364,7 +368,7 @@ export default function RoutinesScreen({ navigation }) {
         <PrimaryButton title="Salvar como treino proprio" onPress={saveRecommendedAsOwn} style={styles.primaryButton} />
       </AppCard>
 
-      <AppCard>
+      <AppCard testID="card-routine-manual-builder">
         <Text style={styles.cardTitle}>{editingRoutineId ? 'Editar rotina' : 'Criar rotina manual'}</Text>
         <Text style={styles.recommendationSub}>Etapa {builderStep}/4</Text>
 
@@ -374,6 +378,7 @@ export default function RoutinesScreen({ navigation }) {
             <Text style={styles.helperText}>Escolha um nome curto: exemplo "Perna A" ou "Upper Forte".</Text>
             <TextInput
               testID="input-routine-name"
+              accessibilityLabel="Nome da rotina"
               value={routineName}
               onChangeText={setRoutineName}
               placeholder="Ex: Perna A"
@@ -461,6 +466,7 @@ export default function RoutinesScreen({ navigation }) {
           ) : null}
           {builderStep < 4 ? (
             <PrimaryButton
+              testID="btn-routine-builder-next"
               title="Proximo"
               onPress={() => {
                 if (builderStep === 1 && !String(routineName || '').trim()) {
@@ -560,7 +566,7 @@ export default function RoutinesScreen({ navigation }) {
         onRequestClose={() => setShowCatalogModal(false)}
       >
         <View style={styles.modalBackdrop}>
-          <View style={styles.bottomSheet}>
+          <View testID="modal-routine-catalog" style={styles.bottomSheet}>
             <Text style={styles.cardTitle}>Selecionar exercicios</Text>
 
             <View style={styles.chipsWrap}>
@@ -607,32 +613,48 @@ export default function RoutinesScreen({ navigation }) {
             <ScrollView style={styles.modalCatalogScroll} contentContainerStyle={styles.catalogList}>
               {filteredCatalog.map((item) => {
                 const selected = selectedCatalogExercises.includes(item.name);
+                const displayName = formatExerciseName(item.name);
                 return (
-                  <View key={item.name} style={[styles.catalogCard, selected ? styles.catalogCardSelected : null]}>
+                  <TouchableOpacity
+                    key={item.name}
+                    activeOpacity={0.85}
+                    style={[styles.catalogCard, selected ? styles.catalogCardSelected : null]}
+                    onPress={() => toggleCatalogSelection(item.name)}
+                  >
                     <View style={styles.catalogInfoRow}>
                       {item.thumbnail && !isPlaceholderMediaUrl(item.thumbnail) ? (
                         <Image source={{ uri: item.thumbnail }} style={styles.catalogThumb} />
                       ) : (
-                        <View style={styles.catalogThumbFallback} />
+                        <View style={styles.catalogThumbWrap}>
+                          <ExerciseMediaFallback
+                            exercise={item}
+                            compact
+                            showComingSoon={false}
+                            testID={`catalog-fallback-${toTestId(item.name)}`}
+                          />
+                        </View>
                       )}
                       <View style={styles.catalogTextWrap}>
-                        <Text style={styles.catalogName}>{item.name}</Text>
+                        <Text style={styles.catalogName}>{displayName}</Text>
                         <Text style={styles.catalogMeta}>{MUSCLE_GROUP_LABELS[item.muscle] || item.muscle.replace(/_/g, ' ')} · {item.equipment.replace(/_/g, ' ')}</Text>
+                        {selected ? <Text style={styles.catalogSelectedHint}>Selecionado</Text> : null}
                       </View>
+                      {selected ? (
+                        <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
+                      ) : (
+                        <Ionicons name="ellipse-outline" size={22} color={colors.textSecondary} />
+                      )}
                     </View>
-                    <View style={styles.catalogActions}>
-                      <TouchableOpacity
-                        testID={`chip-routine-catalog-${toTestId(item.name)}`}
-                        style={[styles.catalogAddButton, selected ? styles.catalogAddButtonSelected : null]}
-                        onPress={() => toggleCatalogSelection(item.name)}
-                      >
-                        <Text style={styles.catalogAddButtonText}>{selected ? 'Selecionado' : 'Selecionar'}</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.catalogDetailButton} onPress={() => openExerciseDetail(item)}>
-                        <Text style={styles.catalogDetailButtonText}>Detalhes</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
+                    <TouchableOpacity
+                      testID={`btn-catalog-exercise-detail-${toTestId(item.name)}`}
+                      accessibilityLabel="Detalhes do exercicio"
+                      style={styles.catalogDetailButton}
+                      onPress={() => openExerciseDetail(item)}
+                    >
+                      <Text style={styles.catalogDetailButtonText}>Detalhes</Text>
+                      <Ionicons name="chevron-forward" size={14} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                  </TouchableOpacity>
                 );
               })}
             </ScrollView>
@@ -641,8 +663,12 @@ export default function RoutinesScreen({ navigation }) {
               <SecondaryButton title="Fechar" onPress={() => setShowCatalogModal(false)} style={styles.secondaryButton} />
               <PrimaryButton
                 testID="btn-routine-add-bulk"
-                title={`Adicionar ${selectedCatalogExercises.length} exercicio(s)`}
+                title={formatCatalogAddLabel(selectedCatalogExercises.length)}
+                disabled={!isCatalogAddEnabled(selectedCatalogExercises.length)}
                 onPress={() => {
+                  if (!isCatalogAddEnabled(selectedCatalogExercises.length)) {
+                    return;
+                  }
                   addSelectedCatalogToBuilder();
                   setShowCatalogModal(false);
                 }}
@@ -662,7 +688,7 @@ export default function RoutinesScreen({ navigation }) {
             setShowCatalogModal(false);
           }}
         >
-          <Text style={styles.batchFabText}>Adicionar {selectedCatalogExercises.length} exercicio(s)</Text>
+          <Text style={styles.batchFabText}>{formatCatalogAddLabel(selectedCatalogExercises.length)}</Text>
         </TouchableOpacity>
       ) : null}
     </ScrollView>
@@ -815,8 +841,20 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.background,
   },
+  catalogThumbWrap: {
+    width: 92,
+    minHeight: 84,
+    overflow: 'hidden',
+    borderRadius: radius.xs,
+  },
   catalogTextWrap: {
     flex: 1,
+  },
+  catalogSelectedHint: {
+    color: colors.primary,
+    fontSize: 11,
+    fontWeight: '800',
+    marginTop: 4,
   },
   catalogName: {
     color: colors.textPrimary,
@@ -850,13 +888,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   catalogDetailButton: {
-    flex: 1,
+    alignSelf: 'flex-end',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     borderRadius: radius.xs,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingVertical: spacing.xs,
-    alignItems: 'center',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xxs,
     backgroundColor: colors.cardElevated,
+    marginTop: spacing.xs,
   },
   catalogDetailButtonText: {
     color: colors.textSecondary,

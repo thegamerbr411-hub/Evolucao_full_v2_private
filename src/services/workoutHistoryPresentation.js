@@ -1,3 +1,4 @@
+import { formatExerciseName } from '../utils/displayText.js';
 import {
   buildEmptyWorkoutHistorySummary,
   buildWorkoutHistorySummary,
@@ -17,7 +18,7 @@ export function formatHistoryEntryLine(log = {}) {
   const dateLabel = formatDateLabel(log?.date);
   const weight = Number(log?.weight || 0);
   const reps = Number(log?.reps || 0);
-  const exerciseName = String(log?.exerciseName || '').trim();
+  const exerciseName = formatExerciseName(log?.exerciseName);
 
   if (exerciseName) {
     return `${dateLabel} ${exerciseName} · ${weight}kg x ${reps}`;
@@ -67,7 +68,7 @@ export function buildWorkoutHistoryPresentation({
   return {
     summary,
     isEmpty,
-    emptyCopy: 'Comece seu primeiro registro. Seu progresso aparece aqui depois do treino.',
+    emptyCopy: 'Seu histórico aparece aqui. Finalize um treino para ver suas séries, cargas e evolução.',
     ignoredHint: buildIgnoredHint(summary.ignoredCount),
     recentEntries,
     hasInvalidIgnored: Boolean(summary.hasInvalidIgnored),
@@ -89,7 +90,7 @@ export function buildLocalWorkoutLogsPresentation(workoutLogs = [], { limit = 10
   return {
     entries,
     isEmpty: entries.length === 0,
-    emptyCopy: 'Comece seu primeiro registro. Seu progresso aparece aqui depois do treino.',
+    emptyCopy: 'Seu histórico aparece aqui. Finalize um treino para ver suas séries, cargas e evolução.',
     ignoredHint: buildIgnoredHint(ignoredCount),
     ignoredCount,
     totalValid: sorted.length,

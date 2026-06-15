@@ -105,7 +105,12 @@ export default function RankingEvolutionScreen({ navigation }) {
         </View>
 
         {loading ? <Text style={styles.meta}>Carregando ranking...</Text> : null}
-        {!loading && !ranking.length ? <Text style={styles.meta}>Sem dados de ranking no momento.</Text> : null}
+        {!loading && !ranking.length ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.meta}>Seu ranking aparece quando houver participantes.</Text>
+            <Text style={styles.meta}>Convide amigos para acompanhar desafios.</Text>
+          </View>
+        ) : null}
         {!loading && ranking.slice(0, 12).map((row) => (
           <Text key={`${row.userId}-${row.rank}`} style={styles.line}>
             #{row.rank} {row.userId} • {getMetricValue(row, metric)} • {String(row.league || '').toUpperCase()}
@@ -114,7 +119,7 @@ export default function RankingEvolutionScreen({ navigation }) {
       </AppCard>
 
       <AppCard>
-        <Text style={styles.title}>Formula oficial de XP</Text>
+        <Text style={styles.title}>Como funciona o XP</Text>
         {formula ? (
           <>
             <Text style={styles.meta}>Versao: {String(formula.version || 'xp')}</Text>
@@ -125,7 +130,7 @@ export default function RankingEvolutionScreen({ navigation }) {
             <Text style={styles.meta}>Penalidade streak: -{Number(formula?.rules?.streakBreakPenaltyPerDay || 0)} XP por dia quebrado</Text>
           </>
         ) : (
-          <Text style={styles.meta}>Formula indisponivel offline.</Text>
+          <Text style={styles.meta}>Detalhes de XP aparecem quando a conexão estiver disponível.</Text>
         )}
       </AppCard>
 
@@ -141,6 +146,10 @@ const styles = StyleSheet.create({
     paddingTop: 56,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xl,
+  },
+  emptyState: {
+    gap: 4,
+    marginTop: 4,
   },
   title: {
     color: colors.textPrimary,
