@@ -1,7 +1,7 @@
 # EVOLUÇÃO — AI Bridge Routing
 
 > **Última atualização:** 2026-06-15  
-> **Estado routing:** `AI_ROUTING_PARTIAL`  
+> **Estado routing:** `AI_ROUTING_READY_PR_OPEN`  
 > **CDP profile usado:** Edge **Default** (`enable_cdp_on_open_edge.ps1`) — **não** `chrome-profile` isolado  
 > **Lote 2:** **NÃO iniciado**
 
@@ -22,24 +22,21 @@
 
 | Campo | Valor |
 |-------|--------|
-| **Project (alvo)** | EVOLUÇÃO — App Fitness QA |
-| **Project URL** | *(pendente — Felipe completar modal "Criar projeto")* |
-| **Project status** | `CHATGPT_PROJECT_MANUAL_REQUIRED` |
-| **Chat oficial (alvo)** | EVOLUÇÃO — Oficial QA Pós PR31 / Lote 2 |
-| **Chat URL** | *(pendente)* |
-| **Chat status** | `CHATGPT_OFFICIAL_CHAT_NOT_CONFIRMED` |
+| **Project** | EVOLUÇÃO — App Fitness QA |
+| **Project URL** | `https://chatgpt.com/g/g-p-6a304cf980908191b5415b0c6be75339-evolucao-app-fitness-qa/project` |
+| **Project status** | `CHATGPT_PROJECT_CREATED` |
+| **Created by** | `MANUAL_CREATED_BY_FELIPE` |
+| **Chat oficial** | EVOLUÇÃO — Oficial QA Pós PR31 / Lote 2 |
+| **Chat URL** | `https://chatgpt.com/g/g-p-6a304cf980908191b5415b0c6be75339-evolucao-app-fitness-qa/c/6a304d0e-7c2c-83e9-bb63-f046f7f792f7` |
+| **Chat status** | `CHATGPT_OFFICIAL_CHAT_CONFIRMED` |
 | **Fallback antigo** | `ARCHIVE_ONLY` — `https://chatgpt.com/c/6a2f065d-0094-83e9-b07b-80af901f40dc` ("Análise app Evolução") |
 | **"Dever de casa"** | **NÃO** é Project oficial |
 | **Evidência local** | `.qa_runtime/ai_routing_setup/chatgpt_project_evidence.png` |
 | **Status JSON** | `.qa_runtime/ai_routing_setup/chatgpt_routing_status.json` |
 
-### Passos manuais Felipe (ChatGPT)
+### Confirmação manual (2026-06-15)
 
-1. Edge Default já logado (CDP `:9222` via `enable_cdp_on_open_edge.ps1`).
-2. Se modal **Criar projeto** estiver aberto: preencher **EVOLUÇÃO — App Fitness QA** → clicar **Criar projeto**.
-3. Dentro do Project: **Novo chat** → renomear para **EVOLUÇÃO — Oficial QA Pós PR31 / Lote 2**.
-4. Copiar URL Project (`/g/...`) e chat (`/c/...`) → atualizar registry na próxima execução.
-5. **Não** usar chat fallback `6a2f065d` para Lote 2.
+Felipe criou Project e chat oficial no Edge Default. URLs acima são a fonte de verdade para Lote 2+. **Não** usar chat fallback `6a2f065d`.
 
 ### Lote 1 (histórico — evidência válida)
 
@@ -94,22 +91,22 @@
 
 | Estado | Evolução (2026-06-15) |
 |--------|------------------------|
-| `CHATGPT_PROJECT_CREATED` | **NÃO** (modal pendente) |
-| `CHATGPT_PROJECT_MANUAL_REQUIRED` | **SIM** |
-| `CHATGPT_OFFICIAL_CHAT_CONFIRMED` | **NÃO** |
+| `CHATGPT_PROJECT_CREATED` | **SIM** |
+| `CHATGPT_PROJECT_MANUAL_REQUIRED` | **NÃO** |
+| `CHATGPT_OFFICIAL_CHAT_CONFIRMED` | **SIM** |
 | `GEMINI_NOTEBOOK_CREATED` | **SIM** |
 | `GEMINI_OFFICIAL_CONTEXT_CONFIRMED` | **SIM** (NotebookLM deep link) |
-| `AI_ROUTING_READY` | **NÃO** |
-| `AI_ROUTING_PARTIAL` | **SIM** |
+| `AI_ROUTING_READY` | **SIM** |
+| `AI_ROUTING_READY_PR_OPEN` | **SIM** (PR #34 docs-only aberto) |
+| `AI_ROUTING_PARTIAL` | **NÃO** |
 | `AI_ROUTING_BLOCKED` | **NÃO** |
 
 ---
 
 ## Próximo ciclo
 
-- Felipe completa ChatGPT Project + chat oficial (URLs reais).
-- Merge PR docs deste ciclo quando aprovado.
-- **Lote 2** só após `AI_ROUTING_READY` + autorização Felipe.
+- Felipe autorizar **merge PR #34** (docs-only).
+- **Lote 2** só após merge PR #34 + autorização explícita Felipe.
 
 ---
 
