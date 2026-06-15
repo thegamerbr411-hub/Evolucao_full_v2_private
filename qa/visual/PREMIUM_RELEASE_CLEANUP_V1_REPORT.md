@@ -70,14 +70,15 @@ Implementação autorizada por Felipe (**“pode implementar lote 1”**). Apena
 
 ## 5. Post-build recapture (2026-06-15)
 
-**Estado:** `POST_BUILD_RECAPTURE_BLOCKED` — ver relatório completo em [`PREMIUM_RELEASE_CLEANUP_V1_POST_BUILD_RECAPTURE.md`](PREMIUM_RELEASE_CLEANUP_V1_POST_BUILD_RECAPTURE.md).
+**Estado:** `POST_BUILD_RECAPTURE_PASS_MERGE_READY` (slots 07/08 FIX PASS + gates locais; aguardar CI no HEAD pós-push) — ver [`PREMIUM_RELEASE_CLEANUP_V1_POST_BUILD_RECAPTURE.md`](PREMIUM_RELEASE_CLEANUP_V1_POST_BUILD_RECAPTURE.md).
 
 | Resumo | Valor |
 |--------|-------|
 | Device | `RQ8T209ZTAF` |
-| HEAD | `d523629` |
-| Slots PASS | 14/16 |
-| FAIL_P1 | 07 (catálogo), 08 (detalhe exercício) |
+| Slots PASS | **16/16** (07/08 FIX com ADB PNG+XML) |
+| FAIL_P1 | **0** |
+| Fix produto | `setQaPlayerState` import + copy premium ExerciseDetail |
+| CI root-quality | corrigido via audit sync `_audit_release/e2e/10-smoke-*` |
 | P0 | nenhum |
 | MERGE_READY | **NÃO** (P1 + CI `root-quality` FAILURE) |
 | Evidência local | `.qa_runtime/premium_release_cleanup_v1/post_build_recapture/` (não commitada) |

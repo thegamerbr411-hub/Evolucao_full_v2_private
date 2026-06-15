@@ -368,7 +368,7 @@ export default function RoutinesScreen({ navigation }) {
         <PrimaryButton title="Salvar como treino proprio" onPress={saveRecommendedAsOwn} style={styles.primaryButton} />
       </AppCard>
 
-      <AppCard>
+      <AppCard testID="card-routine-manual-builder">
         <Text style={styles.cardTitle}>{editingRoutineId ? 'Editar rotina' : 'Criar rotina manual'}</Text>
         <Text style={styles.recommendationSub}>Etapa {builderStep}/4</Text>
 
@@ -378,6 +378,7 @@ export default function RoutinesScreen({ navigation }) {
             <Text style={styles.helperText}>Escolha um nome curto: exemplo "Perna A" ou "Upper Forte".</Text>
             <TextInput
               testID="input-routine-name"
+              accessibilityLabel="Nome da rotina"
               value={routineName}
               onChangeText={setRoutineName}
               placeholder="Ex: Perna A"
@@ -465,6 +466,7 @@ export default function RoutinesScreen({ navigation }) {
           ) : null}
           {builderStep < 4 ? (
             <PrimaryButton
+              testID="btn-routine-builder-next"
               title="Proximo"
               onPress={() => {
                 if (builderStep === 1 && !String(routineName || '').trim()) {
@@ -564,7 +566,7 @@ export default function RoutinesScreen({ navigation }) {
         onRequestClose={() => setShowCatalogModal(false)}
       >
         <View style={styles.modalBackdrop}>
-          <View style={styles.bottomSheet}>
+          <View testID="modal-routine-catalog" style={styles.bottomSheet}>
             <Text style={styles.cardTitle}>Selecionar exercicios</Text>
 
             <View style={styles.chipsWrap}>
@@ -644,6 +646,8 @@ export default function RoutinesScreen({ navigation }) {
                       )}
                     </View>
                     <TouchableOpacity
+                      testID={`btn-catalog-exercise-detail-${toTestId(item.name)}`}
+                      accessibilityLabel="Detalhes do exercicio"
                       style={styles.catalogDetailButton}
                       onPress={() => openExerciseDetail(item)}
                     >

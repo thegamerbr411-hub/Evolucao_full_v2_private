@@ -11,13 +11,13 @@ import { getExerciseByName } from '../data/exercises.js';
 import { ExerciseMediaFallback } from '../components/exercise/ExerciseMediaFallback';
 import {
   EXERCISE_INSTRUCTIONS_COMING_SOON,
-  EXERCISE_VIDEO_COMING_SOON,
   isValidHttpUrl,
   resolveExerciseMedia,
 } from '../utils/exerciseMedia';
 import { trackAppError } from '../utils/analytics';
 import { logTaggedError, logTaggedEvent } from '../utils/runtimeLogger';
 import { QA_ELEMENTS, QA_SCREENS, qaAliasProps, qaProps } from '../qa/selectorRegistry';
+import { setQaPlayerState } from '../qa/qaAutomationState';
 import { formatExerciseName } from '../utils/displayText';
 
 const TABS = [
@@ -302,13 +302,10 @@ function ExerciseDetailContent({ route, navigation }) {
       <AppCard>
         <View style={styles.videoWrap}>
           {showLocalMediaFallback ? (
-            <>
-              <ExerciseMediaFallback
-                exercise={safeExercise}
-                testID="exercise-detail-media-fallback"
-              />
-              <Text style={styles.videoComingSoonText}>{EXERCISE_VIDEO_COMING_SOON}</Text>
-            </>
+            <ExerciseMediaFallback
+              exercise={safeExercise}
+              testID="exercise-detail-media-fallback"
+            />
           ) : null}
           {!showLocalMediaFallback && canRenderVideo ? (
             <Video
@@ -547,13 +544,13 @@ function ExerciseDetailContent({ route, navigation }) {
             ) : (
               <Text style={styles.bodyText}>{EXERCISE_INSTRUCTIONS_COMING_SOON}</Text>
             )}
-            <Text style={styles.sectionTitle}>Metadata</Text>
+            <Text style={styles.sectionTitle}>Informacoes adicionais</Text>
             {metadataEntries.length ? (
               metadataEntries.map(([key, value]) => (
                 <Text key={`${key}-${value}`} style={styles.bulletText}>• {formatLabel(key)}: {String(value)}</Text>
               ))
             ) : (
-              <Text style={styles.bodyText}>Sem metadata cadastrada.</Text>
+              <Text style={styles.bodyText}>Informacoes complementares em breve.</Text>
             )}
           </View>
         ) : null}
