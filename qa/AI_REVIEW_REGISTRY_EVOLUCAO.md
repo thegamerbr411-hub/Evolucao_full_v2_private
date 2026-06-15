@@ -1,91 +1,93 @@
 # AI Review Registry — Evolução (OFICIAL)
 
-> **Última atualização:** 2026-06-15  
-> **Branch:** `fix/premium-release-cleanup-v1`  
-> **Status pipeline:** **LIMPO** — Lote 1 em PR #31 · ponte ChatGPT **BRIDGE_CLOSED**
+> **Última atualização:** 2026-06-15 (setup routing IA)  
+> **Base main:** `origin/main` @ `f4f806e`  
+> **Routing doc:** [`AI_BRIDGE_ROUTING_EVOLUCAO.md`](AI_BRIDGE_ROUTING_EVOLUCAO.md)  
+> **Estado routing:** `AI_ROUTING_PARTIAL`  
+> **Lote 2:** **NÃO iniciado**
 
 ---
 
-## Projeto
+## Registry — campos obrigatórios
 
-| Campo | Valor |
-|-------|-------|
-| Nome | Evolução |
-| Repo | `thegamerbr411-hub/Evolucao_full_v2_private` |
-| Pasta local | `F:\projetos\evolucao-main-clean` |
-| Package Android | `com.tipolt.evolucaofullv2` |
-| Device QA | `RQ8T209ZTAF` |
-
----
-
-## ChatGPT — Diretor Técnico Premium (OFICIAL)
-
-| Campo | Valor |
-|-------|-------|
-| **Nome esperado** | **EVOLUÇÃO — Diretor Técnico Premium — OFICIAL** |
-| **Chat usado (PR #31)** | **Análise app Evolução — FALLBACK_OFICIAL_TEMPORARIO** |
-| **URL chat usado** | `https://chatgpt.com/c/6a2f065d-0094-83e9-b07b-80af901f40dc` |
-| **Motivo fallback** | Chat oficial não encontrado na sidebar Edge; única aba ChatGPT disponível |
-| Projeto ChatGPT | Dever de casa |
-| Uso | Master pós-Gemini + review Lote 1 PR #31 |
-| Pacote master | `.qa_runtime/chatgpt_bridge/evolucao_premium_gemini_master_packet.txt` |
-| Resposta master | `.qa_runtime/chatgpt_bridge/evolucao_premium_gemini_master_response.txt` |
-| Pacote Lote 1 | `.qa_runtime/chatgpt_bridge/evolucao_premium_release_cleanup_v1_packet.txt` |
-| Resposta Lote 1 | `.qa_runtime/chatgpt_bridge/evolucao_premium_release_cleanup_v1_response.txt` |
-| Evidência fallback (sem marcador) | `.qa_runtime/chatgpt_bridge/evolucao_premium_release_cleanup_v1_response_FALLBACK_NON_OFFICIAL.txt` |
-| Marcador | `EVOLUCAO_RELEASE_CLEANUP_V1_REVIEW_DONE` — **encontrado** |
-| Bridge status | `.qa_runtime/chatgpt_bridge/evolucao_premium_release_cleanup_v1_bridge_status.json` → **BRIDGE_CLOSED** |
-| Bridge script | `.devin/chatgpt_bridge/chatgpt_bridge.cjs` (CDP Edge 9222, DOM poll) |
-| **Veredito Lote 1** | **APPROVE WITH NOTES** — merge **NÃO agora**; **SIM** após recaptura 01–16 |
+| # | Campo | Valor |
+|---|--------|--------|
+| 1 | **Fonte de verdade atual** | GitHub PRs #31/#32/#33 · `qa/visual/*` · `qa/release/*` |
+| 2 | **PRs base** | #31 merged · #32 baseline · #33 dry-run |
+| 3 | **Main atual** | `f4f806e` |
+| 4 | **ChatGPT Project existe?** | **MANUAL_REQUIRED** (modal criar pendente Felipe) |
+| 5 | **ChatGPT Project nome** | EVOLUÇÃO — App Fitness QA *(alvo)* |
+| 6 | **ChatGPT Project link** | *(pendente — sem `/g/` capturado)* |
+| 7 | **ChatGPT chat oficial existe?** | **MANUAL_REQUIRED** |
+| 8 | **ChatGPT chat oficial link** | *(pendente — sem `/c/` oficial)* |
+| 9 | **ChatGPT fallback permitido?** | **NÃO** (Lote 2+) — fallback Lote 1 `ARCHIVE_ONLY` |
+| 10 | **ChatGPT último arquivo resposta** | `.qa_runtime/chatgpt_bridge/evolucao_premium_release_cleanup_v1_response.txt` |
+| 11 | **ChatGPT último marcador** | `EVOLUCAO_RELEASE_CLEANUP_V1_REVIEW_DONE` |
+| 12 | **Gemini Notebook existe?** | **SIM** |
+| 13 | **Gemini Notebook nome** | EVOLUÇÃO — QA Visual e Release Readiness |
+| 14 | **Gemini Notebook link** | `https://notebooklm.google.com/notebook/2b75bdbe-ee31-4145-97b1-b0b5f606cbc8` |
+| 15 | **Gemini deep link disponível?** | **SIM** |
+| 16 | **Gemini notebook oficial confirmado?** | **SIM** (`GEMINI_NOTEBOOK_CREATED`, sources **NÃO**) |
+| 17 | **Gemini último arquivo resposta** | `.qa_runtime/gemini_review/gemini_premium_visual_response.txt` |
+| 18 | **Gemini último marcador/status** | `GEMINI_WEB_REAL_USED: YES` / Notebook `AUTOMATION_CREATED` |
+| 19 | **NEXA separado?** | **SIM** (guard + regra routing) |
+| 20 | **Risco de chat errado** | ChatGPT Project/chat pendente; notebook antigo `7a60bf00` inválido; não usar `Dever de casa` |
+| 21 | **Próximo ciclo autorizado** | Felipe completar ChatGPT Project/chat → merge PR docs → Lote 2 |
+| 22 | **Lote 2 iniciado?** | **NÃO** |
+| 23 | **Release Readiness real iniciado?** | **NÃO** |
 
 ---
 
-## Gemini Web — Auditoria Premium UX/UI (OFICIAL)
+## ChatGPT — resumo
 
 | Campo | Valor |
-|-------|-------|
-| **Nome do chat** | **EVOLUÇÃO — Auditoria Premium UX/UI — OFICIAL** |
-| Gemini API | **NÃO** usada |
-| Gemini Web | **SIM** — CDP + Playwright |
-| `GEMINI_WEB_REAL_USED` | **YES** (28 PNGs, blocos A–D) |
-| Resposta original | `.qa_runtime/gemini_review/gemini_premium_visual_response.txt` |
-| Correção PNG 07 | `.qa_runtime/gemini_review/gemini_premium_visual_response_07_fix.txt` |
-| Status envio | `.qa_runtime/gemini_review/gemini_send_status.json` |
-| Bridge | `.qa_runtime/gemini_review/gemini_web_bridge.cjs` |
-| PNG 07 válido | `07_CATALOGO_MODAL_EVOLUCAO_RECAPTURE.png` |
-| **Status análise** | Pacote **LIMPO**; veredito release **BLOCKED** até Lote 1 |
+|-------|--------|
+| CDP profile | Edge **Default** (contas logadas) |
+| Project status | `CHATGPT_PROJECT_MANUAL_REQUIRED` |
+| Chat status | `CHATGPT_OFFICIAL_CHAT_NOT_CONFIRMED` |
+| Fallback Lote 1 | `https://chatgpt.com/c/6a2f065d-0094-83e9-b07b-80af901f40dc` — **ARCHIVE_ONLY** |
+| Evidência | `.qa_runtime/ai_routing_setup/chatgpt_project_evidence.png` |
 
 ---
 
-## Plano de implementação
+## NotebookLM — resumo
 
 | Campo | Valor |
-|-------|-------|
-| Documento | [`qa/visual/PREMIUM_IMPLEMENTATION_FINAL_PLAN.md`](visual/PREMIUM_IMPLEMENTATION_FINAL_PLAN.md) |
-| Implementação | **Lote 1 em PR #31** — aguardar merge + recaptura visual |
-| Gate Felipe | Merge após recaptura 01–16 (ChatGPT: NÃO agora, SIM depois) |
+|-------|--------|
+| Status | `GEMINI_NOTEBOOK_CREATED` |
+| URL | `https://notebooklm.google.com/notebook/2b75bdbe-ee31-4145-97b1-b0b5f606cbc8` |
+| Sources uploaded | **NÃO** |
+| Evidência | `.qa_runtime/ai_routing_setup/notebooklm_evidence.png` |
+
+---
+
+## O que não afirmar
+
+| Afirmação | Permitido? |
+|-----------|------------|
+| ChatGPT Project criado | **NÃO** (até URL `/g/` + Felipe confirmar) |
+| Chat oficial confirmado | **NÃO** (até URL `/c/` no Project) |
+| NotebookLM criado | **SIM** (deep link `2b75bdbe-...`) |
+| Ponte Lote 1 fechada | **SIM** (marcador histórico) |
+| Lote 2 iniciado | **NÃO** |
 
 ---
 
 ## Regras (obrigatórias)
 
-1. **Nunca** usar chats NEXA, PR #24 antigo, ou chat sem título oficial.
-2. Chat errado → resposta = `INVALID_REVIEW_CHAT` (descartar).
-3. **Sempre** salvar resposta em arquivo `.txt` antes de considerar entrega válida.
-4. **Nunca** colar caminhos `F:\` no chat — anexar PNGs reais (upload).
-5. Rodar `node .qa_runtime/tools/verify_evolucao_context.cjs` **antes** de qualquer job de pipeline.
-6. Lote 1 implementado em `fix/premium-release-cleanup-v1` — aguardar merge antes de Lote 2.
-7. **Não** commitar `.qa_runtime/**`, PNGs, XMLs, logs ou secrets.
-8. **Sempre** incluir seção “Ferramentas, APIs, extensões e automações usadas” em relatórios ao Felipe.
+1. Evidência real: link **ou** arquivo **ou** marcador — nunca inventar.
+2. `NOT_CREATED` / `MANUAL_REQUIRED` / `ARCHIVE_ONLY` quando aplicável.
+3. Não commitar `.qa_runtime/**`, PNG, XML, logs.
+4. Guard antes de jobs de pipeline.
+5. Upload NotebookLM sources = ciclo separado com OK Felipe.
 
 ---
 
-## Histórico de incidentes
+## Histórico
 
-| Data | Incidente | Ação |
-|------|-----------|------|
-| 2026-06-15 | Ponte ChatGPT PR #31 incompleta (screenshot timeout) | Recuperada via DOM poll; resposta salva com marcador; **BRIDGE_CLOSED** |
-| 2026-06-14 | Lote 1 premium-release-cleanup-v1 | PR #31; relatório `PREMIUM_RELEASE_CLEANUP_V1_REPORT.md` |
-| 2026-06-14 | PNG 07 capturado com app NEXA (`com.nexa.finance`) | Recapture Evolução; original `INVALID_NEXA_CONTAMINATED` |
-| 2026-06-14 | CONTEXT MIX — agente rodou QA NEXA com workspace Evolução | Separado; NEXA parado; lock + guard criados |
-| 2026-06-12 | Plano final premium consolidado | `PREMIUM_IMPLEMENTATION_FINAL_PLAN.md` + tools inventory |
+| Data | Evento |
+|------|--------|
+| 2026-06-15 | Setup routing: NotebookLM **CREATED**; ChatGPT **MANUAL_REQUIRED**; Edge Default |
+| 2026-06-15 | Tentativa inválida `chrome-profile` → descartada |
+| 2026-06-15 | PR #33 dry-run merged; Lote 2 não iniciado |
+| 2026-06-15 | Ponte Lote 1 PR #31 `BRIDGE_CLOSED` + marcador |
