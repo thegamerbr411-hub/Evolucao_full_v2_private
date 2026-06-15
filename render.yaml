@@ -15,17 +15,17 @@ services:
       - key: ENABLE_QA_LOCAL_BYPASS
         value: "0"
       - key: ADMIN_USER
-        value: admin
+        sync: false
       - key: ADMIN_PASS
-        value: fe123456$@
+        sync: false
       - key: JWT_SECRET
-        value: d94e664ba7a33757841043693cace8362b9c5337ea1e56733d7739c400cf5cfc
+        sync: false
       - key: DEFAULT_CLIENT_ID
-        value: admin
+        sync: false
       - key: CLIENT_API_KEYS
-        value: '{"admin":"5yrfrykNa7OrIfFbqRHQLkxHp1U_mL80"}'
+        sync: false
       - key: APP_API_KEY
-        value: JGAhyl7uYjN3VpxKHnzMPcdBKzwmzlJB
+        sync: false
       - key: RESEND_API_KEY
         sync: false
       - key: RESEND_FROM
