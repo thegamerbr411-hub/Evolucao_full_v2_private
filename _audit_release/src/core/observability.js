@@ -895,7 +895,23 @@ function touchSessionWithError(errorEntry) {
   current.errors_triggered.push(safeString(errorEntry?.message || 'unknown_error', 'unknown_error'));
 }
 
+export function isInAppFeedbackSuppressedForQa() {
+  if (typeof __DEV__ !== 'undefined' && __DEV__) {
+    return true;
+  }
+  const raw = String(
+    (typeof process !== 'undefined' ? process?.env?.EXPO_PUBLIC_ENABLE_QA_TRANSPORT : '')
+    || (typeof process !== 'undefined' ? process?.env?.EXPO_PUBLIC_ENABLE_QA_LOCAL_BYPASS : '')
+    || ''
+  ).trim().toLowerCase();
+  return raw === '1' || raw === 'true';
+}
+
 export function shouldShowInAppFeedbackPrompt() {
+  if (isInAppFeedbackSuppressedForQa()) {
+    return false;
+  }
+
   ensureHydrated();
   const recentPrompts = pruneRecentDates(store.feedback.promptCountWindow, 7 * 24 * 60 * 60 * 1000);
   store.feedback.promptCountWindow = recentPrompts;

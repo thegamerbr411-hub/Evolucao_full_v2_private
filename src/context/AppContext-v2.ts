@@ -148,6 +148,14 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const setUserHydrated = userStore.setHydrated;
 
   const workoutIntegrityReportRef = useRef('');
+  const authNullClearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearAuthNullDebounce = useCallback(() => {
+    if (authNullClearTimerRef.current) {
+      clearTimeout(authNullClearTimerRef.current);
+      authNullClearTimerRef.current = null;
+    }
+  }, []);
 
   // Initialize hydration
   useEffect(() => {
@@ -217,6 +225,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       }
 
       if (currentUser) {
+        clearAuthNullDebounce();
+
         const currentStoreUser = useUserStore.getState().user;
 
         // Guard: if a QA fixture user is active, do not let Firebase (including anonymous
@@ -249,9 +259,31 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
           setUserInStore(resolvedUser as any);
         }
       } else {
-        // Do not auto-clear local user state on null auth events.
-        // Firebase can emit null transiently during cold start before restoring persistence.
-        // Explicit user logout actions already clear the stores directly.
+        // Firebase can emit null transiently during cold start — debounce clear after hydration.
+        if (useUserStore.getState().isHydrated) {
+          clearAuthNullDebounce();
+          authNullClearTimerRef.current = setTimeout(async () => {
+            authNullClearTimerRef.current = null;
+            if (isLogoutInProgress() || auth?.currentUser?.uid) {
+              return;
+            }
+
+            const currentStoreUser = useUserStore.getState().user;
+            if (!currentStoreUser?.id) {
+              return;
+            }
+
+            if (
+              typeof __DEV__ !== 'undefined' && __DEV__
+              && isQaWorkoutFixtureEnabled()
+              && String(currentStoreUser.id).startsWith(QA_USER_ID_PREFIX)
+            ) {
+              return;
+            }
+
+            logoutUserInStore();
+          }, 500);
+        }
       }
 
       if (!useUserStore.getState().isHydrated) {
@@ -261,9 +293,10 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
     return () => {
       cancelled = true;
+      clearAuthNullDebounce();
       unsubscribe();
     };
-  }, [logoutUserInStore, setUserHydrated, setUserInStore]);
+  }, [clearAuthNullDebounce, logoutUserInStore, setUserHydrated, setUserInStore]);
 
   useEffect(() => {
     const today = getTodayKey();
