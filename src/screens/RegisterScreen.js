@@ -20,7 +20,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { AnimatedToast } from '../components/ui';
-import { getOrCreateUserIdentity, saveUserIdentity } from '../services/appIdentityService';
 import { auth, isFirebaseConfigured } from '../services/firebase';
 import {
   exchangeGoogleAuthCode,
@@ -30,12 +29,17 @@ import {
   useGoogleAuth,
   verifyLoginCode,
 } from '../services/authService.js';
-import { setQaRuntimeAuth } from '../utils/qaTransport';
+import {
+  finalizeAuthenticatedSession,
+  interpretSignInMethods,
+  messageForSignInMethods,
+} from '../services/authSessionFinalize';
 import { QA_ELEMENTS, QA_SCREENS, qaProps } from '../qa/selectorRegistry';
 import { setQaAuthState } from '../qa/qaAutomationState';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const FIREBASE_TIMEOUT_MS = 8000;
+const FIREBASE_TIMEOUT_MS = 15000;
+const CODE_TIMEOUT_MS = 20000;
 
 // ============================================================================
 // UTILITIES
@@ -54,7 +58,13 @@ function mapFirebaseAuthError(error) {
   if (code.includes('auth/invalid-action-code')) return 'Link expirado ou inválido.';
   if (code.includes('auth/too-many-requests')) return 'Muitas tentativas. Aguarde alguns minutos.';
   if (code.includes('auth/network-request-failed')) return 'Sem conexão. Verifique internet.';
-  return String(error?.message || 'Erro na autenticação.');
+  if (String(error?.message || '').includes('Operação expirou')) {
+    return 'Demorou mais que o esperado. Verifique a conexão e tente novamente.';
+  }
+  if (String(error?.message || '').includes('AUTH_GOOGLE_TOKENS_MISSING')) {
+    return 'Não recebemos confirmação do Google. Tente novamente.';
+  }
+  return String(error?.message || 'Não foi possível concluir. Tente novamente.');
 }
 
 async function withTimeout(promise, timeoutMs = FIREBASE_TIMEOUT_MS) {
@@ -85,12 +95,20 @@ export default function RegisterScreen({ navigation }) {
   const [localDevCode, setLocalDevCode] = useState('');
   const [pendingGoogleUser, setPendingGoogleUser] = useState(null);
   const [forgotCodeValidated, setForgotCodeValidated] = useState(false);
+  const [authFlow, setAuthFlow] = useState('email'); // email | google | register | forgot
   
-  // UI state
-  const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
+  // UI state — separate loading per action
+  const [isSendingCode, setIsSendingCode] = useState(false);
+  const [isVerifyingCode, setIsVerifyingCode] = useState(false);
+  const [isEmailLoginLoading, setIsEmailLoginLoading] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isForgotFlowLoading, setIsForgotFlowLoading] = useState(false);
   const [toast, setToast] = useState('');
   const [statusMsg, setStatusMsg] = useState('');
+  
+  const formBusy = isSendingCode || isVerifyingCode || isEmailLoginLoading
+    || isRegistering || isGoogleLoading || isForgotFlowLoading;
   
   // Google auth
   const { request, promptAsync, response } = useGoogleAuth();
@@ -110,6 +128,14 @@ export default function RegisterScreen({ navigation }) {
     setLocalDevCode('');
     setNewPassword('');
     setForgotCodeValidated(false);
+    setPendingGoogleUser(null);
+    if (mode === 'forgot') {
+      setAuthFlow('forgot');
+    } else if (mode === 'register') {
+      setAuthFlow('register');
+    } else {
+      setAuthFlow('email');
+    }
   }, [email, mode]);
 
   useEffect(() => {
@@ -134,7 +160,8 @@ export default function RegisterScreen({ navigation }) {
     }
 
     const processGoogleAuth = async () => {
-      setGoogleLoading(true);
+      setIsGoogleLoading(true);
+      setAuthFlow('google');
       try {
         let accessToken = response.authentication?.accessToken || null;
         let idToken = response.authentication?.idToken || response?.params?.id_token || null;
@@ -162,30 +189,32 @@ export default function RegisterScreen({ navigation }) {
 
         if (!loggedUser?.id) throw new Error('Google sem usuário válido');
 
-        setMode('login');
-        setEmail(loggedUser.email || '');
-        if (loggedUser.name) setName(loggedUser.name);
-        
-        // Google users are pre-verified by the provider
-        setPendingGoogleUser({
-          id: loggedUser.id,
-          name: loggedUser.name || 'Usuário',
-          email: loggedUser.email,
-          role: loggedUser.role || 'user',
+        await finalizeAuthenticatedSession({
+          navigation,
+          setUser,
+          user: {
+            id: loggedUser.id,
+            name: loggedUser.name || 'Usuário',
+            email: loggedUser.email,
+            role: loggedUser.role || 'user',
+            source: loggedUser.source || 'google',
+          },
+          source: loggedUser.source || 'google',
         });
-        setEmailVerified(true);
-        setStatusMsg('✓ Google conectado e verificado.');
-        setToast('Toque em Entrar para continuar.');
+
+        setStatusMsg('✓ Entrada com Google concluída.');
+        setToast('');
       } catch (err) {
+        setAuthFlow('email');
         setStatusMsg('✗ Erro ao conectar com Google.');
         setToast(mapFirebaseAuthError(err));
       } finally {
-        setGoogleLoading(false);
+        setIsGoogleLoading(false);
       }
     };
 
     processGoogleAuth();
-  }, [exchangeGoogleAuthCode, request, response]);
+  }, [exchangeGoogleAuthCode, navigation, request, response, setUser]);
 
   // Send verification code
   const handleSendCode = useCallback(async () => {
@@ -207,49 +236,43 @@ export default function RegisterScreen({ navigation }) {
       return;
     }
 
-    if (mode === 'login' && !pendingGoogleUser && password.length < 6) {
+    if (mode === 'login' && password.length < 6) {
       setStatusMsg('✗ Senha obrigatória (mín. 6 caracteres).');
       setToast('Senha obrigatória (mín. 6 caracteres).');
       return;
     }
 
-    setLoading(true);
+    setIsSendingCode(true);
     setStatusMsg('Enviando código...');
     try {
-      // Check existing methods
       const methods = (isFirebaseConfigured && auth)
-        ? await withTimeout(fetchSignInMethodsForEmail(auth, emailLower))
+        ? await withTimeout(fetchSignInMethodsForEmail(auth, emailLower), FIREBASE_TIMEOUT_MS)
         : [];
+      const providerInfo = interpretSignInMethods(methods);
 
       if (mode === 'register' && (!isFirebaseConfigured || !auth)) {
-        setStatusMsg('✗ Cadastro com código exige Firebase ativo para validar e-mail.');
-        setToast('Firebase não configurado.');
+        setStatusMsg('✗ Cadastro indisponível no momento. Tente Google ou tente mais tarde.');
+        setToast('Serviço de cadastro temporariamente indisponível.');
         return;
       }
 
       if (mode === 'register') {
-        if (Array.isArray(methods) && methods.length > 0) {
-          setStatusMsg('✗ E-mail já em uso. Faça login ou use outro e-mail.');
-          setToast('E-mail já em uso.');
+        const registerMsg = messageForSignInMethods(providerInfo, 'register');
+        if (registerMsg) {
+          setStatusMsg(`✗ ${registerMsg}`);
+          setToast(registerMsg);
           return;
         }
       } else {
-        if (pendingGoogleUser) {
-          setEmailVerified(true);
-          setStatusMsg('✓ Google verificado. Prossiga.');
-          setToast('Toque em Entrar para continuar.');
-          return;
-        }
-
-        // Login mode: check account exists
-        if (!Array.isArray(methods) || methods.length === 0) {
-          setToast('Conta não encontrada.');
-          setStatusMsg('✗ E-mail não registrado.');
+        const loginMsg = messageForSignInMethods(providerInfo, 'login');
+        if (loginMsg) {
+          setStatusMsg(`✗ ${loginMsg}`);
+          setToast(loginMsg);
           return;
         }
       }
 
-      const codeResult = await withTimeout(sendLoginCode(emailLower));
+      const codeResult = await withTimeout(sendLoginCode(emailLower), CODE_TIMEOUT_MS);
       if (!codeResult?.ok) {
         const sendError = String(codeResult?.message || 'Falha ao enviar código.');
         setStatusMsg(`✗ ${sendError}`);
@@ -271,9 +294,9 @@ export default function RegisterScreen({ navigation }) {
       setStatusMsg(`✗ ${mapFirebaseAuthError(err)}`);
       setToast(mapFirebaseAuthError(err));
     } finally {
-      setLoading(false);
+      setIsSendingCode(false);
     }
-  }, [email, name, password, mode, pendingGoogleUser, resendCooldownSec]);
+  }, [email, name, password, mode, resendCooldownSec]);
 
   // Validate verification code
   const handleCheckVerification = useCallback(async () => {
@@ -287,13 +310,6 @@ export default function RegisterScreen({ navigation }) {
     if (!safeCode) {
       setStatusMsg('✗ Informe o código de verificação.');
       setToast('Informe o código de verificação.');
-      return;
-    }
-
-    if (pendingGoogleUser) {
-      setEmailVerified(true);
-      setStatusMsg('✓ Google verificado.');
-      setToast('Toque em Entrar para continuar.');
       return;
     }
 
@@ -312,10 +328,13 @@ export default function RegisterScreen({ navigation }) {
       }
     }
 
-    setLoading(true);
+    setIsVerifyingCode(true);
     setStatusMsg('Validando código...');
     try {
-      const result = await withTimeout(verifyLoginCode({ email: emailLower, code: safeCode }));
+      const result = await withTimeout(
+        verifyLoginCode({ email: emailLower, code: safeCode }),
+        CODE_TIMEOUT_MS
+      );
       if (result?.ok) {
         setEmailVerified(true);
         setStatusMsg('✓ Código validado. Acesso liberado.');
@@ -328,9 +347,9 @@ export default function RegisterScreen({ navigation }) {
       setStatusMsg(`✗ ${mapFirebaseAuthError(err)}`);
       setToast(mapFirebaseAuthError(err));
     } finally {
-      setLoading(false);
+      setIsVerifyingCode(false);
     }
-  }, [email, verificationCode, pendingGoogleUser, mode]);
+  }, [email, verificationCode, mode]);
 
   // Submit registration/login
   const handleSubmit = useCallback(async () => {
@@ -357,7 +376,8 @@ export default function RegisterScreen({ navigation }) {
       return;
     }
 
-    setLoading(true);
+    const setSubmitLoading = mode === 'register' ? setIsRegistering : setIsEmailLoginLoading;
+    setSubmitLoading(true);
     setStatusMsg(mode === 'login' ? 'Entrando...' : 'Cadastrando...');
     try {
       if (!isFirebaseConfigured || !auth) {
@@ -367,7 +387,6 @@ export default function RegisterScreen({ navigation }) {
       let finalUser = null;
 
       if (pendingGoogleUser) {
-        // Google login path
         finalUser = {
           id: pendingGoogleUser.id,
           name: pendingGoogleUser.name,
@@ -376,9 +395,9 @@ export default function RegisterScreen({ navigation }) {
           source: 'google',
         };
       } else if (mode === 'login') {
-        // Email login path
         const result = await withTimeout(
-          signInWithEmailAndPassword(auth, emailLower, password)
+          signInWithEmailAndPassword(auth, emailLower, password),
+          FIREBASE_TIMEOUT_MS
         );
         finalUser = {
           id: result.user.uid,
@@ -388,12 +407,16 @@ export default function RegisterScreen({ navigation }) {
           source: 'email',
         };
       } else {
-        // Email register path — não fazer sign-in "escondido"; conta existente = mensagem clara
-        const methods = await withTimeout(fetchSignInMethodsForEmail(auth, emailLower));
-        if (Array.isArray(methods) && methods.length > 0) {
+        const methods = await withTimeout(fetchSignInMethodsForEmail(auth, emailLower), FIREBASE_TIMEOUT_MS);
+        const providerInfo = interpretSignInMethods(methods);
+        const registerMsg = messageForSignInMethods(providerInfo, 'register');
+        if (registerMsg) {
           throw new Error('EMAIL_ACCOUNT_EXISTS_USE_LOGIN');
         }
-        const result = await withTimeout(createUserWithEmailAndPassword(auth, emailLower, password));
+        const result = await withTimeout(
+          createUserWithEmailAndPassword(auth, emailLower, password),
+          FIREBASE_TIMEOUT_MS
+        );
         if (name.trim()) {
           await updateProfile(result.user, { displayName: name }).catch(() => {});
         }
@@ -406,26 +429,19 @@ export default function RegisterScreen({ navigation }) {
         };
       }
 
-      // Save identity
-      const identity = await getOrCreateUserIdentity();
-      await saveUserIdentity({ userId: finalUser.id, source: finalUser.source });
-      setQaRuntimeAuth({ userId: finalUser.id });
-
-      // Update app context
-      setUser({
-        id: finalUser.id,
-        name: finalUser.name,
-        email: finalUser.email,
-        role: finalUser.role,
+      await finalizeAuthenticatedSession({
+        navigation,
+        setUser,
+        user: finalUser,
+        source: finalUser.source,
       });
 
       setStatusMsg('✓ Autenticado com sucesso.');
-      navigation.replace('MainTabs');
     } catch (err) {
       setStatusMsg(`✗ ${mapFirebaseAuthError(err)}`);
       setToast(mapFirebaseAuthError(err));
     } finally {
-      setLoading(false);
+      setSubmitLoading(false);
     }
   }, [email, password, name, mode, emailVerified, pendingGoogleUser, navigation, setUser]);
 
@@ -443,10 +459,10 @@ export default function RegisterScreen({ navigation }) {
       return;
     }
 
-    setLoading(true);
+    setIsForgotFlowLoading(true);
     setStatusMsg('Enviando código de reset...');
     try {
-      const codeResult = await withTimeout(sendLoginCode(emailLower));
+      const codeResult = await withTimeout(sendLoginCode(emailLower), CODE_TIMEOUT_MS);
       if (!codeResult?.ok) {
         const sendError = String(codeResult?.message || 'Falha ao enviar código.');
         setStatusMsg(`✗ ${sendError}`);
@@ -468,7 +484,7 @@ export default function RegisterScreen({ navigation }) {
       setStatusMsg(`✗ ${mapFirebaseAuthError(err)}`);
       setToast(mapFirebaseAuthError(err));
     } finally {
-      setLoading(false);
+      setIsForgotFlowLoading(false);
     }
   }, [email, resendCooldownSec]);
 
@@ -486,10 +502,13 @@ export default function RegisterScreen({ navigation }) {
       return;
     }
 
-    setLoading(true);
+    setIsForgotFlowLoading(true);
     setStatusMsg('Validando código...');
     try {
-      const result = await withTimeout(verifyLoginCode({ email: emailLower, code: safeCode }));
+      const result = await withTimeout(
+        verifyLoginCode({ email: emailLower, code: safeCode }),
+        CODE_TIMEOUT_MS
+      );
       if (result?.ok) {
         setForgotCodeValidated(true);
         setStatusMsg('✓ Código validado. Defina sua nova senha.');
@@ -502,7 +521,7 @@ export default function RegisterScreen({ navigation }) {
       setStatusMsg(`✗ ${mapFirebaseAuthError(err)}`);
       setToast(mapFirebaseAuthError(err));
     } finally {
-      setLoading(false);
+      setIsForgotFlowLoading(false);
     }
   }, [email, verificationCode]);
 
@@ -521,7 +540,7 @@ export default function RegisterScreen({ navigation }) {
       return;
     }
 
-    setLoading(true);
+    setIsForgotFlowLoading(true);
     setStatusMsg('Redefinindo senha...');
     try {
       if (!isFirebaseConfigured || !auth) {
@@ -552,7 +571,7 @@ export default function RegisterScreen({ navigation }) {
       setStatusMsg(`✗ ${mapFirebaseAuthError(err)}`);
       setToast(mapFirebaseAuthError(err));
     } finally {
-      setLoading(false);
+      setIsForgotFlowLoading(false);
     }
   }, [email, newPassword, isFirebaseConfigured, auth]);
 
@@ -565,6 +584,8 @@ export default function RegisterScreen({ navigation }) {
   // Render
   const canSubmit = emailVerified && email.trim() && (mode === 'login' || name.trim());
   const codeExpired = codeSentAt > 0 && Date.now() - codeSentAt > 15 * 60 * 1000;
+  const googleFlowActive = authFlow === 'google' || isGoogleLoading;
+  const submitLoading = mode === 'register' ? isRegistering : isEmailLoginLoading;
 
   const activeScreenId = mode === 'login' ? QA_SCREENS.login : QA_SCREENS.register;
 
@@ -616,7 +637,9 @@ export default function RegisterScreen({ navigation }) {
             <Text style={styles.hint}>
               {mode === 'forgot'
                 ? 'Redefina sua senha enviando um código para seu e-mail'
-                : 'Valide seu e-mail via código para acessar'}
+                : googleFlowActive
+                  ? 'Conectando com Google...'
+                  : 'Valide seu e-mail via código ou entre com Google'}
             </Text>
 
             {/* Form */}
@@ -631,7 +654,7 @@ export default function RegisterScreen({ navigation }) {
                   value={name}
                   onChangeText={setName}
                   autoCapitalize="words"
-                  editable={!loading}
+                  editable={!formBusy}
                 />
               </View>
             )}
@@ -647,11 +670,11 @@ export default function RegisterScreen({ navigation }) {
                 onChangeText={setEmail}
                 autoCapitalize="none"
                 keyboardType="email-address"
-                editable={!loading}
+                editable={!formBusy}
               />
             </View>
 
-            {!pendingGoogleUser && (
+            {!googleFlowActive && (
               <View>
                 <Text style={styles.label}>Senha</Text>
                 <TextInput
@@ -662,7 +685,7 @@ export default function RegisterScreen({ navigation }) {
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry
-                  editable={!loading}
+                  editable={!formBusy}
                 />
               </View>
             )}
@@ -697,18 +720,18 @@ export default function RegisterScreen({ navigation }) {
                       value={verificationCode}
                       onChangeText={setVerificationCode}
                       keyboardType="number-pad"
-                      editable={!loading}
+                      editable={!isForgotFlowLoading}
                       maxLength={6}
                     />
 
                     <View style={styles.verifyBtns}>
                       <TouchableOpacity
                         onPress={handleForgotSendCode}
-                        disabled={loading || resendCooldownSec > 0}
-                        style={[styles.btn, styles.btnPrimary, loading && styles.btnDisabled]}
+                        disabled={isForgotFlowLoading || resendCooldownSec > 0}
+                        style={[styles.btn, styles.btnPrimary, isForgotFlowLoading && styles.btnDisabled]}
                       >
                         <Text style={styles.btnLabel}>
-                          {loading
+                          {isForgotFlowLoading && !forgotCodeValidated
                             ? 'Enviando...'
                             : resendCooldownSec > 0
                               ? `Reenviar em ${resendCooldownSec}s`
@@ -720,11 +743,11 @@ export default function RegisterScreen({ navigation }) {
 
                       <TouchableOpacity
                         onPress={handleForgotValidateCode}
-                        disabled={loading}
-                        style={[styles.btn, styles.btnSecondary, loading && styles.btnDisabled]}
+                        disabled={isForgotFlowLoading}
+                        style={[styles.btn, styles.btnSecondary, isForgotFlowLoading && styles.btnDisabled]}
                       >
                         <Text style={styles.btnLabelSec}>
-                          {loading ? 'Validando...' : 'Validar código'}
+                          {isForgotFlowLoading && !forgotCodeValidated ? 'Validando...' : 'Validar código'}
                         </Text>
                       </TouchableOpacity>
                     </View>
@@ -741,15 +764,15 @@ export default function RegisterScreen({ navigation }) {
                       value={newPassword}
                       onChangeText={setNewPassword}
                       secureTextEntry
-                      editable={!loading}
+                      editable={!isForgotFlowLoading}
                     />
 
                     <TouchableOpacity
                       onPress={handleForgotResetPassword}
-                      disabled={loading || newPassword.length < 6}
-                      style={[styles.btn, styles.btnMain, (loading || newPassword.length < 6) && styles.btnDisabled]}
+                      disabled={isForgotFlowLoading || newPassword.length < 6}
+                      style={[styles.btn, styles.btnMain, (isForgotFlowLoading || newPassword.length < 6) && styles.btnDisabled]}
                     >
-                      {loading ? (
+                      {isForgotFlowLoading ? (
                         <ActivityIndicator color="#fff" size="small" />
                       ) : (
                         <Text style={styles.btnLabel}>Redefinir Senha</Text>
@@ -758,7 +781,7 @@ export default function RegisterScreen({ navigation }) {
                   </>
                 )}
               </View>
-            ) : (
+            ) : !googleFlowActive ? (
               <View style={styles.verifyBlock}>
                 <Text style={styles.verifyTitle}>Verificação por e-mail</Text>
                 <Text style={styles.verifyHint}>
@@ -783,18 +806,18 @@ export default function RegisterScreen({ navigation }) {
                   value={verificationCode}
                   onChangeText={setVerificationCode}
                   keyboardType="number-pad"
-                  editable={!loading}
+                  editable={!isVerifyingCode && !isSendingCode}
                   maxLength={6}
                 />
 
                 <View style={styles.verifyBtns}>
                   <TouchableOpacity
                     onPress={handleSendCode}
-                    disabled={loading || resendCooldownSec > 0}
-                    style={[styles.btn, styles.btnPrimary, loading && styles.btnDisabled]}
+                    disabled={isSendingCode || resendCooldownSec > 0}
+                    style={[styles.btn, styles.btnPrimary, isSendingCode && styles.btnDisabled]}
                   >
                     <Text style={styles.btnLabel}>
-                      {loading
+                      {isSendingCode
                         ? 'Enviando...'
                       : resendCooldownSec > 0
                         ? `Reenviar em ${resendCooldownSec}s`
@@ -806,16 +829,16 @@ export default function RegisterScreen({ navigation }) {
 
                   <TouchableOpacity
                     onPress={handleCheckVerification}
-                    disabled={loading}
-                    style={[styles.btn, styles.btnSecondary, loading && styles.btnDisabled]}
+                    disabled={isVerifyingCode}
+                    style={[styles.btn, styles.btnSecondary, isVerifyingCode && styles.btnDisabled]}
                   >
                     <Text style={styles.btnLabelSec}>
-                      {loading ? 'Conferindo...' : 'Validar código'}
+                      {isVerifyingCode ? 'Conferindo...' : 'Validar código'}
                     </Text>
                   </TouchableOpacity>
                 </View>
               </View>
-            )}
+            ) : null}
 
             {/* Status */}
             <View style={[styles.status, (emailVerified || forgotCodeValidated) && styles.statusOk]}>
@@ -823,14 +846,14 @@ export default function RegisterScreen({ navigation }) {
             </View>
 
             {/* Main CTA */}
-            {mode !== 'forgot' && (
+            {mode !== 'forgot' && !googleFlowActive && (
               <TouchableOpacity
                 {...qaProps(mode === 'login' ? QA_ELEMENTS.btnLogin : QA_ELEMENTS.btnRegister)}
                 onPress={handleSubmit}
-                disabled={loading || !canSubmit}
-                style={[styles.btn, styles.btnMain, (!canSubmit || loading) && styles.btnDisabled]}
+                disabled={submitLoading || !canSubmit}
+                style={[styles.btn, styles.btnMain, (!canSubmit || submitLoading) && styles.btnDisabled]}
               >
-                {loading ? (
+                {submitLoading ? (
                   <ActivityIndicator color="#fff" size="small" />
                 ) : (
                   <Text style={styles.btnLabel}>
@@ -845,15 +868,15 @@ export default function RegisterScreen({ navigation }) {
               <TouchableOpacity
                 {...qaProps(QA_ELEMENTS.btnGoogleLogin)}
                 onPress={() => {
-                  if (googleLoading || !request) return;
+                  if (isGoogleLoading || !request) return;
                   promptAsync({ useProxy: false }).catch(() => {
                     setToast('Falha ao abrir Google Sign-In');
                   });
                 }}
-                disabled={googleLoading || !request}
-                style={[styles.btn, styles.btnGoogle, (googleLoading || !request) && styles.btnDisabled]}
+                disabled={isGoogleLoading || !request}
+                style={[styles.btn, styles.btnGoogle, (isGoogleLoading || !request) && styles.btnDisabled]}
               >
-                {googleLoading ? (
+                {isGoogleLoading ? (
                   <ActivityIndicator color="#1f2937" size="small" />
                 ) : (
                   <Text style={styles.btnLabelGoogle}>Entrar com Google</Text>
@@ -862,9 +885,11 @@ export default function RegisterScreen({ navigation }) {
             )}
           </View>
 
-          <Text style={styles.terms}>
-            Acesso concedido somente após validação do código de verificação.
-          </Text>
+          {!googleFlowActive && mode !== 'forgot' && (
+            <Text style={styles.terms}>
+              Acesso por e-mail exige validação do código de verificação.
+            </Text>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
