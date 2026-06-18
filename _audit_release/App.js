@@ -25,6 +25,7 @@ import {
   markFeedbackPromptShown,
   startUserSession,
   shouldShowInAppFeedbackPrompt,
+  isInAppFeedbackSuppressedForQa,
   submitInAppFeedback,
   trackScreenClose,
   trackNavigationTransition,
@@ -523,6 +524,7 @@ export default function App() {
                   WORKOUT_FLOW_ROUTES.some((token) => String(name || '').includes(token));
 
                 const shouldAskFeedback =
+                  !isInAppFeedbackSuppressedForQa() &&
                   Boolean(closeSummary?.screen) &&
                   Number(closeSummary?.durationMs || 0) >= 10000 &&
                   !feedbackPromptVisibleRef.current &&
