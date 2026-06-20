@@ -288,6 +288,71 @@ async function waitForLandingSignal(isAttachedRun) {
   return existsLanding;
 }
 
+async function waitForPostLaunchSessionStable(landing) {
+  const landingText = String(landing || '');
+  const startedAtMs = Date.now();
+  const authMarker = await isAuthScreenVisible();
+  if (authMarker) {
+    throw new Error(`launchApp session lost: auth_required (${authMarker}) after landing=${landingText} elapsedMs=${Date.now() - startedAtMs}`);
+  }
+
+  const bootstrapOnly = isBootstrapOnlyLanding(landingText.replace(/^visible:/, ''))
+    || /bootstrap-ready|app-root|app_bootstrap_ready/i.test(landingText);
+  if (!bootstrapOnly) {
+    if (landingText.includes('unknown')) {
+      logStep('launchApp unknown landing — waiting for Home or auth');
+      const deadline = Date.now() + 18000;
+      while (Date.now() < deadline) {
+        const authDuringWait = await isAuthScreenVisible();
+        if (authDuringWait) {
+          throw new Error(`launchApp session lost: auth_required (${authDuringWait}) during unknown-landing wait`);
+        }
+        const homeMarker = await waitForAny([
+          'screen-home', 'screen_home', 'tab-home', 'tab_home', 'home-screen',
+          'screen-free-workout', 'screen-treinos', ...ROOT_TAB_MARKERS,
+        ], 2000).catch(() => null);
+        if (homeMarker) {
+          logStep(`launchApp session stable=${homeMarker}`);
+          return homeMarker;
+        }
+        await sleep(400);
+      }
+      throw new Error('launchApp unknown landing without Home/auth resolution within 18s');
+    }
+    return landing;
+  }
+
+  logStep(`launchApp bootstrap-only landing=${landingText} — waiting for Home`);
+  const homeMarkers = [
+    'screen-home',
+    'screen_home',
+    'tab-home',
+    'tab_home',
+    'home-screen',
+    'screen-treinos',
+    'screen_treinos',
+    ...ROOT_TAB_MARKERS,
+  ];
+  const deadline = Date.now() + 18000;
+  while (Date.now() < deadline) {
+    const authDuringWait = await isAuthScreenVisible();
+    if (authDuringWait) {
+      throw new Error(`launchApp session lost: auth_required (${authDuringWait}) during post-bootstrap wait`);
+    }
+    const homeMarker = await waitForAny(homeMarkers, 2000).catch(() => null);
+    if (homeMarker) {
+      logStep(`launchApp session stable=${homeMarker}`);
+      return homeMarker;
+    }
+    await sleep(400);
+  }
+
+  throw new Error(`launchApp bootstrap landing without Home within 18s (initial=${landingText})`);
+}
+
+// Attached/reuse runs: session preservation requires Detox CLI `--reuse`
+// (behavior.init.reinstallApp=false). DETOX_REUSE_APP=1 only toggles attached
+// launchApp paths here; it does NOT disable APK reinstall at test init.
 async function launchApp({ deleteApp = false } = {}) {
   const attachedRun = isAttachedRun()
     || String(process.env.DETOX_REUSE_APP || '') === '1';
@@ -372,13 +437,18 @@ async function launchApp({ deleteApp = false } = {}) {
       const landing = await waitForLandingSignal(attachedRun);
       if (!landing) {
         if (attachedRun) {
-          logStep('launchApp attached sem marker inicial; seguindo com fallback de onboarding');
+          logStep('launchApp attached sem marker inicial; aguardando sessao estavel');
+          await waitForPostLaunchSessionStable('visible:unknown');
           return;
         }
         throw new Error('Falha ao detectar tela inicial por testID, texto e exists.');
       }
 
       logStep(`launchApp landed=${landing}`);
+
+      if (attachedRun) {
+        await waitForPostLaunchSessionStable(landing);
+      }
       return;
     } catch (error) {
       lastError = error;

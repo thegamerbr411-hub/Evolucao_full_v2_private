@@ -15,6 +15,20 @@ import { logTaggedError, logTaggedEvent } from '../utils/runtimeLogger';
 const APP_STORE_SECURE_KEY = 'app.store.secure.v1';
 const SECURE_KEYS_TO_CLEAR = ['accessToken', 'refreshToken', APP_STORE_SECURE_KEY];
 
+let logoutInProgress = false;
+
+export function isLogoutInProgress() {
+  return logoutInProgress;
+}
+
+export function beginLogout() {
+  logoutInProgress = true;
+}
+
+export function endLogout() {
+  logoutInProgress = false;
+}
+
 function resetInMemoryStores() {
   useAuthStore.setState({ user: null, isLogged: false, isLoading: false });
   useUserStore.setState({ user: null, profile: null, isHydrated: true });
@@ -59,46 +73,51 @@ async function clearSecureEntries() {
 }
 
 export async function performFullSessionLogout({ reason = 'manual_profile_logout' } = {}) {
+  beginLogout();
   logTaggedEvent('AUTH', 'logout_start', { reason });
 
   try {
-    if (auth?.currentUser) {
-      await signOut(auth);
+    try {
+      if (auth?.currentUser) {
+        await signOut(auth);
+      }
+    } catch (error) {
+      logTaggedError('AUTH', error, {
+        action: 'firebase_signout',
+        reason,
+      });
     }
-  } catch (error) {
-    logTaggedError('AUTH', error, {
-      action: 'firebase_signout',
+
+    await clearSecureEntries();
+
+    try {
+      clearLocal();
+    } catch (error) {
+      logTaggedError('STORE', error, {
+        action: 'clear_local_storage',
+        reason,
+      });
+    }
+
+    try {
+      clearObservabilitySnapshot();
+    } catch (error) {
+      logTaggedError('STORE', error, {
+        action: 'clear_observability_snapshot',
+        reason,
+      });
+    }
+
+    resetInMemoryStores();
+    setQaRuntimeAuth({ userId: null, jwt: null });
+
+    logTaggedEvent('AUTH', 'logout_complete', {
       reason,
+      clearedSecureKeys: SECURE_KEYS_TO_CLEAR.length,
     });
+
+    return { ok: true };
+  } finally {
+    endLogout();
   }
-
-  await clearSecureEntries();
-
-  try {
-    clearLocal();
-  } catch (error) {
-    logTaggedError('STORE', error, {
-      action: 'clear_local_storage',
-      reason,
-    });
-  }
-
-  try {
-    clearObservabilitySnapshot();
-  } catch (error) {
-    logTaggedError('STORE', error, {
-      action: 'clear_observability_snapshot',
-      reason,
-    });
-  }
-
-  resetInMemoryStores();
-  setQaRuntimeAuth({ userId: null, jwt: null });
-
-  logTaggedEvent('AUTH', 'logout_complete', {
-    reason,
-    clearedSecureKeys: SECURE_KEYS_TO_CLEAR.length,
-  });
-
-  return { ok: true };
 }
