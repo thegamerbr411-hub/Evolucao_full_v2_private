@@ -5,6 +5,7 @@
 const { execSync } = require('child_process');
 const path = require('path');
 const { getPersona } = require('./helpers/personas');
+const { isAttachedRun } = require('./helpers/runtime');
 const {
   assertMainTabsReadyOrFail,
   ensureGuidedInputReady,
@@ -243,7 +244,8 @@ describe('99 - V7 guided weight reps', () => {
   const persona = getPersona();
 
   beforeAll(async () => {
-    await launchApp({ deleteApp: true });
+    const attachedRun = isAttachedRun();
+    await launchApp({ deleteApp: !attachedRun });
     await ensureOnboarded(persona);
     await resetWorkoutStateViaQaDeepLink(persona);
     await assertMainTabsReadyOrFail(persona, {
