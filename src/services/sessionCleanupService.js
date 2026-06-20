@@ -16,7 +16,6 @@ const APP_STORE_SECURE_KEY = 'app.store.secure.v1';
 const SECURE_KEYS_TO_CLEAR = ['accessToken', 'refreshToken', APP_STORE_SECURE_KEY];
 
 let logoutInProgress = false;
-let logoutSafetyTimerRef = null;
 
 export function isLogoutInProgress() {
   return logoutInProgress;
@@ -24,20 +23,9 @@ export function isLogoutInProgress() {
 
 export function beginLogout() {
   logoutInProgress = true;
-  if (logoutSafetyTimerRef) {
-    clearTimeout(logoutSafetyTimerRef);
-  }
-  logoutSafetyTimerRef = setTimeout(() => {
-    logoutInProgress = false;
-    logoutSafetyTimerRef = null;
-  }, 30000);
 }
 
 export function endLogout() {
-  if (logoutSafetyTimerRef) {
-    clearTimeout(logoutSafetyTimerRef);
-    logoutSafetyTimerRef = null;
-  }
   logoutInProgress = false;
 }
 
