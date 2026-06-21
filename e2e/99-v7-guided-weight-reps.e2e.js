@@ -150,13 +150,76 @@ async function saveGuidedSet(weight, reps) {
   await assertGuidedSetSaved(weight, reps);
 }
 
+async function fieldExists(fieldId, timeout = 2000) {
+  try {
+    await waitFor(element(by.id(fieldId))).toExist().withTimeout(timeout);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function ensureAdvancedWorkoutView() {
+  if (await isVisible('workout-exercise-index-2', 1500)) {
+    return;
+  }
+  if ((await isVisible('btn-adicionar-exercicio-workout', 1500)) || (await isVisible('input-novo-exercicio', 1500))) {
+    logStep('v7-ex2-v3:form-already-present');
+    return;
+  }
+
+  const simpleDom = await fieldExists('workout-exercise-list-simple');
+  const continuar = await isVisible('btn-continuar-treino', 1200);
+  logStep(`v7-ex2-v3:state-before-toggle:simpleDom=${simpleDom}:continuar=${continuar}`);
+  const needToggle = simpleDom || continuar
+    || (!(await fieldExists('input-novo-exercicio')) && !(await fieldExists('btn-adicionar-exercicio-workout')));
+
+  if (needToggle) {
+    logStep('v7-ex2-v3:toggle-needed');
+    for (let attempt = 0; attempt < 10 && !(await isVisible('btn-toggle-workout-mode', 1200)); attempt += 1) {
+      await scrollToElement('screen-workout', 'btn-toggle-workout-mode', 'up', 320, 2);
+      await sleep(200);
+    }
+    if (!(await isVisible('btn-toggle-workout-mode', 2500))) {
+      logStep('v7-ex2-v3:failed');
+      throw new Error('V7_EX2_ADVANCED_FORM_NOT_REACHED_AFTER_TOGGLE_SCROLL: toggle-missing');
+    }
+    await tapElement('btn-toggle-workout-mode');
+    await sleep(600);
+    logStep('v7-ex2-v3:toggle-tap');
+  }
+
+  logStep('v7-ex2-v3:post-toggle-scroll');
+  await scrollToElement('screen-workout', 'btn-adicionar-exercicio-workout', 'down', 360, 14);
+  await scrollToElement('screen-workout', 'input-novo-exercicio', 'down', 360, 8);
+
+  if (
+    (await isVisible('input-novo-exercicio', 2000))
+    || (await isVisible('btn-adicionar-exercicio-workout', 2000))
+    || (await fieldExists('input-novo-exercicio'))
+    || (await fieldExists('btn-adicionar-exercicio-workout'))
+  ) {
+    logStep('v7-ex2-v3:add-form-ready');
+    return;
+  }
+
+  logStep('v7-ex2-v3:failed');
+  throw new Error('V7_EX2_ADVANCED_FORM_NOT_REACHED_AFTER_TOGGLE_SCROLL');
+}
+
 async function ensureSecondGuidedExercise() {
   if (await isVisible('workout-exercise-index-2', 2000)) {
     return;
   }
 
+  logStep('v7-ex2-v3:start');
   await ensureAdvancedWorkoutView();
-  await scrollToElement('screen-workout', 'btn-adicionar-exercicio-workout', 'down', 360, 14);
+
+  if (!(await isVisible('input-novo-exercicio', 2000)) && !(await isVisible('btn-adicionar-exercicio-workout', 2000))) {
+    logStep('v7-ex2-v3:failed');
+    throw new Error('V7_EX2_ADVANCED_FORM_NOT_REACHED_AFTER_TOGGLE_SCROLL: input-not-visible');
+  }
+  logStep('v7-ex2-v3:input-ready');
 
   try {
     await element(by.text(GUIDED_EX2_NAME)).tap();
@@ -178,23 +241,8 @@ async function ensureSecondGuidedExercise() {
     throw new Error(`v7-guided:ex2-not-added:${GUIDED_EX2_NAME}`);
   }
 
+  logStep('v7-ex2-v3:ex2-added');
   logStep('v7-guided:ex2-added');
-}
-
-async function ensureAdvancedWorkoutView() {
-  if (await isVisible('workout-exercise-index-2', 1500)) {
-    return;
-  }
-
-  if (!(await isVisible('btn-toggle-workout-mode', 2000))) {
-    await scrollToElement('screen-workout', 'btn-toggle-workout-mode', 'up', 320, 8);
-  }
-
-  if (await isVisible('btn-toggle-workout-mode', 2500)) {
-    await tapElement('btn-toggle-workout-mode');
-    await sleep(500);
-    logStep('v7-guided:advanced-mode-enabled');
-  }
 }
 
 async function focusExercise(index) {
