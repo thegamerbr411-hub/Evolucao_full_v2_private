@@ -253,7 +253,7 @@ export default function WorkoutScreen({ navigation, route }) {
     }, [])
   );
 
-  const { isUiSessionHydrated } = useWorkoutSessionUiPersistence({
+  const { isUiSessionHydrated, markWorkoutModeTouched } = useWorkoutSessionUiPersistence({
     activeExerciseIndex,
     setActiveExerciseIndex,
     simpleMode,
@@ -2614,15 +2614,25 @@ export default function WorkoutScreen({ navigation, route }) {
         ) : null}
 
         <View style={styles.modeToggleRow} testID="workout-mode-bar">
+          <View
+            testID={simpleMode ? 'workout-mode-simple-active' : 'workout-mode-advanced-active'}
+            style={styles.modeStateMarker}
+            pointerEvents="none"
+            accessible={false}
+          />
           <Text testID="workout-mode-label" style={styles.modeToggleLabel}>
             {modePresentation.modeLabel}
           </Text>
           <TouchableOpacity
             testID="btn-toggle-workout-mode"
-            onPress={() => setSimpleMode((prev) => !prev)}
+            onPress={() => {
+              markWorkoutModeTouched();
+              setSimpleMode((prev) => !prev);
+            }}
             style={styles.modeToggleAction}
             accessibilityRole="button"
             accessibilityLabel={modePresentation.compactLabel}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
             <Text style={styles.modeToggleActionText}>{modePresentation.toggleLabel}</Text>
           </TouchableOpacity>
@@ -3506,6 +3516,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 10,
     paddingVertical: 4,
+  },
+  modeStateMarker: {
+    position: 'absolute',
+    width: 1,
+    height: 1,
+    opacity: 0,
+    left: 0,
+    top: 0,
   },
   modeToggleLabel: {
     color: colors.textPrimary,

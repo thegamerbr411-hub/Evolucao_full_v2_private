@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
+import { useSafeBottomTabBarHeight } from '../hooks/useSafeBottomTabBarHeight';
 import { AnimatedToast, AppCard, PrimaryButton, ScreenHeader, SecondaryButton } from '../components/ui';
 import { colors, spacing } from '../theme';
 import {
@@ -20,7 +20,7 @@ import {
 
 export default function SocialChallengesScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const tabBarHeight = useBottomTabBarHeight();
+  const tabBarHeight = useSafeBottomTabBarHeight();
   const scrollBottomPadding = spacing.xl + tabBarHeight + Math.max(insets.bottom, 0);
   const { user } = useApp();
   const [loading, setLoading] = useState(false);

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SCREENS, trackAppError } from '../../utils/analytics';
 import { workoutDevLog } from '../../utils/workoutDevLog';
@@ -20,7 +20,12 @@ export function useWorkoutSessionUiPersistence({
   sessionDayKey = '',
 }) {
   const didHydrateRef = useRef(false);
+  const userModeTouchedRef = useRef(false);
   const [isUiSessionHydrated, setIsUiSessionHydrated] = useState(false);
+
+  const markWorkoutModeTouched = useCallback(() => {
+    userModeTouchedRef.current = true;
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -45,8 +50,11 @@ export function useWorkoutSessionUiPersistence({
         }
         const parsed = JSON.parse(raw);
         if (parsed && typeof parsed === 'object') {
-          if (typeof parsed.simpleMode === 'boolean') {
-            setSimpleMode(parsed.simpleMode);
+          if (typeof parsed.simpleMode === 'boolean' && !userModeTouchedRef.current) {
+            // Re-check ref after await — evita race se usuário tocou toggle durante getItem.
+            if (!userModeTouchedRef.current) {
+              setSimpleMode(parsed.simpleMode);
+            }
           }
           const idx = Number(parsed.activeExerciseIndex);
           if (Number.isFinite(idx) && idx >= 0) {
@@ -115,5 +123,5 @@ export function useWorkoutSessionUiPersistence({
       });
   }, [activeExerciseIndex, simpleMode, hasExercises, workoutSessionId, sessionDayKey]);
 
-  return { isUiSessionHydrated };
+  return { isUiSessionHydrated, markWorkoutModeTouched };
 }
