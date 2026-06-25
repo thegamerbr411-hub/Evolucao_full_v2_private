@@ -20,11 +20,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { AnimatedToast } from '../components/ui';
-import { auth, isFirebaseConfigured } from '../services/firebase';
+import { auth, getFirebaseConfigDiagnostics, isFirebaseConfigured } from '../services/firebase';
 import {
   exchangeGoogleAuthCode,
   isGoogleAuthConfigured,
   loginWithGoogleToken,
+  requestPasswordReset,
   sendLoginCode,
   useGoogleAuth,
   verifyLoginCode,
@@ -64,6 +65,12 @@ function mapFirebaseAuthError(error) {
   if (String(error?.message || '').includes('AUTH_GOOGLE_TOKENS_MISSING')) {
     return 'Não recebemos confirmação do Google. Tente novamente.';
   }
+  if (/invalid_client/i.test(String(error?.message || ''))) {
+    return 'Login Google bloqueado (invalid_client). Confirme SHA-1/SHA-256 e OAuth Android no Firebase Console.';
+  }
+  if (String(error?.message || '').includes('Firebase não configurado')) {
+    return 'Autenticação indisponível: Firebase não configurado neste build.';
+  }
   return String(error?.message || 'Não foi possível concluir. Tente novamente.');
 }
 
@@ -86,7 +93,6 @@ export default function RegisterScreen({ navigation }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [emailVerified, setEmailVerified] = useState(false);
   const [codeSentAt, setCodeSentAt] = useState(0);
@@ -94,7 +100,7 @@ export default function RegisterScreen({ navigation }) {
   const [deliveryMode, setDeliveryMode] = useState('');
   const [localDevCode, setLocalDevCode] = useState('');
   const [pendingGoogleUser, setPendingGoogleUser] = useState(null);
-  const [forgotCodeValidated, setForgotCodeValidated] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
   const [authFlow, setAuthFlow] = useState('email'); // email | google | register | forgot
   
   // UI state — separate loading per action
@@ -113,6 +119,7 @@ export default function RegisterScreen({ navigation }) {
   // Google auth
   const { request, promptAsync, response } = useGoogleAuth();
   const googleConfigured = isGoogleAuthConfigured();
+  const firebaseDiagnostics = getFirebaseConfigDiagnostics();
 
   useEffect(() => {
     setQaAuthState({ hydrated: true, hasAccount: false, userId: null });
@@ -126,8 +133,7 @@ export default function RegisterScreen({ navigation }) {
     setResendCooldownSec(0);
     setDeliveryMode('');
     setLocalDevCode('');
-    setNewPassword('');
-    setForgotCodeValidated(false);
+    setForgotSent(false);
     setPendingGoogleUser(null);
     if (mode === 'forgot') {
       setAuthFlow('forgot');
@@ -218,6 +224,10 @@ export default function RegisterScreen({ navigation }) {
 
   // Send verification code
   const handleSendCode = useCallback(async () => {
+    if (mode !== 'register') {
+      return;
+    }
+
     const emailLower = email.trim().toLowerCase();
     if (!emailLower || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailLower)) {
       setStatusMsg('✗ E-mail inválido.');
@@ -230,53 +240,35 @@ export default function RegisterScreen({ navigation }) {
       return;
     }
 
-    if (mode === 'register' && (!name.trim() || password.length < 6)) {
-      setStatusMsg('✗ Nome e senha (mín. 6) obrigatórios.');
+    if (!name.trim() || password.length < 6) {
+      setStatusMsg('✗ Nome e senha (mín. 6) obrigatórios para cadastro.');
       setToast('Nome e senha (mín. 6) obrigatórios.');
       return;
     }
 
-    if (mode === 'login' && password.length < 6) {
-      setStatusMsg('✗ Senha obrigatória (mín. 6 caracteres).');
-      setToast('Senha obrigatória (mín. 6 caracteres).');
-      return;
-    }
-
     setIsSendingCode(true);
-    setStatusMsg('Enviando código...');
+    setStatusMsg('Enviando código opcional...');
     try {
-      const methods = (isFirebaseConfigured && auth)
-        ? await withTimeout(fetchSignInMethodsForEmail(auth, emailLower), FIREBASE_TIMEOUT_MS)
-        : [];
-      const providerInfo = interpretSignInMethods(methods);
-
-      if (mode === 'register' && (!isFirebaseConfigured || !auth)) {
-        setStatusMsg('✗ Cadastro indisponível no momento. Tente Google ou tente mais tarde.');
-        setToast('Serviço de cadastro temporariamente indisponível.');
+      if (!isFirebaseConfigured || !auth) {
+        setStatusMsg('✗ Cadastro indisponível. Firebase não configurado neste build.');
+        setToast('Firebase não configurado. Rebuild com .env ou google-services.json.');
         return;
       }
 
-      if (mode === 'register') {
-        const registerMsg = messageForSignInMethods(providerInfo, 'register');
-        if (registerMsg) {
-          setStatusMsg(`✗ ${registerMsg}`);
-          setToast(registerMsg);
-          return;
-        }
-      } else {
-        const loginMsg = messageForSignInMethods(providerInfo, 'login');
-        if (loginMsg) {
-          setStatusMsg(`✗ ${loginMsg}`);
-          setToast(loginMsg);
-          return;
-        }
+      const methods = await withTimeout(fetchSignInMethodsForEmail(auth, emailLower), FIREBASE_TIMEOUT_MS);
+      const providerInfo = interpretSignInMethods(methods);
+      const registerMsg = messageForSignInMethods(providerInfo, 'register');
+      if (registerMsg) {
+        setStatusMsg(`✗ ${registerMsg}`);
+        setToast(registerMsg);
+        return;
       }
 
       const codeResult = await withTimeout(sendLoginCode(emailLower), CODE_TIMEOUT_MS);
       if (!codeResult?.ok) {
         const sendError = String(codeResult?.message || 'Falha ao enviar código.');
         setStatusMsg(`✗ ${sendError}`);
-        setToast(sendError);
+        setToast(`${sendError} Você ainda pode cadastrar direto pelo Firebase.`);
         return;
       }
 
@@ -284,15 +276,15 @@ export default function RegisterScreen({ navigation }) {
       setResendCooldownSec(60);
       setDeliveryMode(String(codeResult?.delivery || 'email'));
       setLocalDevCode(String(codeResult?.code || ''));
-      setStatusMsg('✓ Código enviado. Verifique seu e-mail.');
+      setStatusMsg('✓ Código enviado (opcional). Você também pode cadastrar sem validar.');
       if (codeResult?.delivery === 'local' && codeResult?.code) {
         setToast(`Código local (dev): ${codeResult.code}`);
       } else {
-        setToast('Código enviado. Verifique inbox/spam e digite abaixo.');
+        setToast('Código enviado. Validação é opcional — cadastro direto também funciona.');
       }
     } catch (err) {
       setStatusMsg(`✗ ${mapFirebaseAuthError(err)}`);
-      setToast(mapFirebaseAuthError(err));
+      setToast(`${mapFirebaseAuthError(err)} Cadastro direto ainda disponível.`);
     } finally {
       setIsSendingCode(false);
     }
@@ -354,15 +346,9 @@ export default function RegisterScreen({ navigation }) {
   // Submit registration/login
   const handleSubmit = useCallback(async () => {
     const emailLower = email.trim().toLowerCase();
-    
+
     if (!emailLower || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailLower)) {
       setToast('E-mail inválido.');
-      return;
-    }
-
-    if (!emailVerified) {
-      setToast('Valide o código antes de continuar.');
-      setStatusMsg('✗ Código ainda não validado.');
       return;
     }
 
@@ -372,7 +358,7 @@ export default function RegisterScreen({ navigation }) {
     }
 
     if (!pendingGoogleUser && password.length < 6) {
-      setToast('Senha inválida.');
+      setToast('Senha inválida (mín. 6 caracteres).');
       return;
     }
 
@@ -395,6 +381,13 @@ export default function RegisterScreen({ navigation }) {
           source: 'google',
         };
       } else if (mode === 'login') {
+        const methods = await withTimeout(fetchSignInMethodsForEmail(auth, emailLower), FIREBASE_TIMEOUT_MS);
+        const providerInfo = interpretSignInMethods(methods);
+        const loginMsg = messageForSignInMethods(providerInfo, 'login');
+        if (loginMsg) {
+          throw new Error(loginMsg);
+        }
+
         const result = await withTimeout(
           signInWithEmailAndPassword(auth, emailLower, password),
           FIREBASE_TIMEOUT_MS
@@ -437,16 +430,16 @@ export default function RegisterScreen({ navigation }) {
       });
 
       setStatusMsg('✓ Autenticado com sucesso.');
+      setToast('');
     } catch (err) {
       setStatusMsg(`✗ ${mapFirebaseAuthError(err)}`);
       setToast(mapFirebaseAuthError(err));
     } finally {
       setSubmitLoading(false);
     }
-  }, [email, password, name, mode, emailVerified, pendingGoogleUser, navigation, setUser]);
+  }, [email, password, name, mode, pendingGoogleUser, navigation, setUser]);
 
-  // Forgot password handlers
-  const handleForgotSendCode = useCallback(async () => {
+  const handleForgotSendReset = useCallback(async () => {
     const emailLower = email.trim().toLowerCase();
     if (!emailLower || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailLower)) {
       setStatusMsg('✗ E-mail inválido.');
@@ -454,135 +447,45 @@ export default function RegisterScreen({ navigation }) {
       return;
     }
 
-    if (resendCooldownSec > 0) {
-      setStatusMsg(`✗ Reenviar disponível em ${resendCooldownSec}s.`);
+    if (!isFirebaseConfigured || !auth) {
+      setStatusMsg('✗ Recuperação indisponível. Firebase não configurado neste build.');
+      setToast('Firebase não configurado. Rebuild com .env válido.');
       return;
     }
 
     setIsForgotFlowLoading(true);
-    setStatusMsg('Enviando código de reset...');
+    setStatusMsg('Enviando link de recuperação...');
     try {
-      const codeResult = await withTimeout(sendLoginCode(emailLower), CODE_TIMEOUT_MS);
-      if (!codeResult?.ok) {
-        const sendError = String(codeResult?.message || 'Falha ao enviar código.');
-        setStatusMsg(`✗ ${sendError}`);
-        setToast(sendError);
+      const resetResult = await withTimeout(requestPasswordReset(emailLower), FIREBASE_TIMEOUT_MS);
+      if (!resetResult?.ok) {
+        const resetError = String(resetResult?.message || 'Não foi possível enviar o e-mail de recuperação.');
+        setStatusMsg(`✗ ${resetError}`);
+        setToast(resetError);
         return;
       }
 
-      setCodeSentAt(Date.now());
-      setResendCooldownSec(60);
-      setDeliveryMode(String(codeResult?.delivery || 'email'));
-      setLocalDevCode(String(codeResult?.code || ''));
-      setStatusMsg('✓ Código enviado. Verifique seu e-mail.');
-      if (codeResult?.delivery === 'local' && codeResult?.code) {
-        setToast(`Código local (dev): ${codeResult.code}`);
-      } else {
-        setToast('Código enviado. Verifique inbox/spam e digite abaixo.');
-      }
+      setForgotSent(true);
+      setStatusMsg('✓ Link de recuperação enviado. Verifique inbox/spam.');
+      setToast('Se existir conta com este e-mail, você receberá um link para redefinir a senha.');
     } catch (err) {
       setStatusMsg(`✗ ${mapFirebaseAuthError(err)}`);
       setToast(mapFirebaseAuthError(err));
     } finally {
       setIsForgotFlowLoading(false);
     }
-  }, [email, resendCooldownSec]);
-
-  const handleForgotValidateCode = useCallback(async () => {
-    const emailLower = email.trim().toLowerCase();
-    const safeCode = verificationCode.trim();
-    if (!emailLower || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailLower)) {
-      setStatusMsg('✗ E-mail inválido.');
-      setToast('E-mail inválido.');
-      return;
-    }
-    if (!safeCode) {
-      setStatusMsg('✗ Informe o código de verificação.');
-      setToast('Informe o código de verificação.');
-      return;
-    }
-
-    setIsForgotFlowLoading(true);
-    setStatusMsg('Validando código...');
-    try {
-      const result = await withTimeout(
-        verifyLoginCode({ email: emailLower, code: safeCode }),
-        CODE_TIMEOUT_MS
-      );
-      if (result?.ok) {
-        setForgotCodeValidated(true);
-        setStatusMsg('✓ Código validado. Defina sua nova senha.');
-        setToast('Código validado. Digite sua nova senha abaixo.');
-      } else {
-        setStatusMsg('✗ Código inválido ou expirado.');
-        setToast(result?.message || 'Código inválido ou expirado.');
-      }
-    } catch (err) {
-      setStatusMsg(`✗ ${mapFirebaseAuthError(err)}`);
-      setToast(mapFirebaseAuthError(err));
-    } finally {
-      setIsForgotFlowLoading(false);
-    }
-  }, [email, verificationCode]);
-
-  const handleForgotResetPassword = useCallback(async () => {
-    const emailLower = email.trim().toLowerCase();
-    const newPwd = newPassword.trim();
-    
-    if (!emailLower || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailLower)) {
-      setStatusMsg('✗ E-mail inválido.');
-      setToast('E-mail inválido.');
-      return;
-    }
-    if (newPwd.length < 6) {
-      setStatusMsg('✗ Senha deve ter mínimo 6 caracteres.');
-      setToast('Senha deve ter mínimo 6 caracteres.');
-      return;
-    }
-
-    setIsForgotFlowLoading(true);
-    setStatusMsg('Redefinindo senha...');
-    try {
-      if (!isFirebaseConfigured || !auth) {
-        throw new Error('Firebase não configurado');
-      }
-
-      // Attempt to update password via Firebase
-      // Since user is not authenticated, we use a simplified flow
-      const emailUser = findUserByEmail(emailLower);
-      if (!emailUser) {
-        throw new Error('Conta não encontrada');
-      }
-
-      // In a real app, you'd use sendPasswordResetEmail or a backend endpoint
-      // For now, we'll just reset locally
-      setStatusMsg('✓ Senha redefinida com sucesso!');
-      setToast('Senha redefinida. Faça login com a nova senha.');
-      setMode('login');
-      setPassword('');
-      setNewPassword('');
-      setVerificationCode('');
-      setForgotCodeValidated(false);
-      setCodeSentAt(0);
-      setResendCooldownSec(0);
-      setDeliveryMode('');
-      setLocalDevCode('');
-    } catch (err) {
-      setStatusMsg(`✗ ${mapFirebaseAuthError(err)}`);
-      setToast(mapFirebaseAuthError(err));
-    } finally {
-      setIsForgotFlowLoading(false);
-    }
-  }, [email, newPassword, isFirebaseConfigured, auth]);
-
-  // Helper to find user by email (mock)
-  const findUserByEmail = (emailAddr) => {
-    // In a real scenario, this would query the backend
-    return { email: emailAddr };
-  };
+  }, [email]);
 
   // Render
-  const canSubmit = emailVerified && email.trim() && (mode === 'login' || name.trim());
+  const canSubmitLogin = mode === 'login'
+    && email.trim()
+    && password.length >= 6
+    && !googleFlowActive;
+  const canSubmitRegister = mode === 'register'
+    && email.trim()
+    && name.trim()
+    && password.length >= 6
+    && !googleFlowActive;
+  const canSubmit = canSubmitLogin || canSubmitRegister;
   const codeExpired = codeSentAt > 0 && Date.now() - codeSentAt > 15 * 60 * 1000;
   const googleFlowActive = authFlow === 'google' || isGoogleLoading;
   const submitLoading = mode === 'register' ? isRegistering : isEmailLoginLoading;
@@ -636,11 +539,23 @@ export default function RegisterScreen({ navigation }) {
 
             <Text style={styles.hint}>
               {mode === 'forgot'
-                ? 'Redefina sua senha enviando um código para seu e-mail'
+                ? 'Enviaremos um link de recuperação via Firebase para seu e-mail'
                 : googleFlowActive
                   ? 'Conectando com Google...'
-                  : 'Valide seu e-mail via código ou entre com Google'}
+                  : mode === 'login'
+                    ? 'Entre com e-mail e senha ou use Google'
+                    : 'Cadastre com e-mail/senha. Código backend é opcional.'}
             </Text>
+
+            {!isFirebaseConfigured ? (
+              <View style={styles.configBanner}>
+                <Text style={styles.configBannerTitle}>Autenticação indisponível neste build</Text>
+                <Text style={styles.configBannerText}>
+                  Firebase não está configurado. Rebuild com `.env` válido ou confirme `google-services.json`.
+                  {firebaseDiagnostics.rebuildRecommended ? ' Este build usa fallback bundled — rebuild recomendado.' : ''}
+                </Text>
+              </View>
+            ) : null}
 
             {/* Form */}
             {mode === 'register' && (
@@ -674,7 +589,7 @@ export default function RegisterScreen({ navigation }) {
               />
             </View>
 
-            {!googleFlowActive && (
+            {!googleFlowActive && mode !== 'forgot' && (
               <View>
                 <Text style={styles.label}>Senha</Text>
                 <TextInput
@@ -690,106 +605,40 @@ export default function RegisterScreen({ navigation }) {
               </View>
             )}
 
-            {/* Verification/Reset block */}
             {mode === 'forgot' ? (
               <View style={styles.verifyBlock}>
-                <Text style={styles.verifyTitle}>Redefinir Senha</Text>
+                <Text style={styles.verifyTitle}>Recuperar senha</Text>
                 <Text style={styles.verifyHint}>
-                  {forgotCodeValidated
-                    ? 'Digite sua nova senha'
-                    : codeSentAt
-                      ? codeExpired
-                        ? 'Código expirado. Reenvie.'
-                        : 'Código enviado. Digite o código recebido no e-mail.'
-                      : 'Envie um código para sua caixa de e-mail.'}
+                  {forgotSent
+                    ? 'Link enviado. Abra o e-mail e siga as instruções do Firebase.'
+                    : 'Informe seu e-mail e toque em enviar link de recuperação.'}
                 </Text>
 
-                {deliveryMode === 'local' && localDevCode ? (
-                  <View style={styles.localCodeBox}>
-                    <Text style={styles.localCodeLabel}>Modo local (sem SMTP no backend)</Text>
-                    <Text style={styles.localCodeValue}>Código: {localDevCode}</Text>
-                  </View>
-                ) : null}
-
-                {!forgotCodeValidated && (
-                  <>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Código de 6 dígitos"
-                      placeholderTextColor="#64748b"
-                      value={verificationCode}
-                      onChangeText={setVerificationCode}
-                      keyboardType="number-pad"
-                      editable={!isForgotFlowLoading}
-                      maxLength={6}
-                    />
-
-                    <View style={styles.verifyBtns}>
-                      <TouchableOpacity
-                        onPress={handleForgotSendCode}
-                        disabled={isForgotFlowLoading || resendCooldownSec > 0}
-                        style={[styles.btn, styles.btnPrimary, isForgotFlowLoading && styles.btnDisabled]}
-                      >
-                        <Text style={styles.btnLabel}>
-                          {isForgotFlowLoading && !forgotCodeValidated
-                            ? 'Enviando...'
-                            : resendCooldownSec > 0
-                              ? `Reenviar em ${resendCooldownSec}s`
-                              : codeSentAt && !codeExpired
-                                ? 'Reenviar código'
-                                : 'Enviar código'}
-                        </Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        onPress={handleForgotValidateCode}
-                        disabled={isForgotFlowLoading}
-                        style={[styles.btn, styles.btnSecondary, isForgotFlowLoading && styles.btnDisabled]}
-                      >
-                        <Text style={styles.btnLabelSec}>
-                          {isForgotFlowLoading && !forgotCodeValidated ? 'Validando...' : 'Validar código'}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  </>
-                )}
-
-                {forgotCodeValidated && (
-                  <>
-                    <Text style={styles.label}>Nova Senha</Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Mín. 6 caracteres"
-                      placeholderTextColor="#64748b"
-                      value={newPassword}
-                      onChangeText={setNewPassword}
-                      secureTextEntry
-                      editable={!isForgotFlowLoading}
-                    />
-
-                    <TouchableOpacity
-                      onPress={handleForgotResetPassword}
-                      disabled={isForgotFlowLoading || newPassword.length < 6}
-                      style={[styles.btn, styles.btnMain, (isForgotFlowLoading || newPassword.length < 6) && styles.btnDisabled]}
-                    >
-                      {isForgotFlowLoading ? (
-                        <ActivityIndicator color="#fff" size="small" />
-                      ) : (
-                        <Text style={styles.btnLabel}>Redefinir Senha</Text>
-                      )}
-                    </TouchableOpacity>
-                  </>
-                )}
+                <TouchableOpacity
+                  onPress={handleForgotSendReset}
+                  disabled={isForgotFlowLoading || !email.trim()}
+                  style={[styles.btn, styles.btnMain, (isForgotFlowLoading || !email.trim()) && styles.btnDisabled]}
+                >
+                  {isForgotFlowLoading ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <Text style={styles.btnLabel}>
+                      {forgotSent ? 'Reenviar link' : 'Enviar link de recuperação'}
+                    </Text>
+                  )}
+                </TouchableOpacity>
               </View>
-            ) : !googleFlowActive ? (
+            ) : null}
+
+            {mode === 'register' && !googleFlowActive ? (
               <View style={styles.verifyBlock}>
-                <Text style={styles.verifyTitle}>Verificação por e-mail</Text>
+                <Text style={styles.verifyTitle}>Verificação opcional (backend)</Text>
                 <Text style={styles.verifyHint}>
                   {codeSentAt
                     ? codeExpired
-                      ? 'Código expirado. Reenvie.'
-                      : 'Código enviado. Digite o código recebido no e-mail.'
-                    : 'Envie um código de verificação para sua caixa de e-mail.'}
+                      ? 'Código expirado. Reenvie ou cadastre direto.'
+                      : 'Código enviado. Validação é opcional — cadastro direto também funciona.'
+                    : 'Opcional: envie um código se o backend estiver disponível.'}
                 </Text>
 
                 {deliveryMode === 'local' && localDevCode ? (
@@ -841,8 +690,10 @@ export default function RegisterScreen({ navigation }) {
             ) : null}
 
             {/* Status */}
-            <View style={[styles.status, (emailVerified || forgotCodeValidated) && styles.statusOk]}>
-              <Text style={styles.statusText}>{statusMsg || 'Aguardando verificação'}</Text>
+            <View style={[styles.status, (emailVerified || forgotSent) && styles.statusOk]}>
+              <Text style={styles.statusText}>
+                {statusMsg || (mode === 'login' ? 'Pronto para entrar' : mode === 'forgot' ? 'Aguardando e-mail' : 'Pronto para cadastrar')}
+              </Text>
             </View>
 
             {/* Main CTA */}
@@ -887,7 +738,7 @@ export default function RegisterScreen({ navigation }) {
 
           {!googleFlowActive && mode !== 'forgot' && (
             <Text style={styles.terms}>
-              Acesso por e-mail exige validação do código de verificação.
+              Login usa e-mail/senha direto no Firebase. Cadastro não depende mais de código backend.
             </Text>
           )}
         </ScrollView>
@@ -1004,6 +855,25 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     marginBottom: 20,
     fontWeight: '500',
+  },
+  configBanner: {
+    borderWidth: 1,
+    borderColor: '#f59e0b',
+    backgroundColor: 'rgba(245,158,11,0.12)',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+  },
+  configBannerTitle: {
+    color: '#fde68a',
+    fontSize: 13,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  configBannerText: {
+    color: '#fcd34d',
+    fontSize: 12,
+    lineHeight: 18,
   },
   label: {
     fontSize: 13,
