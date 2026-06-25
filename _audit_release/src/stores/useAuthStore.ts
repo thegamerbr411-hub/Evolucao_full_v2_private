@@ -64,14 +64,12 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     try {
       const token = await get().getToken()
       if (token) {
-        // Aqui você pode validar o token com o backend
-        // await api.get('/auth/me')
-        set({ isLoading: false })
+        set({ isLoading: false, isLogged: true })
         return
       }
     } catch (e) {
       console.error('Error hydrating auth:', e)
     }
-    set({ isLoading: false })
+    set({ isLoading: false, isLogged: false })
   },
 }))

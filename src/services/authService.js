@@ -496,16 +496,44 @@ export const sendLoginCode = async (email) => {
     };
   } catch (error) {
     await logCriticalError('authService.sendLoginCode', error);
+    const status = Number(error?.response?.status || 0);
+    const backendCode = String(error?.response?.data?.code || '').trim();
+    const isTimeout = String(error?.code || '').toUpperCase() === 'ECONNABORTED';
+    const isNetwork = !error?.response && Boolean(error?.message);
     console.warn('[AUTH][CODE_SEND][ERROR]', JSON.stringify({
       apiBaseUrl: API_BASE_URL,
-      status: Number(error?.response?.status || 0),
-      code: String(error?.response?.data?.code || ''),
+      status,
+      code: backendCode,
       message: String(error?.response?.data?.error || error?.message || 'unknown_error'),
       hasResponse: Boolean(error?.response),
-      isTimeout: String(error?.code || '').toUpperCase() === 'ECONNABORTED',
+      isTimeout,
+      isNetwork,
     }));
+
+    if (status === 503 || backendCode === 'EMAIL_PROVIDER_NOT_CONFIGURED') {
+      return {
+        ok: false,
+        message: 'Serviço de código indisponível no backend. Continue com Firebase ou Google.',
+        classification: 'AUTH_NEEDS_EXTERNAL_FIREBASE_CONSOLE_CONFIG',
+      };
+    }
+    if (isTimeout) {
+      return {
+        ok: false,
+        message: 'Backend demorou para responder. Tente novamente ou use login direto.',
+        classification: 'AUTH_BACKEND_TIMEOUT',
+      };
+    }
+    if (isNetwork) {
+      return {
+        ok: false,
+        message: 'Sem conexão com o backend. Verifique internet ou use login direto.',
+        classification: 'AUTH_BACKEND_NETWORK',
+      };
+    }
+
     const message = String(error?.response?.data?.error || 'Não foi possível enviar o código agora.');
-    return { ok: false, message };
+    return { ok: false, message, classification: 'AUTH_BACKEND_CODE_SEND_FAILED' };
   }
 };
 
