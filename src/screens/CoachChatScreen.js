@@ -229,7 +229,7 @@ function getCoachMultiIntentReply(intents, context) {
     done.push(`Proteina atual: ${context.proteinToday}g.`);
     if (proteinGap > 0) {
       missing.push(`Faltam ${proteinGap}g de proteina.`);
-      next.push('Coloque uma refeicao proteica ainda hoje.');
+      next.push('Coloque uma refeição proteica ainda hoje.');
     }
   }
 
@@ -438,7 +438,7 @@ export default function CoachChatScreen({ navigation }) {
     urgencyLevel: 'baixa',
     quickActions: {
       trainingTitle: 'Iniciar treino',
-      nutritionTitle: 'Registrar refeicao',
+      nutritionTitle: 'Registrar refeição',
       waterTitle: '+300ml agua',
       routineTitle: 'Ver rotina',
       waterQuickMl: 300,
@@ -629,7 +629,7 @@ export default function CoachChatScreen({ navigation }) {
     if (hour < 12 && effectiveContext.proteinToday < 20) {
       triggerCandidates.push({
         key: 'morning_protein_low',
-        text: 'Manha: voce ainda nao bateu base proteica. Comece com 1 refeicao forte em proteina.',
+        text: 'Manhã: você ainda não bateu base proteica. Comece com 1 refeição forte em proteína.',
       });
     }
 
@@ -723,8 +723,8 @@ export default function CoachChatScreen({ navigation }) {
     }
 
     let composedMessage = [tunedReply, contextInsight, painSafety].filter(Boolean).join(' ');
-    if (!/agora:|iniciar treino|registrar refeicao|beber|abrir/i.test(composedMessage)) {
-      composedMessage = `${composedMessage} Agora: toque em Iniciar treino ou Registrar refeicao.`;
+    if (!/agora:|iniciar treino|registrar refeição|beber|abrir/i.test(composedMessage)) {
+      composedMessage = `${composedMessage} Agora: toque em Iniciar treino ou Registrar refeição.`;
     }
 
     const coachMessage = {
