@@ -3,29 +3,29 @@ export function buildCoachMessage(state) {
   const missing = state?.missing || {};
 
   const doneText =
-    `Proteina: ${Number(done.protein || 0)}g | Agua: ${Number(done.water || 0)}ml` +
+    `Proteína: ${Number(done.protein || 0)}g | Água: ${Number(done.water || 0)}ml` +
     (done.workout ? ' | Treino: ✔' : ' | Treino: ❌');
 
   const missingParts = [];
   if (Number(missing.proteinLeft || 0) > 0) {
-    missingParts.push(`${Number(missing.proteinLeft || 0)}g proteina`);
+    missingParts.push(`${Number(missing.proteinLeft || 0)}g proteína`);
   }
   if (Number(missing.waterLeft || 0) > 0) {
-    missingParts.push(`${Number(missing.waterLeft || 0)}ml agua`);
+    missingParts.push(`${Number(missing.waterLeft || 0)}ml água`);
   }
   if (missing.needsWorkoutToday) {
     missingParts.push('treino');
   }
 
-  const missingText = missingParts.length ? missingParts.join(' + ') : 'Nada critico';
+  const missingText = missingParts.length ? missingParts.join(' + ') : 'Nada crítico';
 
-  let action = 'Faz mais 1 exercicio agora.';
+  let action = 'Faz mais 1 exercício agora.';
   if (missing.needsWorkoutToday) {
     action = 'Você ainda não treinou. Comece agora.';
   } else if (Number(missing.proteinLeft || 0) > 0) {
-    action = 'Faltam proteinas. Registre uma refeicao agora.';
+    action = 'Faltam proteínas. Registre uma refeição agora.';
   } else if (Number(missing.waterLeft || 0) > 0) {
-    action = 'Hidratacao abaixo da meta. Beba agua agora.';
+    action = 'Hidratação abaixo da meta. Beba água agora.';
   }
 
   let urgencyLevel = 'baixa';
@@ -47,8 +47,8 @@ export function buildCoachMessage(state) {
 
   const quickActions = {
     trainingTitle: missing.needsWorkoutToday ? 'Iniciar treino' : 'Treino OK',
-    nutritionTitle: Number(missing.proteinLeft || 0) > 0 ? 'Registrar refeicao' : 'Proteina OK',
-    waterTitle: waterQuickMl ? `+${waterQuickMl}ml agua` : 'Agua OK',
+    nutritionTitle: Number(missing.proteinLeft || 0) > 0 ? 'Registrar refeição' : 'Proteína OK',
+    waterTitle: waterQuickMl ? `+${waterQuickMl}ml água` : 'Água OK',
     routineTitle: Number(missing.workoutsLeft || 0) > 0 ? 'Ver rotina' : 'Rotina OK',
     waterQuickMl,
   };
