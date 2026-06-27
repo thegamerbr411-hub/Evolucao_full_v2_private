@@ -37,11 +37,12 @@ export function buildWorkoutProgressCopy({
     ? `Exercicio atual · ${exerciseNumber} de ${safeTotalExercises}`
     : '';
 
-  const workoutProgressLabel = `Treino: ${completed}/${planned} series concluidas · ${completionPercent}%`;
+  const seriesWord = completed === 1 && planned === 1 ? 'série' : 'séries';
+  const workoutProgressLabel = `Treino: ${completed}/${planned} ${seriesWord} concluídas · ${completionPercent}%`;
 
   const isComplete = Boolean(canFinish && planned > 0 && completed >= planned);
   const footerHint = isComplete
-    ? 'Todas as series planejadas foram concluidas.'
+    ? 'Todas as séries planejadas foram concluídas.'
     : 'Continue para completar o treino.';
 
   return {

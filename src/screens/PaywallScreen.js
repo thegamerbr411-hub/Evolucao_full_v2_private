@@ -18,19 +18,19 @@ function resolveExperimentVariant(seed = '') {
 
 const FEATURE_COPY = {
   auto_coach: {
-    title: 'Auto Coach avancado',
+    title: 'Auto Coach avançado',
     subtitle: 'Ajustes inteligentes de treino e macro com base na sua semana.',
-    pain: 'Voce pode estar evoluindo mais lento sem ajuste automatico de treino e dieta.',
+    pain: 'Você pode estar evoluindo mais lento sem ajuste automático de treino e dieta.',
   },
   weekly_macros: {
-    title: 'Analise semanal completa',
-    subtitle: 'Veja diagnostico de macros com insights mais profundos.',
-    pain: 'Sem essa analise, voce nao enxerga onde realmente esta errando na semana.',
+    title: 'Análise semanal completa',
+    subtitle: 'Veja diagnóstico de macros com insights mais profundos.',
+    pain: 'Sem essa análise, você não enxerga onde realmente está errando na semana.',
   },
   photo_scanner: {
     title: 'Scanner por foto real',
-    subtitle: 'Estimativa nutricional avancada por descricao/foto do prato.',
-    pain: 'Sem scanner avancado, voce pode subestimar calorias e macros das refeicoes.',
+    subtitle: 'Estimativa nutricional avançada por descrição/foto do prato.',
+    pain: 'Sem scanner avançado, você pode subestimar calorias e macros das refeições.',
   },
 };
 
@@ -52,8 +52,8 @@ export default function PaywallScreen({ navigation, route }) {
     ? {
       ...baseCopy,
       title: `Seu resultado da semana pode acelerar` ,
-      subtitle: 'Receba ajuste semanal guiado por dados para ganhar consistencia e evoluir com menos tentativa e erro.',
-      pain: 'Sem plano orientado por resultado, sua evolucao pode ficar lenta mesmo treinando forte.',
+      subtitle: 'Receba ajuste semanal guiado por dados para ganhar consistência e evoluir com menos tentativa e erro.',
+      pain: 'Sem plano orientado por resultado, sua evolução pode ficar lenta mesmo treinando forte.',
     }
     : baseCopy;
   const metrics = getAnalyticsMetrics();
@@ -75,11 +75,11 @@ export default function PaywallScreen({ navigation, route }) {
 
   return (
     <ScrollView testID="screen-paywall" contentContainerStyle={styles.container}>
-      <Text style={styles.badge}>EVOLUCAO PRO</Text>
-      <ScreenHeader title="Seu personal com IA" subtitle="Treine e evolua com inteligencia real." />
+      <Text style={styles.badge}>EVOLUÇÃO PRO</Text>
+      <ScreenHeader title="Seu personal com IA" subtitle="Treine e evolua com inteligência real." />
 
       <AppCard style={styles.highlightCard}>
-        <Text style={styles.highlightTitle}>Voce tentou acessar:</Text>
+        <Text style={styles.highlightTitle}>Você tentou acessar:</Text>
         <Text style={styles.highlightFeature}>{copy.title}</Text>
         <Text style={styles.highlightSub}>{copy.subtitle}</Text>
         <Text style={styles.painText}>⚠️ {copy.pain}</Text>
@@ -91,26 +91,26 @@ export default function PaywallScreen({ navigation, route }) {
         <Text style={styles.planTag}>RECOMENDADO</Text>
         <Text style={styles.planTitle}>Plano Anual</Text>
         <Text style={styles.planPrice}>R$ 99/ano</Text>
-        <Text style={styles.planHint}>Equivale a R$ 8,25 por mes</Text>
+        <Text style={styles.planHint}>Equivale a R$ 8,25 por mês</Text>
       </View>
 
       <View style={styles.planCardSecondary}>
         <Text style={styles.planTitleSecondary}>Plano Mensal</Text>
-        <Text style={styles.planPriceSecondary}>R$ 19,90/mes</Text>
+        <Text style={styles.planPriceSecondary}>R$ 19,90/mês</Text>
       </View>
 
       <AppCard style={styles.bulletsCard}>
-        <Text style={styles.bullet}>- Auto Coach completo com ajustes automaticos</Text>
-        <Text style={styles.bullet}>- Analise semanal premium de macros e performance</Text>
-        <Text style={styles.bullet}>- Scanner por foto real (modo avancado)</Text>
-        <Text style={styles.bullet}>- Recursos de comunidade e ranking para manter consistencia</Text>
+        <Text style={styles.bullet}>- Auto Coach completo com ajustes automáticos</Text>
+        <Text style={styles.bullet}>- Análise semanal premium de macros e performance</Text>
+        <Text style={styles.bullet}>- Scanner por foto real (modo avançado)</Text>
+        <Text style={styles.bullet}>- Recursos de comunidade e ranking para manter consistência</Text>
         <Text style={styles.bullet}>- 7 dias de garantia</Text>
         <Text style={styles.bullet}>- Cancele quando quiser</Text>
       </AppCard>
 
       <AppCard style={styles.proofCard}>
-        <Text style={styles.proofText}>🔥 Mais de 1.000 treinos ja foram registrados no app.</Text>
-        <Text style={styles.urgencyText}>⚠️ Oferta de preco atual pode sair a qualquer momento.</Text>
+        <Text style={styles.proofText}>🔥 Mais de 1.000 treinos já foram registrados no app.</Text>
+        <Text style={styles.urgencyText}>⚠️ Oferta de preço atual pode sair a qualquer momento.</Text>
       </AppCard>
 
       {__DEV__ ? (
@@ -127,7 +127,7 @@ export default function PaywallScreen({ navigation, route }) {
       {canStartTrial ? (
         <PrimaryButton
           testID="btn-paywall-trial"
-          title="Comecar gratis agora"
+          title="Começar grátis agora"
           style={styles.ctaButton}
           onPress={async () => {
             trackEvent('paywall_clicked', {
@@ -157,7 +157,7 @@ export default function PaywallScreen({ navigation, route }) {
 
       <SecondaryButton
         testID="btn-paywall-pro"
-        title="Ja sou PRO"
+        title="Já sou PRO"
         style={styles.trialButton}
         onPress={async () => {
           trackEvent('paywall_clicked', {
@@ -198,7 +198,7 @@ export default function PaywallScreen({ navigation, route }) {
           navigation.goBack();
         }}
       >
-        <Text style={styles.backButtonText}>Continuar no plano gratis</Text>
+        <Text style={styles.backButtonText}>Continuar no plano grátis</Text>
       </TouchableOpacity>
     </ScrollView>
   );

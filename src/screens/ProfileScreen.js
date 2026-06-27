@@ -35,13 +35,13 @@ const ADMIN_LOCAL_FOODS_KEY = 'admin.local.foods.v1';
 const GOALS = [
   { key: 'emagrecer', label: 'Perda de gordura' },
   { key: 'ganhar_massa', label: 'Ganho de massa' },
-  { key: 'recomposicao', label: 'Recomposicao corporal' },
+  { key: 'recomposicao', label: 'Recomposição corporal' },
 ];
 
 const LEVELS = [
   { key: 'iniciante', label: 'Iniciante' },
-  { key: 'intermediario', label: 'Intermediario' },
-  { key: 'avancado', label: 'Avancado' },
+  { key: 'intermediario', label: 'Intermediário' },
+  { key: 'avancado', label: 'Avançado' },
 ];
 
 function parseLocalizedNumber(value = '') {

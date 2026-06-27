@@ -66,7 +66,7 @@ export function computeWorkoutSessionStatus({
   if (canFinish) {
     return {
       status: 'completed',
-      label: 'Concluido',
+      label: 'Concluído',
       ctaLabel: 'VER RESUMO DO TREINO',
       ctaSubtitle: 'Treino de hoje finalizado',
       isContinue: false,
@@ -80,8 +80,8 @@ export function computeWorkoutSessionStatus({
       ? 'Em andamento'
       : (resumable ? 'Parcial' : 'Em andamento');
     const ctaSubtitle = resumable
-      ? 'Voce parou no treino. Quer continuar de onde parou?'
-      : 'Voce tem um treino em andamento. Continue de onde parou.';
+      ? 'Você parou no treino. Quer continuar de onde parou?'
+      : 'Você tem um treino em andamento. Continue de onde parou.';
 
     return {
       status: 'in_progress',

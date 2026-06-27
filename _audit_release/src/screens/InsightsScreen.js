@@ -7,6 +7,7 @@ import { calculateVolume, getDailyPriority } from '../services/performanceEngine
 import { buildLocalRanking, calculateXpForWorkout, getLevelFromXp } from '../services/gamificationEngine';
 import { colors, spacing } from '../theme';
 import { getRankingFromApi, getUserStatsFromApi } from '../services/workoutApiService';
+import { formatCountPt, formatSocialParticipantLabel } from '../utils/displayText';
 
 export default function InsightsScreen({ navigation, route }) {
   const { getWeeklyMacroSummary, getRecentHistory, workoutLogs, getWorkoutGamification, user, getSubscriptionStatus } = useApp();
@@ -77,10 +78,10 @@ export default function InsightsScreen({ navigation, route }) {
 
     const resultLine = latest
       ? latestStatus === 'ok'
-        ? 'Voce bateu os alvos no ultimo check-in ✅'
+        ? 'Você bateu os alvos no último check-in ✅'
         : latestTrained
         ? 'Treino feito, mas ainda havia ajustes nutricionais.'
-        : 'Ultimo check-in sem treino completo.'
+        : 'Último check-in sem treino completo.'
       : 'Sem dados recentes para validar o loop.';
 
     return {
@@ -103,7 +104,7 @@ export default function InsightsScreen({ navigation, route }) {
     const myXp = Math.max(Number(baseGamification?.xp || 0), earnedXp);
     const me = {
       id: 'me',
-      name: 'Voce',
+      name: 'Você',
       xp: myXp,
       streak: Number(baseGamification?.streakDays || 0),
     };
@@ -172,12 +173,12 @@ export default function InsightsScreen({ navigation, route }) {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View testID="insights-dashboard" style={styles.dashboardMarker} />
-      <ScreenHeader title="Insights" subtitle="So o que importa para decidir melhor." />
+      <ScreenHeader title="Insights" subtitle="Só o que importa para decidir melhor." />
 
       {shouldShowPostValueUpsell ? (
         <AppCard style={styles.upsellCard}>
-          <Text style={styles.title}>Destrave seu proximo salto</Text>
-          <Text style={styles.line}>Agora que voce viu seus insights, ative o PRO para receber ajuste automatico semanal.</Text>
+          <Text style={styles.title}>Destrave seu próximo salto</Text>
+          <Text style={styles.line}>Agora que você viu seus insights, ative o PRO para receber ajuste automático semanal.</Text>
           <PrimaryButton testID="btn-insights-postvalue-paywall" title="Desbloquear meu plano" onPress={handleOpenPostValuePaywall} style={styles.upsellButton} />
         </AppCard>
       ) : null}
@@ -191,13 +192,13 @@ export default function InsightsScreen({ navigation, route }) {
             <Text style={styles.statHint}>Carga total da semana</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={styles.statLabel}>Forca</Text>
+            <Text style={styles.statLabel}>Força</Text>
             <Text style={styles.statValue}>{dashboardStats.strengthPct > 0 ? '+' : ''}{dashboardStats.strengthPct}%</Text>
             <Text style={styles.statHint}>Vs semana anterior</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={styles.statLabel}>Frequencia</Text>
-            <Text style={styles.statValue}>{dashboardStats.frequency} treinos</Text>
+            <Text style={styles.statLabel}>Frequência</Text>
+            <Text style={styles.statValue}>{formatCountPt(dashboardStats.frequency, 'treino', 'treinos')}</Text>
             <Text style={styles.statHint}>Nesta semana</Text>
           </View>
         </View>
@@ -210,14 +211,14 @@ export default function InsightsScreen({ navigation, route }) {
       </AppCard>
 
       <AppCard>
-        <Text style={styles.title}>Resumo nutricional rapido</Text>
-        <Text style={styles.line}>Proteina media: {macros.avgProtein || 0}g</Text>
-        <Text style={styles.line}>Calorias medias: {macros.avgCalories || 0} kcal</Text>
+        <Text style={styles.title}>Resumo nutricional rápido</Text>
+        <Text style={styles.line}>Proteína média: {macros.avgProtein || 0}g</Text>
+        <Text style={styles.line}>Calorias médias: {macros.avgCalories || 0} kcal</Text>
       </AppCard>
 
       <AppCard>
-        <Text style={styles.title}>Social + Gamificacao</Text>
-        <Text style={styles.lineStrong}>XP: {socialStats.xp} | Nivel: {socialStats.level} | Streak: {socialStats.streak} dias</Text>
+        <Text style={styles.title}>Social + Gamificação</Text>
+        <Text style={styles.lineStrong}>XP: {socialStats.xp} | Nível: {socialStats.level} | Streak: {socialStats.streak} dias</Text>
         {socialStats.ranking.map((user) => (
           <Text key={user.id} style={styles.line}>#{user.rank} {user.name} • {user.xp} XP • {user.streak} dias</Text>
         ))}
@@ -225,13 +226,13 @@ export default function InsightsScreen({ navigation, route }) {
 
       {apiStats ? (
         <AppCard>
-          <Text style={styles.title}>Evolucao real (backend)</Text>
-          <Text style={styles.line}>Frequencia: {Number(apiStats.totalWorkouts || 0)} treinos</Text>
-          <Text style={styles.line}>Volume medio: {Number(apiStats.averageVolume || 0)} kg</Text>
+          <Text style={styles.title}>Evolução real (backend)</Text>
+          <Text style={styles.line}>Frequência: {formatCountPt(Number(apiStats.totalWorkouts || 0), 'treino', 'treinos')}</Text>
+          <Text style={styles.line}>Volume médio: {Number(apiStats.averageVolume || 0)} kg</Text>
           <Text style={styles.line}>Streak: {Number(apiStats.streak || 0)} dia(s)</Text>
-          <Text style={styles.line}>Tendencia: {Number(apiStats.trendPct || 0) >= 0 ? '+' : ''}{Number(apiStats.trendPct || 0)}%</Text>
+          <Text style={styles.line}>Tendência: {Number(apiStats.trendPct || 0) >= 0 ? '+' : ''}{Number(apiStats.trendPct || 0)}%</Text>
           {(apiStats.exerciseProgress || []).slice(0, 3).map((item) => (
-            <Text key={item.exercise} style={styles.line}>{item.exercise}: {item.avgWeight}kg media ({item.gainPct >= 0 ? '+' : ''}{item.gainPct}%)</Text>
+            <Text key={item.exercise} style={styles.line}>{item.exercise}: {item.avgWeight}kg média ({item.gainPct >= 0 ? '+' : ''}{item.gainPct}%)</Text>
           ))}
         </AppCard>
       ) : null}
@@ -240,7 +241,7 @@ export default function InsightsScreen({ navigation, route }) {
         <AppCard>
           <Text style={styles.title}>Ranking global</Text>
           {apiRanking.map((row) => (
-            <Text key={row.userId} style={styles.line}>#{row.rank} {row.userId} • Consistencia {row.consistencyScore} • Volume {row.totalVolume}</Text>
+            <Text key={row.userId} style={styles.line}>#{row.rank} {formatSocialParticipantLabel(row.rank, row.displayName || row.name)} • Consistência {row.consistencyScore} • Volume {row.totalVolume}</Text>
           ))}
         </AppCard>
       ) : null}

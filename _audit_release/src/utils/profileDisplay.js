@@ -1,3 +1,16 @@
+import { normalizeDisplayName } from './displayText';
+
+export function getSocialProfileLabel(user) {
+  const name = normalizeDisplayName(user?.name);
+  if (name) {
+    return name;
+  }
+  if (String(user?.email || '').trim()) {
+    return 'Perfil conectado';
+  }
+  return 'Perfil social ainda não conectado';
+}
+
 export function getProfileDisplayEmail(email) {
   const raw = String(email || '').trim();
   if (!raw) {

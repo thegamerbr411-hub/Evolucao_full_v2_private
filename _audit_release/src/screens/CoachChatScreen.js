@@ -461,7 +461,7 @@ export default function CoachChatScreen({ navigation }) {
     {
       id: 'welcome',
       role: 'coach',
-      text: 'Seu coach aqui. Vamos agir no que falta hoje: treino, agua e proteina.',
+      text: 'Seu coach aqui. Vamos agir no que falta hoje: treino, água e proteína.',
     },
   ]);
 

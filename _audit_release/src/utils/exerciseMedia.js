@@ -3,6 +3,11 @@ import { MUSCLE_GROUP_LABELS } from '../data/exercises.js';
 export const EXERCISE_VIDEO_COMING_SOON =
   'Demonstração em vídeo em preparação. Use as instruções abaixo para executar com segurança.';
 
+export const EXERCISE_DEMO_COMING_SOON = 'Demonstração disponível em breve';
+
+export const EXERCISE_DEMO_COMING_SOON_HINT =
+  'Enquanto isso, siga as instruções de execução abaixo.';
+
 export const EXERCISE_INSTRUCTIONS_COMING_SOON =
   'Instruções detalhadas em construção. Em breve você verá o passo a passo completo aqui.';
 

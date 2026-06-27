@@ -2,7 +2,12 @@ import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing } from '../../theme';
-import { formatMuscleLabel, getExerciseMuscleKey } from '../../utils/exerciseMedia';
+import {
+  EXERCISE_DEMO_COMING_SOON,
+  EXERCISE_DEMO_COMING_SOON_HINT,
+  formatMuscleLabel,
+  getExerciseMuscleKey,
+} from '../../utils/exerciseMedia';
 import { formatExerciseName } from '../../utils/displayText';
 
 const MUSCLE_ACCENT = {
@@ -75,8 +80,8 @@ export function ExerciseMediaFallback({
         ) : null}
         {showComingSoon ? (
           <>
-            <Text style={styles.comingSoon}>Demonstração em breve</Text>
-            <Text style={styles.comingSoonHint}>Enquanto isso, siga as instruções de execução abaixo.</Text>
+            <Text style={styles.comingSoon}>{EXERCISE_DEMO_COMING_SOON}</Text>
+            <Text style={styles.comingSoonHint}>{EXERCISE_DEMO_COMING_SOON_HINT}</Text>
           </>
         ) : null}
       </View>
