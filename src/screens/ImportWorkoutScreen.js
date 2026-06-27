@@ -6,6 +6,8 @@ import { colors, spacing } from '../theme';
 import { EXERCISE_NAMES_V2 } from '../data/exerciseLibraryV2.js';
 import { fuzzySearchExercises } from '../services/fuzzySearch';
 
+const IMPORT_WORKOUT_PLACEHOLDER = 'Supino Reto 4x10\nLeg Press 4x12';
+
 function normalize(value = '') {
   return String(value || '')
     .normalize('NFD')
@@ -151,14 +153,14 @@ export default function ImportWorkoutScreen({ navigation }) {
     if (missing > 0) {
       setFeedback({
         type: 'error',
-        text: `${missing} exercicio(s) precisam de revisao antes de salvar.`,
+        text: `${missing} exercício(s) precisam de revisão antes de salvar.`,
       });
       return;
     }
 
     setFeedback({
       type: 'success',
-      text: `Preview pronto com ${nextPreview.length} exercicio(s) validos.`,
+      text: `Preview pronto com ${nextPreview.length} exercício(s) válidos.`,
     });
   };
 
@@ -174,7 +176,7 @@ export default function ImportWorkoutScreen({ navigation }) {
     if (!canConfirmImport) {
       setFeedback({
         type: 'error',
-        text: 'Revise todos os exercicios pendentes antes de salvar.',
+        text: 'Revise todos os exercícios pendentes antes de salvar.',
       });
       return;
     }
@@ -188,7 +190,7 @@ export default function ImportWorkoutScreen({ navigation }) {
       if (!resolvedName) {
         setFeedback({
           type: 'error',
-          text: `Revise o item ${index + 1}. Nao permitimos substituicao silenciosa.`,
+          text: `Revise o item ${index + 1}. Não permitimos substituição silenciosa.`,
         });
         return;
       }
@@ -200,7 +202,7 @@ export default function ImportWorkoutScreen({ navigation }) {
     }
 
     setWorkout({ name: 'Treino importado', exercises });
-    setFeedback({ type: 'success', text: `Treino confirmado com ${exercises.length} exercicio(s).` });
+    setFeedback({ type: 'success', text: `Treino confirmado com ${exercises.length} exercício(s).` });
     navigation.navigate('Workout');
   };
 
@@ -211,7 +213,7 @@ export default function ImportWorkoutScreen({ navigation }) {
         <AppCard>
           <Text style={styles.label}>Entrada de treino</Text>
           <TextInput
-            placeholder="Supino Reto 4x10\nLeg Press 4x12"
+            placeholder={IMPORT_WORKOUT_PLACEHOLDER}
             placeholderTextColor={colors.textSecondary}
             value={input}
             onChangeText={setInput}
@@ -232,7 +234,7 @@ export default function ImportWorkoutScreen({ navigation }) {
             <Text style={styles.reviewSummary}>
               {unresolvedCount > 0
                 ? `${unresolvedCount} item(ns) ainda precisam de correcao manual.`
-                : 'Todos os itens foram validados. Agora voce pode confirmar com seguranca.'}
+                : 'Todos os itens foram validados. Agora você pode confirmar com segurança.'}
             </Text>
             {previewItems.map((item, index) => {
               const override = String(manualOverrides[index] || '');
@@ -244,11 +246,11 @@ export default function ImportWorkoutScreen({ navigation }) {
                     <Text style={styles.previewResolved}>Match exato: {item.matchedName}</Text>
                   ) : (
                     <>
-                      <Text style={styles.previewWarning}>Nao encontrado. Escolha manualmente:</Text>
+                      <Text style={styles.previewWarning}>Não encontrado. Escolha manualmente:</Text>
                       <AppInput
                         value={override}
                         onChangeText={(value) => setManualOverrides((prev) => ({ ...prev, [index]: value }))}
-                        placeholder="Digite nome exato do catalogo"
+                        placeholder="Digite nome exato do catálogo"
                         autoCapitalize="words"
                       />
                       <View style={styles.suggestionWrap}>

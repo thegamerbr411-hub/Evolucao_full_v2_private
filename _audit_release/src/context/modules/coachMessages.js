@@ -21,7 +21,7 @@ export function buildCoachMessage(state) {
 
   let action = 'Faz mais 1 exercicio agora.';
   if (missing.needsWorkoutToday) {
-    action = 'Voce ainda nao treinou. Comeca agora.';
+    action = 'Você ainda não treinou. Comece agora.';
   } else if (Number(missing.proteinLeft || 0) > 0) {
     action = 'Faltam proteinas. Registre uma refeicao agora.';
   } else if (Number(missing.waterLeft || 0) > 0) {

@@ -1324,7 +1324,7 @@ export function getDropRecoveryCandidate(options = {}) {
   }
 
   return {
-    message: 'Voce parou no treino. Quer continuar de onde parou?',
+    message: 'Você parou no treino. Quer continuar de onde parou?',
     ctaLabel: 'Retomar treino',
     routeName: state.routeName || 'TreinoHoje',
     timestamp: state.timestamp,

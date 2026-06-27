@@ -13,6 +13,8 @@ import {
   joinChallengeFromApi,
   updateChallengeProgressFromApi,
 } from '../services/socialApiService';
+import { getSocialProfileLabel } from '../utils/profileDisplay';
+import { formatSocialParticipantLabel } from '../utils/displayText';
 import {
   isChallengeAdmin,
   CHALLENGE_ADMIN_REQUIRED_MESSAGE,
@@ -44,7 +46,7 @@ export default function SocialChallengesScreen({ navigation }) {
     setLoading(false);
 
     if (!result?.ok) {
-      setToastMessage('Social indisponivel. Nao foi possivel carregar o painel social agora.');
+      setToastMessage('Social indisponível. Não foi possível carregar o painel social agora.');
       return;
     }
 
@@ -100,13 +102,13 @@ export default function SocialChallengesScreen({ navigation }) {
 
   const mapSocialError = (code) => {
     const key = String(code || '').trim();
-    if (key === 'cannot_add_self') return 'Voce nao pode adicionar seu proprio perfil.';
-    if (key === 'friend_already_added') return 'Esse amigo ja foi adicionado.';
+    if (key === 'cannot_add_self') return 'Você não pode adicionar seu próprio perfil.';
+    if (key === 'friend_already_added') return 'Esse amigo já foi adicionado.';
     if (key === 'missing_user_id') return 'Conecte um perfil antes de usar recursos sociais.';
-    if (key === 'challenge_not_found') return 'Desafio nao encontrado ou encerrado.';
-    if (key === 'invalid_progress_payload') return 'Valor de progresso invalido.';
+    if (key === 'challenge_not_found') return 'Desafio não encontrado ou encerrado.';
+    if (key === 'invalid_progress_payload') return 'Valor de progresso inválido.';
     if (key === 'admin_required') return CHALLENGE_ADMIN_REQUIRED_MESSAGE;
-    return 'Nao foi possivel concluir a acao agora.';
+    return 'Não foi possível concluir a ação agora.';
   };
 
   const onAddFriend = async () => {
@@ -201,16 +203,16 @@ export default function SocialChallengesScreen({ navigation }) {
 
       <AppCard>
         <Text style={styles.title}>Painel social</Text>
-        <Text style={styles.line}>{myUserId || 'Perfil social ainda nao conectado'}</Text>
+        <Text style={styles.line}>{getSocialProfileLabel(user)}</Text>
         {!myUserId ? <Text style={styles.meta}>Entre com um perfil para liberar amizades, ranking e desafios.</Text> : null}
         <Text style={styles.meta}>Amigos: {Number(overview?.friendsCount || 0)}</Text>
         <Text style={styles.meta}>Liga atual: {String(overview?.myLeague || 'bronze').toUpperCase()}</Text>
         {overview?.nextFriendToPass ? (
           <Text style={styles.goalLine}>
-            Faltam {Number(overview?.xpToPassFriend || 0)} XP para passar {overview.nextFriendToPass.userId}
+            Faltam {Number(overview?.xpToPassFriend || 0)} XP para passar o próximo amigo no ranking.
           </Text>
         ) : (
-          <Text style={styles.goalLine}>Voce esta liderando sua rede de amigos no momento.</Text>
+          <Text style={styles.goalLine}>Você está liderando sua rede de amigos no momento.</Text>
         )}
         <SecondaryButton title={loading ? 'Atualizando...' : 'Atualizar painel'} onPress={loadOverview} style={styles.secondary} />
       </AppCard>
@@ -221,7 +223,7 @@ export default function SocialChallengesScreen({ navigation }) {
           testID="input-social-friend-userid"
           value={friendInput}
           onChangeText={setFriendInput}
-          placeholder="Nome ou @usuario"
+          placeholder="Nome ou @usuário"
           placeholderTextColor={colors.textSecondary}
           style={styles.input}
         />
@@ -275,7 +277,7 @@ export default function SocialChallengesScreen({ navigation }) {
         {!loading && metricRows.length ? (
           metricRows.slice(0, 10).map((row) => (
             <Text key={`${row.userId}-${row.rank}`} style={styles.line}>
-              #{row.rank} {row.userId} • {metricLabel} {selectedMetric === 'xp' ? row.xpScore : selectedMetric === 'volume' ? row.volumeScore : selectedMetric === 'completed' ? row.completedScore : row.consistencyScore} • {String(row.league || '').toUpperCase()}
+              #{row.rank} {formatSocialParticipantLabel(row.rank, row.displayName || row.name)} • {metricLabel} {selectedMetric === 'xp' ? row.xpScore : selectedMetric === 'volume' ? row.volumeScore : selectedMetric === 'completed' ? row.completedScore : row.consistencyScore} • {String(row.league || '').toUpperCase()}
             </Text>
           ))
         ) : (
@@ -314,7 +316,7 @@ export default function SocialChallengesScreen({ navigation }) {
                 </TouchableOpacity>
               </View>
               {Array.isArray(challenge.participants) ? challenge.participants.slice(0, 5).map((item) => (
-                <Text key={`${challenge.id}-${item.userId}`} style={styles.line}>#{item.rank} {item.userId}: {item.progress}</Text>
+                <Text key={`${challenge.id}-${item.userId}`} style={styles.line}>#{item.rank} {formatSocialParticipantLabel(item.rank)}: {item.progress}</Text>
               )) : null}
             </View>
           ))

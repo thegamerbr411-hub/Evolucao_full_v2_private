@@ -1,7 +1,7 @@
 export const generateCoach = ({ workout, nutrition, history, time }) => {
   if (!workout?.exercises?.length) {
     return {
-      message: 'Voce ainda nao treinou. Comeca agora.',
+      message: 'Você ainda não treinou. Comece agora.',
       action: 'START_WORKOUT',
       priority: 10,
     };
