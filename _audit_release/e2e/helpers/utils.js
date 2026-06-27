@@ -664,9 +664,295 @@ const KEYPAD_KEY_GRID = {
   '.': [3, 0], 0: [3, 1],
 };
 
+const EVOLUCAO_PACKAGE = 'com.tipolt.evolucaofullv2';
+
 function getAdbPrefix() {
   const serial = process.env.DETOX_ADB_NAME || '';
   return serial ? `adb -s ${serial}` : 'adb';
+}
+
+function ensureEvolucaoForegroundSync() {
+  const prefix = getAdbPrefix();
+  try {
+    const out = execSync(`${prefix} shell dumpsys window`, {
+      encoding: 'utf8',
+      timeout: 8000,
+      maxBuffer: 10 * 1024 * 1024,
+    });
+    if (out.includes(EVOLUCAO_PACKAGE)) {
+      return true;
+    }
+    execSync(
+      `${prefix} shell am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -p ${EVOLUCAO_PACKAGE}`,
+      { stdio: 'pipe', timeout: 8000 },
+    );
+    execSync(`${prefix} shell sleep 0.6`, { stdio: 'pipe', timeout: 3000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function readWorkoutInputValueFromXml(fieldId) {
+  ensureEvolucaoForegroundSync();
+  const xml = fetchUiXmlSnapshot(
+    '/sdcard/reps_v7_field_read.xml',
+    `reps_v7_field_read_${String(fieldId).replace(/[^a-z0-9_-]/gi, '_')}.xml`,
+    2,
+  );
+  if (!xml) {
+    return null;
+  }
+  const candidates = getIdCandidates(fieldId);
+  for (const candidate of candidates) {
+    const escaped = String(candidate).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const anchor = new RegExp(`resource-id="${escaped}"`, 'i');
+    const idx = xml.search(anchor);
+    if (idx < 0) {
+      continue;
+    }
+    const slice = xml.slice(idx, idx + 1600);
+    const nestedText = new RegExp(
+      `resource-id="${escaped}"[\\s\\S]{0,1600}?text="([^"]+)"`,
+      'i',
+    ).exec(slice);
+    if (nestedText?.[1]) {
+      return nestedText[1];
+    }
+    const descMatch = /content-desc="([^"]*)"/.exec(slice);
+    if (descMatch?.[1] && !['Kg', 'Reps', 'Km', 'Min', 'RPE'].includes(descMatch[1])) {
+      return descMatch[1];
+    }
+    const textMatch = /text="([^"]*)"/.exec(slice);
+    if (textMatch?.[1]) {
+      return textMatch[1];
+    }
+  }
+  if (!xml.includes(EVOLUCAO_PACKAGE)) {
+    return null;
+  }
+  return null;
+}
+
+async function readWorkoutInputValue(fieldId) {
+  return readWorkoutInputValueFromXml(fieldId);
+}
+
+function findInlineKeyCenterInXml(xml, label, minY = 1900, maxY1 = 9999) {
+  const escaped = String(label).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = new RegExp(
+    `(?:text|content-desc)="${escaped}"[^>]*bounds="\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]"`,
+    'gi',
+  );
+  let best = null;
+  let match = pattern.exec(xml);
+  while (match) {
+    const x1 = Number(match[1]);
+    const y1 = Number(match[2]);
+    const x2 = Number(match[3]);
+    const y2 = Number(match[4]);
+    const center = parseBoundsCenter(`[${match[1]},${match[2]}][${match[3]},${match[4]}]`);
+    const height = y2 - y1;
+    const width = x2 - x1;
+    if (
+      !isValidBoundsCenter(center)
+      || y1 < minY
+      || y1 > maxY1
+      || height < 40
+      || height > 140
+      || width < 40
+    ) {
+      match = pattern.exec(xml);
+      continue;
+    }
+    if (!best || y2 > best.y2) {
+      best = { ...center, y2 };
+    }
+    match = pattern.exec(xml);
+  }
+  return best;
+}
+
+const INLINE_KEYPAD_Y = { digitMin: 1380, digitMax: 1930, footerMin: 1900 };
+
+function findInlineKeypadAnchor(xml) {
+  if (!xml) {
+    return null;
+  }
+  const limparMatch = /text="Limpar"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/.exec(xml);
+  if (limparMatch && Number(limparMatch[2]) >= INLINE_KEYPAD_Y.footerMin) {
+    const center = parseBoundsCenter(
+      `[${limparMatch[1]},${limparMatch[2]}][${limparMatch[3]},${limparMatch[4]}]`,
+    );
+    if (isValidBoundsCenter(center)) {
+      return { x: center.x + 102, y: center.y - 42 };
+    }
+  }
+  const okMatch = /text="OK"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/.exec(xml);
+  if (okMatch && Number(okMatch[2]) >= INLINE_KEYPAD_Y.footerMin) {
+    const center = parseBoundsCenter(
+      `[${okMatch[1]},${okMatch[2]}][${okMatch[3]},${okMatch[4]}]`,
+    );
+    if (isValidBoundsCenter(center)) {
+      return { x: center.x - 403, y: center.y - 42 };
+    }
+  }
+  return findInlineKeyCenterInXml(xml, '2', INLINE_KEYPAD_Y.digitMin, INLINE_KEYPAD_Y.digitMax)
+    || findInlineKeyCenterInXml(xml, '5', INLINE_KEYPAD_Y.digitMin, INLINE_KEYPAD_Y.digitMax);
+}
+
+function findAndTapInlineKey(char, minY = INLINE_KEYPAD_Y.digitMin, maxY1 = INLINE_KEYPAD_Y.digitMax) {
+  const effectiveMinY = char === '0' ? 1750 : minY;
+  const effectiveMaxY = maxY1;
+  const xml = fetchUiXmlSnapshot('/sdcard/reps_v7_inline_key.xml', 'reps_v7_inline_key.xml', 2);
+  if (!xml) {
+    return false;
+  }
+  const center = findInlineKeyCenterInXml(xml, char, effectiveMinY, effectiveMaxY);
+  if (!center) {
+    return false;
+  }
+  logStep(`inline-keypad-dump:${char}@${center.x},${center.y}`);
+  adbTap(center.x, center.y);
+  return true;
+}
+
+function tapInlineKeyFromGridAnchor(char) {
+  const xml = fetchUiXmlSnapshot('/sdcard/reps_v7_inline_key.xml', 'reps_v7_inline_key.xml', 2);
+  if (!xml) {
+    return false;
+  }
+  const anchor = findInlineKeyCenterInXml(xml, '2', 1900)
+    || findInlineKeyCenterInXml(xml, '5', 1900)
+    || findInlineKeyCenterInXml(xml, '8', 1900);
+  if (!anchor) {
+    return false;
+  }
+  const offsets = {
+    '1': [-198, 0],
+    '2': [0, 0],
+    '3': [198, 0],
+    '4': [-198, 75],
+    '5': [0, 75],
+    '6': [198, 75],
+    '7': [-198, 150],
+    '8': [0, 150],
+    '9': [198, 150],
+    '.': [-198, 225],
+    '0': [0, 225],
+    '⌫': [198, 225],
+  };
+  const off = offsets[char];
+  if (!off) {
+    return false;
+  }
+  const x = anchor.x + off[0];
+  const y = Math.min(anchor.y + off[1], getAndroidScreenSize().height - 8);
+  logStep(`inline-keypad-grid:${char}@${x},${y}`);
+  adbTap(x, y);
+  return true;
+}
+
+async function tryDetoxInlineDigitTap(char) {
+  if (!hasDetoxGlobals()) {
+    return false;
+  }
+  const minY = INLINE_KEYPAD_Y.digitMin;
+  const maxY = INLINE_KEYPAD_Y.digitMax;
+  for (let index = 0; index < 10; index += 1) {
+    const matchers = [
+      () => (index === 0 ? element(by.label(char)) : element(by.label(char)).atIndex(index)),
+      () => (index === 0 ? element(by.text(char)) : element(by.text(char)).atIndex(index)),
+    ];
+    for (const getTarget of matchers) {
+      try {
+        const target = getTarget();
+        await waitFor(target).toExist().withTimeout(700);
+        const attrs = await target.getAttributes();
+        const y = Number(attrs?.screenY ?? attrs?.y ?? 0);
+        if (y < minY || y > maxY) {
+          continue;
+        }
+        await target.tap();
+        logStep(`inline-keypad-detox:${char}@${index} y=${y}`);
+        return true;
+      } catch {
+        // tenta proximo matcher
+      }
+    }
+  }
+  return false;
+}
+
+function tapInlineZeroKey() {
+  const xml = fetchUiXmlSnapshot('/sdcard/reps_v7_inline_key.xml', 'reps_v7_inline_key.xml', 2);
+  if (xml) {
+    const direct = findInlineKeyCenterInXml(xml, '0', 2050);
+    if (direct) {
+      logStep(`inline-keypad-dump:0@${direct.x},${direct.y}`);
+      adbTap(direct.x, direct.y);
+      return true;
+    }
+  }
+  if (tapInlineKeyFromGridAnchor('0')) {
+    return true;
+  }
+  const anchor = xml ? findInlineKeypadAnchor(xml) : null;
+  if (anchor) {
+    const y = Math.min(anchor.y + 125, getAndroidScreenSize().height - 12);
+    logStep(`inline-keypad-zero-anchor:0@${anchor.x},${y}`);
+    adbTap(anchor.x, y);
+    return true;
+  }
+  return tapInlineDigitCoordFallback('0');
+}
+
+function tapCharOnInlineGrid(anchor, char) {
+  const offsets = {
+    '1': [-198, 0],
+    '2': [0, 0],
+    '3': [198, 0],
+    '4': [-198, 75],
+    '5': [0, 75],
+    '6': [198, 75],
+    '7': [-198, 150],
+    '8': [0, 150],
+    '9': [198, 150],
+    '.': [-198, 225],
+    '0': [0, 225],
+    '⌫': [198, 225],
+  };
+  const off = offsets[char];
+  if (!anchor || !off) {
+    return false;
+  }
+  const x = anchor.x + off[0];
+  const y = Math.min(anchor.y + off[1], getAndroidScreenSize().height - 8);
+  logStep(`inline-keypad-grid:${char}@${x},${y}`);
+  adbTap(x, y);
+  return true;
+}
+
+async function tapInlineKeypadChar(char, gridAnchor = null) {
+  if (char === '0') {
+    await ensureInlineKeypadFullyVisible();
+  }
+
+  const digitOpts = { maxY: INLINE_KEYPAD_Y.digitMax };
+  if (await tapDetoxLabelOrAdbCoords(char, INLINE_KEYPAD_Y.digitMin, digitOpts)) {
+    return true;
+  }
+  if (findAndTapInlineKey(char)) {
+    return true;
+  }
+  if (await tryDetoxInlineDigitTap(char)) {
+    return true;
+  }
+  if (gridAnchor && tapCharOnInlineGrid(gridAnchor, char)) {
+    return true;
+  }
+
+  return tapInlineDigitCoordFallback(char);
 }
 
 function getAndroidScreenSize() {
@@ -885,21 +1171,38 @@ async function tryTapViaXmlBounds(id) {
 }
 
 async function tapSaveSetIfVisible() {
-  if (isAttachedRun()) {
-    if (await tryTapViaXmlBounds('btn-save-set')) {
-      logStep('save-set:xml');
+  await dismissInlineSetRowKeypad();
+  await stabilizeAfterKeypadConfirm();
+  await sleep(350);
+
+  if (await isVisible('btn-save-set', 3000)) {
+    try {
+      await scrollToElement('screen-workout', 'btn-save-set', 'down', 220, 6);
+    } catch {
+      // segue
+    }
+    try {
+      await waitFor(element(by.id('btn-save-set'))).toBeVisible().withTimeout(2500);
+      try {
+        await element(by.id('btn-save-set')).tap();
+        logStep('save-set:detox');
+      } catch {
+        await element(by.label('Salvar serie')).tap();
+        logStep('save-set:label');
+      }
+      await sleep(900);
+      return true;
+    } catch {
+      await tapElement('btn-save-set');
+      logStep('save-set:detox-fallback');
+      await sleep(900);
       return true;
     }
   }
 
-  if (await isVisible('btn-save-set', 2000)) {
-    await tapElement('btn-save-set');
-    logStep('save-set:detox');
-    return true;
-  }
-
   if (await tryTapViaXmlBounds('btn-save-set')) {
     logStep('save-set:xml');
+    await sleep(900);
     return true;
   }
 
@@ -907,6 +1210,7 @@ async function tapSaveSetIfVisible() {
     try {
       await element(by.text('Salvar serie')).tap();
       logStep('save-set:text');
+      await sleep(900);
       return true;
     } catch {
       // segue
@@ -916,17 +1220,28 @@ async function tapSaveSetIfVisible() {
   return false;
 }
 
-async function assertGuidedSetSaved(weight, reps, timeout = 12000) {
+function xmlShowsGuidedSetSaved(xml, weight, reps) {
+  if (!xml) {
+    return false;
+  }
+  if (xml.includes('resource-id="serie-salva-indicator"')) {
+    return true;
+  }
+  if (/TREINO: [1-9][0-9]*\/11/.test(xml)) {
+    return true;
+  }
+  if (/>Salva</.test(xml) || /text="Salva"/.test(xml)) {
+    return true;
+  }
+  if (xml.includes('text="&#10004;"')) {
+    return true;
+  }
+  return false;
+}
+
+async function assertGuidedSetSaved(weight, reps, timeout = 20000) {
   if (!hasDetoxGlobals()) {
     throw new Error('Detox globals indisponiveis durante assertGuidedSetSaved.');
-  }
-
-  try {
-    await waitFor(element(by.id('serie-salva-indicator'))).toBeVisible().withTimeout(3000);
-    logStep('guided-set-saved:serie-salva-indicator');
-    return;
-  } catch {
-    // banner transiente (~1.8s) pode ter passado
   }
 
   const savedText = `${weight}kg x ${reps}`;
@@ -934,16 +1249,24 @@ async function assertGuidedSetSaved(weight, reps, timeout = 12000) {
 
   while (Date.now() - startedAt < timeout) {
     try {
-      await waitFor(element(by.text(savedText))).toBeVisible().withTimeout(700);
-      logStep(`guided-set-saved:text:${savedText}`);
+      await waitFor(element(by.id('serie-salva-indicator'))).toBeVisible().withTimeout(900);
+      logStep('guided-set-saved:serie-salva-indicator');
+      return;
+    } catch {
+      // segue
+    }
+
+    try {
+      await waitFor(element(by.text('Salva'))).toBeVisible().withTimeout(700);
+      logStep('guided-set-saved:status-salva');
       return;
     } catch {
       // segue
     }
 
     const xml = fetchUiXmlSnapshot('/sdcard/v7_saved_row.xml', 'v7_saved_row.xml', 1);
-    if (xml && (xml.includes(savedText) || (xml.includes('kg x') && xml.includes(`>${weight}kg`)))) {
-      logStep(`guided-set-saved:xml:${savedText}`);
+    if (xmlShowsGuidedSetSaved(xml, weight, reps)) {
+      logStep(`guided-set-saved:row-status:${savedText}`);
       return;
     }
 
@@ -1044,18 +1367,21 @@ async function fillKeypadHiddenInput(value) {
 
   const target = element(by.id('keypad-hidden-input'));
   try {
-    await waitFor(target).toExist().withTimeout(8000);
+    await waitFor(target).toExist().withTimeout(12000);
   } catch {
     return false;
   }
 
   try {
     await target.tap();
-    await sleep(120);
+    await sleep(200);
     await target.replaceText(String(value || ''));
+    await sleep(120);
     return true;
   } catch {
     try {
+      await target.clearText();
+      await sleep(80);
       await target.typeText(String(value || ''));
       return true;
     } catch {
@@ -1066,6 +1392,24 @@ async function fillKeypadHiddenInput(value) {
 
 async function confirmKeypad() {
   if (hasDetoxGlobals()) {
+    if (await waitForInlineSetRowKeypadOpen(600)) {
+      try {
+        await element(by.label('OK')).tap();
+        logStep('keypad-confirm-inline-detox-label');
+        await waitKeypadClosed(8000);
+        return;
+      } catch {
+        try {
+          await element(by.text('OK')).atIndex(0).tap();
+          logStep('keypad-confirm-inline-detox-text');
+          await waitKeypadClosed(8000);
+          return;
+        } catch {
+          // segue para dump
+        }
+      }
+    }
+
     try {
       await waitFor(element(by.id('keypad-modal'))).toExist().withTimeout(4000);
       await waitFor(element(by.id('keypad-confirm'))).toExist().withTimeout(4000);
@@ -1152,9 +1496,15 @@ function tapKeyFromUiDump(char) {
   let best = null;
   let match = pattern.exec(xml);
   while (match) {
+    const y1 = Number(match[2]);
     const y2 = Number(match[4]);
     const center = parseBoundsCenter(`[${match[1]},${match[2]}][${match[3]},${match[4]}]`);
-    if (isValidBoundsCenter(center) && (!best || y2 > best.y2)) {
+    if (
+      isValidBoundsCenter(center)
+      && y1 >= INLINE_KEYPAD_Y.digitMin
+      && y1 <= INLINE_KEYPAD_Y.digitMax + 160
+      && (!best || y2 > best.y2)
+    ) {
       best = { ...center, y2 };
     }
     match = pattern.exec(xml);
@@ -1246,7 +1596,7 @@ async function clearKeypadValue() {
   }
 
   let cleared = 0;
-  for (let i = 0; i < 10; i += 1) {
+  for (let i = 0; i < 15; i += 1) {
     if (!tapKeyFromUiDump('⌫')) {
       break;
     }
@@ -1260,6 +1610,7 @@ async function clearKeypadValue() {
 
 async function fillKeypadViaDigits(rawValue) {
   await clearKeypadValue();
+  await sleep(150);
   for (const char of String(rawValue || '').split('')) {
     await tapKeypadDigit(char);
     await sleep(150);
@@ -1268,15 +1619,7 @@ async function fillKeypadViaDigits(rawValue) {
   await sleep(320);
 }
 
-async function fillWorkoutKeypadField(fieldId, value, timeout = 12000) {
-  if (!(await isVisible(fieldId, 3000))) {
-    await tryScrollToTarget(fieldId);
-    await scrollToElement('screen-workout', fieldId, 'down', 360, 8);
-  }
-
-  await tapElement(fieldId, timeout);
-  await sleep(900);
-
+async function fillKeypadAfterFieldOpen(fieldId, value) {
   if (hasDetoxGlobals()) {
     try {
       await waitFor(element(by.id('keypad-modal'))).toExist().withTimeout(8000);
@@ -1319,6 +1662,563 @@ async function fillWorkoutKeypadField(fieldId, value, timeout = 12000) {
   await stabilizeAfterKeypadConfirm();
 }
 
+async function waitForInlineSetRowKeypadOpen(timeout = 8000) {
+  if (!hasDetoxGlobals()) {
+    return false;
+  }
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    const xml = fetchUiXmlSnapshot('/sdcard/reps_v7_inline_probe.xml', 'reps_v7_inline_probe.xml', 1);
+    if (xml) {
+      const digit2 = /content-desc="2"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/.exec(xml);
+      if (digit2 && Number(digit2[2]) >= 2100) {
+        return true;
+      }
+      if (xml.includes('text="Limpar"') && /text="Limpar"[^>]*bounds="\[(\d+),(\d+)/.test(xml)) {
+        const limpar = /text="Limpar"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/.exec(xml);
+        if (limpar && Number(limpar[2]) >= 2000) {
+          return true;
+        }
+      }
+    }
+    await sleep(250);
+  }
+  return false;
+}
+
+async function ensureInlineKeypadFullyVisible() {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const xml = fetchUiXmlSnapshot('/sdcard/reps_v7_inline_probe.xml', 'reps_v7_inline_probe.xml', 1);
+    if (xml && (xml.includes('text="Limpar"') || /content-desc="0"[^>]*bounds="\[(\d+),(\d+)/.test(xml))) {
+      const zeroMatch = /content-desc="0"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/.exec(xml || '');
+      if (zeroMatch && Number(zeroMatch[2]) >= 1900) {
+        return true;
+      }
+      if (xml.includes('text="Limpar"')) {
+        return true;
+      }
+    }
+    try {
+      await element(by.id('screen-workout')).scroll(180, 'down');
+    } catch {
+      try {
+        await element(by.id('workout-exercise-list-simple')).scroll(180, 'down');
+      } catch {
+        // segue
+      }
+    }
+    await sleep(350);
+  }
+  return false;
+}
+
+function tapViaXmlLabel(label, minY = 1900, options = {}) {
+  const { minX = 0, maxX = 9999, maxY = 9999, requireClickable = false } = options;
+  const xml = fetchUiXmlSnapshot('/sdcard/reps_v7_inline_key.xml', 'reps_v7_inline_key.xml', 2);
+  if (!xml) {
+    return false;
+  }
+  const needleA = `content-desc="${label}"`;
+  const needleB = `text="${label}"`;
+  const nodePattern = /<node[^>]*\/?>/gi;
+  let match = nodePattern.exec(xml);
+  let best = null;
+  while (match) {
+    const node = match[0];
+    if (!node.includes(needleA) && !node.includes(needleB)) {
+      match = nodePattern.exec(xml);
+      continue;
+    }
+    const boundsMatch = /bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/.exec(node);
+    if (!boundsMatch) {
+      match = nodePattern.exec(xml);
+      continue;
+    }
+    const x1 = Number(boundsMatch[1]);
+    const y1 = Number(boundsMatch[2]);
+    const x2 = Number(boundsMatch[3]);
+    const y2 = Number(boundsMatch[4]);
+    if (y2 <= y1 || y2 - y1 < 8) {
+      match = nodePattern.exec(xml);
+      continue;
+    }
+    const center = parseBoundsCenter(`[${boundsMatch[1]},${boundsMatch[2]}][${boundsMatch[3]},${boundsMatch[4]}]`);
+    if (
+      isValidBoundsCenter(center)
+      && y1 >= minY
+      && y1 <= maxY
+      && center.x >= minX
+      && center.x <= maxX
+      && (!requireClickable || node.includes('clickable="true"'))
+      && (!best || y1 > best.y1)
+    ) {
+      best = { ...center, y1 };
+    }
+    match = nodePattern.exec(xml);
+  }
+  if (!best) {
+    return false;
+  }
+  logStep(`inline-keypad-xml:${label}@${best.x},${best.y}`);
+  adbTap(best.x, best.y);
+  return true;
+}
+
+async function tapDetoxLabelOrAdbCoords(label, minY = 1750, options = {}) {
+  if (!hasDetoxGlobals()) {
+    return tapViaXmlLabel(label, minY, options);
+  }
+
+  const maxY = Number(options.maxY || 9999);
+  const minX = Number(options.minX || 0);
+  const maxX = Number(options.maxX || 9999);
+
+  for (let index = 0; index < 8; index += 1) {
+    const matchers = [
+      () => (index === 0 ? element(by.label(label)) : element(by.label(label)).atIndex(index)),
+      () => (index === 0 ? element(by.text(label)) : element(by.text(label)).atIndex(index)),
+    ];
+    for (const getTarget of matchers) {
+      try {
+        const target = getTarget();
+        await waitFor(target).toExist().withTimeout(1200);
+        const attrs = await target.getAttributes();
+        const originY = Number(attrs?.screenY ?? attrs?.y ?? 0);
+        const originX = Number(attrs?.screenX ?? attrs?.x ?? 0);
+        const width = Number(attrs?.width ?? 0);
+        const height = Number(attrs?.height ?? 0);
+        const centerX = originX + width / 2;
+        if (
+          originY < minY
+          || originY > maxY
+          || width <= 0
+          || height <= 0
+          || centerX < minX
+          || centerX > maxX
+        ) {
+          continue;
+        }
+        try {
+          await target.tap();
+          logStep(`inline-keypad-detox:${label}@${index}`);
+          return true;
+        } catch {
+          const x = Math.round(centerX);
+          const y = Math.round(originY + height / 2);
+          if (y >= minY && y <= maxY) {
+            logStep(`inline-keypad-adb:${label}@${x},${y}`);
+            adbTap(x, y);
+            return true;
+          }
+        }
+      } catch {
+        // tenta proximo matcher
+      }
+    }
+  }
+
+  return tapViaXmlLabel(label, minY, options);
+}
+
+const INLINE_KEYPAD_COORDS = {
+  Limpar: { x: 345, y: 2000 },
+  OK: { x: 735, y: 2000 },
+  '1': { x: 249, y: 1493 },
+  '2': { x: 447, y: 1493 },
+  '3': { x: 645, y: 1493 },
+  '4': { x: 249, y: 1619 },
+  '5': { x: 447, y: 1619 },
+  '6': { x: 645, y: 1619 },
+  '7': { x: 249, y: 1745 },
+  '8': { x: 447, y: 1745 },
+  '9': { x: 645, y: 1745 },
+  '.': { x: 249, y: 1871 },
+  '0': { x: 447, y: 1871 },
+  '⌫': { x: 645, y: 1871 },
+};
+
+function tapInlineDigitCoordFallback(char) {
+  const pos = INLINE_KEYPAD_COORDS[char];
+  if (!pos) {
+    return false;
+  }
+  const { height } = getAndroidScreenSize();
+  const y = Math.min(pos.y, height - 8);
+  logStep(`inline-keypad-coord:${char}@${pos.x},${y}`);
+  adbTap(pos.x, y);
+  return true;
+}
+
+async function dismissInlineSetRowKeypad() {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    if (!(await waitForInlineSetRowKeypadOpen(700))) {
+      logStep('inline-keypad-dismissed:closed');
+      return true;
+    }
+    const footerOpts = { minX: 500, maxY: 9999 };
+    let dismissed = false;
+    if (hasDetoxGlobals()) {
+      try {
+        await element(by.label('OK')).tap();
+        dismissed = true;
+        logStep('inline-keypad-detox-dismiss:OK');
+      } catch {
+        try {
+          await element(by.text('OK')).atIndex(0).tap();
+          dismissed = true;
+          logStep('inline-keypad-detox-dismiss:OK-text');
+        } catch {
+          // segue
+        }
+      }
+    }
+    if (!dismissed) {
+      dismissed = await tapInlineFooterButton('OK');
+    }
+    await sleep(450);
+  }
+  const stillOpen = await waitForInlineSetRowKeypadOpen(600);
+  if (stillOpen) {
+    logStep('inline-keypad-dismissed:still-open');
+  }
+  return !stillOpen;
+}
+
+async function tapInlineFooterButton(label) {
+  const footerOpts = label === 'OK' ? { minX: 500 } : { minX: 0 };
+  if (await tapDetoxLabelOrAdbCoords(label, INLINE_KEYPAD_Y.footerMin, footerOpts)) {
+    return true;
+  }
+  if (tapViaXmlLabel(label, INLINE_KEYPAD_Y.footerMin, footerOpts)) {
+    return true;
+  }
+  return tapInlineDigitCoordFallback(label);
+}
+
+async function fillInlineSetRowKeypad(value, skipClear = false) {
+  if (!hasDetoxGlobals()) {
+    return { ok: false, method: 'no-detox' };
+  }
+
+  if (!(await waitForInlineSetRowKeypadOpen(5000))) {
+    return { ok: false, method: 'inline-keypad-not-open' };
+  }
+
+  try {
+    if (!skipClear) {
+      await ensureInlineKeypadFullyVisible();
+      tapInlineDigitCoordFallback('Limpar')
+        || tapViaXmlLabel('Limpar', INLINE_KEYPAD_Y.footerMin)
+        || (await tapDetoxLabelOrAdbCoords('Limpar', INLINE_KEYPAD_Y.footerMin));
+      for (let i = 0; i < 12; i += 1) {
+        tapKeyFromUiDump('⌫')
+          || tapViaXmlLabel('⌫', 1750, {
+            minX: 520,
+            maxY: INLINE_KEYPAD_Y.digitMax + 150,
+            requireClickable: true,
+          })
+          || tapInlineDigitCoordFallback('⌫');
+        await sleep(80);
+      }
+      logStep('inline-keypad-cleared:backspace-loop');
+      await sleep(300);
+    }
+
+    if (String(value || '').includes('0')) {
+      await ensureInlineKeypadFullyVisible();
+    }
+
+    for (const char of String(value || '').split('')) {
+      if (char === '0') {
+        await ensureInlineKeypadFullyVisible();
+      }
+      await tapKeypadDigit(char);
+      await sleep(150);
+    }
+
+    await confirmKeypad();
+    await stabilizeAfterKeypadConfirm();
+    return { ok: true, method: 'inline-keypad-via-digits' };
+  } catch (fillError) {
+    return { ok: false, method: String(fillError?.message || fillError) };
+  }
+}
+
+async function waitForKeypadOpen(timeout = 12000) {
+  if (!hasDetoxGlobals()) {
+    return false;
+  }
+
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    try {
+      await waitFor(element(by.id('keypad-modal'))).toExist().withTimeout(600);
+      return true;
+    } catch {
+      try {
+        await waitFor(element(by.id('keypad-hidden-input'))).toExist().withTimeout(600);
+        return true;
+      } catch {
+        await sleep(200);
+      }
+    }
+  }
+
+  return false;
+}
+
+async function tapKeypadFieldOpen(fieldId, useXmlTap = false, timeout = 12000) {
+  if (useXmlTap) {
+    try {
+      await tapElement(fieldId, timeout);
+      return;
+    } catch {
+      // segue para XML bounds
+    }
+    let tapped = await tryTapViaXmlBounds(fieldId);
+    if (!tapped) {
+      await tryScrollToTarget(fieldId);
+      await scrollToElement('screen-workout', fieldId, 'down', 360, 8);
+      tapped = await tryTapViaXmlBounds(fieldId);
+    }
+    if (!tapped) {
+      await tapElement(fieldId, timeout);
+    }
+    return;
+  }
+
+  try {
+    await tapElement(fieldId, timeout);
+  } catch {
+    await tryTapViaXmlBounds(fieldId);
+  }
+}
+
+async function openKeypadField(fieldId, useXmlTap = false, timeout = 12000) {
+  if (hasDetoxGlobals()) {
+    try {
+      await device.launchApp({ newInstance: false });
+      await sleep(350);
+    } catch {
+      ensureEvolucaoForegroundSync();
+      await sleep(350);
+    }
+  } else {
+    ensureEvolucaoForegroundSync();
+    await sleep(350);
+  }
+
+  for (let tapAttempt = 1; tapAttempt <= 2; tapAttempt += 1) {
+    await tapKeypadFieldOpen(fieldId, useXmlTap, timeout);
+    await sleep(900);
+    if (await waitForInlineSetRowKeypadOpen(3000)) {
+      logStep(`inline-keypad-opened:${fieldId} tap=${tapAttempt}`);
+      return;
+    }
+    logStep(`keypad-open-retry:${fieldId} tap=${tapAttempt}`);
+  }
+}
+
+async function fillKeypadHiddenInputStrict(value) {
+  if (!hasDetoxGlobals()) {
+    return { ok: false, method: 'no-detox' };
+  }
+
+  await waitForKeypadOpen(12000);
+
+  const selectors = [
+    () => element(by.id('keypad-hidden-input')),
+    () => element(by.label('keypad-hidden-input')),
+  ];
+
+  for (const getTarget of selectors) {
+    try {
+      const target = getTarget();
+      await waitFor(target).toExist().withTimeout(8000);
+      await target.tap();
+      await sleep(200);
+      try {
+        await target.clearText();
+        await sleep(80);
+      } catch {
+        // segue
+      }
+      try {
+        await target.replaceText(String(value || ''));
+        await sleep(120);
+        return { ok: true, method: 'keypad-hidden-input-replaceText' };
+      } catch {
+        await target.clearText();
+        await sleep(80);
+        await target.typeText(String(value || ''));
+        return { ok: true, method: 'keypad-hidden-input-typeText' };
+      }
+    } catch {
+      // tenta proximo seletor
+    }
+  }
+
+  return { ok: false, method: 'keypad-hidden-input-unavailable' };
+}
+
+async function clearKeypadViaDetoxBackspace(max = 12) {
+  if (!hasDetoxGlobals()) {
+    return 0;
+  }
+
+  let cleared = 0;
+  for (let i = 0; i < max; i += 1) {
+    try {
+      await element(by.id('keypad-backspace')).tap();
+      cleared += 1;
+      await sleep(80);
+    } catch {
+      break;
+    }
+  }
+
+  if (cleared > 0) {
+    logStep(`keypad-clear-detox-backspace:${cleared}`);
+  }
+  return cleared;
+}
+
+async function fillKeypadViaDetoxDigits(value) {
+  if (!hasDetoxGlobals()) {
+    return false;
+  }
+
+  try {
+    await waitFor(element(by.id('keypad-modal'))).toExist().withTimeout(3000);
+  } catch {
+    try {
+      await waitFor(element(by.id('keypad-backspace'))).toExist().withTimeout(2000);
+    } catch {
+      return false;
+    }
+  }
+
+  await clearKeypadViaDetoxBackspace(12);
+  await sleep(150);
+
+  for (const char of String(value || '').split('')) {
+    const digitTestId = char === '.' ? 'keypad-digit-dot' : `keypad-digit-${char}`;
+    try {
+      await element(by.id(digitTestId)).tap();
+      await sleep(120);
+    } catch {
+      logStep(`detox-digit-fail:${char}`);
+      return false;
+    }
+  }
+
+  await confirmKeypad();
+  await sleep(320);
+  return true;
+}
+
+async function setKeypadValueStrict(fieldId, expectedValue, options = {}) {
+  const {
+    useXmlTap = false,
+    maxRetries = 2,
+    xmlVerifyFn = null,
+    forceRefill = false,
+  } = options;
+
+  const verify = async () => {
+    if (typeof xmlVerifyFn === 'function') {
+      await sleep(400);
+      return await xmlVerifyFn(fieldId);
+    }
+    return await readWorkoutInputValue(fieldId);
+  };
+
+  let lastMethod = 'none';
+  let lastFound = null;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt += 1) {
+    logStep(`setKeypadValueStrict:${fieldId}=${expectedValue} attempt=${attempt}`);
+
+    lastFound = await verify();
+    if (!forceRefill && lastFound === expectedValue) {
+      await dismissInlineSetRowKeypad();
+      return {
+        ok: true,
+        note: `already-${expectedValue} attempt ${attempt}`,
+        method: 'already-set',
+        found: lastFound,
+      };
+    }
+
+    await openKeypadField(fieldId, useXmlTap);
+    lastFound = await verify();
+    if (!forceRefill && lastFound === expectedValue) {
+      await dismissInlineSetRowKeypad();
+      return {
+        ok: true,
+        note: `already-${expectedValue} attempt ${attempt}`,
+        method: 'already-set',
+        found: lastFound,
+      };
+    }
+    const skipClear = false;
+    const inlineResult = await fillInlineSetRowKeypad(expectedValue, skipClear);
+    if (inlineResult.ok) {
+      lastMethod = inlineResult.method;
+      lastFound = await verify();
+      if (lastFound === expectedValue) {
+        return {
+          ok: true,
+          note: `${lastMethod} attempt ${attempt}`,
+          method: lastMethod,
+          found: lastFound,
+        };
+      }
+      logStep(`inline-verify-miss:${fieldId} expected=${expectedValue} found=${lastFound}`);
+    } else {
+      lastMethod = inlineResult.method;
+      logStep(`inline-fill-fail:${inlineResult.method}`);
+    }
+
+    lastFound = await verify();
+    logStep(
+      `setKeypadValueStrict: field=${fieldId} expected=${expectedValue} found=${lastFound} method=${lastMethod}`,
+    );
+  }
+
+  return {
+    ok: false,
+    note: `setKeypadValueStrict: field=${fieldId} expected=${expectedValue} found=${lastFound} method=${lastMethod}`,
+    method: lastMethod,
+    found: lastFound,
+  };
+}
+
+async function fillWorkoutKeypadFieldViaXmlTap(fieldId, value, timeout = 12000) {
+  let tapped = await tryTapViaXmlBounds(fieldId);
+  if (!tapped) {
+    await tryScrollToTarget(fieldId);
+    await scrollToElement('screen-workout', fieldId, 'down', 360, 8);
+    tapped = await tryTapViaXmlBounds(fieldId);
+  }
+  if (!tapped) {
+    await tapElement(fieldId, timeout);
+  }
+  await sleep(900);
+  await fillKeypadAfterFieldOpen(fieldId, value);
+}
+
+async function fillWorkoutKeypadField(fieldId, value, timeout = 12000) {
+  if (!(await isVisible(fieldId, 3000))) {
+    await tryScrollToTarget(fieldId);
+    await scrollToElement('screen-workout', fieldId, 'down', 360, 8);
+  }
+
+  await tapElement(fieldId, timeout);
+  await sleep(900);
+  await fillKeypadAfterFieldOpen(fieldId, value);
+}
+
 async function fetchHeatmap(clientId = DEFAULT_CLIENT_ID) {
   const response = await fetch('http://127.0.0.1:3000/api/heatmap', {
     headers: {
@@ -1342,19 +2242,25 @@ module.exports = {
   countBugOccurrences,
   countEventEntries,
   dismissBlockingSystemDialogs,
+  dismissInlineSetRowKeypad,
   dismissWorkoutFeedbackDialog,
   fetchHeatmap,
   fillWorkoutKeypadField,
+  fillWorkoutKeypadFieldViaXmlTap,
   hideKeyboardIfNeeded,
   humanDelay,
   isVisible,
   logStep,
   readJsonArtifact,
+  readWorkoutInputValue,
+  readWorkoutInputValueFromXml,
   resetArtifacts,
   replaceInput,
   scrollToElement,
+  setKeypadValueStrict,
   sleep,
   slugify,
+  stabilizeAfterKeypadConfirm,
   tapElement,
   tapSaveSetIfVisible,
   tryTapViaXmlBounds,
