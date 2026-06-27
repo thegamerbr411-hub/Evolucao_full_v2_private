@@ -27,7 +27,7 @@ function buildConfirmationMessage(oldName, newName, {
   const safeNewName = resolveExerciseDisplayName(newName, 'outro exercicio');
 
   if (hasSavedSets) {
-    let message = `Voce ja registrou series em ${safeOldName}. Elas serao mantidas no historico desse exercicio e nao serao transferidas para ${safeNewName}.`;
+    let message = `Você já registrou séries em ${safeOldName}. Elas serão mantidas no histórico desse exercício e não serão transferidas para ${safeNewName}.`;
     if (hasDraftSets) {
       message += ' Os dados nao salvos do exercicio atual serao descartados.';
     }

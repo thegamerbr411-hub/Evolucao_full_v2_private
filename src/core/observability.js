@@ -1505,7 +1505,7 @@ export function getCoachContextualMessage() {
     return {
       tone: 'reengage',
       title: 'Hora de voltar',
-      message: `Voce ficou ${Math.round(inactivityHours)}h sem registrar atividade. Vamos com um treino curto hoje?`,
+      message: `Você ficou ${Math.round(inactivityHours)}h sem registrar atividade. Vamos com um treino curto hoje?`,
       cta: 'Ativar rotina de 15 min',
       routeName: 'TreinoHoje',
     };

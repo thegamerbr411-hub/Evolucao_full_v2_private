@@ -204,7 +204,7 @@ export default function DayAnalysisScreen({ navigation, route }) {
           />
           <Text style={styles.macroFeedback}>{insight?.macroInsight?.message}</Text>
           <Text style={styles.macroCoachFeedback}>{humanMacroFeedback(insight?.macroInsight)}</Text>
-          <Text style={styles.autoSaved}>Analise salva automaticamente no historico.</Text>
+          <Text style={styles.autoSaved}>Análise salva automaticamente no histórico.</Text>
           {shouldShowPostValueUpsell ? (
             <View style={styles.upsellWrap}>
               <Text style={styles.upsellText}>Quer acelerar esse resultado? Desbloqueie ajuste completo com PRO.</Text>

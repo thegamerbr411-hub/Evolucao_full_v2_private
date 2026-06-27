@@ -184,14 +184,14 @@ export default function AutoCoachScreen({ navigation }) {
         <MissionCard key={mission.id} mission={mission} onComplete={handleComplete} />
       ))}
 
-      <Text style={[styles.sectionTitle, styles.sectionTop]}>Ajustes automaticos</Text>
+      <Text style={[styles.sectionTitle, styles.sectionTop]}>Ajustes automáticos</Text>
       {!coach.hasData ? (
         <AppCard style={styles.emptyCard}>
           <Text style={styles.emptyText}>{coach.message}</Text>
         </AppCard>
       ) : coach.suggestions.length === 0 ? (
         <AppCard style={styles.emptyCard}>
-          <Text style={styles.emptyText}>Seus macros e treinos estao dentro do esperado esta semana. Continue assim.</Text>
+          <Text style={styles.emptyText}>Seus macros e treinos estão dentro do esperado esta semana. Continue assim.</Text>
         </AppCard>
       ) : (
         <>

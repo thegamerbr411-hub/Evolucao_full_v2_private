@@ -1025,7 +1025,7 @@ export default function WorkoutScreen({ navigation, route }) {
       const paywallPayload = {
         featureKey: 'auto_coach',
         source: paywallTimingVariant === 'B' ? 'post_workout_insight' : 'post_workout',
-        message: 'Treino completo, mas voce ainda esta treinando no escuro. O Auto Coach ajusta seu treino automaticamente.',
+        message: 'Treino completo, mas você ainda está treinando no escuro. O Auto Coach ajusta seu treino automaticamente.',
         paywallExperiment: {
           key: PAYWALL_TIMING_EXPERIMENT_KEY,
           variant: paywallTimingVariant,

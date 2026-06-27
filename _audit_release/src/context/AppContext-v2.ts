@@ -463,7 +463,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     if (analyzedDays < 3 || !plan) {
       return {
         canApply: false,
-        message: 'Registre mais dias para ajuste automatico.',
+        message: 'Registre mais dias para ajuste automático.',
       };
     }
 
@@ -664,8 +664,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       urgency: missingProtein > 35 || didTrainToday ? 'media' : 'ok',
       title: `Faltam ${missingProtein}g de proteina hoje`,
       message: didTrainToday
-        ? 'Voce treinou hoje. Priorize proteina agora para acelerar recuperacao e performance.'
-        : 'Ainda da para bater a meta com uma refeicao simples e rapida.',
+        ? 'Você treinou hoje. Priorize proteína agora para acelerar recuperação e performance.'
+        : 'Ainda dá para bater a meta com uma refeição simples e rápida.',
       suggestion,
       missingProtein,
     };
@@ -711,7 +711,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         ? `Faltam ${remaining} treino(s) para fechar sua meta semanal.`
         : 'Meta semanal concluida. Mantenha execucao para consolidar progresso.',
       urgencyMessage: remaining > 2
-        ? 'Voce esta atrasado na semana — vale um treino mais curto hoje.'
+        ? 'Você está atrasado na semana — vale um treino mais curto hoje.'
         : remaining === 1
         ? 'Mais um treino e voce fecha a semana!'
         : remaining === 0
@@ -1405,7 +1405,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     () => ({
       buildDailyCoachState,
       buildCoachMessage,
-      getAutoCoachSuggestions: () => ({ hasData: false, suggestions: [], message: 'Sem dados para ajustes automaticos agora.' }),
+      getAutoCoachSuggestions: () => ({ hasData: false, suggestions: [], message: 'Sem dados para ajustes automáticos agora.' }),
       applyMacroOverride: () => {},
       getDailyMissions: () => [],
       completeMission: () => {},
