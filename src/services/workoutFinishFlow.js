@@ -4,7 +4,7 @@ export { canFinishWorkout };
 
 export const INCOMPLETE_EXIT_CONFIRMATION = {
   title: 'Treino em andamento',
-  message: 'Voce ainda tem series pendentes. Deseja sair e salvar o progresso?',
+  message: 'Você ainda tem séries pendentes. Deseja sair e salvar o progresso?',
   cancelLabel: 'Continuar treino',
   confirmLabel: 'Sair e salvar progresso',
 };

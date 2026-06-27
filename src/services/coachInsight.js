@@ -45,13 +45,13 @@ export function generateCoachInsight(userData = {}) {
     actions.push('Inicie um treino curto de 25 a 35 min ainda hoje.');
   }
   if (proteinGap > 0) {
-    actions.push(`Feche ${proteinGap}g de proteina com uma refeicao forte ou shake.`);
+    actions.push(`Feche ${proteinGap}g de proteína com uma refeição forte ou shake.`);
   }
   if (waterGap > 0) {
     actions.push(`Beba mais ${Math.min(700, waterGap)}ml agora para reduzir o gap de agua.`);
   }
   if (weakMeals > 0) {
-    actions.push(`Voce teve ${weakMeals} refeicao(oes) fraca(s) em proteina. Corrija a proxima.`);
+    actions.push(`Você teve ${weakMeals} refeição(ões) fraca(s) em proteína. Corrija a próxima.`);
   }
   if (!hasRoutine) {
     actions.push('Salve ao menos uma rotina para nao depender de decisoes no dia.');

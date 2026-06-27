@@ -87,11 +87,11 @@ class ExerciseDetailErrorBoundary extends React.PureComponent {
 
     return (
       <ScrollView {...qaAliasProps(QA_SCREENS.exerciseDetail, 'screen-exercise-detail-fallback')} contentContainerStyle={styles.container}>
-        <ScreenHeader title="Detalhe do exercicio" subtitle="Modo seguro ativado para manter a navegacao." onBack={() => navigation.goBack()} />
+        <ScreenHeader title="Detalhe do exercício" subtitle="Modo seguro ativado para manter a navegação." onBack={() => navigation.goBack()} />
         <AppCard>
           <Text style={styles.sectionTitle}>Tela recuperada</Text>
           <Text style={styles.bodyText}>
-            Encontramos uma instabilidade inesperada e aplicamos fallback automatico. Voce pode voltar sem perder a sessao.
+            Encontramos uma instabilidade inesperada e aplicamos fallback automático. Você pode voltar sem perder a sessão.
           </Text>
         </AppCard>
 

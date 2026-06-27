@@ -467,7 +467,7 @@ export default function HomeScreen({ navigation }) {
           postValuePaywall: {
             featureKey: 'auto_coach',
             source: 'home_insights',
-            message: 'Veja seus insights e destrave o plano PRO para receber ajuste automatico semanal.',
+            message: 'Veja seus insights e destrave o plano PRO para receber ajuste automático semanal.',
             paywallExperiment: {
               key: 'paywall_timing',
               variant: 'B',

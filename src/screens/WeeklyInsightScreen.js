@@ -44,7 +44,7 @@ export default function WeeklyInsightScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <ScreenHeader title="IA da Semana" subtitle="Diagnostico comportamental com base nos ultimos 7 dias." />
+      <ScreenHeader title="IA da Semana" subtitle="Diagnóstico comportamental com base nos últimos 7 dias." />
 
       <AppCard>
         <Text style={styles.scoreLabel}>Consistency Score</Text>
@@ -61,14 +61,14 @@ export default function WeeklyInsightScreen() {
       </AppCard>
 
       <AppCard>
-        <Text style={styles.sectionTitle}>Diagnostico</Text>
+        <Text style={styles.sectionTitle}>Diagnóstico</Text>
         <Text style={styles.paragraph}>{insight.diagnosis}</Text>
-        <Text style={[styles.sectionTitle, styles.recommendationTitle]}>Recomendacao pratica</Text>
+        <Text style={[styles.sectionTitle, styles.recommendationTitle]}>Recomendação prática</Text>
         <Text style={styles.paragraph}>{insight.recommendation}</Text>
       </AppCard>
 
       <AppCard>
-        <Text style={styles.sectionTitle}>Ajuste automatico da proxima semana</Text>
+        <Text style={styles.sectionTitle}>Ajuste automático da próxima semana</Text>
         <Text style={styles.line}>{adjustment.message}</Text>
 
         {adjustment.canApply ? (
@@ -77,7 +77,7 @@ export default function WeeklyInsightScreen() {
             <Text style={styles.line}>Nova meta: {adjustment.newCalories} kcal</Text>
             <Text style={styles.line}>Treino: {adjustment.trainingAdjustment}</Text>
 
-            <PrimaryButton title="Aplicar ajuste automatico" onPress={handleApply} style={styles.button} />
+            <PrimaryButton title="Aplicar ajuste automático" onPress={handleApply} style={styles.button} />
           </>
         ) : null}
 

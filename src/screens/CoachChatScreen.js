@@ -65,7 +65,7 @@ function extractCoachAction(text) {
   
   if (lower.includes('treino')) actions.push({ label: '💪 Iniciar treino', intent: 'training' });
   if (lower.includes('proteina') || lower.includes('refeicao')) actions.push({ label: '🍗 Registrar refeição', intent: 'nutrition' });
-  if (lower.includes('agua') || lower.includes('hidrat')) actions.push({ label: '💧 Beber agua', intent: 'water' });
+  if (lower.includes('agua') || lower.includes('hidrat')) actions.push({ label: '💧 Beber água', intent: 'water' });
   if (lower.includes('rotina') || lower.includes('semana')) actions.push({ label: '📋 Ver rotina', intent: 'routine' });
   if (lower.includes('progresso') || lower.includes('evolucao')) actions.push({ label: '📊 Ver progresso', intent: 'progress' });
   
@@ -197,15 +197,15 @@ function getDayPeriod() {
 
 function getTransitionMessage(lastIntent, currentIntent, context) {
   if (lastIntent === 'missed_workout' && currentIntent === 'nutrition') {
-    return `Ja que voce nao treinou hoje, capricha na proteina agora. Faltam ${Math.max(0, context.proteinTarget - context.proteinToday)}g para fechar melhor o dia.`;
+    return `Já que você não treinou hoje, capricha na proteína agora. Faltam ${Math.max(0, context.proteinTarget - context.proteinToday)}g para fechar melhor o dia.`;
   }
 
   if (lastIntent === 'nutrition' && currentIntent === 'training') {
-    return 'Boa sequencia. Nutriu e agora o treino rende mais. Vamos para um bloco objetivo de treino.';
+    return 'Boa sequência. Nutriu e agora o treino rende mais. Vamos para um bloco objetivo de treino.';
   }
 
   if (lastIntent === 'hydration' && currentIntent === 'training') {
-    return 'Hidratacao alinhada ajuda performance. Agora vale iniciar o treino principal.';
+    return 'Hidratação alinhada ajuda performance. Agora vale iniciar o treino principal.';
   }
 
   return '';
@@ -217,41 +217,41 @@ function getCoachMultiIntentReply(intents, context) {
   const next = [];
 
   if (intents.includes('training') || intents.includes('late_workout')) {
-    done.push(context.trainedToday ? 'Voce ja treinou hoje.' : 'Treino de hoje ainda nao foi concluido.');
+    done.push(context.trainedToday ? 'Você já treinou hoje.' : 'Treino de hoje ainda não foi concluído.');
     if (!context.trainedToday) {
       missing.push(`Semana em ${context.smart.trainedThisWeek}/${context.smart.weeklyTarget}.`);
-      next.push('Faca um treino curto agora para nao acumular.');
+      next.push('Faça um treino curto agora para não acumular.');
     }
   }
 
   if (intents.includes('nutrition')) {
     const proteinGap = Math.max(0, context.proteinTarget - context.proteinToday);
-    done.push(`Proteina atual: ${context.proteinToday}g.`);
+    done.push(`Proteína atual: ${context.proteinToday}g.`);
     if (proteinGap > 0) {
-      missing.push(`Faltam ${proteinGap}g de proteina.`);
+      missing.push(`Faltam ${proteinGap}g de proteína.`);
       next.push('Coloque uma refeição proteica ainda hoje.');
     }
   }
 
   if (intents.includes('hydration')) {
     const waterGap = Math.max(0, context.waterTarget - context.waterToday);
-    done.push(`Agua atual: ${context.waterToday}ml.`);
+    done.push(`Água atual: ${context.waterToday}ml.`);
     if (waterGap > 0) {
-      missing.push(`Faltam ${waterGap}ml de agua.`);
-      next.push('Beba +300ml agora e repita no proximo bloco do dia.');
+      missing.push(`Faltam ${waterGap}ml de água.`);
+      next.push('Beba +300ml agora e repita no próximo bloco do dia.');
     }
   }
 
   if (intents.includes('routine')) {
-    missing.push('Rotina da semana precisa de execucao consistente.');
-    next.push('Defina os proximos 2 treinos e cumpra em dias alternados.');
+    missing.push('Rotina da semana precisa de execução consistente.');
+    next.push('Defina os próximos 2 treinos e cumpra em dias alternados.');
   }
 
-  const doneText = done.length ? done.join(' ') : 'Voce ja comecou bem hoje.';
-  const missingText = missing.length ? missing.join(' ') : 'Nada critico pendente no momento.';
-  const nextText = next.length ? next[0] : 'Mantenha o plano atual e execute o proximo bloco.';
+  const doneText = done.length ? done.join(' ') : 'Você já começou bem hoje.';
+  const missingText = missing.length ? missing.join(' ') : 'Nada crítico pendente no momento.';
+  const nextText = next.length ? next[0] : 'Mantenha o plano atual e execute o próximo bloco.';
 
-  return `Ja foi feito: ${doneText} Falta: ${missingText} Agora: ${nextText}`;
+  return `Já foi feito: ${doneText} Falta: ${missingText} Agora: ${nextText}`;
 }
 
 function getCoachReply(message, context, turnIndex, memory) {
@@ -265,7 +265,7 @@ function getCoachReply(message, context, turnIndex, memory) {
 
   if (intent === 'greeting') {
     return getMessageVariant([
-      'Oi. Tamo junto hoje. Quer foco em treino, proteina ou agua?',
+      'Oi. Tamo junto hoje. Quer foco em treino, proteína ou água?',
       'Fala. Me diz seu foco agora que eu te passo a ação direta.',
       'Boa. Vamos resolver o próximo passo do seu dia.'
     ], seed);
@@ -293,7 +293,7 @@ function getCoachReply(message, context, turnIndex, memory) {
     if (normalizedMessage.includes('agua') || normalizedMessage.includes('hidrat')) {
       const intro = getMessageVariant([
         'Boa chamada. Agua muda sua energia na hora.',
-        'Perfeito. Isso impacta treino e recuperacao.',
+        'Perfeito. Isso impacta treino e recuperação.',
         'Vamos ajustar rapido e seguir.'
       ], seed);
       const gap = Math.max(0, context.waterTarget - context.waterToday);
@@ -333,14 +333,14 @@ function getCoachReply(message, context, turnIndex, memory) {
   }
 
   if (intent === 'help') {
-    const nextAction = context.trainedToday ? 'fechar agua e proteina' : 'iniciar treino de hoje';
-    return `Eu te ajudo com foco em treino, nutricao e progresso. Se quiser, me diga: "montar treino", "quanto falta de proteina" ou "como esta meu progresso". Agora, sua melhor acao e ${nextAction}.`;
+    const nextAction = context.trainedToday ? 'fechar água e proteína' : 'iniciar treino de hoje';
+    return `Eu te ajudo com foco em treino, nutrição e progresso. Se quiser, me diga: "montar treino", "quanto falta de proteina" ou "como esta meu progresso". Agora, sua melhor ação é ${nextAction}.`;
   }
 
   const contextSuggestion = context.trainedToday
-    ? 'fechar proteina ou agua'
+    ? 'fechar proteína ou água'
     : 'iniciar treino agora';
-  return `Pode me dizer mais? Temas que entendo: treino, proteina, agua, progresso, rotina. Agora, sua melhor acao e ${contextSuggestion}.`;
+  return `Pode me dizer mais? Temas que entendo: treino, proteína, água, progresso, rotina. Agora, sua melhor ação é ${contextSuggestion}.`;
 }
 
 function buildPainSafetyLine(pain = '') {
@@ -643,7 +643,7 @@ export default function CoachChatScreen({ navigation }) {
     if (hour >= 20 && proteinLeft > 40) {
       triggerCandidates.push({
         key: 'night_high_protein_gap',
-        text: 'Noite: faltam mais de 40g de proteina. Se dormir assim, sua recuperacao pode ficar abaixo do ideal.',
+        text: 'Noite: faltam mais de 40g de proteína. Se dormir assim, sua recuperação pode ficar abaixo do ideal.',
       });
     }
 
@@ -719,7 +719,7 @@ export default function CoachChatScreen({ navigation }) {
     let tunedReply = baseReply;
     const recentActions = Array.isArray(memory.lastActions) ? memory.lastActions.slice(-4).join(' ') : '';
     if (recentActions.includes('water') && intent === 'nutrition' && normalizedMessage.includes('agua')) {
-      tunedReply = 'Ja foi feito: voce adicionou agua recentemente. Falta: manter ritmo em blocos menores. Agora: apenas +100ml na proxima hora.';
+      tunedReply = 'Já foi feito: você adicionou água recentemente. Falta: manter ritmo em blocos menores. Agora: apenas +100ml na próxima hora.';
     }
 
     let composedMessage = [tunedReply, contextInsight, painSafety].filter(Boolean).join(' ');
@@ -836,7 +836,7 @@ export default function CoachChatScreen({ navigation }) {
 
   const renderCoachHeader = useCallback(() => (
     <>
-      <ScreenHeader title="Coach Diario" subtitle="Conversa orientada pelo seu treino, agua e macros do dia." />
+      <ScreenHeader title="Coach Diário" subtitle="Conversa orientada pelo seu treino, água e macros do dia." />
 
       <AppCard style={[styles.coachCard, { borderColor: urgencyUI.borderColor, backgroundColor: urgencyUI.backgroundColor }]}>
         <Text style={styles.urgencyBadge}>{urgencyUI.badge}</Text>
