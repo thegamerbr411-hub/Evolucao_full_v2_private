@@ -7,11 +7,13 @@ import { ExerciseExecutionCta } from '../exercise/ExerciseExecutionCta';
 import { ExerciseMediaFallback } from '../exercise/ExerciseMediaFallback';
 import { resolveExerciseMedia } from '../../utils/exerciseMedia';
 import { buildWorkoutSetRowState } from '../../services/workoutSetRowState.js';
+import { resolvePreviousSetForRow } from '../../services/workoutPreviousSetCopy.js';
 import { SetRow } from './SetRow';
 
 export const ExerciseCard = React.memo(function ExerciseCard({
   exercise,
   lastSet,
+  lastHistoricalSet,
   simpleMode,
   isSaving = false,
   onChangeSet,
@@ -44,6 +46,15 @@ export const ExerciseCard = React.memo(function ExerciseCard({
     return pendingIndex >= 0 ? pendingIndex : safeSets.length;
   }, [safeSets]);
 
+  const todaySetsForPrevious = useMemo(
+    () => safeSets.map((setItem) => ({
+      weight: setItem?.weight,
+      reps: setItem?.reps,
+      done: Boolean(setItem?.done),
+    })),
+    [safeSets]
+  );
+
   const renderSetRow = React.useCallback((setItem, index) => {
     const resolvedSetIndex = Number.isInteger(setItem?.index) ? setItem.index : index;
     const canComplete = resolvedSetIndex === nextPendingSetIndex;
@@ -60,6 +71,13 @@ export const ExerciseCard = React.memo(function ExerciseCard({
       isCardio: exercise?.category === 'cardio',
     });
 
+    const previousLabel = resolvePreviousSetForRow({
+      setIndex: resolvedSetIndex,
+      todaySets: todaySetsForPrevious,
+      lastHistoricalSet,
+      isCardio: exercise?.category === 'cardio',
+    });
+
     return (
       <SetRow
         key={setItem?.id || `${safeExerciseName}-${resolvedSetIndex}`}
@@ -69,6 +87,7 @@ export const ExerciseCard = React.memo(function ExerciseCard({
         isCardio={exercise?.category === 'cardio'}
         rowState={rowState}
         isSaving={isSaving}
+        previousLabel={previousLabel}
         onChange={(field, value) => {
           if (typeof onChangeSet !== 'function' || !safeExerciseName) {
             return;
@@ -84,7 +103,7 @@ export const ExerciseCard = React.memo(function ExerciseCard({
         testIDs={typeof testIDs === 'function' ? testIDs(setItem, resolvedSetIndex) : {}}
       />
     );
-  }, [exercise?.category, isSaving, nextPendingSetIndex, onChangeSet, onCompleteSet, safeExerciseName, simpleMode, testIDs]);
+  }, [exercise?.category, isSaving, lastHistoricalSet, nextPendingSetIndex, onChangeSet, onCompleteSet, safeExerciseName, simpleMode, testIDs, todaySetsForPrevious]);
 
   return (
     <AppCard>

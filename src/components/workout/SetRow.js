@@ -18,6 +18,7 @@ export const SetRow = memo(function SetRow({
   isCardio,
   rowState,
   isSaving = false,
+  previousLabel,
   testIDs,
 }) {
   const buttonScaleAnim = useRef(new Animated.Value(1)).current;
@@ -141,10 +142,26 @@ export const SetRow = memo(function SetRow({
         ? styles.statusInvalid
         : styles.statusPending;
 
+  const resolvedPreviousLabel = String(previousLabel ?? '—');
+
   return (
     <View style={styles.wrapper}>
       <View style={styles.row}>
         <Text style={styles.index}>{index + 1}</Text>
+
+        <View style={styles.previousCell}>
+          <Text style={styles.previousLabel}>Ant.</Text>
+          <Text
+            testID={testIDs?.previous}
+            style={[
+              styles.previousValue,
+              resolvedPreviousLabel === '—' ? styles.previousValueEmpty : null,
+            ]}
+            numberOfLines={1}
+          >
+            {resolvedPreviousLabel}
+          </Text>
+        </View>
 
         <TouchableOpacity
           testID={testIDs?.weight}
@@ -193,6 +210,7 @@ export const SetRow = memo(function SetRow({
               disabled={!safeRowState.canSave}
               accessibilityRole="button"
               accessibilityLabel={safeRowState.accessibilityLabel}
+              accessibilityState={{ checked: safeRowState.status === 'saved' }}
               style={[
                 styles.button,
                 safeRowState.status === 'saved' ? styles.buttonSaved : null,
@@ -255,6 +273,25 @@ const styles = StyleSheet.create({
     width: 24,
     color: colors.textSecondary,
     fontWeight: '700',
+  },
+  previousCell: {
+    width: 72,
+    minWidth: 72,
+  },
+  previousLabel: {
+    color: colors.textSecondary,
+    fontSize: 9,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  previousValue: {
+    color: colors.textPrimary,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  previousValueEmpty: {
+    color: colors.textSecondary,
   },
   input: {
     width: 64,

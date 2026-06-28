@@ -101,8 +101,11 @@ import {
   migrateSetCountForSwap,
 } from '../services/workoutExerciseSwap';
 import { buildWorkoutProgressCopy } from '../services/workoutProgressCopy';
+import { buildWorkoutSessionStatsCopy } from '../services/workoutSessionStatsCopy';
+import { resolvePreviousSetForRow } from '../services/workoutPreviousSetCopy';
 import { buildWorkoutModePresentation } from '../services/workoutModeCopy';
 import { buildWorkoutSetRowState } from '../services/workoutSetRowState';
+import { WorkoutSessionStatsBar } from '../components/workout/WorkoutSessionStatsBar';
 import {
   buildWorkoutSetInputDisplay,
   normalizeSetFieldValue,
@@ -388,6 +391,38 @@ export default function WorkoutScreen({ navigation, route }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const sessionStartedAtRef = useRef(Date.now());
   const emptyExerciseListLoggedRef = useRef(false);
+
+  const [sessionStatsNow, setSessionStatsNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (allExercises.length <= 0) {
+      return undefined;
+    }
+
+    const intervalId = setInterval(() => {
+      setSessionStatsNow(Date.now());
+    }, 30000);
+
+    return () => clearInterval(intervalId);
+  }, [allExercises.length]);
+
+  const sessionStatsCopy = useMemo(
+    () => buildWorkoutSessionStatsCopy({
+      startedAtMs: sessionStartedAtRef.current,
+      nowMs: sessionStatsNow,
+      completedSets: computedGuidedSets,
+      plannedSets: computedPlannedSets,
+      exerciseIndex: activeExerciseIndex,
+      totalExercises: allExercises.length,
+    }),
+    [
+      sessionStatsNow,
+      computedGuidedSets,
+      computedPlannedSets,
+      activeExerciseIndex,
+      allExercises.length,
+    ]
+  );
   
   // BLOCO 1: Animação + Recompensa
   const xpFloatAnimY = useRef(new Animated.Value(0)).current;
@@ -2677,6 +2712,14 @@ export default function WorkoutScreen({ navigation, route }) {
 
 
 
+        {allExercises.length > 0 ? (
+          <WorkoutSessionStatsBar
+            durationLabel={sessionStatsCopy.durationLabel}
+            setsLabel={sessionStatsCopy.setsLabel}
+            exerciseLabel={sessionStatsCopy.exerciseLabel}
+          />
+        ) : null}
+
         <View style={styles.progressHeaderWrap}>
           <Text testID="workout-progress-label" style={styles.progressHeaderText}>
             {progressCopy.workoutProgressLabel}
@@ -2861,6 +2904,7 @@ export default function WorkoutScreen({ navigation, route }) {
                     gif: safeGetExerciseMetaByName(exercise.name)?.gif,
                   }}
                   lastSet={lastSetLabel}
+                  lastHistoricalSet={lastSet}
                   simpleMode={simpleMode}
                   isSaving={isSavingWorkout}
                   onChangeSet={handleChangeSet}
@@ -3118,6 +3162,17 @@ export default function WorkoutScreen({ navigation, route }) {
                 const draft = { weight: row.weight, reps: row.reps, rpe: row.rpe };
                 const canSave = setIndex === todaySets.length;
                 const suggestedWeight = suggestedWeightByExercise[exercise.name] || '';
+                const todaySetsForPrevious = unifiedSetRows.map((entry) => ({
+                  weight: entry.saved ? entry.saved.weight : entry.weight,
+                  reps: entry.saved ? entry.saved.reps : entry.reps,
+                  done: Boolean(entry.saved),
+                }));
+                const previousLabel = resolvePreviousSetForRow({
+                  setIndex,
+                  todaySets: todaySetsForPrevious,
+                  lastHistoricalSet: getLastSetForExercise(exercise.name),
+                  isCardio,
+                });
                 const rowState = buildWorkoutSetRowState({
                   weight: saved ? saved.weight : draft.weight,
                   reps: saved ? saved.reps : draft.reps,
@@ -3152,13 +3207,28 @@ export default function WorkoutScreen({ navigation, route }) {
                   >
                     <View style={styles.setLabelRow}>
                       <Text style={styles.setLabel}>{setIndex + 1}S</Text>
+                      <View style={styles.setPreviousInline}>
+                        <Text style={styles.setPreviousInlineLabel}>Ant.</Text>
+                        <Text
+                          testID={`set-previous-${exercise.id}-${setIndex}`}
+                          style={[
+                            styles.setPreviousInlineValue,
+                            previousLabel === '—' ? styles.setPreviousInlineEmpty : null,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {previousLabel}
+                        </Text>
+                      </View>
                       <View style={[
                         styles.setStatusChip,
                         rowState.status === 'saved' ? styles.setStatusChipSaved : null,
                         rowState.status === 'ready' ? styles.setStatusChipReady : null,
                         rowState.status === 'invalid' ? styles.setStatusChipInvalid : null,
                       ]}>
-                        <Text style={styles.setStatusChipText}>{rowState.label}</Text>
+                        <Text style={styles.setStatusChipText}>
+                          {rowState.status === 'saved' ? '✔ ' : ''}{rowState.label}
+                        </Text>
                       </View>
                     </View>
 
@@ -3287,6 +3357,8 @@ export default function WorkoutScreen({ navigation, route }) {
                             <TouchableOpacity
                               style={[styles.inlineBtn, styles.inlineBtnGood]}
                               testID={isActive && canSave ? 'btn-save-set' : `btn-save-set-${exercise.id}-${setIndex}`}
+                              accessibilityRole="button"
+                              accessibilityLabel={rowState.accessibilityLabel || rowState.actionLabel || 'Salvar serie'}
                               onPress={() => {
                                 workoutDevLog('SET_TAP', {
                                   exercise: exercise?.name,
@@ -4048,17 +4120,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 4,
   },
+  setLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.xxs,
+    paddingTop: 8,
+  },
+  setPreviousInline: {
+    flex: 1,
+    minWidth: 72,
+  },
+  setPreviousInlineLabel: {
+    color: colors.textSecondary,
+    fontSize: 9,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  setPreviousInlineValue: {
+    color: colors.textPrimary,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  setPreviousInlineEmpty: {
+    color: colors.textSecondary,
+  },
   setLabel: {
     width: 26,
     color: colors.textSecondary,
     fontWeight: '800',
     paddingTop: 12,
-  },
-  setLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingTop: 8,
   },
   setStatusChip: {
     borderRadius: 999,
