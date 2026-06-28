@@ -50,6 +50,13 @@ function formatQuantityLabel(quantity = 1, unit = 'x') {
   return `${safeQty}x`;
 }
 
+function getCategoryDisplayLabel(category) {
+  if (category === 'proteina') {
+    return 'proteína';
+  }
+  return category;
+}
+
 export default function NutritionScanner({ navigation, route }) {
   const {
     estimateNutritionFromText,
@@ -172,7 +179,7 @@ export default function NutritionScanner({ navigation, route }) {
     }
 
     setQuickMealText(suggested);
-    setMealFeedback('Atalho inteligente aplicado. Toque em "Montar refeicao" para salvar mais rapido.');
+    setMealFeedback('Atalho inteligente aplicado. Toque em "Montar refeição" para salvar mais rápido.');
 
     if (navigation?.setParams) {
       navigation.setParams({ prefillQuickMealText: undefined });
@@ -589,12 +596,12 @@ export default function NutritionScanner({ navigation, route }) {
         severity: 'low',
         extra: { itemCount: latestMealGroup.items.length },
       });
-      setMealFeedback('Nao foi possivel repetir a ultima refeicao.');
+      setMealFeedback('Não foi possível repetir a última refeição.');
       return;
     }
 
-    setMealFeedback(`Refeicao repetida com ${result.entries.length} item(ns).`);
-    showSuccessToast('Refeicao salva ✅');
+    setMealFeedback(`Refeição repetida com ${result.entries.length} item(ns).`);
+    showSuccessToast('Refeição salva ✅');
   };
 
   const pushResultItemsToDraft = () => {
@@ -637,7 +644,7 @@ export default function NutritionScanner({ navigation, route }) {
     if (source === 'camera') {
       const permission = await ImagePicker.requestCameraPermissionsAsync();
       if (!permission.granted) {
-        return { ok: false, message: 'Permissao da camera negada.' };
+        return { ok: false, message: 'Permissão da câmera negada.' };
       }
       const cameraResult = await ImagePicker.launchCameraAsync({ quality: 0.7, allowsEditing: true });
       if (cameraResult.canceled) {
@@ -648,7 +655,7 @@ export default function NutritionScanner({ navigation, route }) {
 
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      return { ok: false, message: 'Permissao da galeria negada.' };
+      return { ok: false, message: 'Permissão da galeria negada.' };
     }
     const libraryResult = await ImagePicker.launchImageLibraryAsync({ quality: 0.7, allowsEditing: true });
     if (libraryResult.canceled) {
@@ -717,9 +724,9 @@ export default function NutritionScanner({ navigation, route }) {
       const normalized = String(quickMealText || '').trim();
       const fallbackHint = normalized ? safeSearchFoodCatalog(normalized.split(/\s+/)[0]).slice(0, 3) : [];
       const suggestionText = fallbackHint.length
-        ? `Sugestoes: ${fallbackHint.map((f) => f.label).join(', ')}`
-        : 'Tente nomes como "arroz", "frango", "ovo", "pao".';
-      setMealFeedback(`Nao identifiquei alimentos. ${suggestionText}`);
+        ? `Sugestões: ${fallbackHint.map((f) => f.label).join(', ')}`
+        : 'Tente nomes como "arroz", "frango", "ovo", "pão".';
+      setMealFeedback(`Não identifiquei alimentos. ${suggestionText}`);
       return;
     }
     setQuickMealItems(parsed);
@@ -765,7 +772,7 @@ export default function NutritionScanner({ navigation, route }) {
           durationMs: Date.now() - startedAt,
         },
       });
-      setMealFeedback('Nao foi possivel salvar a refeicao rapida.');
+      setMealFeedback('Não foi possível salvar a refeição rápida.');
       return;
     }
 
@@ -788,8 +795,8 @@ export default function NutritionScanner({ navigation, route }) {
       proteinConsumed: projectedProtein,
       caloriesConsumed: projectedCalories,
     });
-    setMealFeedback(`🟢 Boa refeicao | +${Math.round(quickMealTotals.protein)}g proteina | faltam ${proteinGap}g hoje. ${projectedFeedback.suggestion}`);
-    showSuccessToast('Refeicao salva ✅');
+    setMealFeedback(`🟢 Boa refeição | +${Math.round(quickMealTotals.protein)}g proteína | faltam ${proteinGap}g hoje. ${projectedFeedback.suggestion}`);
+    showSuccessToast('Refeição salva ✅');
     setFoodSavedIndicatorVisible(true);
     setTimeout(() => setFoodSavedIndicatorVisible(false), 3000);
     setQuickMealItems([]);
@@ -868,15 +875,15 @@ export default function NutritionScanner({ navigation, route }) {
           durationMs: Date.now() - startedAt,
         },
       });
-      setMealFeedback('Nao foi possivel salvar a refeicao composta.');
+      setMealFeedback('Não foi possível salvar a refeição composta.');
       return;
     }
 
     if (result.quality) {
       const projectedFeedback = safeGetNutritionFeedback();
-      setMealFeedback(`${result.quality.emoji} ${result.quality.badge} - refeicao composta salva com sucesso. ${projectedFeedback.suggestion}`);
+      setMealFeedback(`${result.quality.emoji} ${result.quality.badge} - refeição composta salva com sucesso. ${projectedFeedback.suggestion}`);
     }
-    showSuccessToast('Refeicao salva ✅');
+    showSuccessToast('Refeição salva ✅');
 
     trackEvent('meal_draft_saved', {
       screen: SCREENS.NUTRITION,
@@ -916,7 +923,7 @@ export default function NutritionScanner({ navigation, route }) {
 
     const closeKey = `${todayDateKey}:${closeDayVariant}`;
     if (lastClosedDayKey === closeKey) {
-      setMealFeedback('Dia ja fechado hoje. Se quiser, ajuste com nova refeicao.');
+      setMealFeedback('Dia já fechado hoje. Se quiser, ajuste com nova refeição.');
       return;
     }
 
@@ -938,7 +945,7 @@ export default function NutritionScanner({ navigation, route }) {
 
     setLastClosedDayKey(closeKey);
     setMealFeedback('Dia fechado com 1 toque ✅');
-    showSuccessToast('Dia de nutricao fechado ✅');
+    showSuccessToast('Dia de nutrição fechado ✅');
     navigateWithTracking('AnaliseDia', {
       prefillCalories: Math.round(todayCalories),
       prefillProtein: Math.round(todayProtein),
@@ -992,7 +999,7 @@ export default function NutritionScanner({ navigation, route }) {
                   <Text style={styles.logMeta}>{item.quantity}x • {item.calories} kcal | P {item.protein}g | C {item.carbs}g | G {item.fats}g</Text>
                 </View>
                 <Text style={[styles.categoryBadge, item.category === 'proteina' ? styles.categoryProtein : item.category === 'carbo' ? styles.categoryCarb : styles.categoryFat]}>
-                  {item.category}
+                  {getCategoryDisplayLabel(item.category)}
                 </Text>
               </View>
             ))}
@@ -1024,7 +1031,7 @@ export default function NutritionScanner({ navigation, route }) {
         <Text style={styles.cardTitle}>Coach nutricional do dia</Text>
         <Text testID="calorias-total-inline" style={styles.feedbackText}>Calorias hoje: {Math.round(todayCalories)} kcal</Text>
         <Text style={[styles.feedbackTitle, nutritionFeedback?.tone === 'warning' ? styles.feedbackWarning : nutritionFeedback?.tone === 'success' ? styles.feedbackSuccess : null]}>
-          {nutritionFeedback?.title || 'Feedback indisponivel'}
+          {nutritionFeedback?.title || 'Feedback indisponível'}
         </Text>
         <Text style={styles.feedbackText}>{nutritionFeedback?.message || ''}</Text>
         <Text style={styles.feedbackSuggestion}>{nutritionFeedback?.suggestion || ''}</Text>
@@ -1119,7 +1126,7 @@ export default function NutritionScanner({ navigation, route }) {
       </AppCard>
 
       <AppCard style={styles.card}>
-        <Text style={styles.cardTitle}>Catalogo local</Text>
+        <Text style={styles.cardTitle}>Catálogo local</Text>
         <AppInput
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -1172,15 +1179,15 @@ export default function NutritionScanner({ navigation, route }) {
         <PrimaryButton testID="btn-add-selected-food" title="Adicionar alimento +" onPress={useEstimateInDay} style={styles.primaryButton} />
         <SecondaryButton
           testID="btn-repeat-last-meal"
-          title={latestMealGroup ? `Repetir ultima refeicao (${latestMealGroup.items.length})` : 'Repetir ultima refeicao'}
+          title={latestMealGroup ? `Repetir última refeição (${latestMealGroup.items.length})` : 'Repetir última refeição'}
           onPress={repeatLatestMeal}
           style={styles.secondaryButton}
         />
       </AppCard>
 
       <AppCard style={styles.card}>
-        <Text style={styles.cardTitle}>Composicao da refeicao</Text>
-        {mealDraftItems.length === 0 ? <Text style={styles.emptyLine}>Adicione alimentos para montar a refeicao.</Text> : null}
+        <Text style={styles.cardTitle}>Composição da refeição</Text>
+        {mealDraftItems.length === 0 ? <Text style={styles.emptyLine}>Adicione alimentos para montar a refeição.</Text> : null}
         {mealDraftItems.map((item) => (
           <View key={item.id} style={styles.logRow}>
             <View>
@@ -1214,7 +1221,7 @@ export default function NutritionScanner({ navigation, route }) {
       </AppCard>
 
       <AppCard testID="nutrition-flow-text" style={styles.card}>
-        <Text style={styles.cardTitle}>Descrever refeicao por texto</Text>
+        <Text style={styles.cardTitle}>Descrever refeição por texto</Text>
         <AppInput
           testID="text-input-food"
           value={manualText}
@@ -1261,7 +1268,7 @@ export default function NutritionScanner({ navigation, route }) {
                     carbs: Math.round(parsed.totals.carbs * portionFactor),
                     fats: Math.round(parsed.totals.fats * portionFactor),
                   },
-                  message: `${parsed.message} Porcao aplicada: ${portionFactor}x.`,
+                  message: `${parsed.message} Porção aplicada: ${portionFactor}x.`,
                 });
               } else {
                 setResult(draft.ok === false ? draft : parsed);
@@ -1269,7 +1276,7 @@ export default function NutritionScanner({ navigation, route }) {
             } catch (error) {
               setResult({
                 ok: false,
-                message: 'Falha ao estimar refeicao agora. Ajuste o texto e tente novamente.',
+                message: 'Falha ao estimar refeição agora. Ajuste o texto e tente novamente.',
               });
               trackAppError(error, {
                 screen: SCREENS.NUTRITION,
@@ -1327,15 +1334,15 @@ export default function NutritionScanner({ navigation, route }) {
           </AppCard>
 
           <AppCard testID="nutrition-flow-plate" style={styles.card}>
-            <Text style={styles.cardTitle}>Estimar prato (baixa confianca)</Text>
+            <Text style={styles.cardTitle}>Estimar prato (baixa confiança)</Text>
             <Text style={styles.flowDisclaimer}>
-              Estimativa aproximada — revise porcoes no rascunho antes de salvar.
+              Estimativa aproximada — revise porções no rascunho antes de salvar.
             </Text>
             <AppInput
               testID="text-input-plate-hint"
               value={plateHintText}
               onChangeText={setPlateHintText}
-              placeholder="Descreva o prato (obrigatorio): arroz, feijao, frango"
+              placeholder="Descreva o prato (obrigatório): arroz, feijão, frango"
               multiline
               autoCapitalize="sentences"
             />
@@ -1369,7 +1376,7 @@ export default function NutritionScanner({ navigation, route }) {
           {result.source ? (
             <Text style={styles.flowMetaLine}>
               Fluxo: {getNutritionFlowMeta(result.source).title}
-              {result.confidence ? ` | Confianca: ${result.confidence}` : ''}
+              {result.confidence ? ` | Confiança: ${result.confidence}` : ''}
             </Text>
           ) : null}
           {result.source ? (
@@ -1382,17 +1389,17 @@ export default function NutritionScanner({ navigation, route }) {
                 {evaluateMealQuality(result.totals).emoji} {evaluateMealQuality(result.totals).badge}
               </Text>
               <Text style={styles.resultLine}>Calorias: {result.totals.calories} kcal</Text>
-              <Text style={styles.resultLine}>Proteina: {result.totals.protein} g ({getMacroStatus(result.totals).protein})</Text>
+              <Text style={styles.resultLine}>Proteína: {result.totals.protein} g ({getMacroStatus(result.totals).protein})</Text>
               <Text style={styles.resultLine}>Carbo: {result.totals.carbs} g ({getMacroStatus(result.totals).carbs})</Text>
               <Text style={styles.resultLine}>Gordura: {result.totals.fats} g ({getMacroStatus(result.totals).fats})</Text>
               {Number(result?.totals?.saturatedFat || 0) > 0 ? <Text style={styles.resultLine}>Gordura saturada: {result.totals.saturatedFat} g</Text> : null}
               {Number(result?.totals?.transFat || 0) > 0 ? <Text style={styles.resultLine}>Gordura trans: {result.totals.transFat} g</Text> : null}
               {Number(result?.totals?.fiber || 0) > 0 ? <Text style={styles.resultLine}>Fibras: {result.totals.fiber} g</Text> : null}
-              {Number(result?.totals?.sodium || 0) > 0 ? <Text style={styles.resultLine}>Sodio: {result.totals.sodium} mg</Text> : null}
-              {result?.serving?.value ? <Text style={styles.resultLine}>Porcao: {result.serving.value}{result.serving.unit || ''}</Text> : null}
+              {Number(result?.totals?.sodium || 0) > 0 ? <Text style={styles.resultLine}>Sódio: {result.totals.sodium} mg</Text> : null}
+              {result?.serving?.value ? <Text style={styles.resultLine}>Porção: {result.serving.value}{result.serving.unit || ''}</Text> : null}
               {result?.consumedQuantity?.value ? <Text style={styles.resultLine}>Quantidade consumida: {result.consumedQuantity.value}{result.consumedQuantity.unit || ''}</Text> : null}
               <Text style={styles.coachLine}>
-                Meta por refeicao: ~{proteinTargetPerMeal}g proteina | {result.totals.protein >= proteinTargetPerMeal ? 'faixa boa' : 'abaixo do ideal'}
+                Meta por refeição: ~{proteinTargetPerMeal}g proteína | {result.totals.protein >= proteinTargetPerMeal ? 'faixa boa' : 'abaixo do ideal'}
               </Text>
               {Array.isArray(result.items) && result.items.length ? (
                 <>
@@ -1446,7 +1453,7 @@ export default function NutritionScanner({ navigation, route }) {
                   </View>
                 </>
               ) : null}
-              <Text style={styles.coachLine}>Revise a composicao da refeicao e use Salvar refeicao.</Text>
+              <Text style={styles.coachLine}>Revise a composição da refeição e use Salvar refeição.</Text>
             </>
           ) : null}
         </AppCard>
