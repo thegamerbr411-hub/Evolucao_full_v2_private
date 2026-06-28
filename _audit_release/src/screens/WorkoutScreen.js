@@ -106,6 +106,8 @@ import { resolvePreviousSetForRow } from '../services/workoutPreviousSetCopy';
 import { buildWorkoutModePresentation } from '../services/workoutModeCopy';
 import { buildWorkoutSetRowState } from '../services/workoutSetRowState';
 import { WorkoutSessionStatsBar } from '../components/workout/WorkoutSessionStatsBar';
+import { WorkoutRestTimerCard } from '../components/workout/WorkoutRestTimerCard';
+import { REST_TIMER_ADJUST_STEP_SEC } from '../services/workoutRestTimerCopy.js';
 import {
   buildWorkoutSetInputDisplay,
   normalizeSetFieldValue,
@@ -223,6 +225,7 @@ export default function WorkoutScreen({ navigation, route }) {
     startRestTimer,
     skipRest,
     extendRestByThirty,
+    adjustRestBySeconds,
   } = useWorkoutRestTimer();
   const [xpFeedback, setXpFeedback] = useState('');
   const [newExerciseName, setNewExerciseName] = useState('');
@@ -2550,31 +2553,19 @@ export default function WorkoutScreen({ navigation, route }) {
     >
       <StreakBar streak={Number(gamification.streakDays || 0)} />
       {saveSuccessVisible ? (
-        <View testID="serie-salva-indicator" style={styles.savedFixedIndicator}>
+        <View testID="set-saved-check" style={styles.savedFixedIndicator}>
           <Ionicons name="checkmark-circle" size={18} color={colors.textPrimary} />
           <Text style={styles.savedBannerText}>Série salva</Text>
         </View>
       ) : null}
 
-      {restRunning ? (
-        <View testID="rest-timer-floating" style={styles.restFloatingCard}>
-          <Text style={styles.restFloatingLabel}>Descanso</Text>
-          <Text
-            testID="rest-timer-countdown"
-            style={[styles.restFloatingValue, restSeconds <= 15 ? styles.restFloatingValueDanger : null]}
-          >
-            {formatTimer(restSeconds)}
-          </Text>
-          <View style={styles.restFloatingActions}>
-            <TouchableOpacity testID="btn-rest-extend-30" style={styles.restFloatingSecondary} onPress={extendRestByThirty}>
-              <Text style={styles.restFloatingSecondaryText}>+30s</Text>
-            </TouchableOpacity>
-            <TouchableOpacity testID="btn-rest-skip" style={styles.restFloatingDanger} onPress={skipRest}>
-              <Text style={styles.restFloatingDangerText}>Pular</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      ) : null}
+      <WorkoutRestTimerCard
+        secondsRemaining={restSeconds}
+        isRunning={restRunning}
+        onSkip={skipRest}
+        onPlus15={() => adjustRestBySeconds(REST_TIMER_ADJUST_STEP_SEC)}
+        onMinus15={() => adjustRestBySeconds(-REST_TIMER_ADJUST_STEP_SEC)}
+      />
 
       {/* BLOCO 1: XP flutuante (sobe e desaparece) */}
       {showXpFloat ? (

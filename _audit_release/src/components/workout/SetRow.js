@@ -6,6 +6,7 @@ import {
   formatDisplayText,
   normalizeSetFieldValue,
 } from '../../services/workoutSetDisplayValue';
+import { buildWorkoutSetStatePresentation } from '../../services/workoutSetSavedStateCopy.js';
 
 export const SetRow = memo(function SetRow({
   set,
@@ -69,6 +70,7 @@ export const SetRow = memo(function SetRow({
     accessibilityLabel: 'Pendente',
     helperText: '',
   };
+  const statePresentation = buildWorkoutSetStatePresentation(safeRowState);
 
   const handlePress = () => {
     if (!safeRowState.canSave) {
@@ -192,8 +194,11 @@ export const SetRow = memo(function SetRow({
           </TouchableOpacity>
         ) : null}
 
-        <View style={[styles.statusBadge, statusStyle]}>
-          <Text style={styles.statusText}>{safeRowState.label}</Text>
+        <View
+          testID={statePresentation.stateTestID}
+          style={[styles.statusBadge, statusStyle]}
+        >
+          <Text style={styles.statusText}>{statePresentation.label}</Text>
         </View>
 
         {safeRowState.showAction ? (
@@ -205,11 +210,15 @@ export const SetRow = memo(function SetRow({
             ]}
           >
             <TouchableOpacity
-              testID={testIDs?.done}
+              testID={
+                safeRowState.status === 'saved'
+                  ? (statePresentation.checkTestID || testIDs?.done)
+                  : testIDs?.done
+              }
               onPress={handlePress}
               disabled={!safeRowState.canSave}
               accessibilityRole="button"
-              accessibilityLabel={safeRowState.accessibilityLabel}
+              accessibilityLabel={statePresentation.actionAccessibilityLabel}
               accessibilityState={{ checked: safeRowState.status === 'saved' }}
               style={[
                 styles.button,

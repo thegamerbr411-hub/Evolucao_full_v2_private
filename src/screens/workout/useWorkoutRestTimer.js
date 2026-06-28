@@ -3,6 +3,7 @@ import { Vibration } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { SCREENS, trackAppError } from '../../utils/analytics';
+import { clampRestSecondsAfterAdjust } from '../../services/workoutRestTimerCopy.js';
 
 export const WORKOUT_REST_END_STORAGE_KEY = '@workout:rest-timer-end-v1';
 
@@ -132,12 +133,19 @@ export function useWorkoutRestTimer() {
     setRestEndAt(null);
   }, []);
 
+  const adjustRestBySeconds = useCallback((deltaSec) => {
+    if (!restRunning) {
+      return;
+    }
+
+    const adjusted = clampRestSecondsAfterAdjust(restEndAt, deltaSec);
+    setRestEndAt(adjusted.endAtMs);
+    setRestSeconds(adjusted.secondsRemaining);
+  }, [restEndAt, restRunning]);
+
   const extendRestByThirty = useCallback(() => {
-    const baseEnd = Number(restEndAt || Date.now());
-    const nextEnd = baseEnd + 30000;
-    setRestEndAt(nextEnd);
-    setRestSeconds(Math.max(0, Math.ceil((nextEnd - Date.now()) / 1000)));
-  }, [restEndAt]);
+    adjustRestBySeconds(30);
+  }, [adjustRestBySeconds]);
 
   return {
     restPreset,
@@ -149,5 +157,6 @@ export function useWorkoutRestTimer() {
     startRestTimer,
     skipRest,
     extendRestByThirty,
+    adjustRestBySeconds,
   };
 }
