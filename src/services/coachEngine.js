@@ -17,7 +17,7 @@ export const generateCoach = ({ workout, nutrition, history, time }) => {
 
   if (Number(nutrition?.protein || 0) < 80) {
     return {
-      message: 'Proteina baixa. Come algo agora.',
+      message: 'Proteína baixa. Come algo agora.',
       action: 'ADD_MEAL',
       priority: 8,
     };

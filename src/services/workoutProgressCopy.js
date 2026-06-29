@@ -34,7 +34,7 @@ export function buildWorkoutProgressCopy({
     : 0;
 
   const headerLabel = safeTotalExercises > 0
-    ? `Exercicio atual · ${exerciseNumber} de ${safeTotalExercises}`
+    ? `Exercício atual · ${exerciseNumber} de ${safeTotalExercises}`
     : '';
 
   const seriesWord = completed === 1 && planned === 1 ? 'série' : 'séries';

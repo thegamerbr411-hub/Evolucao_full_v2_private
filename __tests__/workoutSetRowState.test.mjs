@@ -31,7 +31,7 @@ test('3: valid active set -> ready with save action', () => {
   assert.equal(rowState.status, 'ready');
   assert.equal(rowState.label, 'Pronta');
   assert.equal(rowState.canSave, true);
-  assert.equal(rowState.actionLabel, 'Salvar serie');
+  assert.equal(rowState.actionLabel, 'Salvar série');
   assert.equal(rowState.showAction, true);
 });
 
@@ -82,7 +82,7 @@ test('8: labels are clear and do not use check or concluida copy', () => {
   });
   const saved = buildWorkoutSetRowState({ isSaved: true });
 
-  assert.match(ready.actionLabel, /Salvar serie/i);
+  assert.match(ready.actionLabel, /Salvar série/i);
   assert.doesNotMatch(ready.label, /conclu/i);
   assert.doesNotMatch(saved.label, /conclu/i);
   assert.doesNotMatch(ready.actionLabel, /✔/);

@@ -19,7 +19,7 @@ export function generateCoachInsight(userData = {}) {
     const nutrition = userData?.nutrition;
 
     if (!workout?.exercises?.length) return 'Bora treinar hoje';
-    if (toNumber(nutrition?.protein, 0) < 100) return 'Aumente a proteina hoje';
+    if (toNumber(nutrition?.protein, 0) < 100) return 'Aumente a proteína hoje';
     return 'Boa evolucao';
   }
 
@@ -75,10 +75,10 @@ export function generateCoachInsight(userData = {}) {
   const summaryMap = {
     treino: trainingGap > 0
       ? `Treino e a maior alavanca agora. Semana em ${weeklyDone}/${weeklyTarget}.`
-      : 'Treino do dia ainda nao foi concluido.',
+      : 'Treino do dia ainda não foi concluído.',
     nutricao: weakMeals > 0
       ? 'Nutricao precisa de melhor distribuicao ao longo do dia.'
-      : `Proteina abaixo da meta por ${proteinGap}g.`,
+      : `Proteína abaixo da meta por ${proteinGap}g.`,
     hidratacao: `Agua abaixo da meta por ${waterGap}ml.`,
     rotina: 'Rotina salva reduz atrito e melhora consistencia.',
     perfil: 'Perfil e seguranca precisam ser considerados antes de aumentar intensidade.',

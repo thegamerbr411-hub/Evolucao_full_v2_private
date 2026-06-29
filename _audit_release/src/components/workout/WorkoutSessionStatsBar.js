@@ -6,17 +6,17 @@ export function WorkoutSessionStatsBar({ durationLabel, setsLabel, exerciseLabel
   return (
     <View testID="workout-session-stats-bar" style={styles.wrap}>
       <View style={styles.cell}>
-        <Text style={styles.label}>Duracao</Text>
+        <Text style={styles.label}>Duração</Text>
         <Text testID="workout-session-duration" style={styles.value}>{durationLabel}</Text>
       </View>
       <View style={styles.divider} />
       <View style={styles.cell}>
-        <Text style={styles.label}>Series</Text>
+        <Text style={styles.label}>Séries</Text>
         <Text testID="workout-session-sets" style={styles.value}>{setsLabel}</Text>
       </View>
       <View style={styles.divider} />
       <View style={styles.cell}>
-        <Text style={styles.label}>Exercicio</Text>
+        <Text style={styles.label}>Exercício</Text>
         <Text testID="workout-session-exercise-progress" style={styles.value}>{exerciseLabel}</Text>
       </View>
     </View>

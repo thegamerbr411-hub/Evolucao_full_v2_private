@@ -23,7 +23,7 @@ function buildSavedState() {
     actionLabel: '',
     canSave: false,
     showAction: true,
-    accessibilityLabel: 'Serie salva',
+    accessibilityLabel: 'Série salva',
     helperText: '',
   };
 }
@@ -31,11 +31,11 @@ function buildSavedState() {
 function buildInvalidState() {
   return {
     status: 'invalid',
-    label: 'Invalida',
+    label: 'Inválida',
     actionLabel: '',
     canSave: false,
     showAction: false,
-    accessibilityLabel: 'Serie invalida. Confira carga e reps',
+    accessibilityLabel: 'Série inválida. Confira carga e reps',
     helperText: 'Confira carga e reps',
   };
 }
@@ -44,10 +44,10 @@ function buildReadyState() {
   return {
     status: 'ready',
     label: 'Pronta',
-    actionLabel: 'Salvar serie',
+    actionLabel: 'Salvar série',
     canSave: true,
     showAction: true,
-    accessibilityLabel: 'Salvar serie',
+    accessibilityLabel: 'Salvar série',
     helperText: '',
   };
 }

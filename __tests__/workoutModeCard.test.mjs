@@ -7,9 +7,9 @@ test('1: simpleMode true -> Treino guiado', () => {
   assert.equal(presentation.modeLabel, 'Treino guiado');
 });
 
-test('2: simpleMode false -> Visao completa', () => {
+test('2: simpleMode false -> Visão completa', () => {
   const presentation = buildWorkoutModePresentation({ simpleMode: false });
-  assert.equal(presentation.modeLabel, 'Visao completa');
+  assert.equal(presentation.modeLabel, 'Visão completa');
 });
 
 test('3: toggleLabel is always Trocar', () => {
@@ -23,7 +23,7 @@ test('4: compactLabel contains mode and Trocar', () => {
 
   assert.match(simple.compactLabel, /Treino guiado/);
   assert.match(simple.compactLabel, /Trocar/);
-  assert.match(advanced.compactLabel, /Visao completa/);
+  assert.match(advanced.compactLabel, /Visão completa/);
   assert.match(advanced.compactLabel, /Trocar/);
 });
 
