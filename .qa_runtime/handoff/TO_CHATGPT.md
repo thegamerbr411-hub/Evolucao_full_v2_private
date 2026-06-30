@@ -1,5 +1,34 @@
 # TO_CHATGPT — EVOLUÇÃO
 
+## PR53 HEVY UX LOTE C VISUAL V4 READY GATE
+- Veredito: **EVOLUCAO_HEVY_UX_LOTE_C_PR53_AUTH_REQUIRED_FOR_VISUAL_QA**
+- Source of truth anterior: EVOLUCAO_PAYWALL_ADDITIONAL_CLOSURE_POST_ARCHIVE_ARCHIVE_COMPLETE
+- Main base: 19cc195fb49add888370174bfe7cba4e02c86010
+- Branch: feat/hevy-ux-lote-c-session-summary
+- Commit before: 1beafd3
+- Commit after: (V4 commit pending)
+- PR: #53
+- PR status: **Draft** (não marcar ready)
+- Audit drift: **0 PASS**
+- Auth bootstrap: **AUTH_REQUIRED** — login screen, QA_TEST_* missing
+- Visual QA V4: BLOCKED — screen-workout-complete NOT_DETECTED
+- Manual-assisted flow: `.qa_runtime/logs/EVOLUCAO_HEVY_UX_LOTE_C_PR53_MANUAL_ASSIST_INSTRUCTIONS.md`
+- screen-workout-complete: NOT_DETECTED
+- Summary card: NOT_DETECTED
+- CTAs: NOT_REACHED
+- Histórico: NOT_REACHED
+- Testes: Lote C 55/55 PASS (subset); workoutFinishFlow pre-existing fail
+- Build: APK prior SHA256 0BC8AF9533EDBF35165610DD806144C226C123265AF3F824AFB959B4C78A7067
+- Real device: not used destructively
+- Device safety: emulator-5554 only; RQ8T209ZTAF protected; no pm clear
+- P0: Auth required for visual QA
+- P1: none
+- P2: workoutFinishFlow RN import pre-existing
+- P3: UiAutomator partial dumps on cold launch
+- Release/Play/Internal: NOT_AUTHORIZED
+- Merge: NOT_DONE
+- Próximo passo: login manual emulator-5554 → `--resume-after-login`
+
 ## PR53 HEVY UX LOTE C VISUAL V3 READY GATE
 - Veredito: **EVOLUCAO_HEVY_UX_LOTE_C_PR53_STILL_DRAFT_VISUAL_PENDING**
 - Source of truth anterior: EVOLUCAO_PAYWALL_ADDITIONAL_CLOSURE_POST_ARCHIVE_ARCHIVE_COMPLETE
