@@ -1,0 +1,102 @@
+{
+  "device": "RQ8T209ZTAF",
+  "package": "com.tipolt.evolucaofullv2",
+  "sandboxDestructive": true,
+  "entries": [
+    {
+      "id": "01_sandbox_home_or_treino_entry",
+      "name": "Home or Treino entry",
+      "device": "RQ8T209ZTAF",
+      "package": "com.tipolt.evolucaofullv2",
+      "packageOk": true,
+      "action": "launch",
+      "result": "APP_OPEN",
+      "checks": [],
+      "png": "F:\\projetos\\evolucao-main-clean\\.qa_runtime\\visual_audit\\hevy_ux_lote_c\\01_sandbox_home_or_treino_entry.png",
+      "xml": "F:\\projetos\\evolucao-main-clean\\.qa_runtime\\visual_audit\\hevy_ux_lote_c\\01_sandbox_home_or_treino_entry.xml",
+      "at": "2026-06-30T17:14:20.498Z"
+    },
+    {
+      "id": "02_sandbox_active_workout_before_finish",
+      "name": "Active workout before finish",
+      "device": "RQ8T209ZTAF",
+      "package": "com.tipolt.evolucaofullv2",
+      "packageOk": true,
+      "action": "open_workout",
+      "result": "WORKOUT_SCREEN",
+      "checks": [],
+      "png": "F:\\projetos\\evolucao-main-clean\\.qa_runtime\\visual_audit\\hevy_ux_lote_c\\02_sandbox_active_workout_before_finish.png",
+      "xml": "F:\\projetos\\evolucao-main-clean\\.qa_runtime\\visual_audit\\hevy_ux_lote_c\\02_sandbox_active_workout_before_finish.xml",
+      "at": "2026-06-30T17:14:45.028Z"
+    },
+    {
+      "id": "03_sandbox_finish_confirmation_or_action",
+      "name": "Finish action",
+      "device": "RQ8T209ZTAF",
+      "package": "com.tipolt.evolucaofullv2",
+      "packageOk": true,
+      "action": "finish_tap",
+      "result": "FINISH_NOT_FOUND_MAY_BE_INCOMPLETE",
+      "checks": [],
+      "png": "F:\\projetos\\evolucao-main-clean\\.qa_runtime\\visual_audit\\hevy_ux_lote_c\\03_sandbox_finish_confirmation_or_action.png",
+      "xml": "F:\\projetos\\evolucao-main-clean\\.qa_runtime\\visual_audit\\hevy_ux_lote_c\\03_sandbox_finish_confirmation_or_action.xml",
+      "at": "2026-06-30T17:17:06.819Z"
+    },
+    {
+      "id": "04_sandbox_workout_summary",
+      "name": "Workout summary screen",
+      "device": "RQ8T209ZTAF",
+      "package": "com.tipolt.evolucaofullv2",
+      "packageOk": true,
+      "action": "capture_summary",
+      "result": "SUMMARY_NOT_DETECTED",
+      "checks": [
+        "screen-workout-complete",
+        "workout-summary-card"
+      ],
+      "png": "F:\\projetos\\evolucao-main-clean\\.qa_runtime\\visual_audit\\hevy_ux_lote_c\\04_sandbox_workout_summary.png",
+      "xml": "F:\\projetos\\evolucao-main-clean\\.qa_runtime\\visual_audit\\hevy_ux_lote_c\\04_sandbox_workout_summary.xml",
+      "at": "2026-06-30T17:17:25.691Z"
+    },
+    {
+      "id": "05_sandbox_summary_actions",
+      "name": "Summary actions CTAs",
+      "device": "RQ8T209ZTAF",
+      "package": "com.tipolt.evolucaofullv2",
+      "packageOk": true,
+      "action": "scroll_actions",
+      "result": "CTAS_UNCERTAIN",
+      "checks": [],
+      "png": "F:\\projetos\\evolucao-main-clean\\.qa_runtime\\visual_audit\\hevy_ux_lote_c\\05_sandbox_summary_actions.png",
+      "xml": "F:\\projetos\\evolucao-main-clean\\.qa_runtime\\visual_audit\\hevy_ux_lote_c\\05_sandbox_summary_actions.xml",
+      "at": "2026-06-30T17:17:37.067Z"
+    },
+    {
+      "id": "06_sandbox_history_after_summary",
+      "name": "History after summary",
+      "device": "RQ8T209ZTAF",
+      "package": "com.tipolt.evolucaofullv2",
+      "packageOk": true,
+      "action": "history_nav",
+      "result": "HISTORY_UNCERTAIN",
+      "checks": [],
+      "png": "F:\\projetos\\evolucao-main-clean\\.qa_runtime\\visual_audit\\hevy_ux_lote_c\\06_sandbox_history_after_summary.png",
+      "xml": "F:\\projetos\\evolucao-main-clean\\.qa_runtime\\visual_audit\\hevy_ux_lote_c\\06_sandbox_history_after_summary.xml",
+      "at": "2026-06-30T17:17:43.154Z"
+    },
+    {
+      "id": "07_sandbox_back_navigation",
+      "name": "Back navigation",
+      "device": "RQ8T209ZTAF",
+      "package": "com.tipolt.evolucaofullv2",
+      "packageOk": true,
+      "action": "back",
+      "result": "NAV_OK",
+      "checks": [],
+      "png": "F:\\projetos\\evolucao-main-clean\\.qa_runtime\\visual_audit\\hevy_ux_lote_c\\07_sandbox_back_navigation.png",
+      "xml": "F:\\projetos\\evolucao-main-clean\\.qa_runtime\\visual_audit\\hevy_ux_lote_c\\07_sandbox_back_navigation.xml",
+      "at": "2026-06-30T17:17:50.165Z"
+    }
+  ],
+  "at": "2026-06-30T17:17:50.165Z"
+}
