@@ -10,7 +10,7 @@ function normalizePain(value = '') {
 function buildProfileAction(goal, level) {
   const safeGoal = String(goal || 'recomposicao');
   const safeLevel = String(level || 'iniciante');
-  return `Perfil base: objetivo ${safeGoal} | nivel ${safeLevel}.`;
+  return `Perfil base: objetivo ${safeGoal} | nível ${safeLevel}.`;
 }
 
 export function generateCoachInsight(userData = {}) {
@@ -20,7 +20,7 @@ export function generateCoachInsight(userData = {}) {
 
     if (!workout?.exercises?.length) return 'Bora treinar hoje';
     if (toNumber(nutrition?.protein, 0) < 100) return 'Aumente a proteína hoje';
-    return 'Boa evolucao';
+    return 'Boa evolução';
   }
 
   const trainedToday = Boolean(userData?.trainedToday);
@@ -48,13 +48,13 @@ export function generateCoachInsight(userData = {}) {
     actions.push(`Feche ${proteinGap}g de proteína com uma refeição forte ou shake.`);
   }
   if (waterGap > 0) {
-    actions.push(`Beba mais ${Math.min(700, waterGap)}ml agora para reduzir o gap de agua.`);
+    actions.push(`Beba mais ${Math.min(700, waterGap)}ml agora para reduzir o gap de água.`);
   }
   if (weakMeals > 0) {
     actions.push(`Você teve ${weakMeals} refeição(ões) fraca(s) em proteína. Corrija a próxima.`);
   }
   if (!hasRoutine) {
-    actions.push('Salve ao menos uma rotina para nao depender de decisoes no dia.');
+    actions.push('Salve ao menos uma rotina para não depender de decisões no dia.');
   }
   if (pain && !pain.includes('nenhuma')) {
     actions.push(`Dor reportada em ${pain}. Ajuste carga e amplitude antes de buscar falha.`);
@@ -74,15 +74,15 @@ export function generateCoachInsight(userData = {}) {
 
   const summaryMap = {
     treino: trainingGap > 0
-      ? `Treino e a maior alavanca agora. Semana em ${weeklyDone}/${weeklyTarget}.`
+      ? `Treino é a maior alavanca agora. Semana em ${weeklyDone}/${weeklyTarget}.`
       : 'Treino do dia ainda não foi concluído.',
     nutricao: weakMeals > 0
-      ? 'Nutricao precisa de melhor distribuicao ao longo do dia.'
+      ? 'Nutrição precisa de melhor distribuição ao longo do dia.'
       : `Proteína abaixo da meta por ${proteinGap}g.`,
-    hidratacao: `Agua abaixo da meta por ${waterGap}ml.`,
-    rotina: 'Rotina salva reduz atrito e melhora consistencia.',
-    perfil: 'Perfil e seguranca precisam ser considerados antes de aumentar intensidade.',
-    manutencao: 'Dia bem encaminhado. Foque em executar o proximo bloco sem dispersao.',
+    hidratacao: `Água abaixo da meta por ${waterGap}ml.`,
+    rotina: 'Rotina salva reduz atrito e melhora consistência.',
+    perfil: 'Perfil e segurança precisam ser considerados antes de aumentar intensidade.',
+    manutencao: 'Dia bem encaminhado. Foque em executar o próximo bloco sem dispersão.',
   };
 
   return {

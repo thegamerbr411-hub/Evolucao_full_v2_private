@@ -273,9 +273,9 @@ function getCoachReply(message, context, turnIndex, memory) {
 
   if (intent === 'workout' && (normalizedMessage.includes('nao consegui treinar') || normalizedMessage.includes('nao treinei'))) {
     const intro = getMessageVariant([
-      'Acontece. Um dia ruim nao define sua semana.',
+      'Acontece. Um dia ruim não define sua semana.',
       'Sem culpa. Agora a gente ajusta e segue.',
-      'Relaxa, ainda da para fechar a semana forte.'
+      'Relaxa, ainda dá para fechar a semana forte.'
     ], seed);
     return `${intro} Você está em ${context.smart.trainedThisWeek}/${context.smart.weeklyTarget} treinos. ${context.smart.isBehindWeek ? 'Faz 25 minutos hoje e salva o ritmo.' : 'Hoje pode ser treino leve ou mobilidade.'}`;
   }
@@ -292,12 +292,12 @@ function getCoachReply(message, context, turnIndex, memory) {
   if (intent === 'nutrition') {
     if (normalizedMessage.includes('agua') || normalizedMessage.includes('hidrat')) {
       const intro = getMessageVariant([
-        'Boa chamada. Agua muda sua energia na hora.',
+        'Boa chamada. Água muda sua energia na hora.',
         'Perfeito. Isso impacta treino e recuperação.',
-        'Vamos ajustar rapido e seguir.'
+        'Vamos ajustar rápido e seguir.'
       ], seed);
       const gap = Math.max(0, context.waterTarget - context.waterToday);
-      return `${intro} Você está em ${context.waterToday}/${context.waterTarget}ml. ${gap > 0 ? `Faltam ${gap}ml. Toma +300ml agora.` : 'Meta batida. So manter.'}`;
+      return `${intro} Você está em ${context.waterToday}/${context.waterTarget}ml. ${gap > 0 ? `Faltam ${gap}ml. Toma +300ml agora.` : 'Meta batida. Só manter.'}`;
     }
 
     const intro = getMessageVariant([
@@ -313,10 +313,10 @@ function getCoachReply(message, context, turnIndex, memory) {
     if (normalizedMessage.includes('rotina') || normalizedMessage.includes('semana') || normalizedMessage.includes('planejar')) {
       const intro = getMessageVariant([
         'Vamos simplificar sua semana.',
-        'Plano bom e plano que voce cumpre.',
+        'Plano bom e plano que você cumpre.',
         'Bora organizar sem complicar.'
       ], seed);
-      return `${intro} Meta: ${context.smart.weeklyTarget} treinos. Você fez ${context.smart.trainedThisWeek}. ${context.smart.isBehindWeek ? 'Proxima acao: 2 sessoes curtas nos proximos 3 dias.' : 'Proxima acao: manter frequencia e caprichar na execucao.'}`;
+      return `${intro} Meta: ${context.smart.weeklyTarget} treinos. Você fez ${context.smart.trainedThisWeek}. ${context.smart.isBehindWeek ? 'Próxima ação: 2 sessões curtas nos próximos 3 dias.' : 'Próxima ação: manter frequência e caprichar na execução.'}`;
     }
 
     const intro = getMessageVariant([
@@ -334,7 +334,7 @@ function getCoachReply(message, context, turnIndex, memory) {
 
   if (intent === 'help') {
     const nextAction = context.trainedToday ? 'fechar água e proteína' : 'iniciar treino de hoje';
-    return `Eu te ajudo com foco em treino, nutrição e progresso. Se quiser, me diga: "montar treino", "quanto falta de proteina" ou "como esta meu progresso". Agora, sua melhor ação é ${nextAction}.`;
+    return `Eu te ajudo com foco em treino, nutrição e progresso. Se quiser, me diga: "montar treino", "quanto falta de proteína" ou "como está meu progresso". Agora, sua melhor ação é ${nextAction}.`;
   }
 
   const contextSuggestion = context.trainedToday
@@ -439,7 +439,7 @@ export default function CoachChatScreen({ navigation }) {
     quickActions: {
       trainingTitle: 'Iniciar treino',
       nutritionTitle: 'Registrar refeição',
-      waterTitle: '+300ml agua',
+      waterTitle: '+300ml água',
       routineTitle: 'Ver rotina',
       waterQuickMl: 300,
     },
@@ -636,7 +636,7 @@ export default function CoachChatScreen({ navigation }) {
     if (hour >= 16 && !trainedToday) {
       triggerCandidates.push({
         key: 'afternoon_no_workout',
-        text: 'Tarde: treino ainda nao saiu. Bloqueie 30-40min agora para nao empurrar para noite.',
+        text: 'Tarde: treino ainda não saiu. Bloqueie 30-40min agora para não empurrar para noite.',
       });
     }
 
@@ -650,7 +650,7 @@ export default function CoachChatScreen({ navigation }) {
     if (hour >= 18 && waterLeft > 700) {
       triggerCandidates.push({
         key: 'evening_water_low',
-        text: 'Fim de dia: hidratacao ainda baixa. Faça blocos de +300ml para fechar sua meta.',
+        text: 'Fim de dia: hidratação ainda baixa. Faça blocos de +300ml para fechar sua meta.',
       });
     }
 
@@ -687,7 +687,7 @@ export default function CoachChatScreen({ navigation }) {
         {
           id: triggerId,
           role: 'coach',
-          text: `Ja foi feito: ${coachCard.doneText}. Falta: ${coachCard.missingText}. Agora: ${trigger.text}`,
+          text: `Já foi feito: ${coachCard.doneText}. Falta: ${coachCard.missingText}. Agora: ${trigger.text}`,
         },
       ];
     });
@@ -764,7 +764,7 @@ export default function CoachChatScreen({ navigation }) {
         {
           id: `coach-action-water-${Date.now()}`,
           role: 'coach',
-          text: 'Ja foi feito: hidratacao incrementada agora. Falta: manter blocos menores no restante do dia. Agora: siga para o proximo bloco de foco.',
+          text: 'Já foi feito: hidratação incrementada agora. Falta: manter blocos menores no restante do dia. Agora: siga para o próximo bloco de foco.',
         },
       ]);
     }
@@ -773,13 +773,13 @@ export default function CoachChatScreen({ navigation }) {
 
   const openWorkout = async () => {
     rememberAction('workout_open');
-    setActionFeedback('Treino aberto. Finaliza essa sessao para fechar o loop de hoje.');
+    setActionFeedback('Treino aberto. Finaliza essa sessão para fechar o loop de hoje.');
     setMessages((prev) => [
       ...prev,
       {
         id: `coach-action-training-${Date.now()}`,
         role: 'coach',
-        text: 'Ja foi feito: treino iniciado. Falta: concluir o treino de hoje. Agora: termine a sessao e volte para registrar fechamento.',
+        text: 'Já foi feito: treino iniciado. Falta: concluir o treino de hoje. Agora: termine a sessão e volte para registrar fechamento.',
       },
     ]);
 
@@ -827,7 +827,7 @@ export default function CoachChatScreen({ navigation }) {
       {
         id: `coach-action-water-${Date.now()}`,
         role: 'coach',
-        text: `Ja foi feito: +${safeMl}ml de hidratacao registrado. Falta: manter blocos menores no restante do dia. Agora: siga para o proximo bloco de foco.`,
+        text: `Já foi feito: +${safeMl}ml de hidratação registrado. Falta: manter blocos menores no restante do dia. Agora: siga para o próximo bloco de foco.`,
       },
     ]);
     refreshCoachCard();
@@ -840,7 +840,7 @@ export default function CoachChatScreen({ navigation }) {
 
       <AppCard style={[styles.coachCard, { borderColor: urgencyUI.borderColor, backgroundColor: urgencyUI.backgroundColor }]}>
         <Text style={styles.urgencyBadge}>{urgencyUI.badge}</Text>
-        <Text style={styles.coachTitle}>Ja foi feito</Text>
+        <Text style={styles.coachTitle}>Já foi feito</Text>
         <Text style={styles.coachLine}>{coachCard.doneText}</Text>
 
         <Text style={styles.coachTitle}>Falta</Text>

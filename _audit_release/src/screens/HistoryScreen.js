@@ -137,7 +137,7 @@ export default function HistoryScreen({ navigation }) {
       </AppCard>
 
       <AppCard>
-        <Text style={styles.summaryTitle}>Historico real (backend)</Text>
+        <Text style={styles.summaryTitle}>Histórico real (backend)</Text>
         {remoteLoading ? <Text style={styles.summaryLine}>Carregando treinos salvos...</Text> : null}
         {!remoteLoading && !remoteWorkouts.length ? (
           <Text style={styles.empty}>Seu histórico aparece aqui. Finalize um treino para ver suas séries, cargas e evolução.</Text>

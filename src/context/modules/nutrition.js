@@ -76,9 +76,9 @@ export function evaluateMealQuality(totals = {}) {
 export function buildMacroInsight(totals = {}, targets = {}) {
   const proteinGap = Number(targets?.protein || 0) - Number(totals?.protein || 0);
   if (proteinGap <= 0) {
-    return 'Meta de proteina atingida.';
+    return 'Meta de proteína atingida.';
   }
-  return `Faltam ${Math.round(proteinGap)}g de proteina para bater a meta.`;
+  return `Faltam ${Math.round(proteinGap)}g de proteína para bater a meta.`;
 }
 
 export function classifyMacro(value = 0, target = 0) {
