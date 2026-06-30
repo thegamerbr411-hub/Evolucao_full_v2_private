@@ -42,7 +42,7 @@ export function WorkoutsHubView({
   const safeTodayWorkout = Array.isArray(todayWorkout) ? todayWorkout : [];
   const session = workoutSession || {
     status: 'not_started',
-    label: 'Nao iniciado',
+    label: 'Não iniciado',
     ctaLabel: 'INICIAR TREINO',
     ctaSubtitle: 'Comece agora',
     isContinue: false,
