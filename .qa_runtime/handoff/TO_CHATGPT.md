@@ -1,12 +1,42 @@
 # TO_CHATGPT — EVOLUÇÃO
 
+## PR53 HEVY UX LOTE C VISUAL V3 READY GATE
+- Veredito: **EVOLUCAO_HEVY_UX_LOTE_C_PR53_STILL_DRAFT_VISUAL_PENDING**
+- Source of truth anterior: EVOLUCAO_PAYWALL_ADDITIONAL_CLOSURE_POST_ARCHIVE_ARCHIVE_COMPLETE
+- Main base: 19cc195fb49add888370174bfe7cba4e02c86010
+- Branch: feat/hevy-ux-lote-c-session-summary @ c4656b7
+- PR: #53 **Draft** (não marcar ready)
+- Audit drift: **0 PASS**
+- Visual QA V3: FAIL — login screen pós pm clear; sem screen-workout-complete
+- Manual-assisted flow: **required** — `.qa_runtime/logs/EVOLUCAO_HEVY_UX_LOTE_C_PR53_MANUAL_ASSIST_INSTRUCTIONS.md`
+- Script V3: `.qa_runtime/scripts/hevy_ux_lote_c_sandbox_v3.cjs`
+- Testes: Lote C + regressões 35/35 PASS
+- Build: APK prior 0BC8AF95…
+- ZIP: EVOLUCAO_STATE_PACKAGE_2026-06-30_HEVY_UX_LOTE_C_PR53_VISUAL_V3_READY_GATE.zip SHA256 7BD7BAC4…
+- Release/Play/Internal: NOT_AUTHORIZED · Merge: NOT_DONE
+- Próximo: login QA emulator ou QA_TEST_* + re-run V3 sem --fresh-sandbox
+
+## HEVY UX LOTE C — PR #53 READY GATE
+
+- Veredito: **EVOLUCAO_HEVY_UX_LOTE_C_PR53_STILL_DRAFT_VISUAL_PENDING**
+- PR: https://github.com/thegamerbr411-hub/Evolucao_full_v2_private/pull/53 (permanece **Draft**)
+- Branch: feat/hevy-ux-lote-c-session-summary @ c4656b7
+- Gates PASS: diff escopo, audit drift=0, testes Lote C 10/10, build APK prior
+- Gate FAIL: Visual QA V2 — `screen-workout-complete` não capturado no emulator-5554
+- Script V2: `.qa_runtime/scripts/hevy_ux_lote_c_sandbox_v2.cjs` (corrigido; emulator forçado)
+- Evidência parcial: `.qa_runtime/visual_audit/hevy_ux_lote_c_v2/` + logs `hevy_ux_lote_c_pr53_visual_v2*.log`
+- Nota segurança: run1 usou RQ8T209ZTAF por ANDROID_SERIAL — corrigido no script
+- Release/Play/Internal: NOT_AUTHORIZED
+- Próximo passo: re-run visual V2 estável → se PASS, `gh pr ready 53`
+- Report: `.qa_runtime/logs/EVOLUCAO_HEVY_UX_LOTE_C_PR53_READY_GATE_FOR_CHATGPT.md`
+
 ## HEVY UX LOTE C
 
 - Veredito: **EVOLUCAO_HEVY_UX_LOTE_C_DRAFT_PR_VISUAL_PENDING**
 - Source of truth anterior: EVOLUCAO_PAYWALL_ADDITIONAL_CLOSURE_POST_ARCHIVE_ARCHIVE_COMPLETE
 - Main base: 19cc195fb49add888370174bfe7cba4e02c86010
 - Branch: feat/hevy-ux-lote-c-session-summary
-- Commit: (pós-push)
+- Commit: c4656b732252055df9b4be2c24f78725588f2eed
 - PR: (pós-gh pr create)
 - Escopo: resumo premium pós-treino WorkoutCompleteScreen + workoutSessionSummary.js
 - Testes: hevyUxLoteCSessionSummary 10/10 PASS; regressão workout/history/copy OK

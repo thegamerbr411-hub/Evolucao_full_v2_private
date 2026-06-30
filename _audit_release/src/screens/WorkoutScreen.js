@@ -2363,6 +2363,10 @@ export default function WorkoutScreen({ navigation, route }) {
         plannedExercises: allExercises.length,
         sessionDurationMinutes,
         totalSets: todaySets,
+        completedSets: todaySets,
+        plannedSets: computedPlannedSets,
+        finishedAt: new Date().toISOString(),
+        exerciseNames: normalizedExercises.map((item) => item.name),
         totalVolume,
         sessionXp,
       });
