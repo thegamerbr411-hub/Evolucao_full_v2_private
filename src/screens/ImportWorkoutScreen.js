@@ -207,7 +207,7 @@ export default function ImportWorkoutScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
+    <View testID="screen-import-workout" style={styles.container}>
       <ScreenHeader title="Importar treino" subtitle="Cole texto livre e converta para treino estruturado." />
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <AppCard>

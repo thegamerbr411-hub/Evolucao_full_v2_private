@@ -84,8 +84,8 @@ export default function HistoryScreen({ navigation }) {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <ScreenHeader title="Historico dos Ultimos 7 Dias" subtitle="Consistencia diaria e resumo semanal." onBack={handleHistoryBack} />
+    <ScrollView testID="screen-history" contentContainerStyle={styles.container}>
+      <ScreenHeader title="Histórico dos Últimos 7 Dias" subtitle="Consistência diária e resumo semanal." onBack={handleHistoryBack} />
 
       <AppCard>
         <Text style={styles.summaryTitle}>Resumo semanal</Text>
@@ -97,7 +97,7 @@ export default function HistoryScreen({ navigation }) {
       </AppCard>
 
       <AppCard testID="history-local-logs-panel">
-        <Text style={styles.summaryTitle}>Historico de series (local)</Text>
+        <Text style={styles.summaryTitle}>Histórico de séries (local)</Text>
         {localLogsPresentation.isEmpty ? (
           <Text style={styles.empty}>{localLogsPresentation.emptyCopy}</Text>
         ) : (

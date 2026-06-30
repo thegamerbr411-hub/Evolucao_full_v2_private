@@ -60,7 +60,7 @@ test('4: plannedSets 0 does not return fake 100%', () => {
   assert.match(copy.workoutProgressLabel, /0%/);
 });
 
-test('5: header shows Exercicio atual · 1 de 5', () => {
+test('5: header shows Exercício atual · 1 de 5', () => {
   const copy = buildWorkoutProgressCopy({
     completedSets: 1,
     plannedSets: 17,
@@ -68,7 +68,7 @@ test('5: header shows Exercicio atual · 1 de 5', () => {
     totalExercises: 5,
   });
 
-  assert.equal(copy.headerLabel, 'Exercicio atual · 1 de 5');
+  assert.equal(copy.headerLabel, 'Exercício atual · 1 de 5');
 });
 
 test('6: incomplete footer guides user to continue', () => {
@@ -89,7 +89,7 @@ test('7: complete footer allows finish context', () => {
     canFinish: true,
   });
 
-  assert.equal(copy.footerHint, 'Todas as series planejadas foram concluidas.');
+  assert.equal(copy.footerHint, 'Todas as séries planejadas foram concluídas.');
   assert.equal(copy.isComplete, true);
 });
 

@@ -97,7 +97,7 @@ export function computeWorkoutSessionStatus({
   if (safePlannedExercises > 0) {
     return {
       status: 'not_started',
-      label: 'Nao iniciado',
+      label: 'Não iniciado',
       ctaLabel: 'INICIAR TREINO',
       ctaSubtitle: 'Comece agora',
       isContinue: false,
@@ -108,7 +108,7 @@ export function computeWorkoutSessionStatus({
 
   return {
     status: 'not_started',
-    label: 'Nao iniciado',
+    label: 'Não iniciado',
     ctaLabel: 'INICIAR TREINO',
     ctaSubtitle: 'Comece agora',
     isContinue: false,

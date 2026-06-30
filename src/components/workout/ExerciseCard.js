@@ -108,7 +108,7 @@ export const ExerciseCard = React.memo(function ExerciseCard({
   return (
     <AppCard>
       <View style={styles.headerRow}>
-        <Text style={styles.title}>{safeExerciseName || 'Exercicio'}</Text>
+        <Text style={styles.title}>{safeExerciseName || 'Exercício'}</Text>
         {onRemoveExercise ? (
           <TouchableOpacity onPress={() => typeof onRemoveExercise === 'function' && safeExerciseName && onRemoveExercise(safeExerciseName)}>
             <Text style={styles.removeExerciseText}>Remover</Text>
@@ -146,7 +146,7 @@ export const ExerciseCard = React.memo(function ExerciseCard({
       </View>
 
       <TouchableOpacity testID={testIDs?.addSet || 'btn-add-set'} onPress={() => typeof onAddSet === 'function' && safeExerciseName && onAddSet(safeExerciseName)} style={styles.addButton}>
-        <Text style={styles.addText}>+ Serie</Text>
+        <Text style={styles.addText}>+ Série</Text>
       </TouchableOpacity>
     </AppCard>
   );
