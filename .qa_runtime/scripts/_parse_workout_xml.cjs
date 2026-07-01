@@ -1,0 +1,12 @@
+const fs = require('fs');
+const x = fs.readFileSync(process.argv[2], 'utf8');
+const ids = [...x.matchAll(/resource-id="([^"]+)"/g)].map((m) => m[1]);
+const interesting = [...new Set(ids)].filter((id) => /workout|weight|reps|save|mode|screen|toggle/i.test(id));
+console.log('interesting ids:', interesting.join('\n'));
+console.log('simple active:', /workout-mode-simple-active/i.test(x));
+console.log('advanced active:', /workout-mode-advanced-active/i.test(x));
+console.log('input-weight count:', (x.match(/input-weight/g) || []).length);
+console.log('btn-save:', /btn-save-set/i.test(x));
+console.log('Salvar:', /Salvar/i.test(x));
+const texts = [...x.matchAll(/text="([^"]{2,60})"/g)].map((m) => m[1]).slice(0, 25);
+console.log('texts:', texts.join(' | '));

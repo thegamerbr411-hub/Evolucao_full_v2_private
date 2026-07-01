@@ -1,12 +1,31 @@
 # TO_CHATGPT — EVOLUÇÃO
 
+## PR53 HEVY UX LOTE C VISUAL V5 READY GATE
+- Veredito: **EVOLUCAO_HEVY_UX_LOTE_C_PR53_VISUAL_V5_READY_GATE_COMPLETE**
+- Source of truth anterior: EVOLUCAO_HEVY_UX_LOTE_C_PR53_AUTH_REQUIRED_FOR_VISUAL_QA
+- Main base: 19cc195fb49add888370174bfe7cba4e02c86010
+- Branch: feat/hevy-ux-lote-c-session-summary
+- Commit before: 5b25f33 (V4)
+- PR: #53
+- PR status: **Ready for review** (gh pr ready 53)
+- Audit drift: **0 PASS**
+- Auth: **AUTH_ALREADY_LOGGED_IN** on emulator-5554
+- Visual QA V5: **PASS** — screen-workout-complete + summary testIDs + Histórico CTA
+- flowMode: MANUAL_ASSISTED_SANDBOX_FLOW_USED (bulk_finish.ps1 + --resume-capture-only)
+- Manifest: `.qa_runtime/visual_audit/hevy_ux_lote_c_v5/capture_manifest.json` visualPass=true
+- Testes: 55/55 PASS (subset); workoutFinishFlow pre-existing fail
+- Build: APK SHA256 0BC8AF9533EDBF35165610DD806144C226C123265AF3F824AFB959B4C78A7067 unchanged
+- ZIP: EVOLUCAO_STATE_PACKAGE_2026-06-30_HEVY_UX_LOTE_C_PR53_VISUAL_V5_READY_GATE.zip
+- Release/Play/Internal: NOT_AUTHORIZED · Merge: NOT_DONE
+- Report: `.qa_runtime/logs/EVOLUCAO_HEVY_UX_LOTE_C_PR53_VISUAL_V5_READY_GATE_FOR_CHATGPT.md`
+
 ## PR53 HEVY UX LOTE C VISUAL V4 READY GATE
 - Veredito: **EVOLUCAO_HEVY_UX_LOTE_C_PR53_AUTH_REQUIRED_FOR_VISUAL_QA**
 - Source of truth anterior: EVOLUCAO_PAYWALL_ADDITIONAL_CLOSURE_POST_ARCHIVE_ARCHIVE_COMPLETE
 - Main base: 19cc195fb49add888370174bfe7cba4e02c86010
 - Branch: feat/hevy-ux-lote-c-session-summary
 - Commit before: 1beafd3
-- Commit after: (V4 commit pending)
+- Commit after: 5b25f33
 - PR: #53
 - PR status: **Draft** (não marcar ready)
 - Audit drift: **0 PASS**
