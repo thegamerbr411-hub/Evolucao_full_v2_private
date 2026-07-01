@@ -3,6 +3,10 @@ import { Animated, View, Text, StyleSheet, TouchableOpacity, ScrollView } from '
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radius } from '../theme';
 import * as Haptics from 'expo-haptics';
+import {
+  WORKOUT_COMPLETE_TEST_IDS,
+  buildWorkoutCompleteSummary,
+} from '../services/workoutSessionSummary.js';
 
 function getConquestMessage(streak, evolution) {
   if (streak >= 7) return { emoji: '🔥', title: 'Semana completa!', sub: 'Você treinou 7 dias seguidos. Isso é raro.' };
@@ -22,6 +26,10 @@ export default function WorkoutCompleteScreen({ route, navigation }) {
     plannedExercises = 0,
     sessionDurationMinutes = 0,
     totalSets = 0,
+    completedSets,
+    plannedSets = 0,
+    finishedAt,
+    exerciseNames = [],
     totalVolume = 0,
     sessionXp = 0,
   } = route?.params || {};
@@ -30,11 +38,35 @@ export default function WorkoutCompleteScreen({ route, navigation }) {
   const heroOpacity = useRef(new Animated.Value(0)).current;
   const xpPulse = useRef(new Animated.Value(0)).current;
 
+  const summary = useMemo(() => buildWorkoutCompleteSummary({
+    exerciseCount,
+    plannedExercises,
+    completedSets: completedSets ?? totalSets,
+    plannedSets,
+    totalVolume,
+    sessionDurationMinutes,
+    finishedAt,
+    exerciseNames,
+    streak,
+    sessionXp,
+  }), [
+    exerciseCount,
+    plannedExercises,
+    completedSets,
+    totalSets,
+    plannedSets,
+    totalVolume,
+    sessionDurationMinutes,
+    finishedAt,
+    exerciseNames,
+    streak,
+    sessionXp,
+  ]);
+
   const conquest = getConquestMessage(streak, evolution);
   const evolutionNum = Number(evolution || 0);
   const showEvolutionBar = evolutionNum !== 0;
   const safeXp = Math.max(0, Number(sessionXp || 0));
-  const safeVolume = Math.max(0, Number(totalVolume || 0));
   const safePlanned = Math.max(0, Number(plannedExercises || 0));
   const safeDone = Math.max(0, Number(exerciseCount || 0));
   const exerciseCompletionPct = safePlanned > 0
@@ -81,6 +113,7 @@ export default function WorkoutCompleteScreen({ route, navigation }) {
 
   return (
     <ScrollView
+      testID={WORKOUT_COMPLETE_TEST_IDS.screen}
       style={styles.scroll}
       contentContainerStyle={styles.container}
       showsVerticalScrollIndicator={false}
@@ -117,31 +150,60 @@ export default function WorkoutCompleteScreen({ route, navigation }) {
         </Animated.View>
       </Animated.View>
 
-      {/* ── RESUMO DO TREINO ── */}
-      <View style={styles.summaryCard}>
-        <Text style={styles.summaryLabel}>RESUMO DO TREINO</Text>
-        <View style={styles.statsRow}>
-          <View style={styles.statItem}>
-            <Ionicons name="barbell-outline" size={22} color={colors.primary} />
-            <Text style={styles.statValue}>{exerciseCount || totalSets}</Text>
-            <Text style={styles.statName}>{exerciseCount ? 'exercícios' : 'séries'}</Text>
+      {/* ── RESUMO PREMIUM DO TREINO ── */}
+      <View testID={WORKOUT_COMPLETE_TEST_IDS.summaryCard} style={styles.summaryCard}>
+        <Text style={styles.summaryTitle}>{summary.title}</Text>
+        <Text style={styles.summarySubtitle}>{summary.subtitle}</Text>
+
+        <View style={styles.summaryStatsGrid}>
+          <View style={styles.summaryStatBlock}>
+            <Text style={styles.summaryStatLabel}>{summary.durationLabel}</Text>
+            <Text testID={WORKOUT_COMPLETE_TEST_IDS.duration} style={styles.summaryStatValue}>
+              {summary.durationValue}
+            </Text>
           </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Ionicons name="time-outline" size={22} color={colors.secondary} />
-            <Text style={styles.statValue}>{sessionDurationMinutes}</Text>
-            <Text style={styles.statName}>minutos</Text>
+          <View style={styles.summaryStatBlock}>
+            <Text style={styles.summaryStatLabel}>{summary.exercisesLabel}</Text>
+            <Text testID={WORKOUT_COMPLETE_TEST_IDS.exercises} style={styles.summaryStatValue}>
+              {summary.exercisesValue}
+            </Text>
           </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Ionicons name="flame-outline" size={22} color={colors.warning} />
-            <Text style={styles.statValue}>{streak}</Text>
-            <Text style={styles.statName}>{streak === 1 ? 'dia seguido' : 'dias seguidos'}</Text>
+          <View style={styles.summaryStatBlock}>
+            <Text style={styles.summaryStatLabel}>{summary.setsLabel}</Text>
+            <Text testID={WORKOUT_COMPLETE_TEST_IDS.sets} style={styles.summaryStatValue}>
+              {summary.setsValue}
+            </Text>
           </View>
+          {summary.showVolume ? (
+            <View style={styles.summaryStatBlock}>
+              <Text style={styles.summaryStatLabel}>{summary.volumeLabel}</Text>
+              <Text testID={WORKOUT_COMPLETE_TEST_IDS.volume} style={styles.summaryStatValue}>
+                {summary.volumeValue}
+              </Text>
+            </View>
+          ) : null}
         </View>
-        <View style={styles.impactRow}>
-          <Text style={styles.impactText}>Carga total: {safeVolume.toLocaleString()} kg</Text>
-          <Text style={styles.impactText}>XP ganho: +{safeXp}</Text>
+
+        <View style={styles.finishedAtRow}>
+          <Text style={styles.summaryStatLabel}>{summary.finishedAtLabel}</Text>
+          <Text testID={WORKOUT_COMPLETE_TEST_IDS.finishedAt} style={styles.finishedAtValue}>
+            {summary.finishedAtValue}
+          </Text>
+        </View>
+
+        <View style={styles.exerciseListSection}>
+          <Text style={styles.summaryStatLabel}>Exercícios realizados</Text>
+          <Text testID={WORKOUT_COMPLETE_TEST_IDS.exerciseList} style={styles.exerciseListText}>
+            {summary.exerciseList.displayText}
+          </Text>
+        </View>
+
+        <View style={styles.streakRow}>
+          <View style={styles.statItem}>
+            <Ionicons name="flame-outline" size={20} color={colors.warning} />
+            <Text style={styles.streakValue}>{streak}</Text>
+            <Text style={styles.streakLabel}>{streak === 1 ? 'dia seguido' : 'dias seguidos'}</Text>
+          </View>
         </View>
       </View>
 
@@ -185,21 +247,21 @@ export default function WorkoutCompleteScreen({ route, navigation }) {
       {/* ── CTAs ── */}
       <View style={styles.actions}>
         <TouchableOpacity
-          testID="btn-complete-continuar-amanha"
+          testID={WORKOUT_COMPLETE_TEST_IDS.btnHome}
           style={[styles.btn, styles.btnPrimary]}
           onPress={() => navigation.navigate('MainTabs', { screen: 'Home' })}
         >
-          <Ionicons name="calendar-outline" size={18} color="#fff" />
-          <Text style={styles.btnPrimaryText}>Continuar amanhã</Text>
+          <Ionicons name="home-outline" size={18} color="#fff" />
+          <Text style={styles.btnPrimaryText}>{summary.copy.btnHome}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          testID="btn-complete-ver-evolucao"
+          testID={WORKOUT_COMPLETE_TEST_IDS.btnHistory}
           style={[styles.btn, styles.btnSecondary]}
           onPress={() => navigation.navigate('Historico')}
         >
-          <Ionicons name="trending-up-outline" size={18} color={colors.primary} />
-          <Text style={styles.btnSecondaryText}>Ver evolução</Text>
+          <Ionicons name="time-outline" size={18} color={colors.primary} />
+          <Text style={styles.btnSecondaryText}>{summary.copy.btnHistory}</Text>
         </TouchableOpacity>
       </View>
 
@@ -221,7 +283,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  // CONQUISTA
   conquestCard: {
     alignItems: 'center',
     paddingVertical: spacing.lg,
@@ -261,7 +322,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
 
-  // RESUMO
   summaryCard: {
     width: '100%',
     backgroundColor: colors.card,
@@ -275,55 +335,96 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
   },
-  summaryLabel: {
+  summaryTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: colors.textPrimary,
+    textAlign: 'center',
+    letterSpacing: -0.5,
+  },
+  summarySubtitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: spacing.xxs,
+    marginBottom: spacing.md,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  summaryStatsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  summaryStatBlock: {
+    width: '47%',
+    backgroundColor: colors.background,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    padding: spacing.sm,
+  },
+  summaryStatLabel: {
     fontSize: 11,
     fontWeight: '700',
     color: colors.textMuted,
-    letterSpacing: 0.8,
     textTransform: 'uppercase',
-    marginBottom: spacing.md,
-    textAlign: 'center',
+    letterSpacing: 0.4,
+    marginBottom: spacing.xxs,
   },
-  statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-    gap: spacing.xxs,
-  },
-  statDivider: {
-    width: 1,
-    height: 50,
-    backgroundColor: colors.border,
-  },
-  statValue: {
-    fontSize: 24,
+  summaryStatValue: {
+    fontSize: 20,
     fontWeight: '900',
     color: colors.textPrimary,
-    letterSpacing: -0.8,
+    letterSpacing: -0.5,
   },
-  statName: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-  },
-  impactRow: {
+  finishedAtRow: {
     marginTop: spacing.md,
     paddingTop: spacing.sm,
     borderTopWidth: 1,
     borderTopColor: colors.borderSubtle,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
   },
-  impactText: {
+  finishedAtValue: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginTop: spacing.xxs,
+  },
+  exerciseListSection: {
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
+  },
+  exerciseListText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 20,
+    marginTop: spacing.xxs,
+    fontWeight: '600',
+  },
+  streakRow: {
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
+    alignItems: 'center',
+  },
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  streakValue: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: colors.textPrimary,
+  },
+  streakLabel: {
     fontSize: 12,
     color: colors.textSecondary,
-    fontWeight: '700',
+    fontWeight: '600',
   },
 
   directionCard: {
@@ -368,7 +469,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  // EVOLUÇÃO
   evolutionCard: {
     width: '100%',
     backgroundColor: colors.card,
@@ -416,7 +516,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.danger,
   },
 
-  // AÇÕES
   actions: {
     width: '100%',
     gap: spacing.sm,

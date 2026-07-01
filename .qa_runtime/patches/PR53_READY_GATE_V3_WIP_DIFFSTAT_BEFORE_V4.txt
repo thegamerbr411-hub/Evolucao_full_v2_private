@@ -1,0 +1,3 @@
+﻿ .qa_runtime/logs/EVOLUCAO_HEVY_UX_LOTE_C_FOR_CHATGPT.md | 2 +-
+ qa/audit-release-sync-report.json                       | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

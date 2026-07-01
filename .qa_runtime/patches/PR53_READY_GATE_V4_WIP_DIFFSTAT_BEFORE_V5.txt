@@ -1,0 +1,4 @@
+﻿ .qa_runtime/handoff/TO_CHATGPT.md                       | 2 +-
+ .qa_runtime/logs/EVOLUCAO_HEVY_UX_LOTE_C_FOR_CHATGPT.md | 2 +-
+ qa/audit-release-sync-report.json                       | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

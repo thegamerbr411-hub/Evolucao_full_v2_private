@@ -1,0 +1,15 @@
+﻿5b25f33 test(workout): close Hevy UX Lote C visual QA
+1beafd3 test(workout): add PR53 visual QA V3 sandbox script and ready gate docs
+c4656b7 feat(workout): add premium session summary flow
+19cc195 Merge PR #52: polish residual deep copy after PR51
+48b1782 fix(ui): polish residual deep copy after PR51
+306ae9a Merge PR #51: polish post-QA copy and route labels
+670aaf5 fix(ui): polish post-QA copy and secondary route labels
+30f7d8b Merge PR #50: add guided rest timer polish
+28df9e4 feat(workout): add rest timer guided logging polish
+28c9b21 Merge PR #49: improve guided logging UX
+905eeb6 feat(workout): improve guided logging UX
+848e9b2 Merge pull request #48 from thegamerbr411-hub/fix/p2-nutritionscanner-copy-polish
+7c21946 fix(ui): polish NutritionScanner P2 copy
+1e1db86 Merge pull request #47 from thegamerbr411-hub/fix/p2-lote3-final-polish
+78e7239 fix(ui): polish final P2 copy and premium details
