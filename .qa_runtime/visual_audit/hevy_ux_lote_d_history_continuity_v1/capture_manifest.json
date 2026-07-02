@@ -1,0 +1,162 @@
+{
+  "sourceOfTruth": "EVOLUCAO_HEVY_UX_LOTE_D_HISTORY_CONTINUITY_DRAFT_PR_VISUAL_PENDING",
+  "verdictTarget": "EVOLUCAO_HEVY_UX_LOTE_D_PR54_READY_GATE_COMPLETE",
+  "branch": "feat/hevy-ux-lote-d-history-continuity",
+  "commit": "6110b349cfb29e90570149ba7e124f7d854d80a9",
+  "serial": "emulator-5554",
+  "package": "com.tipolt.evolucaofullv2",
+  "packageOk": true,
+  "authState": "AUTH_ALREADY_LOGGED_IN",
+  "historyScreenDetected": true,
+  "backendBlockDetected": true,
+  "emptyStateDetected": true,
+  "sessionCardDetected": false,
+  "detailInlineDetected": false,
+  "testIdsDetected": [
+    "screen-history",
+    "history-backend-sessions-panel",
+    "history-empty-state"
+  ],
+  "copyDetected": true,
+  "visualPass": true,
+  "visualLimitation": false,
+  "limitationReason": "",
+  "visualResult": "VISUAL_SANDBOX_PASS_WITH_EMPTY_STATE",
+  "readOnly": true,
+  "noWorkoutFinish": true,
+  "screenshots": [
+    "00_sandbox_preflight.png",
+    "01_sandbox_home.png",
+    "02_sandbox_treino_hub.png",
+    "02_sandbox_history_entry.png",
+    "03_sandbox_history_backend_block_or_empty.png",
+    "04_sandbox_history_session_card.png",
+    "05_sandbox_history_detail_inline.png",
+    "07_sandbox_final_state.png"
+  ],
+  "xmls": [
+    "00_sandbox_preflight.xml",
+    "01_sandbox_home.xml",
+    "02_sandbox_treino_hub.xml",
+    "02_sandbox_history_entry.xml",
+    "03_sandbox_history_backend_block_or_empty.xml",
+    "04_sandbox_history_session_card.xml",
+    "05_sandbox_history_detail_inline.xml",
+    "07_sandbox_final_state.xml"
+  ],
+  "captures": [
+    {
+      "id": "00_sandbox_preflight",
+      "name": "Preflight",
+      "device": "emulator-5554",
+      "package": "com.tipolt.evolucaofullv2",
+      "packageOk": true,
+      "testIds": [],
+      "authState": "AUTH_UNKNOWN_SCREEN",
+      "result": "PREFLIGHT_OK",
+      "action": "preflight",
+      "at": "2026-07-02T18:10:29.017Z"
+    },
+    {
+      "id": "01_sandbox_home",
+      "name": "Home",
+      "device": "emulator-5554",
+      "package": "com.tipolt.evolucaofullv2",
+      "packageOk": true,
+      "testIds": [],
+      "authState": "AUTH_ALREADY_LOGGED_IN",
+      "result": "SANDBOX_OK",
+      "action": "launch+bootstrap",
+      "at": "2026-07-02T18:10:35.363Z"
+    },
+    {
+      "id": "02_sandbox_treino_hub",
+      "name": "Treino hub",
+      "device": "emulator-5554",
+      "package": "com.tipolt.evolucaofullv2",
+      "packageOk": true,
+      "testIds": [],
+      "authState": "AUTH_ALREADY_LOGGED_IN",
+      "result": "SANDBOX_OK",
+      "action": "tab-treino+scroll",
+      "at": "2026-07-02T18:10:47.595Z"
+    },
+    {
+      "id": "02_sandbox_history_entry",
+      "name": "History entry",
+      "device": "emulator-5554",
+      "package": "com.tipolt.evolucaofullv2",
+      "packageOk": true,
+      "testIds": [
+        "screen-history",
+        "history-backend-sessions-panel",
+        "history-empty-state"
+      ],
+      "authState": "AUTH_ALREADY_LOGGED_IN",
+      "result": "HISTORY_REACHED",
+      "action": "history_nav",
+      "at": "2026-07-02T18:11:05.904Z"
+    },
+    {
+      "id": "03_sandbox_history_backend_block_or_empty",
+      "name": "Backend block or empty",
+      "device": "emulator-5554",
+      "package": "com.tipolt.evolucaofullv2",
+      "packageOk": true,
+      "testIds": [
+        "screen-history",
+        "history-backend-sessions-panel",
+        "history-empty-state"
+      ],
+      "authState": "AUTH_ALREADY_LOGGED_IN",
+      "result": "SANDBOX_OK",
+      "action": "scroll backend",
+      "at": "2026-07-02T18:11:13.776Z"
+    },
+    {
+      "id": "04_sandbox_history_session_card",
+      "name": "Session card skipped",
+      "device": "emulator-5554",
+      "package": "com.tipolt.evolucaofullv2",
+      "packageOk": true,
+      "testIds": [
+        "screen-history",
+        "history-backend-sessions-panel",
+        "history-empty-state"
+      ],
+      "authState": "AUTH_ALREADY_LOGGED_IN",
+      "result": "NO_SESSION_CARD_EMPTY_OR_LOADING",
+      "action": "",
+      "at": "2026-07-02T18:11:14.310Z"
+    },
+    {
+      "id": "05_sandbox_history_detail_inline",
+      "name": "Detail skipped",
+      "device": "emulator-5554",
+      "package": "com.tipolt.evolucaofullv2",
+      "packageOk": true,
+      "testIds": [
+        "screen-history",
+        "history-backend-sessions-panel",
+        "history-empty-state"
+      ],
+      "authState": "AUTH_ALREADY_LOGGED_IN",
+      "result": "DETAIL_SKIPPED_NO_CARD",
+      "action": "",
+      "at": "2026-07-02T18:11:14.875Z"
+    },
+    {
+      "id": "07_sandbox_final_state",
+      "name": "Final state",
+      "device": "emulator-5554",
+      "package": "com.tipolt.evolucaofullv2",
+      "packageOk": true,
+      "testIds": [],
+      "authState": "AUTH_ALREADY_LOGGED_IN",
+      "result": "SANDBOX_OK",
+      "action": "back to hub",
+      "at": "2026-07-02T18:11:21.976Z"
+    }
+  ],
+  "at": "2026-07-02T18:11:21.977Z"
+}

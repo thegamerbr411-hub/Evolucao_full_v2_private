@@ -1,0 +1,12 @@
+{
+  "verdictTarget": "EVOLUCAO_HEVY_UX_LOTE_D_HISTORY_CONTINUITY_DRAFT_PR_VISUAL_PENDING",
+  "visualPass": false,
+  "device": "emulator-5554",
+  "package": "com.tipolt.evolucaofullv2",
+  "limitation": "VISUAL_SANDBOX_EMULATOR_PACKAGE_SERVICE_UNAVAILABLE",
+  "error": "adb install/monkey failed: Can't find service: package",
+  "readOnly": true,
+  "noWorkoutFinish": true,
+  "captures": [],
+  "at": "2026-07-02T15:26:00.000Z"
+}

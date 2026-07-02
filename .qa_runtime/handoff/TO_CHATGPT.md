@@ -1,5 +1,101 @@
 # TO_CHATGPT — EVOLUÇÃO
 
+## HEVY UX LOTE D HISTORY CONTINUITY
+- Veredito: EVOLUCAO_HEVY_UX_LOTE_D_HISTORY_CONTINUITY_DRAFT_PR_VISUAL_PENDING
+- Source of truth anterior: EVOLUCAO_PR53_REAL_XML_P2_STILL_LIMITED_NON_BLOCKING
+- Main base: d46ea45e9cdf19e4c7e2af604f0f186a67477876
+- Branch: feat/hevy-ux-lote-d-history-continuity
+- Commit: 3d5dccf
+- PR: Draft (Lote D history continuity)
+- PR status: Draft — visual sandbox pendente (emulator package service)
+- Produto: HistoryScreen backend cards + workoutHistoryPresentation helpers
+- Testes: hevyUxLoteD 8/8 PASS; audit drift 0
+- Audit: PASS drift=0
+- Build: PASS SHA256 9C56DC04D7A6E502E3B48DD080EA4A71739C459E4DCB1FE374B0CCB4C161FBAB
+- Visual sandbox: VISUAL_SANDBOX_EMULATOR_PACKAGE_SERVICE_UNAVAILABLE
+- Real device: 3 PNG read-only RQ8T209ZTAF
+- Device unlock: NOT_USED
+- P0: none
+- P1: none
+- P2: uiautomator XML real limitado; non-blocking
+- P3: workoutFinishFlow + workoutHistoryCapture pré-existentes
+- Release/Play/Internal: NOT_AUTHORIZED
+- Merge: NOT_DONE
+- Próximo passo: revisar PR Draft; re-capturar visual sandbox quando emulator OK
+
+## PR53 REAL DEVICE XML P2 CLOSURE
+- Veredito: EVOLUCAO_PR53_REAL_XML_P2_STILL_LIMITED_NON_BLOCKING
+- Source of truth anterior: EVOLUCAO_PR53_MERGED_MAIN_VALIDATED_ARCHIVE_COMPLETE
+- Main: d46ea45e9cdf19e4c7e2af604f0f186a67477876
+- PR: #53 MERGED
+- Device: RQ8T209ZTAF
+- Objetivo: recuperar XML real read-only ou documentar limitação
+- XML closure: false
+- XML limitation: true
+- Valid XML count: 0/3
+- Capturas: 3 PNG read-only (home, treino hub, perfil/config)
+- Manifest: .qa_runtime/visual_audit/pr53_real_xml_p2_closure/capture_manifest.json
+- firstInstallTime: 2026-06-24 20:27:47 (preserved)
+- lastUpdateTime: 2026-07-01 16:18:31
+- P0: none
+- P1: none
+- P2: uiautomator XML dump continua travando no real; PNG smoke OK; timeout-safe + 1 retry ADB
+- P3: workoutFinishFlow RN import pré-existente; sandbox pós-merge não repetido
+- ZIP addendum: .qa_runtime/exports/EVOLUCAO_STATE_PACKAGE_2026-07-01_PR53_REAL_XML_P2_CLOSURE.zip
+- Release/Play/Internal: NOT_AUTHORIZED
+- Próximo passo: B) próximo lote Hevy UX em PR separado; D) sem release
+
+## PR53 HEVY UX LOTE C MERGED MAIN VALIDATED ARCHIVE
+- Veredito: EVOLUCAO_PR53_MERGED_MAIN_VALIDATED_ARCHIVE_COMPLETE
+- Source of truth anterior: EVOLUCAO_PR53_MERGED_MAIN_VALIDATED
+- Main before: 19cc195fb49add888370174bfe7cba4e02c86010
+- Main atual: d46ea45e9cdf19e4c7e2af604f0f186a67477876
+- PR: #53
+- PR status: MERGED
+- Branch: feat/hevy-ux-lote-c-session-summary
+- Commit V5: 5ba8542414677e83233c79ef8b5ca73713806e41
+- Merge commit: d46ea45e9cdf19e4c7e2af604f0f186a67477876
+- Visual V5: PASS, visualPass=true
+- screen-workout-complete: CAPTURED
+- Summary card: PASS
+- CTAs: PASS
+- Histórico: HISTORY_REACHED step 11
+- Build post-merge: PASS
+- APK SHA256: 0BC8AF9533EDBF35165610DD806144C226C123265AF3F824AFB959B4C78A7067
+- Real device: RQ8T209ZTAF read-only smoke PASS via PNG
+- firstInstallTime: 2026-06-24 20:27:47
+- lastUpdateTime: 2026-07-01 16:18:31
+- P0: none
+- P1: none
+- P2: uiautomator XML dump travou no real; PNG smoke OK
+- P3: workoutFinishFlow RN import pré-existente; sandbox pós-merge opcional não repetido
+- ZIP archive: .qa_runtime/exports/EVOLUCAO_STATE_PACKAGE_2026-07-01_PR53_MERGED_MAIN_VALIDATED_ARCHIVE.zip
+- ZIP archive SHA256: 6C033581B2A65322A7494D8A51ABE58AE01F8740583B036890E066E5F9A6B0BD (sidecar externo)
+- Release/Play/Internal: NOT_AUTHORIZED
+- Próximo passo: Felipe escolher A/B/C/D/E
+
+## PR53 HEVY UX LOTE C MERGED MAIN VALIDATED
+- Veredito: **EVOLUCAO_PR53_MERGED_MAIN_VALIDATED**
+- Source of truth anterior: EVOLUCAO_HEVY_UX_LOTE_C_PR53_VISUAL_V5_READY_GATE_COMPLETE
+- Main before: 19cc195fb49add888370174bfe7cba4e02c86010
+- Main after: d46ea45e9cdf19e4c7e2af604f0f186a67477876
+- PR: #53
+- PR status: **MERGED**
+- Branch: feat/hevy-ux-lote-c-session-summary
+- Commit V5: 5ba8542414677e83233c79ef8b5ca73713806e41
+- Merge commit: d46ea45e9cdf19e4c7e2af604f0f186a67477876
+- Visual V5: PASS (screen-workout-complete + summary + CTAs + Histórico)
+- Build post-merge: SHA256 0BC8AF9533EDBF35165610DD806144C226C123265AF3F824AFB959B4C78A7067
+- Real device: 3 read-only PNG smoke captures
+- firstInstallTime: 2026-06-24 20:27:47 (preserved)
+- lastUpdateTime: 2026-07-01 16:18:31
+- P0: none
+- P1: none
+- P2: uiautomator dump hung on real — PNG smoke OK via screencap
+- P3: workoutFinishFlow pre-existing; sandbox post-merge skipped
+- Release/Play/Internal: NOT_AUTHORIZED
+- Próximo passo: arquivar ZIP local; próximo lote em PR separado; sem release
+
 ## PR53 HEVY UX LOTE C VISUAL V5 READY GATE
 - Veredito: **EVOLUCAO_HEVY_UX_LOTE_C_PR53_VISUAL_V5_READY_GATE_COMPLETE**
 - Source of truth anterior: EVOLUCAO_HEVY_UX_LOTE_C_PR53_AUTH_REQUIRED_FOR_VISUAL_QA

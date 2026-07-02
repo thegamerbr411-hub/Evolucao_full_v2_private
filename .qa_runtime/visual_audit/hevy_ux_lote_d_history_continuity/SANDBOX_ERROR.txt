@@ -1,0 +1,1 @@
+Command failed: C:\Users\USER\AppData\Local\Android\Sdk\platform-tools\adb.exe -s emulator-5554 shell monkey -p com.tipolt.evolucaofullv2 -c android.intent.category.LAUNCHER 1
