@@ -4,11 +4,34 @@ param(
   [string]$OutDir = ".qa_runtime\visual_audit\hevy_ux_lote_d_real_device_read_only"
 )
 $adb = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
+$logPath = Join-Path $OutDir "capture_run.log"
 New-Item -ItemType Directory -Force $OutDir | Out-Null
 $unlockUsed = $false
+$unlockStatus = "NOT_USED"
+
 function Capture($name) {
   & $adb -s $Serial exec-out screencap -p > (Join-Path $OutDir "$name.png")
 }
+
+function TryUnlockIfNeeded {
+  param([string]$ForegroundXml)
+  if ($ForegroundXml -match [regex]::Escape($Package)) { return }
+  & $adb -s $Serial shell input keyevent KEYCODE_WAKEUP | Out-Null
+  & $adb -s $Serial shell input keyevent 82 | Out-Null
+  Start-Sleep -Seconds 1
+  $pin = $env:EVO_DEVICE_UNLOCK_PIN
+  if ([string]::IsNullOrWhiteSpace($pin)) {
+    "DEVICE_UNLOCK_PIN_NOT_AVAILABLE_SKIP_UNLOCK" | Out-File $logPath -Append -Encoding UTF8
+    return
+  }
+  "DEVICE_UNLOCK_PIN_USED_MASKED" | Out-File $logPath -Append -Encoding UTF8
+  & $adb -s $Serial shell input text $pin | Out-Null
+  & $adb -s $Serial shell input keyevent 66 | Out-Null
+  $script:unlockUsed = $true
+  $script:unlockStatus = "DEVICE_UNLOCK_PIN_USED_MASKED"
+  Start-Sleep -Seconds 2
+}
+
 $state = & $adb -s $Serial get-state 2>&1
 if ($state -notmatch 'device') { throw 'DEVICE_UNAVAILABLE' }
 & $adb -s $Serial shell monkey -p $Package 1 | Out-Null
@@ -18,15 +41,8 @@ Capture "01_real_home"
 Start-Sleep -Seconds 2
 Capture "02_real_treino_hub"
 $xml = & $adb -s $Serial shell dumpsys window 2>&1 | Out-String
-if ($xml -notmatch $Package) {
-  # masked unlock path only if needed
-  & $adb -s $Serial shell input keyevent KEYCODE_WAKEUP | Out-Null
-  & $adb -s $Serial shell input keyevent 82 | Out-Null
-  Start-Sleep -Seconds 1
-  & $adb -s $Serial shell input text "0611" | Out-Null
-  & $adb -s $Serial shell input keyevent 66 | Out-Null
-  $unlockUsed = $true
-  Start-Sleep -Seconds 2
+TryUnlockIfNeeded -ForegroundXml $xml
+if ($unlockUsed) {
   & $adb -s $Serial shell monkey -p $Package 1 | Out-Null
   Start-Sleep -Seconds 3
   & $adb -s $Serial shell input tap 270 2116
@@ -40,6 +56,6 @@ Capture "03_real_history_attempt"
 @{
   device = $Serial
   readOnly = $true
-  deviceUnlockPin = $(if ($unlockUsed) { 'DEVICE_UNLOCK_PIN_USED_MASKED' } else { 'NOT_USED' })
+  deviceUnlockPin = $unlockStatus
   at = (Get-Date).ToUniversalTime().ToString('o')
 } | ConvertTo-Json | Set-Content (Join-Path $OutDir 'capture_manifest.json') -Encoding UTF8
