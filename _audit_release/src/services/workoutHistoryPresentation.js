@@ -5,6 +5,135 @@ import {
   sortWorkoutLogsNewestFirst,
 } from './workoutHistoryFlow.js';
 import { sanitizeWorkoutLogsForRead } from './workoutLogIntegrity.js';
+import {
+  WORKOUT_COMPLETE_COPY,
+  buildCompactExerciseList,
+  formatWorkoutFinishedAt,
+} from './workoutSessionSummary.js';
+
+export const HISTORY_SESSION_TEST_IDS = {
+  emptyState: 'history-empty-state',
+  sessionCard: 'history-session-card',
+  sessionTitle: 'history-session-title',
+  sessionDate: 'history-session-date',
+  sessionDuration: 'history-session-duration',
+  sessionExercises: 'history-session-exercises',
+  sessionSets: 'history-session-sets',
+  sessionDetail: 'history-session-detail',
+  sessionDetailCard: 'history-session-detail-card',
+  sessionDetailExerciseList: 'history-session-detail-exercise-list',
+  btnOpenDetail: 'btn-history-session-open-detail',
+  btnBack: 'btn-history-session-back',
+};
+
+export const HISTORY_SESSION_COPY = {
+  sectionTitle: 'Treinos salvos',
+  emptyState: 'Seu histórico aparece aqui. Finalize um treino para ver suas séries, cargas e evolução.',
+  detailTitle: 'Resumo do treino',
+  loading: 'Carregando treinos salvos...',
+  fallbackTitle: 'Treino',
+  duration: WORKOUT_COMPLETE_COPY.duration,
+  exercises: WORKOUT_COMPLETE_COPY.exercises,
+  sets: 'Séries',
+  volume: WORKOUT_COMPLETE_COPY.volume,
+  finishedAt: WORKOUT_COMPLETE_COPY.finishedAt,
+};
+
+function toSafeNumber(value, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function resolveWorkoutFinishedAt(workout = {}) {
+  const raw = workout?.finishedAt || workout?.createdAt || workout?.dateKey;
+  if (!raw) {
+    return null;
+  }
+  if (String(workout?.dateKey || '').length >= 10 && !workout?.finishedAt && !workout?.createdAt) {
+    return `${String(workout.dateKey).slice(0, 10)}T12:00:00.000Z`;
+  }
+  return raw;
+}
+
+function extractExerciseNames(exercises = []) {
+  if (!Array.isArray(exercises)) {
+    return [];
+  }
+  return exercises
+    .map((item) => {
+      if (typeof item === 'string') {
+        return item.trim();
+      }
+      return String(item?.name || item?.exerciseName || '').trim();
+    })
+    .filter(Boolean);
+}
+
+export function buildRemoteWorkoutSessionCard(workout = {}) {
+  const safeWorkout = workout && typeof workout === 'object' ? { ...workout } : {};
+  const title = String(safeWorkout.name || '').trim() || HISTORY_SESSION_COPY.fallbackTitle;
+  const finishedAt = resolveWorkoutFinishedAt(safeWorkout);
+  const dateValue = String(safeWorkout.dateKey || safeWorkout.createdAt || '').slice(0, 10);
+  const dateLabel = finishedAt
+    ? formatWorkoutFinishedAt(finishedAt)
+    : (dateValue || '—');
+  const durationMinutes = Math.max(0, toSafeNumber(safeWorkout.durationMinutes, 0));
+  const exerciseCount = extractExerciseNames(safeWorkout.exercises).length;
+  const totalSets = Math.max(0, toSafeNumber(safeWorkout.totalSets, 0));
+  const totalVolume = Math.max(0, toSafeNumber(safeWorkout.totalVolume, 0));
+  const durationValue = durationMinutes > 0 ? `${durationMinutes} min` : '—';
+  const exercisesValue = exerciseCount > 0 ? String(exerciseCount) : '—';
+  const setsValue = totalSets > 0 ? String(totalSets) : '—';
+  const volumeValue = totalVolume > 0
+    ? `${Math.round(totalVolume).toLocaleString('pt-BR')} kg`
+    : '—';
+  const metaParts = [dateLabel];
+  if (setsValue !== '—') {
+    metaParts.push(`${setsValue} séries`);
+  }
+  if (totalVolume > 0) {
+    metaParts.push(volumeValue);
+  }
+
+  return {
+    id: String(safeWorkout.id || `${title}-${dateValue}`),
+    title,
+    dateLabel,
+    dateValue,
+    durationValue,
+    exercisesValue,
+    setsValue,
+    volumeValue,
+    showVolume: totalVolume > 0,
+    metaLine: metaParts.join(' · '),
+    labels: {
+      duration: HISTORY_SESSION_COPY.duration,
+      exercises: HISTORY_SESSION_COPY.exercises,
+      sets: HISTORY_SESSION_COPY.sets,
+      volume: HISTORY_SESSION_COPY.volume,
+      finishedAt: HISTORY_SESSION_COPY.finishedAt,
+    },
+    isPurePresentation: true,
+  };
+}
+
+export function buildRemoteWorkoutSessionDetail(workout = {}) {
+  const card = buildRemoteWorkoutSessionCard(workout);
+  const safeWorkout = workout && typeof workout === 'object' ? { ...workout } : {};
+  const exerciseNames = extractExerciseNames(safeWorkout.exercises);
+  const exerciseList = buildCompactExerciseList(exerciseNames);
+  const finishedAt = resolveWorkoutFinishedAt(safeWorkout);
+
+  return {
+    ...card,
+    detailTitle: HISTORY_SESSION_COPY.detailTitle,
+    finishedAtValue: finishedAt ? formatWorkoutFinishedAt(finishedAt) : card.dateLabel,
+    exerciseList,
+    exerciseCount: exerciseNames.length,
+    hasExerciseList: exerciseNames.length > 0,
+    isPurePresentation: true,
+  };
+}
 
 function formatDateLabel(dateValue = '') {
   const raw = String(dateValue || '').trim();

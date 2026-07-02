@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { useWorkout } from '../hooks';
-import { buildLocalWorkoutLogsPresentation } from '../services/workoutHistoryPresentation';
+import { buildLocalWorkoutLogsPresentation, buildRemoteWorkoutSessionCard, buildRemoteWorkoutSessionDetail, HISTORY_SESSION_COPY, HISTORY_SESSION_TEST_IDS } from '../services/workoutHistoryPresentation';
 import { AppCard, PrimaryButton, ScreenHeader } from '../components/ui';
 import { colors, spacing } from '../theme';
 import { listUserWorkoutsFromApi } from '../services/workoutApiService';
@@ -50,6 +50,10 @@ export default function HistoryScreen({ navigation }) {
   const selectedWorkout = useMemo(
     () => remoteWorkouts.find((item) => String(item.id) === String(selectedWorkoutId)) || null,
     [remoteWorkouts, selectedWorkoutId]
+  );
+  const selectedWorkoutDetail = useMemo(
+    () => (selectedWorkout ? buildRemoteWorkoutSessionDetail(selectedWorkout) : null),
+    [selectedWorkout]
   );
 
   useEffect(() => {
@@ -136,30 +140,103 @@ export default function HistoryScreen({ navigation }) {
         )}
       </AppCard>
 
-      <AppCard>
-        <Text style={styles.summaryTitle}>Histórico real (backend)</Text>
-        {remoteLoading ? <Text style={styles.summaryLine}>Carregando treinos salvos...</Text> : null}
+      <AppCard testID="history-backend-sessions-panel">
+        <Text style={styles.summaryTitle}>{HISTORY_SESSION_COPY.sectionTitle}</Text>
+        {remoteLoading ? <Text style={styles.summaryLine}>{HISTORY_SESSION_COPY.loading}</Text> : null}
         {!remoteLoading && !remoteWorkouts.length ? (
-          <Text style={styles.empty}>Seu histórico aparece aqui. Finalize um treino para ver suas séries, cargas e evolução.</Text>
+          <Text testID={HISTORY_SESSION_TEST_IDS.emptyState} style={styles.empty}>
+            {HISTORY_SESSION_COPY.emptyState}
+          </Text>
         ) : null}
         {!remoteLoading && remoteWorkouts.length ? (
-          remoteWorkouts.map((item) => (
-            <TouchableOpacity key={item.id} style={styles.remoteRow} onPress={() => setSelectedWorkoutId(String(item.id))}>
-              <Text style={styles.remoteTitle}>{item.name || 'Treino'}</Text>
-              <Text style={styles.remoteMeta}>{item.dateKey || String(item.createdAt || '').slice(0, 10)} · {Number(item.totalSets || 0)} series · {Math.round(Number(item.totalVolume || 0))}kg</Text>
+          remoteWorkouts.map((workout) => {
+            const card = buildRemoteWorkoutSessionCard(workout);
+            return (
+            <TouchableOpacity
+              key={String(workout.id || card.id)}
+              testID={HISTORY_SESSION_TEST_IDS.sessionCard}
+              accessibilityLabel={HISTORY_SESSION_TEST_IDS.btnOpenDetail}
+              style={styles.sessionCard}
+              onPress={() => setSelectedWorkoutId(String(workout.id))}
+            >
+              <Text testID={HISTORY_SESSION_TEST_IDS.sessionTitle} style={styles.sessionTitle}>
+                {card.title}
+              </Text>
+              <Text testID={HISTORY_SESSION_TEST_IDS.sessionDate} style={styles.sessionMeta}>
+                {card.metaLine}
+              </Text>
+              <View style={styles.sessionStatsRow}>
+                <View style={styles.sessionStatBlock}>
+                  <Text style={styles.sessionStatLabel}>{card.labels.duration}</Text>
+                  <Text testID={HISTORY_SESSION_TEST_IDS.sessionDuration} style={styles.sessionStatValue}>
+                    {card.durationValue}
+                  </Text>
+                </View>
+                <View style={styles.sessionStatBlock}>
+                  <Text style={styles.sessionStatLabel}>{card.labels.exercises}</Text>
+                  <Text testID={HISTORY_SESSION_TEST_IDS.sessionExercises} style={styles.sessionStatValue}>
+                    {card.exercisesValue}
+                  </Text>
+                </View>
+                <View style={styles.sessionStatBlock}>
+                  <Text style={styles.sessionStatLabel}>{card.labels.sets}</Text>
+                  <Text testID={HISTORY_SESSION_TEST_IDS.sessionSets} style={styles.sessionStatValue}>
+                    {card.setsValue}
+                  </Text>
+                </View>
+              </View>
             </TouchableOpacity>
-          ))
+            );
+          })
         ) : null}
       </AppCard>
 
-      {selectedWorkout ? (
-        <AppCard>
-          <Text style={styles.summaryTitle}>Detalhe do treino</Text>
-          <Text style={styles.summaryLine}>Nome: {selectedWorkout.name || 'Treino'}</Text>
-          <Text style={styles.summaryLine}>Data: {selectedWorkout.dateKey || String(selectedWorkout.createdAt || '').slice(0, 10)}</Text>
-          <Text style={styles.summaryLine}>Volume: {Math.round(Number(selectedWorkout.totalVolume || 0))} kg</Text>
-          <Text style={styles.summaryLine}>Duracao: {Number(selectedWorkout.durationMinutes || 0)} min</Text>
-          <Text style={styles.summaryLine}>Exercicios: {Array.isArray(selectedWorkout.exercises) ? selectedWorkout.exercises.length : 0}</Text>
+      {selectedWorkoutDetail ? (
+        <AppCard testID={HISTORY_SESSION_TEST_IDS.sessionDetail}>
+          <View testID={HISTORY_SESSION_TEST_IDS.sessionDetailCard} style={styles.detailCard}>
+            <Text style={styles.summaryTitle}>{selectedWorkoutDetail.detailTitle}</Text>
+            <Text style={styles.sessionTitle}>{selectedWorkoutDetail.title}</Text>
+
+            <View style={styles.detailMetricRow}>
+              <Text style={styles.sessionStatLabel}>{selectedWorkoutDetail.labels.finishedAt}</Text>
+              <Text style={styles.detailMetricValue}>{selectedWorkoutDetail.finishedAtValue}</Text>
+            </View>
+            <View style={styles.detailMetricRow}>
+              <Text style={styles.sessionStatLabel}>{selectedWorkoutDetail.labels.duration}</Text>
+              <Text style={styles.detailMetricValue}>{selectedWorkoutDetail.durationValue}</Text>
+            </View>
+            <View style={styles.detailMetricRow}>
+              <Text style={styles.sessionStatLabel}>{selectedWorkoutDetail.labels.exercises}</Text>
+              <Text style={styles.detailMetricValue}>{selectedWorkoutDetail.exercisesValue}</Text>
+            </View>
+            <View style={styles.detailMetricRow}>
+              <Text style={styles.sessionStatLabel}>{selectedWorkoutDetail.labels.sets}</Text>
+              <Text style={styles.detailMetricValue}>{selectedWorkoutDetail.setsValue}</Text>
+            </View>
+            {selectedWorkoutDetail.showVolume ? (
+              <View style={styles.detailMetricRow}>
+                <Text style={styles.sessionStatLabel}>{selectedWorkoutDetail.labels.volume}</Text>
+                <Text style={styles.detailMetricValue}>{selectedWorkoutDetail.volumeValue}</Text>
+              </View>
+            ) : null}
+
+            {selectedWorkoutDetail.hasExerciseList ? (
+              <View style={styles.detailExerciseSection}>
+                <Text style={styles.sessionStatLabel}>{selectedWorkoutDetail.labels.exercises}</Text>
+                <Text testID={HISTORY_SESSION_TEST_IDS.sessionDetailExerciseList} style={styles.detailExerciseList}>
+                  {selectedWorkoutDetail.exerciseList.displayText}
+                </Text>
+              </View>
+            ) : null}
+
+            <TouchableOpacity
+              testID={HISTORY_SESSION_TEST_IDS.btnBack}
+              style={styles.detailBackButton}
+              onPress={() => setSelectedWorkoutId('')}
+            >
+              <Text style={styles.detailBackText}>Voltar para treinos salvos</Text>
+            </TouchableOpacity>
+          </View>
         </AppCard>
       ) : null}
     </ScrollView>
@@ -239,6 +316,91 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginBottom: 8,
+  },
+  sessionCard: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    backgroundColor: colors.card,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 10,
+  },
+  sessionTitle: {
+    color: colors.textPrimary,
+    fontWeight: '800',
+    fontSize: 15,
+    letterSpacing: -0.2,
+  },
+  sessionMeta: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    marginTop: 4,
+    fontWeight: '600',
+  },
+  sessionStatsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 10,
+  },
+  sessionStatBlock: {
+    minWidth: '30%',
+    backgroundColor: colors.background,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle || colors.border,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  sessionStatLabel: {
+    color: colors.textMuted,
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    marginBottom: 2,
+  },
+  sessionStatValue: {
+    color: colors.textPrimary,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  detailCard: {
+    gap: 4,
+  },
+  detailMetricRow: {
+    marginTop: 8,
+  },
+  detailMetricValue: {
+    color: colors.textPrimary,
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  detailExerciseSection: {
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle || colors.border,
+  },
+  detailExerciseList: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    lineHeight: 20,
+    marginTop: 4,
+    fontWeight: '600',
+  },
+  detailBackButton: {
+    marginTop: 14,
+    alignSelf: 'flex-start',
+    paddingVertical: 8,
+    paddingHorizontal: 2,
+  },
+  detailBackText: {
+    color: colors.primary,
+    fontWeight: '800',
+    fontSize: 13,
   },
   remoteTitle: {
     color: colors.textPrimary,
